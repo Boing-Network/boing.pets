@@ -1,7 +1,7 @@
 import * as ed from "@noble/ed25519";
 import { blake3 } from "@noble/hashes/blake3";
 import { hexToBytes } from "@noble/hashes/utils";
-import { dayOf, hex32, state, traits, type Pet } from "../src/core";
+import { DAY, dayOf, hex32, state, traits, type Pet } from "../src/core";
 import {
   bondTx,
   deployKennelTx,
@@ -17,13 +17,16 @@ import {
 import {
   BOND_AMOUNT,
   BUILDINGS,
+  FIELD_RADIUS,
   buildingOf,
   dailyRate,
+  evolutionStage,
   isYardAction,
   online,
   previewKibble,
   yardSpot,
   type Building,
+  type Skill,
   type YardAction,
 } from "../src/tycoon";
 import { includedTx, type Receipt, type RpcBlock } from "./proof";
@@ -37,7 +40,7 @@ export class YardError extends Error {
   }
 }
 
-type Detail = { contract?: string; tokenId?: string; nonce?: number; kind?: Building };
+type Detail = { contract?: string; tokenId?: string; nonce?: number; kind?: Building; skill?: Skill };
 
 async function rpc<T>(env: Env, method: string, params: unknown[] = []): Promise<T> {
   try {
@@ -73,13 +76,32 @@ async function buildings(env: Env, owner: string) {
   return rows.results.map((row) => row.kind);
 }
 
+async function skillBook(env: Env, owner: string, now: number) {
+  const rows = await env.DB.prepare("SELECT skill,points,last_day FROM skills WHERE owner=?").bind(owner).all<{
+    skill: Skill;
+    points: number;
+    last_day: number;
+  }>();
+  const book = { forage: 0, greet: 0, play: 0 };
+  const practiced: Skill[] = [];
+  let sum = 0;
+  for (const row of rows.results) {
+    book[row.skill] = row.points;
+    sum += row.points;
+    if (row.last_day === dayOf(now)) practiced.push(row.skill);
+  }
+  return { book, sum, practiced };
+}
+
 async function rateFor(
   env: Env,
   owner: string,
   petState: { hunger: number; happiness: number; status: string },
+  now: number,
 ) {
   const nft = await env.DB.prepare("SELECT staked FROM pet_nfts WHERE owner=?").bind(owner).first<{ staked: number }>();
   const yard = await env.DB.prepare("SELECT bonded FROM yards WHERE owner=?").bind(owner).first<{ bonded: number }>();
+  const skills = await skillBook(env, owner, now);
   return dailyRate({
     hunger: petState.hunger,
     happiness: petState.happiness,
@@ -87,13 +109,19 @@ async function rateFor(
     buildings: await buildings(env, owner),
     nftStaked: nft?.staked === 1,
     bonded: yard?.bonded === 1,
+    ...skills.book,
   });
 }
 
 export async function yardState(env: Env, viewer: string | null, now: number) {
   const pets = await env.DB.prepare("SELECT * FROM pets ORDER BY created_at DESC LIMIT 24").all<Pet>();
-  const seen = await env.DB.prepare("SELECT owner,seen_at FROM presence").all<{ owner: string; seen_at: number }>();
-  const here = new Map(seen.results.map((row) => [row.owner, row.seen_at]));
+  const seen = await env.DB.prepare("SELECT owner,seen_at,x,z FROM presence").all<{
+    owner: string;
+    seen_at: number;
+    x: number | null;
+    z: number | null;
+  }>();
+  const here = new Map(seen.results.map((row) => [row.owner, row]));
   const collection = await kennel(env);
   const roster = await Promise.all(
     pets.results.map(async (pet) => {
@@ -104,13 +132,20 @@ export async function yardState(env: Env, viewer: string | null, now: number) {
       const nft = await env.DB.prepare("SELECT staked,token_id,contract FROM pet_nfts WHERE owner=?")
         .bind(pet.owner)
         .first<{ staked: number; token_id: string; contract: string }>();
+      const skills = await skillBook(env, pet.owner, now);
+      const place = here.get(pet.owner);
       return {
         owner: pet.owner,
         hatch_tx: pet.hatch_tx,
         traits: traits(pet.owner, pet.hatch_tx),
         state: petState,
-        spot: yardSpot(pet.owner),
-        online: online(here.get(pet.owner) ?? null, now),
+        stage: evolutionStage(now - pet.created_at, events.results.length, skills.sum),
+        wandered: place?.x !== null && place?.x !== undefined && place.z !== null && place.z !== undefined,
+        spot:
+          place?.x !== null && place?.x !== undefined && place.z !== null && place.z !== undefined
+            ? { x: place.x, z: place.z }
+            : yardSpot(pet.owner),
+        online: online(place?.seen_at ?? null, now),
         nft: nft ? { tokenId: nft.token_id, contract: nft.contract, staked: nft.staked === 1 } : null,
         buildings: await buildings(env, pet.owner),
       };
@@ -130,25 +165,15 @@ export async function yardState(env: Env, viewer: string | null, now: number) {
         stored: row?.kibble ?? 0,
         settledAt: row?.settled_at ?? pet.created_at,
         now,
-        ratePerDay: dailyRate({
-          hunger: mine.state.hunger,
-          happiness: mine.state.happiness,
-          status: mine.state.status,
-          buildings: mine.buildings,
-          nftStaked: mine.nft?.staked === true,
-          bonded: row?.bonded === 1,
-        }),
+        ratePerDay: await rateFor(env, viewer, mine.state, now),
       });
+      const skills = await skillBook(env, viewer, now);
       me = {
         kibble: preview.kibble,
-        rate: dailyRate({
-          hunger: mine.state.hunger,
-          happiness: mine.state.happiness,
-          status: mine.state.status,
-          buildings: mine.buildings,
-          nftStaked: mine.nft?.staked === true,
-          bonded: row?.bonded === 1,
-        }),
+        rate: await rateFor(env, viewer, mine.state, now),
+        stage: mine.stage,
+        skills: skills.book,
+        practiced: skills.practiced,
         minted: Boolean(mine.nft),
         staked: mine.nft?.staked === true,
         bonded: row?.bonded === 1,
@@ -208,6 +233,14 @@ async function issue(env: Env, owner: string, action: YardAction, now: number) {
     await assertNftOwner(env, minted.contract, minted.token_id, owner);
     detail = { contract: minted.contract, tokenId: minted.token_id };
   }
+  const skill = action.startsWith("train_") ? (action.slice("train_".length) as Skill) : null;
+  if (skill) {
+    const known = await env.DB.prepare("SELECT last_day FROM skills WHERE owner=? AND skill=?").bind(owner, skill).first<{
+      last_day: number;
+    }>();
+    if (known?.last_day === dayOf(now)) throw new YardError(409, "Already practiced today. Come back after midnight UTC.");
+    detail = { skill };
+  }
   const kind = buildingOf(action);
   if (kind) {
     const owned = await env.DB.prepare("SELECT kind FROM stalls WHERE owner=? AND kind=?").bind(owner, kind).first();
@@ -257,7 +290,7 @@ async function settle(env: Env, owner: string, now: number) {
     stored: row?.kibble ?? 0,
     settledAt: row?.settled_at ?? pet.created_at,
     now,
-    ratePerDay: await rateFor(env, owner, petState),
+    ratePerDay: await rateFor(env, owner, petState, now),
   });
   if (row) {
     await env.DB.prepare("UPDATE yards SET kibble=?,settled_at=? WHERE owner=?").bind(preview.kibble, now, owner).run();
@@ -286,7 +319,9 @@ export async function confirmYard(env: Env, body: Record<string, unknown>, now: 
   const done = await env.DB.prepare("SELECT id FROM yard_events WHERE id=?").bind(row.id).first();
   if (done) return json({ ok: true, alreadyConfirmed: true });
   const detail = JSON.parse(row.detail) as Detail;
-  const signed = ["stake_nft", "unstake_nft", "collect", "buy_pen", "buy_stand", "buy_toy"].includes(row.action);
+  const signed = ["stake_nft", "unstake_nft", "collect", "buy_pen", "buy_stand", "buy_toy", "train_forage", "train_greet", "train_play", "wander"].includes(
+    row.action,
+  );
   let hash: string | null = null;
   if (signed) {
     if (typeof body.signature !== "string" || !/^(0x)?[0-9a-f]{128}$/i.test(body.signature))
@@ -382,12 +417,26 @@ export async function confirmYard(env: Env, body: Record<string, unknown>, now: 
     );
   }
   if (row.action === "collect") await settle(env, row.owner, now);
+  if (detail.skill) {
+    statements.push(
+      env.DB.prepare(
+        "INSERT INTO skills(owner,skill,points,last_day) VALUES(?,?,1,?) ON CONFLICT(owner,skill) DO UPDATE SET points=skills.points+1,last_day=excluded.last_day",
+      ).bind(row.owner, detail.skill, dayOf(now)),
+    );
+  }
+  if (row.action === "wander") {
+    statements.push(
+      env.DB.prepare(
+        "INSERT INTO presence(owner,seen_at,pass,pass_until) VALUES(?,?,?,?) ON CONFLICT(owner) DO UPDATE SET seen_at=excluded.seen_at,pass=excluded.pass,pass_until=excluded.pass_until",
+      ).bind(row.owner, now, row.id, now + DAY),
+    );
+  }
   try {
     await env.DB.batch(statements);
   } catch {
     throw new YardError(409, "That yard action was already recorded");
   }
-  return json({ ok: true });
+  return json({ ok: true, pass: row.action === "wander" ? row.id : undefined });
 }
 
 export async function yardPost(env: Env, body: Record<string, unknown>, path: string, now: number) {
@@ -395,11 +444,29 @@ export async function yardPost(env: Env, body: Record<string, unknown>, path: st
     const owner = hex32(body.owner);
     const pet = await env.DB.prepare("SELECT owner FROM pets WHERE owner=?").bind(owner).first();
     if (!pet) throw new YardError(404, "No buddy for that wallet");
-    await env.DB.prepare(
-      "INSERT INTO presence(owner,seen_at) VALUES(?,?) ON CONFLICT(owner) DO UPDATE SET seen_at=excluded.seen_at",
-    )
-      .bind(owner, now)
-      .run();
+    const x = Number(body.x);
+    const z = Number(body.z);
+    const moving = Number.isFinite(x) && Number.isFinite(z);
+    if (moving) {
+      if (Math.hypot(x, z) > FIELD_RADIUS) throw new YardError(400, "That spot is outside the pasture");
+      const pass = await env.DB.prepare("SELECT pass,pass_until FROM presence WHERE owner=?").bind(owner).first<{
+        pass: string | null;
+        pass_until: number | null;
+      }>();
+      if (!pass?.pass || pass.pass !== body.pass || (pass.pass_until ?? 0) < now)
+        throw new YardError(403, "Sign a short wander pass before walking the pasture");
+      await env.DB.prepare(
+        "UPDATE presence SET seen_at=?,x=?,z=? WHERE owner=?",
+      )
+        .bind(now, x, z, owner)
+        .run();
+    } else {
+      await env.DB.prepare(
+        "INSERT INTO presence(owner,seen_at) VALUES(?,?) ON CONFLICT(owner) DO UPDATE SET seen_at=excluded.seen_at",
+      )
+        .bind(owner, now)
+        .run();
+    }
     return json({ ok: true, now });
   }
   if (path !== "/api/challenge") return null;

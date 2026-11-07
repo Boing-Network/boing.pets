@@ -1,11 +1,13 @@
 import * as THREE from "three";
-import { pasturePlace, yardSpot } from "./tycoon";
+import { FIELD_RADIUS, pasturePlace, stageScale, yardSpot, type Stage } from "./tycoon";
 import type { traits } from "./core";
 
 export interface YardPet {
   owner: string;
   traits: ReturnType<typeof traits>;
   state: { status: string; hunger: number; happiness: number };
+  stage?: Stage;
+  wandered?: boolean;
   spot: { x: number; z: number };
   online: boolean;
   nft: { staked: boolean } | null;
@@ -63,6 +65,7 @@ function addSpecies(group: THREE.Group, pet: YardPet, coat: THREE.Color, mark: T
   body.position.y = species === "Pebblit" ? 0.38 : 0.62;
   body.castShadow = true;
   group.add(body);
+  group.scale.setScalar(stageScale(pet.stage ?? "grown"));
   if (species === "Cloudling") {
     for (const spot of [
       [-0.28, 0.7, 0.1],
@@ -168,9 +171,9 @@ export function mountYard(canvas: HTMLCanvasElement) {
   renderer.shadowMap.enabled = true;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#6f93c4");
-  scene.fog = new THREE.Fog("#6f93c4", 16, 34);
-  const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 80);
-  camera.position.set(0.5, 6.2, 12.5);
+  scene.fog = new THREE.Fog("#6f93c4", 22, 52);
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 90);
+  camera.position.set(0.5, 9, 18);
   camera.lookAt(0, 0.3, 0);
   scene.add(new THREE.HemisphereLight("#d5e6ff", "#3e6a38", 1.15));
   const sun = new THREE.DirectionalLight("#fff1d6", 1.8);
@@ -185,26 +188,57 @@ export function mountYard(canvas: HTMLCanvasElement) {
   scene.add(sun);
   const texture = grassTexture();
   const ground = new THREE.Mesh(
-    new THREE.CircleGeometry(12, 64),
+    new THREE.CircleGeometry(FIELD_RADIUS + 4, 72),
     new THREE.MeshStandardMaterial({ map: texture ?? undefined, color: "#356b3c", roughness: 1 }),
   );
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   scene.add(ground);
-  const fence = new THREE.MeshStandardMaterial({ color: "#d8d2c4", roughness: 0.8 });
-  for (let i = 0; i < 28; i += 1) {
-    const angle = (i / 28) * Math.PI * 2;
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.7, 6), fence);
-    post.position.set(Math.cos(angle) * 11.2, 0.35, Math.sin(angle) * 11.2);
-    post.castShadow = true;
-    scene.add(post);
+  const wood = new THREE.MeshStandardMaterial({ color: "#6e8f52", roughness: 0.9 });
+  for (let i = 0; i < 18; i += 1) {
+    const angle = (i / 18) * Math.PI * 2;
+    const tree = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 1.1, 6), new THREE.MeshStandardMaterial({ color: "#6b4a32", roughness: 0.9 }));
+    trunk.position.y = 0.55;
+    trunk.castShadow = true;
+    const crown = new THREE.Mesh(new THREE.ConeGeometry(0.7, 1.6, 8), wood);
+    crown.position.y = 1.7;
+    crown.castShadow = true;
+    tree.add(trunk, crown);
+    tree.position.set(Math.cos(angle) * 16, 0, Math.sin(angle) * 16);
+    scene.add(tree);
+  }
+  const rock = new THREE.MeshStandardMaterial({ color: "#8d8a84", roughness: 1 });
+  for (let i = 0; i < 7; i += 1) {
+    const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(0.28 + (i % 3) * 0.08), rock);
+    stone.position.set(Math.cos(i * 1.7) * 14, 0.15, Math.sin(i * 2.1) * 16);
+    stone.castShadow = true;
+    scene.add(stone);
   }
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const pets = new Map<string, { group: THREE.Group; homeY: number; phase: number; status: string }>();
+  const pets = new Map<string, { group: THREE.Group; phase: number; status: string; key: string; target: THREE.Vector3 | null }>();
   let root = new THREE.Group();
   scene.add(root);
   let frame = 0;
   let running = true;
+  let follow = "";
+  let arrive: (x: number, z: number) => void = () => undefined;
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+  canvas.addEventListener("pointerdown", (event) => {
+    if (!follow || !pets.has(follow)) return;
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    const hit = raycaster.intersectObject(ground, false)[0];
+    if (!hit) return;
+    const reach = Math.hypot(hit.point.x, hit.point.z) || 1;
+    const limit = Math.min(1, FIELD_RADIUS / reach);
+    const pet = pets.get(follow);
+    if (!pet) return;
+    pet.target = new THREE.Vector3(hit.point.x * limit, 0, hit.point.z * limit);
+  });
   function resize() {
     const width = canvas.clientWidth || 640;
     const height = canvas.clientHeight || 420;
@@ -213,6 +247,10 @@ export function mountYard(canvas: HTMLCanvasElement) {
     camera.updateProjectionMatrix();
   }
   function update(list: YardPet[]) {
+    const walking = follow ? pets.get(follow) : undefined;
+    const keep = walking?.target
+      ? { x: walking.group.position.x, z: walking.group.position.z, target: walking.target }
+      : null;
     scene.remove(root);
     root = new THREE.Group();
     scene.add(root);
@@ -226,8 +264,10 @@ export function mountYard(canvas: HTMLCanvasElement) {
       root.add(home);
       const group = new THREE.Group();
       addSpecies(group, pet, colors.coat, colors.mark);
-      const place = pasturePlace(pet.owner, pet.state.status, Boolean(pet.nft?.staked));
+      const place = pet.wandered ? pet.spot : pasturePlace(pet.owner, pet.state.status, Boolean(pet.nft?.staked));
       group.position.set(place.x, 0, place.z);
+      const target = keep && pet.owner === follow ? keep.target : null;
+      if (keep && pet.owner === follow) group.position.set(keep.x, 0, keep.z);
       if (pet.state.status === "stray") group.rotation.z = 0.6;
       else if (pet.state.status === "scruffy") group.rotation.x = 0.25;
       if (pet.nft?.staked) {
@@ -240,22 +280,54 @@ export function mountYard(canvas: HTMLCanvasElement) {
         group.add(collar);
       }
       root.add(group);
-      pets.set(pet.owner, { group, homeY: 0, phase: place.x, status: pet.state.status });
+      pets.set(pet.owner, { group, phase: place.x, status: pet.state.status, key: "", target });
     }
   }
   function loop() {
     if (!running) return;
     frame += 1;
+    const now = performance.now();
     if (!reduced) {
-      for (const pet of pets.values()) {
+      for (const [owner, pet] of pets) {
         const energy = pet.status === "bouncy" ? 0.06 : pet.status === "peckish" ? 0.025 : 0;
+        if (pet.target) {
+          const step = pet.target.clone().sub(pet.group.position);
+          step.y = 0;
+          const distance = step.length();
+          if (distance < 0.2) {
+            pet.group.position.x = pet.target.x;
+            pet.group.position.z = pet.target.z;
+            const arrived = pet.target;
+            pet.target = null;
+            if (owner === follow) arrive(arrived.x, arrived.z);
+          } else {
+            step.multiplyScalar(Math.min(1, 4.2 / distance) * 0.016);
+            pet.group.position.add(step);
+            pet.group.lookAt(pet.target.x, pet.group.position.y, pet.target.z);
+          }
+        }
         pet.group.position.y = Math.sin(frame / 28 + pet.phase) * energy;
       }
     }
+    if (follow && pets.has(follow)) {
+      const at = pets.get(follow)!.group.position;
+      camera.position.lerp(new THREE.Vector3(at.x + 7, 6.4, at.z + 9), 0.06);
+      camera.lookAt(at.x, 0.4, at.z);
+    }
     resize();
     renderer.render(scene, camera);
+    void now;
     requestAnimationFrame(loop);
   }
   loop();
-  return { update, stop: () => (running = false) };
+  return {
+    update,
+    follow(owner: string) {
+      follow = owner;
+    },
+    onArrive(listener: (x: number, z: number) => void) {
+      arrive = listener;
+    },
+    stop: () => (running = false),
+  };
 }

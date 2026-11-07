@@ -20,6 +20,25 @@ export async function openSqlite(filename = ":memory:") {
     .prepare("SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'yards'")
     .get();
   if (!yard) db.exec(readFileSync(migrationPath("0002_yard.sql"), "utf8"));
+  for (const sql of [
+    "ALTER TABLE presence ADD COLUMN x REAL",
+    "ALTER TABLE presence ADD COLUMN z REAL",
+    "ALTER TABLE presence ADD COLUMN pass TEXT",
+    "ALTER TABLE presence ADD COLUMN pass_until INTEGER",
+    `CREATE TABLE IF NOT EXISTS skills (
+      owner TEXT NOT NULL,
+      skill TEXT NOT NULL CHECK (skill IN ('forage', 'greet', 'play')),
+      points INTEGER NOT NULL,
+      last_day INTEGER NOT NULL,
+      PRIMARY KEY (owner, skill)
+    )`,
+  ]) {
+    try {
+      db.exec(sql);
+    } catch {
+      // The column is already there on a pasture created before walking was added.
+    }
+  }
   const driver: Driver = {
     query: async (sql, params) => {
       const statement = db.prepare(sql);

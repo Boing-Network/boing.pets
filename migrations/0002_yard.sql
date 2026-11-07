@@ -42,7 +42,18 @@ CREATE TABLE IF NOT EXISTS yard_events (
   created_at INTEGER NOT NULL,
   day INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS skills (
+  owner TEXT NOT NULL,
+  skill TEXT NOT NULL CHECK (skill IN ('forage', 'greet', 'play')),
+  points INTEGER NOT NULL,
+  last_day INTEGER NOT NULL,
+  PRIMARY KEY (owner, skill)
+);
 CREATE TABLE IF NOT EXISTS presence (
   owner TEXT PRIMARY KEY,
-  seen_at INTEGER NOT NULL
+  seen_at INTEGER NOT NULL,
+  x REAL,
+  z REAL,
+  pass TEXT,
+  pass_until INTEGER
 );

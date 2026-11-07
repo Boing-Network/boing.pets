@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { decodeReferenceNftCalldata } from "@boing-network/boing-sdk";
-import { dailyRate, previewKibble, yardSpot } from "../src/tycoon";
+import { dailyRate, evolutionStage, previewKibble, yardSpot } from "../src/tycoon";
 import { mintPetTx, petTokenId, verifyMintTx } from "../src/nft";
 import { DAY } from "../src/core";
 
@@ -17,6 +17,11 @@ describe("tycoon yard", () => {
     const home = dailyRate({ ...fed, buildings: ["pen"] });
     const stray = dailyRate({ hunger: 0, happiness: 10, status: "stray", buildings: ["pen"], nftStaked: false, bonded: false });
     expect(home).toBeGreaterThan(stray);
+  });
+  it("grows a buddy from care, age, and practice", () => {
+    expect(evolutionStage(0, 0, 0)).toBe("hatchling");
+    expect(evolutionStage(DAY * 4, 3, 2)).toBe("grown");
+    expect(evolutionStage(DAY * 10, 6, 4)).toBe("elder");
   });
   it("caps offline earnings at three days", () => {
     const preview = previewKibble({ stored: 5, settledAt: 0, now: 10 * DAY, ratePerDay: 48 });

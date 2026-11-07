@@ -33,7 +33,7 @@ let provider: Provider | null = null,
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) =>
   document.querySelector<T>(selector)!;
 $("#app").innerHTML =
-  `<header><a class="brand" href="#">boing<span>pets</span><i>✦</i></a><nav aria-label="Main"><a href="#pasture">The pasture</a><a href="#how">How to play</a><a href="https://boing.network/testnet" target="_blank" rel="noreferrer">Boing Network ↗</a></nav><button id="connect">Connect Express</button></header><main><section class="hero"><div><p class="eyebrow">BOING TESTNET · CHAIN 6913 <span class="pill">MVP / TESTNET</span></p><h1>A little bounce.<br>A buddy for life.</h1><p class="lede">Hatch something wonderfully weird. Feed it a little love.<br>Your corner of the Boing universe is about to get cuter.</p><a class="button" href="#buddy">Meet your buddy ↓</a><p class="small">No trading. No dying. Just good company on-chain.</p></div><div class="hero-pets" id="hero-pets" aria-hidden="true"></div></section><div id="notice" role="status" aria-live="polite">Loading the pasture…</div><section id="buddy" class="panel"><div class="section-title"><div><p class="eyebrow">YOUR LITTLE CORNER</p><h2>Home, sweet wallet.</h2></div><button id="disconnect" class="quiet" hidden>Disconnect</button></div><div id="my-pet"></div><div class="actions"><button id="hatch">Hatch a buddy</button><button id="checkin" class="secondary" hidden>Daily hello · sign only</button><button id="feed" hidden>Feed · tiny transaction</button><button id="retry" class="secondary" hidden>Confirm pending transaction</button><button id="forget" class="quiet" hidden>Forget pending record</button></div><p class="small">Hatch & feed: ~0.001 BOING self-transfer + network fee. The transfer stays in your wallet. Check-in: free signature. Daily limits reset at midnight UTC.</p></section><section id="yard" class="panel"><div class="section-title"><div><p class="eyebrow">THE SHARED YARD</p><h2>Everyone's buddy, in one place.</h2></div></div><canvas id="yard-canvas" width="960" height="420" aria-label="Three dimensional pasture of Boing pets"></canvas><p id="yard-stats" class="subtle">Hatch a buddy to start a yard.</p><div class="actions"><button id="deploy-nft" class="secondary">Open NFT kennel</button><button id="mint-nft">Mint pet NFT</button><button id="stake-nft" class="secondary">Stake pet NFT</button><button id="unstake-nft" class="quiet">Unstake NFT</button><button id="bond" class="secondary">Bond 0.01 BOING</button><button id="unbond" class="quiet">Unbond</button><button id="collect">Collect kibble</button><button id="buy-pen" class="secondary">Buy pen</button><button id="buy-stand" class="secondary">Snack stand</button><button id="buy-toy" class="secondary">Toy cart</button></div><p class="small">Mint and bond are real testnet transactions. Staking checks that your wallet still holds the pet NFT. Kibble follows the belly and the mood. A snack stand only sells after a feeding, toys only pay when a buddy is glad, and a pen shelters a scruffy pet but cannot feed a stray. Earnings pause after three days until you collect. Mint, bond, and feed are the real testnet actions.</p></section><section id="pasture"><div class="section-title"><div><p class="eyebrow">A NEIGHBORHOOD OF HAPPY ACCIDENTS</p><h2>The public pasture</h2></div><button id="refresh" class="secondary">Refresh ↻</button></div><p class="subtle">Bouncy, peckish, a little scruffy — everybody belongs here.</p><div id="gallery" class="gallery"></div><div class="pages"><button id="prev" class="secondary" hidden>← Previous</button><button id="next" class="secondary" hidden>More buddies →</button></div></section><section id="how" class="how"><article><b>01 / HATCH</b><h3>One wallet. One weirdo.</h3><p>Approve a real Boing testnet transaction in Express. Your wallet and hatch transaction reveal one of ten species, with its own colors and quirks.</p></article><article><b>02 / SAY HELLO</b><h3>Make a little ritual.</h3><p>A daily signed hello builds your streak and happiness. Feeding fills the belly. Both count as a care day, but more transactions never buy a longer streak.</p></article><article><b>03 / ALWAYS WELCOME</b><h3>Missed a few days? It's okay.</h3><p>After two days without food, buddies get scruffy. After four, they roam as strays. A feed always brings them home — no pet is ever permanently lost.</p></article></section></main><footer><span>Built for a little more joy on Boing.</span><a href="https://boing.express" target="_blank" rel="noreferrer">Wallet ↗</a><a href="https://boing.network/faucet" target="_blank" rel="noreferrer">Testnet faucet ↗</a><a href="https://github.com/Boing-Network/boing.pets">Source ↗</a><span>Testnet only. No monetary value or airdrop promise.</span></footer>`;
+  `<header><a class="brand" href="#">boing<span>pets</span><i>✦</i></a><nav aria-label="Main"><a href="#pasture">The pasture</a><a href="#how">How to play</a><a href="https://boing.network/testnet" target="_blank" rel="noreferrer">Boing Network ↗</a></nav><button id="connect">Connect Express</button></header><main><section class="hero"><div><p class="eyebrow">BOING TESTNET · CHAIN 6913 <span class="pill">MVP / TESTNET</span></p><h1>A little bounce.<br>A buddy for life.</h1><p class="lede">Hatch something wonderfully weird. Feed it a little love.<br>Your corner of the Boing universe is about to get cuter.</p><a class="button" href="#buddy">Meet your buddy ↓</a><p class="small">No trading. No dying. Just good company on-chain.</p></div><div class="hero-pets" id="hero-pets" aria-hidden="true"></div></section><div id="notice" role="status" aria-live="polite">Loading the pasture…</div><section id="buddy" class="panel"><div class="section-title"><div><p class="eyebrow">YOUR LITTLE CORNER</p><h2>Home, sweet wallet.</h2></div><button id="disconnect" class="quiet" hidden>Disconnect</button></div><div id="my-pet"></div><div class="actions"><button id="hatch">Hatch a buddy</button><button id="checkin" class="secondary" hidden>Daily hello · sign only</button><button id="feed" hidden>Feed · tiny transaction</button><button id="retry" class="secondary" hidden>Confirm pending transaction</button><button id="forget" class="quiet" hidden>Forget pending record</button></div><p class="small">Hatch & feed: ~0.001 BOING self-transfer + network fee. The transfer stays in your wallet. Check-in: free signature. Daily limits reset at midnight UTC.</p></section><section id="yard" class="panel"><div class="section-title"><div><p class="eyebrow">THE SHARED YARD</p><h2>Everyone's buddy, in one place.</h2></div></div><canvas id="yard-canvas" width="960" height="420" aria-label="Three dimensional pasture of Boing pets"></canvas><p id="yard-stats" class="subtle">Hatch a buddy to start a yard.</p><div class="actions"><button id="deploy-nft" class="secondary">Open NFT kennel</button><button id="mint-nft">Mint pet NFT</button><button id="stake-nft" class="secondary">Stake pet NFT</button><button id="unstake-nft" class="quiet">Unstake NFT</button><button id="bond" class="secondary">Bond 0.01 BOING</button><button id="unbond" class="quiet">Unbond</button><button id="collect">Collect kibble</button><button id="train-forage" class="secondary">Forage</button><button id="train-greet" class="secondary">Greet</button><button id="train-play" class="secondary">Play</button><button id="buy-pen" class="secondary">Buy pen</button><button id="buy-stand" class="secondary">Snack stand</button><button id="buy-toy" class="secondary">Toy cart</button></div><p class="small">Mint and bond are real testnet transactions. Staking checks that your wallet still holds the pet NFT. Kibble follows the belly and the mood. A snack stand only sells after a feeding, toys only pay when a buddy is glad, and a pen shelters a scruffy pet but cannot feed a stray. Earnings pause after three days until you collect. Mint, bond, and feed are the real testnet actions.</p></section><section id="pasture"><div class="section-title"><div><p class="eyebrow">A NEIGHBORHOOD OF HAPPY ACCIDENTS</p><h2>The public pasture</h2></div><button id="refresh" class="secondary">Refresh ↻</button></div><p class="subtle">Bouncy, peckish, a little scruffy — everybody belongs here.</p><div id="gallery" class="gallery"></div><div class="pages"><button id="prev" class="secondary" hidden>← Previous</button><button id="next" class="secondary" hidden>More buddies →</button></div></section><section id="how" class="how"><article><b>01 / HATCH</b><h3>One wallet. One weirdo.</h3><p>Approve a real Boing testnet transaction in Express. Your wallet and hatch transaction reveal one of ten species, with its own colors and quirks.</p></article><article><b>02 / SAY HELLO</b><h3>Make a little ritual.</h3><p>A daily signed hello builds your streak and happiness. Feeding fills the belly. Both count as a care day, but more transactions never buy a longer streak.</p></article><article><b>03 / ALWAYS WELCOME</b><h3>Missed a few days? It's okay.</h3><p>After two days without food, buddies get scruffy. After four, they roam as strays. A feed always brings them home — no pet is ever permanently lost.</p></article></section></main><footer><span>Built for a little more joy on Boing.</span><a href="https://boing.express" target="_blank" rel="noreferrer">Wallet ↗</a><a href="https://boing.network/faucet" target="_blank" rel="noreferrer">Testnet faucet ↗</a><a href="https://github.com/Boing-Network/boing.pets">Source ↗</a><span>Testnet only. No monetary value or airdrop promise.</span></footer>`;
 const demoOwner = "0x" + "11".repeat(32);
 $("#hero-pets").innerHTML = [1, 2, 3]
   .map(
@@ -86,6 +86,9 @@ function controls() {
     "bond",
     "unbond",
     "collect",
+    "train-forage",
+    "train-greet",
+    "train-play",
     "buy-pen",
     "buy-stand",
     "buy-toy",
@@ -248,12 +251,41 @@ $("#connect").onclick = () =>
     }
     provider.on?.("accountsChanged", disconnect);
     provider.on?.("chainChanged", disconnect);
+    localStorage.setItem("boing-pets-wallet", owner);
     await refresh();
     notice("Connected on Boing testnet. Your pasture awaits.");
   });
+async function resumeWallet() {
+  if (!localStorage.getItem("boing-pets-wallet")) return;
+  const injected = (window as Window & { boing?: Provider }).boing;
+  const next =
+    injected ||
+    (createBoingWebWalletProvider({
+      chainId: "0x1b01",
+      mode: "popup",
+    }) as Provider);
+  try {
+    const accounts = (await next.request({ method: "boing_accounts", params: [] })) as string[];
+    if (!accounts?.[0]) {
+      localStorage.removeItem("boing-pets-wallet");
+      return;
+    }
+    provider = next;
+    owner = hex32(accounts[0]);
+    localStorage.setItem("boing-pets-wallet", owner);
+    provider.on?.("accountsChanged", disconnect);
+    provider.on?.("chainChanged", disconnect);
+    notice("Still connected on Boing testnet.");
+  } catch {
+    localStorage.removeItem("boing-pets-wallet");
+  }
+}
 function disconnect() {
+  (provider as Provider & { disconnect?: () => void })?.disconnect?.();
   provider?.removeListener?.("accountsChanged", disconnect);
   provider?.removeListener?.("chainChanged", disconnect);
+  localStorage.removeItem("boing-pets-wallet");
+  localStorage.removeItem("boing-pets-wander");
   owner = "";
   mine = null;
   provider = null;
@@ -294,16 +326,32 @@ $("#prev").onclick = () =>
     await refresh();
   });
 const yardView = mountYard($<HTMLCanvasElement>("#yard-canvas"));
+yardView.onArrive((x, z) => {
+  const pass = localStorage.getItem("boing-pets-wander");
+  if (!owner || !pass) return;
+  void api("/api/presence", { owner, x, z, pass }).catch(() => undefined);
+});
 async function loadYard() {
   const data = await api<{
     collection: string | null;
-    me: { kibble: number; rate: number; minted: boolean; staked: boolean; bonded: boolean; buildings: string[] } | null;
+    me: {
+      kibble: number;
+      rate: number;
+      minted: boolean;
+      staked: boolean;
+      bonded: boolean;
+      buildings: string[];
+      stage?: string;
+      skills?: { forage: number; greet: number; play: number };
+      practiced?: string[];
+    } | null;
     pets: YardPet[];
   }>("/api/yard" + (owner ? "?viewer=" + owner : ""));
+  yardView.follow(owner);
   yardView.update(data.pets);
   const me = data.me;
   $("#yard-stats").textContent = me
-    ? `${me.kibble} kibble · ${me.rate}/day · ${me.minted ? (me.staked ? "NFT staked" : "NFT minted") : "no NFT yet"}${me.bonded ? " · BOING bonded" : ""} · ${me.buildings.length} buildings`
+    ? `${me.stage ?? "grown"} · ${me.kibble} kibble · ${me.rate}/day · forage ${me.skills?.forage ?? 0} · greet ${me.skills?.greet ?? 0} · play ${me.skills?.play ?? 0}`
     : data.collection
       ? "Kennel is open. Hatch and mint to stand in the yard."
       : "The NFT kennel is not open yet. The first buddy can deploy it.";
@@ -320,6 +368,10 @@ async function loadYard() {
   ] as const)
     $("#" + id).hidden = !me || me.buildings.includes(kind);
   $("#collect").hidden = !me;
+  const practiced = new Set(me?.practiced ?? []);
+  $("#train-forage").hidden = practiced.has("forage");
+  $("#train-greet").hidden = practiced.has("greet");
+  $("#train-play").hidden = practiced.has("play");
 }
 async function yardAct(action: string) {
   await assertWallet();
@@ -328,7 +380,8 @@ async function yardAct(action: string) {
   if (!c.transaction) {
     notice("Approve the signature in Express.");
     const signature = await provider!.request({ method: "boing_signMessage", params: [c.message, owner] });
-    await api("/api/confirm", { id: c.id, signature });
+    const done = await api<{ pass?: string }>("/api/confirm", { id: c.id, signature });
+    if (done.pass) localStorage.setItem("boing-pets-wander", done.pass);
     await loadYard();
     notice("Yard updated.");
     return;
@@ -349,7 +402,16 @@ setInterval(() => {
   void api("/api/presence", { owner }).then(() => loadYard()).catch(() => undefined);
 }, 20_000);
 controls();
+$("#yard-canvas").addEventListener("pointerdown", () => {
+  if (!owner) {
+    notice("Connect Express, then click the grass to walk.");
+    return;
+  }
+  if (localStorage.getItem("boing-pets-wander")) return;
+  void run(() => yardAct("wander"));
+});
 void refresh()
+  .then(() => resumeWallet())
   .then(() => loadYard())
   .then(() => notice("Testnet pasture ready. Make yourself at home."))
   .catch(() => notice("Pasture API unavailable. Try again in a moment.", true));
