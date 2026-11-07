@@ -1,10 +1,12 @@
 node_modules/
 dist/
+api/
 .wrangler/
 .data/
 .dev.vars
 .env
 .env.*
 !.env.example
+.vercel/
 *.log
 coverage/

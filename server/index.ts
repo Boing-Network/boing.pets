@@ -8,6 +8,7 @@ import { dirname, join, normalize, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import app from "../worker/index";
 import { openDatabase, type PetsDb } from "./db";
+import { originFrom } from "./origin";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
@@ -44,20 +45,15 @@ export function securityHeaders() {
 }
 
 function publicOrigin(req: IncomingMessage) {
-  if (process.env.APP_ORIGIN) return process.env.APP_ORIGIN;
-  const forwardedHost = first(req.headers["x-forwarded-host"]);
-  const host = forwardedHost || req.headers.host || "localhost";
-  const forwarded = first(req.headers["x-forwarded-proto"]);
-  const local = /^localhost(?::|$)|127\.0\.0\.1(?::|$)|\[::1\](?::|$)/.test(
-    host,
-  );
-  const proto = forwarded || (local ? "http" : "https");
-  return `${proto}://${host}`;
-}
-
-function first(value: string | string[] | undefined) {
-  const raw = Array.isArray(value) ? value[0] : value;
-  return raw?.split(",")[0]?.trim() || "";
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (value === undefined) continue;
+    if (Array.isArray(value))
+      for (const item of value) headers.append(key, item);
+    else headers.set(key, value);
+  }
+  const host = headers.get("host") || "localhost";
+  return originFrom(headers, new URL(`http://${host}/`));
 }
 
 function staticPath(directory: string, pathname: string) {

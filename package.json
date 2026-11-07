@@ -7,7 +7,8 @@
     "dev": "vite --host 127.0.0.1",
     "dev:api": "wrangler dev --local --port 8787",
     "db:local": "wrangler d1 migrations apply pets --local",
-    "build": "npm run typecheck && vite build && npm run build:server",
+    "build": "npm run typecheck && vite build && npm run build:function && npm run build:server",
+    "build:function": "esbuild server/vercel-handler.ts --bundle --platform=node --format=esm --target=node22 --outfile=api/[...path].js --packages=external",
     "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/server.js --packages=external",
     "start": "node dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.worker.json --noEmit",
@@ -21,16 +22,15 @@
   },
   "dependencies": {
     "@boing-network/boing-sdk": "0.5.40",
+    "@neondatabase/serverless": "^1.2.0",
     "@noble/ed25519": "^2.2.3",
-    "@noble/hashes": "^1.8.0",
-    "pg": "^8.23.1"
+    "@noble/hashes": "^1.8.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261106.1",
     "@electric-sql/pglite": "^0.5.15",
     "@eslint/js": "^9.39.0",
     "@types/node": "^24.19.2",
-    "@types/pg": "^8.23.1",
     "esbuild": "^0.28.2",
     "eslint": "^9.39.0",
     "prettier": "^3.9.10",

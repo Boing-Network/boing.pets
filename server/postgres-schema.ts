@@ -1,3 +1,4 @@
+export const postgresSchema = `
 CREATE TABLE IF NOT EXISTS challenges (
   id TEXT PRIMARY KEY,
   owner TEXT NOT NULL,
@@ -26,3 +27,4 @@ CREATE TABLE IF NOT EXISTS events (
 );
 CREATE INDEX IF NOT EXISTS events_owner_time ON events (owner, created_at);
 CREATE INDEX IF NOT EXISTS pets_recent ON pets (created_at DESC, owner);
+`;

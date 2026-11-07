@@ -1,8 +1,8 @@
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
-import { DatabaseSync, type SQLInputValue } from "node:sqlite";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import pg from "pg";
+import { Pool, types } from "@neondatabase/serverless";
+import { postgresSchema } from "./postgres-schema";
 
 const INT_FIELDS = new Set([
   "created_at",
@@ -108,17 +108,31 @@ function readMigration(name: string) {
   return readFileSync(migrationPath(name), "utf8");
 }
 
-export async function migrate(driver: Driver, name: string) {
-  const statements = sqlStatements(readMigration(name));
+export async function migrateSql(driver: Driver, sql: string) {
+  const statements = sqlStatements(sql);
   await driver.transaction(async (query) => {
     for (const statement of statements) await query(statement, []);
   });
+}
+
+export async function migrate(driver: Driver, name: string) {
+  await migrateSql(driver, readMigration(name));
 }
 
 export function databaseUrl(
   env: Record<string, string | undefined> = process.env,
 ) {
   return env.DATABASE_URL || env.POSTGRES_URL || env.POSTGRES_PRISMA_URL || "";
+}
+
+export function postgresConnectionString(
+  env: Record<string, string | undefined> = process.env,
+) {
+  return (
+    env.DATABASE_URL_UNPOOLED ||
+    env.POSTGRES_URL_NON_POOLING ||
+    databaseUrl(env)
+  );
 }
 
 export function databaseMode(
@@ -129,7 +143,7 @@ export function databaseMode(
   return "missing" as const;
 }
 
-pg.types.setTypeParser(20, (value) => Number(value));
+types.setTypeParser(20, (value: string) => Number(value));
 
 function redact(error: unknown) {
   const message =
@@ -166,7 +180,7 @@ export async function openPostgres(connectionString: string) {
     },
   };
   try {
-    await migrate(driver, "schema.pg.sql");
+    await migrateSql(driver, postgresSchema);
   } catch (error) {
     await pool.end().catch(() => undefined);
     throw error;
@@ -175,9 +189,9 @@ export async function openPostgres(connectionString: string) {
 }
 
 async function connectPostgres(connectionString: string) {
-  const pool = new pg.Pool({
+  const pool = new Pool({
     connectionString,
-    max: 3,
+    max: 1,
     connectionTimeoutMillis: 10_000,
   });
   try {
@@ -189,64 +203,16 @@ async function connectPostgres(connectionString: string) {
   }
 }
 
-export async function openSqlite(filename = ":memory:") {
-  if (filename !== ":memory:")
-    mkdirSync(dirname(filename), { recursive: true });
-  const db = new DatabaseSync(filename);
-  db.exec("PRAGMA foreign_keys = ON");
-  const ready = db
-    .prepare(
-      "SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'pets'",
-    )
-    .get();
-  if (!ready) db.exec(readFileSync(migrationPath("0001_pasture.sql"), "utf8"));
-  const driver: Driver = {
-    query: async (sql, params) => {
-      const statement = db.prepare(sql);
-      const values = params as SQLInputValue[];
-      if (/^\s*(select|with)\b/i.test(sql)) {
-        return statement
-          .all(...values)
-          .map((row) => normalizeRow(row as Record<string, unknown>));
-      }
-      statement.run(...values);
-      return [];
-    },
-    transaction: async (run) => {
-      db.exec("BEGIN");
-      try {
-        await run(async (sql, params) => {
-          const statement = db.prepare(sql);
-          const values = params as SQLInputValue[];
-          if (/^\s*(select|with)\b/i.test(sql)) {
-            return statement
-              .all(...values)
-              .map((row) => normalizeRow(row as Record<string, unknown>));
-          }
-          statement.run(...values);
-          return [];
-        });
-        db.exec("COMMIT");
-      } catch (error) {
-        db.exec("ROLLBACK");
-        throw error;
-      }
-    },
-  };
-  return {
-    db: createDb(driver),
-    close: () => db.close(),
-  };
-}
-
 export async function openDatabase(
   env: Record<string, string | undefined> = process.env,
 ) {
   const mode = databaseMode(env);
-  if (mode === "postgres") return openPostgres(databaseUrl(env));
-  if (mode === "sqlite")
+  if (mode === "postgres") return openPostgres(postgresConnectionString(env));
+  if (mode === "sqlite") {
+    const { openSqlite } = await import("./sqlite");
     return openSqlite(env.PETS_SQLITE_PATH || ".data/pets.sqlite");
+  }
   throw new Error(
-    "DATABASE_URL is not set. Cursor Apps provisions Postgres and injects DATABASE_URL. Local sqlite is only for PETS_DB=sqlite.",
+    "DATABASE_URL is not set. The Neon integration injects it on Vercel. Local sqlite is only for PETS_DB=sqlite.",
   );
 }

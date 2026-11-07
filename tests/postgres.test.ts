@@ -6,12 +6,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import app from "../worker/index";
 import {
   createDb,
-  migrate,
+  migrateSql,
   normalizeRow,
   toPg,
   type Driver,
   type PetsDb,
 } from "../server/db";
+import { postgresSchema } from "../server/postgres-schema";
 
 const origin = "http://localhost:5177";
 const tx = "0x" + "ab".repeat(32);
@@ -79,7 +80,7 @@ beforeEach(async () => {
   amount = "";
   pgdb = new PGlite();
   const driver = driverFor(pgdb);
-  await migrate(driver, "schema.pg.sql");
+  await migrateSql(driver, postgresSchema);
   db = createDb(driver);
   vi.stubGlobal(
     "fetch",

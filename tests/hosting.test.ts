@@ -3,7 +3,8 @@ import { request, type IncomingHttpHeaders } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { databaseMode, openSqlite, toPg } from "../server/db";
+import { databaseMode, postgresConnectionString, toPg } from "../server/db";
+import { openSqlite } from "../server/sqlite";
 import { startServer } from "../server/index";
 
 let close: (() => Promise<void>) | undefined;
@@ -57,6 +58,12 @@ describe("Cursor Apps hosting", () => {
     expect(databaseMode({ POSTGRES_URL: "postgres://db.example/pets" })).toBe(
       "postgres",
     );
+    expect(
+      postgresConnectionString({
+        DATABASE_URL: "postgres://pooled.example/pets",
+        DATABASE_URL_UNPOOLED: "postgres://direct.example/pets",
+      }),
+    ).toBe("postgres://direct.example/pets");
     expect(toPg("SELECT * FROM pets WHERE owner=? AND day=?")).toBe(
       "SELECT * FROM pets WHERE owner=$1 AND day=$2",
     );
