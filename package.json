@@ -7,11 +7,13 @@
     "dev": "vite --host 127.0.0.1",
     "dev:api": "wrangler dev --local --port 8787",
     "db:local": "wrangler d1 migrations apply pets --local",
-    "build": "npm run typecheck \u0026\u0026 vite build",
-    "typecheck": "tsc -p tsconfig.json --noEmit \u0026\u0026 tsc -p tsconfig.worker.json --noEmit",
+    "build": "npm run typecheck && vite build && npm run build:server",
+    "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/server.js --packages=external",
+    "start": "node dist/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.worker.json --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "verify": "npm run lint \u0026\u0026 npm run build \u0026\u0026 npm test",
+    "verify": "npm run lint && npm run build && npm test",
     "preview": "vite preview --host 127.0.0.1",
     "smoke:rpc": "node scripts/smoke-rpc.mjs",
     "format:check": "prettier --check .",
@@ -20,12 +22,16 @@
   "dependencies": {
     "@boing-network/boing-sdk": "0.5.40",
     "@noble/ed25519": "^2.2.3",
-    "@noble/hashes": "^1.8.0"
+    "@noble/hashes": "^1.8.0",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261106.1",
+    "@electric-sql/pglite": "^0.5.15",
     "@eslint/js": "^9.39.0",
     "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
+    "esbuild": "^0.28.2",
     "eslint": "^9.39.0",
     "prettier": "^3.9.10",
     "typescript": "~5.9.3",
@@ -35,7 +41,7 @@
     "wrangler": "4.158.0"
   },
   "engines": {
-    "node": "\u003e=22.12"
+    "node": ">=22.12"
   },
   "overrides": {
     "@typescript-eslint/typescript-estree": {

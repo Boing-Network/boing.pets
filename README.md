@@ -2,7 +2,7 @@
 
 **A little bounce. A buddy for life.** A small, Boing-native virtual pet game: hatch a creature, say hello, feed it, and meet everyone on the public pasture.
 
-Testnet only (6913). This is an MVP, not an NFT marketplace, financial product, or airdrop promise. No contracts, consensus changes, custody keys, or scheduled jobs. Nothing is deployed automatically.
+Testnet only (6913). This is an MVP, not an NFT marketplace, financial product, or airdrop promise. No contracts, consensus changes, custody keys, or scheduled jobs. Pushing this repo does not publish it; a person confirms that in the Cursor Apps tray.
 
 ## Run locally
 
@@ -42,9 +42,9 @@ Belly loses 25 points/day since hatch or last feed; joy loses 20/day since any c
 - **Wallet:** published `@boing-network/boing-sdk` **0.5.40**, native `boing_requestAccounts`, `boing_sendTransaction`, `boing_signMessage`; 32-byte Ed25519 account ids, not EVM addresses. Extension account/chain changes disconnect; chain is checked before actions. The web fallback is pinned to testnet.
 - **On-chain hatch/feed:** Boing's native Transfer payload has **no memo field**. Rather than invent an unsupported memo or deploy a new program, v1 uses an exact challenge-specific self-transfer of approximately **0.001 BOING** (less than 0.001001). The amount encodes a random per-action marker; Express displays the human-readable intent, which is **UI-only, not a signed memo**. Principal stays in the same wallet; only the network fee is spent. Users still need balance for amount plus fee. There is no treasury/sink recipient and no app fee.
 - **Verification:** Worker checks the RPC's chain id, successful receipt, post-challenge block height, exact block receipt/id/index, transaction sender, self-recipient, and exact challenge amount. It does not trust a browser-supplied success flag or arbitrary transaction hash. Failed/unknown transactions never grant care. Pending ids are saved locally so users can retry confirmation without resending. Challenges expire after one hour; confirm within that window. If a transaction failed or its challenge expired, Forget pending record clears only the local recovery record (it does not cancel or refund any transaction).
-- **Public state:** one small Worker + D1 with unique wallet, transaction, challenge, and `(owner, action, UTC day)` constraints. D1 batches atomically write hatch and its event. Event-sourced state avoids lost-update races between feed/check-in. Repeated confirmation is idempotent; a hash cannot hatch/feed twice.
+- **Public state:** unique wallet, transaction, challenge, and `(owner, action, UTC day)` constraints. Hatch and its event commit in one transaction. Event-sourced state avoids lost-update races between feed/check-in. Repeated confirmation is idempotent; a hash cannot hatch/feed twice. Local development still uses the Worker and D1. Cursor Apps hosting uses the Node server and Postgres.
 - **No cron:** status/decay/streaks derive lazily from timestamps on reads. No added Cloudflare trigger. Unconfirmed expired challenges are cleaned on challenge issuance. Confirmed challenge records remain as an audit trail. Gallery is paginated (24 pets/page).
-- **Trust model:** Pets is a centralized off-chain care/index service backed by genuine testnet transactions, **not** a fully on-chain pet contract or transferable NFT. The pasture consists of submitted, verified claims; it is not an autonomous chain-wide scanner. No API means no pasture/care writes. The RPC is trusted for canonical inclusion; a malicious RPC or database operator is outside the v1 trust boundary. Event history is local until an operator provisions a shared D1 deployment. No anti-Sybil guarantee; per-wallet challenge throttling is not a substitute for public edge rate limiting.
+- **Trust model:** Pets is a centralized off-chain care/index service backed by genuine testnet transactions, **not** a fully on-chain pet contract or transferable NFT. The pasture consists of submitted, verified claims; it is not an autonomous chain-wide scanner. No API means no pasture/care writes. The RPC is trusted for canonical inclusion; a malicious RPC or database operator is outside the v1 trust boundary. The hosted app stores one shared pasture in Postgres. A local Worker checkout keeps its own D1 file. No anti-Sybil guarantee; per-wallet challenge throttling is not a substitute for public edge rate limiting.
 
 ## API
 
@@ -53,13 +53,17 @@ Belly loses 25 points/day since hatch or last feed; joy loses 20/day since any c
 - `POST /api/challenge` `{owner,action}` → one-hour challenge, exact signature message or native transaction request.
 - `POST /api/confirm` `{id,signature}` for check-in, or `{id,tx_hash}` for hatch/feed.
 
-Writes require the configured `APP_ORIGIN` and JSON bodies (4 KiB maximum), signatures or chain proofs. No private keys, sessions, cookies, client secrets, or wallet seed imports. Challenges are not authentication by themselves. Before public deployment, add edge/IP abuse controls (including for reads and wallet-rotation attacks), audit economics/security, test retention/backfill behavior, and monitor D1 read usage.
+Writes require the page's own origin and JSON bodies (4 KiB maximum), signatures or chain proofs. No private keys, sessions, cookies, client secrets, or wallet seed imports. Visitors connect a Boing wallet; the app does not use Cursor sign-in. Challenges are not authentication by themselves. Before a widely shared launch, add edge/IP abuse controls (including for reads and wallet-rotation attacks), audit economics/security, and test retention/backfill behavior.
 
-## Deployment is deliberately not set up
+## Cursor Apps hosting
 
-`wrangler.jsonc` is a local-first, unused-until-approved Worker + static assets configuration, with a **placeholder D1 id**, no routes, `workers_dev: false`, preview URLs disabled, and **no cron**. CI only bundles with `--dry-run`; it does not deploy or require secrets. Never deploy the placeholder config.
+`npm run build` writes the Vite client to `dist/client` and the API server to `dist/server.js`. `npm start` listens on `PORT` (default 3000) and serves both. Cursor Apps should run that pair. It does not run the Cloudflare Worker or D1.
 
-When Nico approves a shared preview: create a dedicated D1 database, put its non-secret id in the config, set `APP_ORIGIN` to that preview's exact origin, run migrations on that database, configure static assets and appropriate limits, then separately approve deployment. Production/custom domain/mainnet are not configured. Only change `RPC_URL` to a trusted **testnet 6913** endpoint; the API rejects another chain.
+When `DATABASE_URL` (or `POSTGRES_URL`) is present, the server migrates and uses Postgres. Cursor provisions that database; do not commit a connection string. `PETS_DB=sqlite` is only for a local file under `.data/` and is not the hosted pasture. There is still no cron: hunger, joy, and streaks are derived on read.
+
+`RPC_URL` defaults to `https://testnet-rpc.boing.network` (chain 6913). Leave `APP_ORIGIN` unset in hosting so each preview and published origin is taken from the request. Set it only when you need to pin one origin, such as local Vite at `http://localhost:5177`.
+
+`wrangler.jsonc` remains a local-only Worker configuration: placeholder D1 id, no routes, `workers_dev: false`, preview URLs disabled, and no cron. CI dry-runs that bundle and does not deploy it. Never deploy the placeholder config. Publishing the public `cursor.app` URL, passing the Apps security checks, and setting visibility to Public are done from the Cursor Apps tray. To run the same Node server on this machine without Postgres: `PETS_DB=sqlite npm start` after `npm run build`.
 
 ## Planned Passport quests (documentation only)
 
@@ -70,12 +74,12 @@ No changes to boing.network Passport or airdrop eligibility are made here. A fut
 
 ## Deferred
 
-DEX-swap forage on boing.finance; live finance-indexer integration; Passport wiring; mainnet; naming/trading/transferring pets; NFTs or a dedicated pet VM program; permanent chain-wide indexing/backfill; production hardening/rate limiting; custom domain and deployment. Pet naming is intentionally not user-generated yet, avoiding moderation and HTML injection concerns.
+DEX-swap forage on boing.finance; live finance-indexer integration; Passport wiring; mainnet; naming/trading/transferring pets; NFTs or a dedicated pet VM program; permanent chain-wide indexing/backfill; production hardening/rate limiting. Pet naming is intentionally not user-generated yet, avoiding moderation and HTML injection concerns.
 
 Next projects: [boing.wall](https://github.com/Boing-Network/boing.wall), [boing.kudos](https://github.com/Boing-Network/boing.kudos), [boing.names](https://github.com/Boing-Network/boing.names). Their implementations follow Pets.
 
 ## Verification notes
 
-Local lint, separate browser/Worker typechecks, build, 24 deterministic tests, local D1 migration and Worker dry-run are included. API tests use real SQLite transactions and a mocked testnet RPC; they never send chain transactions. The live RPC probe from the Windows machine failed with a TLS connection error during initial setup, so a real Express hatch/feed round trip still needs Nico's testnet-wallet approval and a reachable testnet RPC. Nothing was sent from a wallet by the implementation process.
+Local lint, separate browser/Worker typechecks, build, deterministic tests, local D1 migration and Worker dry-run are included. API tests use SQLite and in-process Postgres (PGlite) with a mocked testnet RPC; they never send chain transactions. Read-only checks against `https://testnet-rpc.boing.network` returned chain 6913 from this environment. A real Express hatch/feed still needs Nico's testnet wallet. Nothing was sent from a wallet.
 
 Worker binding types are generated from config: run `npm run types:generate` after config changes. Observability is configured for a future approved deployment; production hardening remains deferred.

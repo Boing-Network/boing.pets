@@ -5,4 +5,9 @@ export default defineConfig({
     strictPort: true,
     proxy: { "/api": "http://127.0.0.1:8787" },
   },
+  build: {
+    outDir: "dist/client",
+    emptyOutDir: true,
+    sourcemap: false,
+  },
 });

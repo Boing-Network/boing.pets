@@ -4,5 +4,5 @@
     "lib": ["ES2022"],
     "types": ["@cloudflare/workers-types", "node"]
   },
-  "include": ["worker", "src/core.ts", "tests"]
+  "include": ["worker", "server", "src/core.ts", "tests"]
 }
