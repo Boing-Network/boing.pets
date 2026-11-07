@@ -15,9 +15,9 @@ export const YARD_ACTIONS = [
 export type YardAction = (typeof YARD_ACTIONS)[number];
 export type Building = "pen" | "stand" | "toy";
 export const BUILDINGS: Record<Building, { cost: number; daily: number; label: string }> = {
-  pen: { cost: 40, daily: 48, label: "Boarding pen" },
-  stand: { cost: 70, daily: 36, label: "Snack stand" },
-  toy: { cost: 55, daily: 24, label: "Toy cart" },
+  pen: { cost: 40, daily: 22, label: "Boarding pen" },
+  stand: { cost: 70, daily: 30, label: "Snack stand" },
+  toy: { cost: 55, daily: 20, label: "Toy cart" },
 };
 export const BOND_AMOUNT = (10n ** 16n).toString();
 const ACCRUAL_CAP = 3 * DAY;
@@ -40,19 +40,37 @@ export function yardSpot(owner: string) {
   return { x: Math.round((x - 0.5) * 180) / 10, z: Math.round((z - 0.5) * 180) / 10 };
 }
 
+export function pasturePlace(owner: string, status: string, staked: boolean) {
+  const home = yardSpot(owner);
+  if (staked || status === "bouncy") return home;
+  if (status === "peckish") return { x: home.x * 0.85, z: home.z * 0.85 };
+  if (status === "scruffy") return { x: home.x * 1.2, z: home.z * 1.2 };
+  const length = Math.hypot(home.x, home.z) || 1;
+  return {
+    x: Math.round((home.x / length) * 85) / 10,
+    z: Math.round((home.z / length) * 85) / 10,
+  };
+}
+
 export function dailyRate(input: {
+  hunger: number;
+  happiness: number;
   status: string;
   buildings: readonly Building[];
   nftStaked: boolean;
   bonded: boolean;
 }) {
-  let rate = 12;
-  for (const kind of input.buildings) rate += BUILDINGS[kind].daily;
-  if (input.nftStaked) rate *= 2;
-  if (input.bonded) rate = Math.round(rate * 1.5);
-  const care =
-    input.status === "stray" ? 0.15 : input.status === "scruffy" ? 0.45 : input.status === "peckish" ? 0.8 : 1;
-  return Math.max(0, Math.round(rate * care));
+  const belly = Math.min(1, Math.max(0, input.hunger / 100));
+  const joy = Math.min(1, Math.max(0, input.happiness / 100));
+  // A buddy earns a living from being fed and glad. Buildings only help when they have something to work with.
+  let rate = 8 * (0.3 + 0.7 * belly) * (0.4 + 0.6 * joy);
+  if (input.buildings.includes("pen")) rate += input.status === "stray" ? 8 : BUILDINGS.pen.daily;
+  if (input.buildings.includes("stand")) rate += BUILDINGS.stand.daily * belly;
+  if (input.buildings.includes("toy")) rate += BUILDINGS.toy.daily * joy;
+  if (input.nftStaked) rate *= 1.25;
+  if (input.buildings.length && !input.bonded) rate *= 0.9;
+  if (input.bonded) rate *= 1.1;
+  return Math.max(0, Math.round(rate));
 }
 
 export function previewKibble(input: {

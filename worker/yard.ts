@@ -73,11 +73,17 @@ async function buildings(env: Env, owner: string) {
   return rows.results.map((row) => row.kind);
 }
 
-async function rateFor(env: Env, owner: string, statusName: string) {
+async function rateFor(
+  env: Env,
+  owner: string,
+  petState: { hunger: number; happiness: number; status: string },
+) {
   const nft = await env.DB.prepare("SELECT staked FROM pet_nfts WHERE owner=?").bind(owner).first<{ staked: number }>();
   const yard = await env.DB.prepare("SELECT bonded FROM yards WHERE owner=?").bind(owner).first<{ bonded: number }>();
   return dailyRate({
-    status: statusName,
+    hunger: petState.hunger,
+    happiness: petState.happiness,
+    status: petState.status,
     buildings: await buildings(env, owner),
     nftStaked: nft?.staked === 1,
     bonded: yard?.bonded === 1,
@@ -125,6 +131,8 @@ export async function yardState(env: Env, viewer: string | null, now: number) {
         settledAt: row?.settled_at ?? pet.created_at,
         now,
         ratePerDay: dailyRate({
+          hunger: mine.state.hunger,
+          happiness: mine.state.happiness,
           status: mine.state.status,
           buildings: mine.buildings,
           nftStaked: mine.nft?.staked === true,
@@ -134,6 +142,8 @@ export async function yardState(env: Env, viewer: string | null, now: number) {
       me = {
         kibble: preview.kibble,
         rate: dailyRate({
+          hunger: mine.state.hunger,
+          happiness: mine.state.happiness,
           status: mine.state.status,
           buildings: mine.buildings,
           nftStaked: mine.nft?.staked === true,
@@ -247,7 +257,7 @@ async function settle(env: Env, owner: string, now: number) {
     stored: row?.kibble ?? 0,
     settledAt: row?.settled_at ?? pet.created_at,
     now,
-    ratePerDay: await rateFor(env, owner, petState.status),
+    ratePerDay: await rateFor(env, owner, petState),
   });
   if (row) {
     await env.DB.prepare("UPDATE yards SET kibble=?,settled_at=? WHERE owner=?").bind(preview.kibble, now, owner).run();

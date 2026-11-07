@@ -5,10 +5,18 @@ import { mintPetTx, petTokenId, verifyMintTx } from "../src/nft";
 import { DAY } from "../src/core";
 
 describe("tycoon yard", () => {
-  it("pays more when an NFT is staked and a pen is open", () => {
-    const plain = dailyRate({ status: "bouncy", buildings: [], nftStaked: false, bonded: false });
-    const staked = dailyRate({ status: "bouncy", buildings: ["pen"], nftStaked: true, bonded: true });
-    expect(staked).toBeGreaterThan(plain * 2);
+  it("lets a fed buddy earn, and only sells snacks when the belly is full", () => {
+    const fed = { hunger: 100, happiness: 100, status: "bouncy", buildings: [] as const, nftStaked: false, bonded: false };
+    const stand = dailyRate({ ...fed, buildings: ["stand"] });
+    const hungryStand = dailyRate({ ...fed, hunger: 0, status: "stray", buildings: ["stand"] });
+    expect(stand).toBeGreaterThan(dailyRate(fed));
+    expect(stand).toBeGreaterThan(hungryStand);
+    const toy = dailyRate({ ...fed, buildings: ["toy"] });
+    const glumToy = dailyRate({ ...fed, happiness: 0, buildings: ["toy"] });
+    expect(toy).toBeGreaterThan(glumToy);
+    const home = dailyRate({ ...fed, buildings: ["pen"] });
+    const stray = dailyRate({ hunger: 0, happiness: 10, status: "stray", buildings: ["pen"], nftStaked: false, bonded: false });
+    expect(home).toBeGreaterThan(stray);
   });
   it("caps offline earnings at three days", () => {
     const preview = previewKibble({ stored: 5, settledAt: 0, now: 10 * DAY, ratePerDay: 48 });

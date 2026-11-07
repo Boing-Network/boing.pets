@@ -225,7 +225,7 @@ h3 {
   height: 420px;
   display: block;
   border-radius: 28px;
-  background: radial-gradient(circle at 50% 80%, #1a3f78, #071226 70%);
+  background: #6f93c4;
   margin: 8px 0 18px;
 }
 .gallery {
