@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { FIELD_RADIUS, pasturePlace, stageScale, yardSpot, type Stage } from "./tycoon";
+import { accessory, type Rarity } from "./wardrobe";
 import type { traits } from "./core";
 
 export interface YardPet {
@@ -12,6 +13,60 @@ export interface YardPet {
   online: boolean;
   nft: { staked: boolean } | null;
   buildings: string[];
+  wear?: { slot: string; item: string }[];
+}
+
+const RARITY_METAL: Record<Rarity, number> = {
+  common: 0,
+  uncommon: 0.05,
+  rare: 0.15,
+  epic: 0.35,
+  mythic: 0.55,
+};
+
+function wearMaterial(rarity: Rarity, tint: string) {
+  return new THREE.MeshStandardMaterial({
+    color: tint,
+    roughness: rarity === "common" ? 0.85 : 0.4,
+    metalness: RARITY_METAL[rarity],
+    emissive: rarity === "mythic" || rarity === "epic" ? tint : "#000000",
+    emissiveIntensity: rarity === "mythic" ? 0.35 : rarity === "epic" ? 0.18 : 0,
+  });
+}
+
+function addWear(group: THREE.Group, wear: { slot: string; item: string }[] = []) {
+  for (const piece of wear) {
+    const item = accessory(piece.item);
+    if (!item) continue;
+    const material = wearMaterial(item.rarity, item.tint);
+    const slot = item.slot;
+    if (slot === "head") {
+      const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.05, 16), material);
+      brim.position.y = 1.22;
+      const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.22, 12), material);
+      crown.position.y = 1.34;
+      group.add(brim, crown);
+    } else if (slot === "neck") {
+      const scarf = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.07, 8, 20), material);
+      scarf.rotation.x = Math.PI / 2;
+      scarf.position.y = 0.9;
+      group.add(scarf);
+    } else if (slot === "body") {
+      const wrap = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.72, 0.2, 20), material);
+      wrap.position.y = 0.48;
+      group.add(wrap);
+    } else if (slot === "back") {
+      const pack = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.42, 0.2), material);
+      pack.position.set(0.5, 0.82, -0.08);
+      group.add(pack);
+    } else if (slot === "feet") {
+      for (const side of [-1, 1]) {
+        const boot = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.14, 0.28), material);
+        boot.position.set(side * 0.18, 0.08, 0.1);
+        group.add(boot);
+      }
+    }
+  }
 }
 
 const fur = (hue: number, accent: number) => ({
@@ -124,6 +179,7 @@ function addSpecies(group: THREE.Group, pet: YardPet, coat: THREE.Color, mark: T
     eye.position.set(side * 0.16, eyeY, 0.42);
     group.add(eye);
   }
+  addWear(group, pet.wear);
 }
 
 function addBuildings(group: THREE.Group, kinds: string[]) {

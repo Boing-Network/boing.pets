@@ -30,17 +30,19 @@ import {
   type YardAction,
 } from "../src/tycoon";
 import { includedTx, type Receipt, type RpcBlock } from "./proof";
+import { YardError } from "./errors";
+import { pieceInsert } from "./wardrobe";
+import { accessory, foundWhileForaging, isSlot } from "../src/wardrobe";
 
-export class YardError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
-
-type Detail = { contract?: string; tokenId?: string; nonce?: number; kind?: Building; skill?: Skill };
+type Detail = {
+  contract?: string;
+  tokenId?: string;
+  nonce?: number;
+  kind?: Building;
+  skill?: Skill;
+  piece?: string;
+  slot?: string;
+};
 
 async function rpc<T>(env: Env, method: string, params: unknown[] = []): Promise<T> {
   try {
@@ -134,6 +136,11 @@ export async function yardState(env: Env, viewer: string | null, now: number) {
         .first<{ staked: number; token_id: string; contract: string }>();
       const skills = await skillBook(env, pet.owner, now);
       const place = here.get(pet.owner);
+      const worn = await env.DB.prepare(
+        "SELECT e.slot,e.piece,w.item FROM equipped e JOIN wardrobe w ON w.id=e.piece WHERE e.owner=?",
+      )
+        .bind(pet.owner)
+        .all<{ slot: string; piece: string; item: string }>();
       return {
         owner: pet.owner,
         hatch_tx: pet.hatch_tx,
@@ -147,6 +154,7 @@ export async function yardState(env: Env, viewer: string | null, now: number) {
             : yardSpot(pet.owner),
         online: online(place?.seen_at ?? null, now),
         nft: nft ? { tokenId: nft.token_id, contract: nft.contract, staked: nft.staked === 1 } : null,
+        wear: worn.results.map((row) => ({ slot: row.slot, piece: row.piece, item: row.item })),
         buildings: await buildings(env, pet.owner),
       };
     }),
@@ -178,13 +186,31 @@ export async function yardState(env: Env, viewer: string | null, now: number) {
         staked: mine.nft?.staked === true,
         bonded: row?.bonded === 1,
         buildings: mine.buildings,
+        wardrobe: (
+          await env.DB.prepare("SELECT id,item,source FROM wardrobe WHERE owner=? ORDER BY created_at").bind(viewer).all<{
+            id: string;
+            item: string;
+            source: string;
+          }>()
+        ).results.map((row) => {
+          const item = accessory(row.item);
+          return {
+            id: row.id,
+            item: row.item,
+            source: row.source,
+            name: item?.name ?? row.item,
+            slot: item?.slot ?? "body",
+            rarity: item?.rarity ?? "common",
+            equipped: mine.wear.some((piece) => piece.piece === row.id),
+          };
+        }),
       };
     }
   }
   return json({ now, collection: collection?.contract ?? null, me, pets: roster });
 }
 
-async function issue(env: Env, owner: string, action: YardAction, now: number) {
+async function issue(env: Env, owner: string, action: YardAction, now: number, body: Record<string, unknown> = {}) {
   const pet = await env.DB.prepare("SELECT * FROM pets WHERE owner=?").bind(owner).first<Pet>();
   if (!pet) throw new YardError(409, "Hatch your buddy before opening the yard");
   const recent = await env.DB.prepare("SELECT COUNT(*) AS n FROM yard_challenges WHERE owner=? AND created_at>?")
@@ -240,6 +266,21 @@ async function issue(env: Env, owner: string, action: YardAction, now: number) {
     }>();
     if (known?.last_day === dayOf(now)) throw new YardError(409, "Already practiced today. Come back after midnight UTC.");
     detail = { skill };
+  }
+  if (action === "equip") {
+    const piece = typeof body.piece === "string" ? body.piece : "";
+    const owned = await env.DB.prepare("SELECT id,item FROM wardrobe WHERE id=? AND owner=?").bind(piece, owner).first<{
+      id: string;
+      item: string;
+    }>();
+    const item = owned ? accessory(owned.item) : null;
+    if (!owned || !item) throw new YardError(404, "You do not own that accessory");
+    detail = { piece: owned.id, slot: item.slot };
+  }
+  if (action === "unequip") {
+    const slot = typeof body.slot === "string" ? body.slot : "";
+    if (!isSlot(slot)) throw new YardError(400, "Unknown clothing slot");
+    detail = { slot };
   }
   const kind = buildingOf(action);
   if (kind) {
@@ -319,9 +360,20 @@ export async function confirmYard(env: Env, body: Record<string, unknown>, now: 
   const done = await env.DB.prepare("SELECT id FROM yard_events WHERE id=?").bind(row.id).first();
   if (done) return json({ ok: true, alreadyConfirmed: true });
   const detail = JSON.parse(row.detail) as Detail;
-  const signed = ["stake_nft", "unstake_nft", "collect", "buy_pen", "buy_stand", "buy_toy", "train_forage", "train_greet", "train_play", "wander"].includes(
-    row.action,
-  );
+  const signed = [
+    "stake_nft",
+    "unstake_nft",
+    "collect",
+    "buy_pen",
+    "buy_stand",
+    "buy_toy",
+    "train_forage",
+    "train_greet",
+    "train_play",
+    "wander",
+    "equip",
+    "unequip",
+  ].includes(row.action);
   let hash: string | null = null;
   if (signed) {
     if (typeof body.signature !== "string" || !/^(0x)?[0-9a-f]{128}$/i.test(body.signature))
@@ -417,12 +469,28 @@ export async function confirmYard(env: Env, body: Record<string, unknown>, now: 
     );
   }
   if (row.action === "collect") await settle(env, row.owner, now);
+  if (detail.skill === "forage") {
+    const found = foundWhileForaging(row.id);
+    if (found) {
+      statements.push(pieceInsert(env, row.owner, found, "forage", now, row.id));
+      detail.piece = row.id;
+    }
+  }
   if (detail.skill) {
     statements.push(
       env.DB.prepare(
         "INSERT INTO skills(owner,skill,points,last_day) VALUES(?,?,1,?) ON CONFLICT(owner,skill) DO UPDATE SET points=skills.points+1,last_day=excluded.last_day",
       ).bind(row.owner, detail.skill, dayOf(now)),
     );
+  }
+  if (row.action === "equip" && detail.piece && detail.slot) {
+    statements.push(
+      env.DB.prepare("DELETE FROM equipped WHERE owner=? AND (slot=? OR piece=?)").bind(row.owner, detail.slot, detail.piece),
+      env.DB.prepare("INSERT INTO equipped(owner,slot,piece) VALUES(?,?,?)").bind(row.owner, detail.slot, detail.piece),
+    );
+  }
+  if (row.action === "unequip" && detail.slot) {
+    statements.push(env.DB.prepare("DELETE FROM equipped WHERE owner=? AND slot=?").bind(row.owner, detail.slot));
   }
   if (row.action === "wander") {
     statements.push(
@@ -472,5 +540,5 @@ export async function yardPost(env: Env, body: Record<string, unknown>, path: st
   if (path !== "/api/challenge") return null;
   const action = String(body.action);
   if (!isYardAction(action)) return null;
-  return issue(env, hex32(body.owner), action, now);
+  return issue(env, hex32(body.owner), action, now, body);
 }

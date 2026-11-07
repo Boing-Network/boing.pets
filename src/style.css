@@ -220,6 +220,15 @@ h3 {
   color: var(--muted);
   font-size: 0.78rem;
 }
+.wardrobe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 4px;
+}
+.wardrobe button {
+  font-size: 0.74rem;
+}
 #yard-canvas {
   width: 100%;
   height: 420px;

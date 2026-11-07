@@ -13,7 +13,8 @@ import {
   type Pet,
 } from "../src/core";
 import { verifyProof, type Receipt, type RpcBlock } from "./proof";
-import { confirmYard, yardPost, yardState, YardError } from "./yard";
+import { confirmYard, yardPost, yardState } from "./yard";
+import { YardError } from "./errors";
 import { isYardAction } from "../src/tycoon";
 interface Challenge {
   id: string;

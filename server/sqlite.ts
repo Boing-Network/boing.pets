@@ -25,6 +25,19 @@ export async function openSqlite(filename = ":memory:") {
     "ALTER TABLE presence ADD COLUMN z REAL",
     "ALTER TABLE presence ADD COLUMN pass TEXT",
     "ALTER TABLE presence ADD COLUMN pass_until INTEGER",
+    `CREATE TABLE IF NOT EXISTS wardrobe (
+      id TEXT PRIMARY KEY,
+      owner TEXT NOT NULL,
+      item TEXT NOT NULL,
+      source TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS equipped (
+      owner TEXT NOT NULL,
+      slot TEXT NOT NULL CHECK (slot IN ('head', 'neck', 'body', 'back', 'feet')),
+      piece TEXT NOT NULL,
+      PRIMARY KEY (owner, slot)
+    )`,
     `CREATE TABLE IF NOT EXISTS skills (
       owner TEXT NOT NULL,
       skill TEXT NOT NULL CHECK (skill IN ('forage', 'greet', 'play')),

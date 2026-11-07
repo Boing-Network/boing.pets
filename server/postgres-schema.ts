@@ -78,6 +78,19 @@ CREATE TABLE IF NOT EXISTS skills (
   last_day INTEGER NOT NULL,
   PRIMARY KEY (owner, skill)
 );
+CREATE TABLE IF NOT EXISTS wardrobe (
+  id TEXT PRIMARY KEY,
+  owner TEXT NOT NULL,
+  item TEXT NOT NULL,
+  source TEXT NOT NULL,
+  created_at BIGINT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS equipped (
+  owner TEXT NOT NULL,
+  slot TEXT NOT NULL CHECK (slot IN ('head', 'neck', 'body', 'back', 'feet')),
+  piece TEXT NOT NULL,
+  PRIMARY KEY (owner, slot)
+);
 CREATE TABLE IF NOT EXISTS presence (
   owner TEXT PRIMARY KEY,
   seen_at BIGINT NOT NULL,

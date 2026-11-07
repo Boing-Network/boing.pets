@@ -15,6 +15,8 @@ export const YARD_ACTIONS = [
   "train_greet",
   "train_play",
   "wander",
+  "equip",
+  "unequip",
 ] as const;
 export type YardAction = (typeof YARD_ACTIONS)[number];
 export type Building = "pen" | "stand" | "toy";
