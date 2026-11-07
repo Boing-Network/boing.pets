@@ -13,6 +13,8 @@ import {
   type Pet,
 } from "../src/core";
 import { verifyProof, type Receipt, type RpcBlock } from "./proof";
+import { confirmYard, yardPost, yardState, YardError } from "./yard";
+import { isYardAction } from "../src/tycoon";
 interface Challenge {
   id: string;
   owner: string;
@@ -120,6 +122,10 @@ async function api(req: Request, env: Env): Promise<Response> {
       now,
     });
   }
+  if (req.method === "GET" && url.pathname === "/api/yard") {
+    const viewer = url.searchParams.get("viewer");
+    return yardState(env, viewer ? hex32(viewer) : null, now);
+  }
   if (req.method === "GET" && url.pathname === "/api/pet") {
     const owner = hex32(url.searchParams.get("owner"));
     const pet = await env.DB.prepare("SELECT * FROM pets WHERE owner=?")
@@ -157,9 +163,14 @@ async function api(req: Request, env: Env): Promise<Response> {
   } catch {
     throw new HttpError(400, "Invalid JSON");
   }
+  if (url.pathname === "/api/presence" || url.pathname === "/api/challenge") {
+    const yard = await yardPost(env, body, url.pathname, now);
+    if (yard) return yard;
+  }
   if (url.pathname === "/api/challenge") {
     const owner = hex32(body.owner),
       action = body.action as Action;
+    if (isYardAction(String(action))) throw new HttpError(400, "Unknown care action");
     if (!["hatch", "feed", "checkin"].includes(action))
       throw new HttpError(400, "Unknown care action");
     const pet = await env.DB.prepare("SELECT * FROM pets WHERE owner=?")
@@ -232,6 +243,8 @@ async function api(req: Request, env: Env): Promise<Response> {
     });
   }
   if (url.pathname === "/api/confirm") {
+    const yard = await confirmYard(env, body, now);
+    if (yard) return yard;
     if (typeof body.id !== "string" || body.id.length > 64)
       throw new HttpError(400, "Invalid challenge");
     const c = await env.DB.prepare("SELECT * FROM challenges WHERE id=?")
@@ -322,13 +335,13 @@ export default {
       return json(
         {
           error:
-            e instanceof HttpError
+            e instanceof HttpError || e instanceof YardError
               ? e.message
               : e instanceof Error && e.message.startsWith("Expected a 32-byte")
                 ? e.message
                 : "Request could not be processed",
         },
-        e instanceof HttpError
+        e instanceof HttpError || e instanceof YardError
           ? e.status
           : e instanceof Error && e.message.startsWith("Expected a 32-byte")
             ? 400

@@ -16,6 +16,10 @@ export async function openSqlite(filename = ":memory:") {
     .prepare("SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'pets'")
     .get();
   if (!ready) db.exec(readFileSync(migrationPath("0001_pasture.sql"), "utf8"));
+  const yard = db
+    .prepare("SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'yards'")
+    .get();
+  if (!yard) db.exec(readFileSync(migrationPath("0002_yard.sql"), "utf8"));
   const driver: Driver = {
     query: async (sql, params) => {
       const statement = db.prepare(sql);

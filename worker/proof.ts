@@ -20,12 +20,12 @@ function record(value: unknown): Record<string, unknown> {
     throw new Error("Malformed RPC proof");
   return value as Record<string, unknown>;
 }
-export function verifyProof(
+export function includedTx(
   hash: string,
   c: ProofChallenge,
   r: Receipt | null,
   b: RpcBlock | null,
-): void {
+): Record<string, unknown> {
   if (!r)
     throw new Error(
       "Transaction is not included yet. Wait and retry confirmation.",
@@ -44,7 +44,15 @@ export function verifyProof(
   const br = b.receipts?.[r.tx_index];
   if (!br || br.success !== true || hex32(br.tx_id) !== hash)
     throw new Error("Block receipt does not match");
-  const tx = record(b.transactions[r.tx_index]);
+  return record(b.transactions[r.tx_index]);
+}
+export function verifyProof(
+  hash: string,
+  c: ProofChallenge,
+  r: Receipt | null,
+  b: RpcBlock | null,
+): void {
+  const tx = includedTx(hash, c, r, b);
   if (hex32(tx.sender) !== c.owner)
     throw new Error("Transaction belongs to another wallet");
   const transfer = record(record(tx.payload).Transfer);

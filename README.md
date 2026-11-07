@@ -33,6 +33,7 @@ Open **http://localhost:5177** (use this exact origin, not 127.0.0.1). Vite prox
 4. **Daily hello** signs a server-generated, origin/account/chain/action/nonce/expiry-bound message. The server verifies Ed25519 over BLAKE3(UTF-8 message), matching current Express. No transaction fee.
 5. **Feed** approves another tiny self-transfer and restores the belly. Feeding is capped at once per UTC day to prevent accidental repeat fees. Each action type is once/day; either care action counts for the streak, never twice on the same day.
 6. The public pasture shows buddies, streaks, belly, joy and status. Yours is highlighted. Browse without connecting. Use Refresh to recompute time-dependent state.
+7. The shared yard is a 3D view of those buddies. The first player can deploy the Boing reference NFT kennel, then each wallet mints one pet NFT. Staking checks that the wallet still holds that NFT. Bonding 0.01 testnet BOING is a real protocol bond. Kibble accrues from care, buildings, the staked NFT, and the bond, and is spent on a pen, snack stand, or toy cart.
 
 Belly loses 25 points/day since hatch or last feed; joy loses 20/day since any care. After two days without feeding, a buddy is scruffy; after four, a stray. A hello cheers up a stray but only a feed restores its belly. No permanent death or deletion. Streaks count consecutive UTC calendar days; yesterday's streak remains visible until today is missed. This is a calendar-day ritual, not a rolling 24-hour timer.
 

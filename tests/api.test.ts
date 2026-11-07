@@ -82,6 +82,12 @@ beforeEach(async () => {
       "utf8",
     ),
   );
+  db.exec(
+    readFileSync(
+      new NodeURL("../migrations/0002_yard.sql", import.meta.url),
+      "utf8",
+    ),
+  );
   const adapter = {
     prepare: (sql: string) => new Statement(db, sql),
     batch: async (statements: Statement[]) => {
