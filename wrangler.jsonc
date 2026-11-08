@@ -19,8 +19,9 @@
   "d1_databases": [
     {
       "binding": "DB",
-      // Reused empty D1 (account at free-plan create limit). Rename later if desired.
-      "database_name": "boing-wallet-db",
+      // Local/CI name stays `pets` (see package.json db:local).
+      // database_id points at reused empty remote D1 (account create limit).
+      "database_name": "pets",
       "database_id": "7dd2c893-212a-45e8-9dae-8235ee3c7134",
       "migrations_dir": "migrations",
     },
