@@ -394,6 +394,94 @@ async function api(req: Request, env: Env): Promise<Response> {
       },
     });
   }
+  if (url.pathname === "/api/world/presence/challenge") {
+    const owner = hex32(body.owner);
+    const zone = typeof body.zone === "string" ? body.zone.slice(0, 64) : "";
+    if (!zone || !WORLD_CONFIG.zones.some((item) => item.id === zone))
+      throw new HttpError(400, "Unknown zone");
+    const count = await env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM presence_challenges WHERE owner=? AND created_at>?",
+    )
+      .bind(owner, now - 60_000)
+      .first<{ n: number }>();
+    if ((count?.n || 0) >= 8)
+      throw new HttpError(429, "Too many presence requests. Try again shortly.");
+    await env.DB.prepare(
+      "DELETE FROM presence_challenges WHERE expires_at<?",
+    )
+      .bind(now)
+      .run();
+    const id = crypto.randomUUID(),
+      expires = now + 10 * 60_000;
+    const message = `Boing Pets presence v1\nOrigin: ${env.APP_ORIGIN}\nChain: 6913\nOwner: ${owner}\nZone: ${zone}\nNonce: ${id}\nExpires: ${expires}`;
+    await env.DB.prepare(
+      "INSERT INTO presence_challenges(id,owner,zone,message,created_at,expires_at) VALUES(?,?,?,?,?,?)",
+    )
+      .bind(id, owner, zone, message, now, expires)
+      .run();
+    return json({ id, owner, zone, message, expires_at: expires });
+  }
+  if (url.pathname === "/api/world/presence/confirm") {
+    if (typeof body.id !== "string" || body.id.length > 64)
+      throw new HttpError(400, "Invalid presence challenge");
+    const c = await env.DB.prepare(
+      "SELECT * FROM presence_challenges WHERE id=?",
+    )
+      .bind(body.id)
+      .first<{
+        id: string;
+        owner: string;
+        zone: string;
+        message: string;
+        expires_at: number;
+      }>();
+    if (!c) throw new HttpError(404, "Presence challenge not found");
+    if (c.expires_at < now)
+      throw new HttpError(410, "Presence challenge expired. Join again.");
+    if (
+      typeof body.signature !== "string" ||
+      !/^(0x)?[0-9a-f]{128}$/i.test(body.signature)
+    )
+      throw new HttpError(400, "Invalid signature format");
+    const sig = hexToBytes(body.signature.replace(/^0x/i, "")),
+      key = hexToBytes(c.owner.slice(2));
+    if (
+      !(await ed.verifyAsync(
+        sig,
+        blake3(new TextEncoder().encode(c.message)),
+        key,
+      ))
+    )
+      throw new HttpError(
+        403,
+        "Signature does not match this wallet and presence challenge",
+      );
+    await env.DB.prepare("DELETE FROM presence_tokens WHERE expires_at<?")
+      .bind(now)
+      .run();
+    await env.DB.prepare(
+      "DELETE FROM presence_tokens WHERE owner=? AND zone=?",
+    )
+      .bind(c.owner, c.zone)
+      .run();
+    const token = crypto.randomUUID();
+    const tokenExpires = now + 15 * 60_000;
+    await env.DB.prepare(
+      "INSERT INTO presence_tokens(token,owner,zone,created_at,expires_at) VALUES(?,?,?,?,?)",
+    )
+      .bind(token, c.owner, c.zone, now, tokenExpires)
+      .run();
+    await env.DB.prepare("DELETE FROM presence_challenges WHERE id=?")
+      .bind(c.id)
+      .run();
+    return json({
+      ok: true,
+      token,
+      owner: c.owner,
+      zone: c.zone,
+      expires_at: tokenExpires,
+    });
+  }
   if (url.pathname === "/api/challenge") {
     const owner = hex32(body.owner);
     if (!isAction(body.action))

@@ -84,6 +84,7 @@ beforeEach(async () => {
     "../migrations/0004_economy.sql",
     "../migrations/0005_content_framework.sql",
     "../migrations/0006_social.sql",
+    "../migrations/0007_presence_tokens.sql",
   ]) {
     db.exec(readFileSync(new NodeURL(file, import.meta.url), "utf8"));
   }
@@ -591,5 +592,40 @@ describe("Pets API", () => {
       ).status,
     ).toBe(413);
     expect((await request("/api/pasture?offset=-1")).status).toBe(400);
+  });
+  it("issues wallet-bound plaza presence tokens", async () => {
+    await hatch();
+    const c = await request("/api/world/presence/challenge", {
+      owner,
+      zone: "starter-town",
+    });
+    expect(c.status).toBe(200);
+    const body = (await c.json()) as { id: string; message: string };
+    expect(body.message).toContain("Boing Pets presence v1");
+    const confirmed = await request("/api/world/presence/confirm", {
+      id: body.id,
+      signature: await signConfirm(body.message),
+    });
+    expect(confirmed.status).toBe(200);
+    const tokenBody = (await confirmed.json()) as {
+      token: string;
+      owner: string;
+      expires_at: number;
+    };
+    expect(tokenBody.owner).toBe(owner);
+    expect(tokenBody.token.length).toBeGreaterThan(8);
+    expect(
+      db
+        .prepare("SELECT owner FROM presence_tokens WHERE token=?")
+        .get(tokenBody.token)?.owner,
+    ).toBe(owner);
+    expect(
+      (
+        await request("/api/world/presence/challenge", {
+          owner,
+          zone: "not-a-zone",
+        })
+      ).status,
+    ).toBe(400);
   });
 });

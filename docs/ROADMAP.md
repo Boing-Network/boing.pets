@@ -105,11 +105,10 @@ Complexity key: **S** small · **M** medium · **L** large · **XL** multi-quart
 ### Shipped social backlog
 - Friends, profiles, DMs via signed `/api/social/*` + migration `0006`
 - Pasture Friends panel (see `docs/PHASE3-SOCIAL.md`)
+- Wallet-bound plaza tokens + display names (`0007`, `PHASE3-PRESENCE-AUTH.md`)
 
 ### Still open
 - See pet followers; party invite
-- Display names on plaza presence
-- Wallet-bound presence tokens
 - `parties` tables
 - Grid AOI for larger zones; edge rate limits
 

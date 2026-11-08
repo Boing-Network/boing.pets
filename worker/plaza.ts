@@ -1,8 +1,10 @@
 import { DurableObject } from "cloudflare:workers";
+import { shortWallet } from "../src/social";
 import {
   parseClientPresenceMessage,
   PRESENCE_MAX_PLAYERS,
   PRESENCE_MOVE_MIN_MS,
+  WALLET_ID_RE,
   type PresencePlayer,
   type ServerPresenceMessage,
 } from "../src/world/lib/presenceProtocol";
@@ -57,24 +59,66 @@ export class PlazaRoom extends DurableObject<Env> {
         send(ws, { type: "error", message: "Already joined" });
         return;
       }
-      // One socket per guest id in this plaza.
+
+      let id = parsed.id;
+      let name = parsed.name;
+      const color = parsed.color;
+      const looksWallet = WALLET_ID_RE.test(id);
+
+      if (parsed.token) {
+        const now = Date.now();
+        await this.env.DB.prepare(
+          "DELETE FROM presence_tokens WHERE expires_at<?",
+        )
+          .bind(now)
+          .run();
+        const row = await this.env.DB.prepare(
+          "SELECT owner,zone,expires_at FROM presence_tokens WHERE token=?",
+        )
+          .bind(parsed.token)
+          .first<{ owner: string; zone: string; expires_at: number }>();
+        if (!row || row.expires_at < now) {
+          send(ws, { type: "error", message: "Presence token invalid or expired" });
+          ws.close(1008, "Bad presence token");
+          return;
+        }
+        id = row.owner;
+        const profile = await this.env.DB.prepare(
+          "SELECT display_name FROM profiles WHERE owner=?",
+        )
+          .bind(id)
+          .first<{ display_name: string }>();
+        name = profile?.display_name || shortWallet(id);
+      } else if (looksWallet) {
+        // Guests cannot claim wallet-shaped ids without a signed token.
+        send(ws, {
+          type: "error",
+          message: "Wallet presence requires a signed token",
+        });
+        ws.close(1008, "Wallet token required");
+        return;
+      }
+
       for (const other of this.ctx.getWebSockets()) {
         const att = readAttachment(other);
-        if (att?.id === parsed.id) {
+        if (att?.id === id) {
           send(ws, { type: "error", message: "Duplicate presence id" });
           ws.close(1008, "Duplicate presence id");
           return;
         }
       }
       const player: PresencePlayer = {
-        id: parsed.id,
-        name: parsed.name,
-        color: parsed.color,
+        id,
+        name,
+        color,
         x: parsed.x,
         y: parsed.y,
         z: parsed.z,
       };
-      ws.serializeAttachment({ ...player, lastMoveAt: Date.now() } satisfies Attachment);
+      ws.serializeAttachment({
+        ...player,
+        lastMoveAt: Date.now(),
+      } satisfies Attachment);
       const players = this.listPlayers();
       send(ws, { type: "welcome", you: player.id, players });
       this.broadcast(ws, { type: "join", player });

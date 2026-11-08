@@ -20,7 +20,7 @@ export function WorldApp() {
   });
   const [station, setStation] = useState<WorldStation | null>(null);
   const [notice, setNotice] = useState(
-    "Plaza presence is live — other guests appear nearby.",
+    "Plaza is live — connect Express to join as your wallet name; guests still welcome.",
   );
   const [presenceOn, setPresenceOn] = useState(true);
   const preferPerf = useMemo(() => {

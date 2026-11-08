@@ -94,7 +94,7 @@ export function WorldHud({
           boing<span>pets</span>
         </a>
         <div className="world-title">
-          <p className="eyebrow">PHASE 3 · PLAZA PRESENCE</p>
+          <p className="eyebrow">PHASE 3 · WALLET PLAZA</p>
           <h1>{zone.name}</h1>
           <p>{zone.tagline}</p>
         </div>
