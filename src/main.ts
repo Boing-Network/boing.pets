@@ -12,6 +12,13 @@ import {
 } from "./core";
 import { CATALOG } from "./economy";
 import "./style.css";
+import { FOOTER_HTML, PAGE_BODIES } from "./ui/pageBodies";
+import { PAGE_META, renderHeader, type PageId } from "./ui/nav";
+import {
+  applyLegacyHashRedirect,
+  readPageId,
+  wireNavDropdowns,
+} from "./ui/navDom";
 interface Provider {
   request(args: { method: string; params?: unknown[] }): Promise<unknown>;
   on?: (event: string, handler: () => void) => void;
@@ -55,18 +62,39 @@ let provider: Provider | null = null,
   dmTarget = "";
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) =>
   document.querySelector<T>(selector)!;
+const $maybe = <T extends HTMLElement = HTMLElement>(selector: string) =>
+  document.querySelector<T>(selector);
+function on(
+  selector: string,
+  event: "click",
+  handler: (ev: MouseEvent) => void,
+) {
+  $maybe(selector)?.addEventListener(event, handler);
+}
+applyLegacyHashRedirect();
+const page: PageId = readPageId();
+document.title = PAGE_META[page].docTitle;
+const body = PAGE_BODIES[page] || PAGE_BODIES.pasture;
 $("#app").innerHTML =
-  `<header><a class="brand" href="#">boing<span>pets</span><i>✦</i></a><nav aria-label="Main"><a href="#pasture">The pasture</a><a href="#social">Friends</a><a href="#fishing">Fishing</a><a href="#treasure">Treasure</a><a href="#garden">Garden</a><a href="#kitchen">Kitchen</a><a href="#mining">Mine</a><a href="#home">Home</a><a href="#quests">Quests</a><a href="#collections">Collections</a><a href="#market">Market</a><a href="/world.html">Starter Town</a><a href="#how">How to play</a><a href="https://boing.network/testnet" target="_blank" rel="noreferrer">Boing Network ↗</a></nav><button id="connect">Connect Express</button></header><main><section class="hero"><div><p class="eyebrow">BOING TESTNET · CHAIN 6913 <span class="pill">PHASE 6 / CONTENT PREVIEW</span></p><h1>A little bounce.<br>A buddy for life.</h1><p class="lede">Hatch, care, quest, trade cosmetics, and wander expanding zones.<br>Seasons and collections are config-driven for years of drops ahead.</p><div class="hero-cta"><a class="button" href="#buddy">Meet your buddy ↓</a><a class="button secondary" href="/world.html">Enter Starter Town</a></div><p class="small">No dying. Cosmetics-only market. Testnet only.</p></div><div class="hero-pets" id="hero-pets" aria-hidden="true"></div></section><div id="notice" role="status" aria-live="polite">Loading the pasture…</div><section id="buddy" class="panel"><div class="section-title"><div><p class="eyebrow">YOUR LITTLE CORNER</p><h2>Home, sweet wallet.</h2></div><button id="disconnect" class="quiet" hidden>Disconnect</button></div><div id="my-pet"></div><div class="actions"><button id="hatch">Hatch a buddy</button><button id="checkin" class="secondary" hidden>Daily hello · sign only</button><button id="play" class="secondary" hidden>Play · sign only</button><button id="groom" class="secondary" hidden>Groom · sign only</button><button id="feed" hidden>Feed · tiny transaction</button><button id="retry" class="secondary" hidden>Confirm pending transaction</button><button id="forget" class="quiet" hidden>Forget pending record</button></div><p class="small">Hatch & feed: ~0.001 BOING self-transfer + network fee. Hello, play, and groom: free signatures. Daily limits reset at midnight UTC. Care earns Boinglets and XP.</p></section><section id="social" class="panel"><div class="section-title"><div><p class="eyebrow">MMO-LITE SOCIAL</p><h2>Friends &amp; messages</h2></div></div><p id="social-summary" class="subtle">Connect to set a display name, add friends by wallet, and DM.</p><div class="social-form"><label>Display name <input id="display-name" maxlength="24" placeholder="PasturePal" /></label><button id="save-profile" class="secondary" hidden>Save name · sign</button></div><div class="social-form"><label>Friend wallet <input id="friend-wallet" placeholder="0x…" /></label><button id="add-friend" class="secondary" hidden>Send request · sign</button></div><div class="social-cols"><div><h3 class="market-sub">Requests</h3><div id="friend-requests"></div></div><div><h3 class="market-sub">Friends</h3><div id="friends-list"></div></div></div><div class="social-cols"><div><h3 class="market-sub">Party</h3><p id="party-summary" class="subtle">Create a party of up to 4 friends.</p><div id="party-roster"></div><button id="party-create" class="secondary" hidden>Create party · sign</button><button id="party-leave" class="quiet" hidden>Leave party · sign</button></div><div><h3 class="market-sub">Party invites</h3><div id="party-invites"></div></div></div><div id="dm-panel" hidden><h3 class="market-sub">Messages with <span id="dm-with"></span></h3><div id="dm-thread" class="dm-thread"></div><div class="social-form"><input id="dm-body" maxlength="280" placeholder="Say hello…" /><button id="dm-send" class="secondary">Send · sign</button></div></div></section><section id="fishing" class="panel"><div class="section-title"><div><p class="eyebrow">FIRST ACTIVITY LOOP</p><h2>Pond pier fishing</h2></div></div><p id="fishing-summary" class="subtle">Connect, hatch a buddy, then cast — wait for the nibble and reel in the window.</p><div class="fishing-stage" id="fishing-stage"><div class="fishing-meter" aria-hidden="true"><span id="fishing-needle"></span></div><p id="fishing-prompt" class="subtle">Ready when you are.</p><div class="actions"><button id="fish-cast" class="secondary" hidden>Cast · sign</button><button id="fish-reel" hidden disabled>Reel!</button></div></div><div id="fish-log" class="market-grid"></div><p class="small">Up to 3 successful catches per UTC day. Timing window is server-checked. Catches add fish to inventory, Boinglets to your ledger, and collection discoveries.</p></section><section id="treasure" class="panel"><div class="section-title"><div><p class="eyebrow">ACTIVITY LOOP #2</p><h2>Treasure dig</h2></div></div><p id="treasure-summary" class="subtle">Connect, hatch a buddy, then dig from a clue — up to 3 tries per UTC day.</p><p id="treasure-clue" class="subtle">No dig in progress.</p><div class="actions"><button id="treasure-start" class="secondary" hidden>Start dig · sign</button></div><div id="treasure-grid" class="treasure-grid" hidden></div><div id="treasure-log" class="market-grid"></div><p class="small">The correct tile is committed server-side and never sent to the client. Hits award loot + Boinglets + collection discoveries; misses still count toward the daily dig cap.</p></section><section id="garden" class="panel"><div class="section-title"><div><p class="eyebrow">ACTIVITY LOOP #3</p><h2>Garden beds</h2></div></div><p id="garden-summary" class="subtle">Connect, hatch a buddy, then plant → water → harvest on three slots.</p><div class="social-form"><label>Crop <select id="garden-crop"></select></label></div><div id="garden-plots" class="garden-plots"></div><p class="small">Watering shortens grow time. Harvest awards crops, Boinglets, and collection discoveries.</p></section><section id="kitchen" class="panel"><div class="section-title"><div><p class="eyebrow">ACTIVITY LOOP #4</p><h2>Pasture kitchen</h2></div></div><p id="kitchen-summary" class="subtle">Cook crops and fish into snacks, then serve them for hunger and energy boosts.</p><div id="kitchen-recipes" class="market-grid"></div><h3 class="subtle">Ready to serve</h3><div id="kitchen-dishes" class="market-grid"></div><p class="small">Daily caps apply. Cookbook discoveries unlock the first time you cook each recipe.</p></section><section id="mining" class="panel"><div class="section-title"><div><p class="eyebrow">ACTIVITY LOOP #5</p><h2>Crystal cavern mine</h2></div></div><p id="mining-summary" class="subtle">Swing at veins — wait for the weak spot, then strike in the window. Stamina refreshes each UTC day.</p><div class="fishing-stage" id="mining-stage"><div class="fishing-meter" aria-hidden="true"><span id="mining-needle"></span></div><p id="mining-prompt" class="subtle">Ready when you are.</p><div class="actions"><button id="mine-swing" class="secondary" hidden>Swing · sign</button><button id="mine-strike" hidden disabled>Strike!</button></div></div><div id="mine-log" class="market-grid"></div><p class="small">Buy Iron or Crystal picks on the market to raise your pickaxe tier and unlock rarer ores.</p></section><section id="home" class="panel"><div class="section-title"><div><p class="eyebrow">HOUSING FOUNDATION</p><h2>My little plot</h2></div><button id="home-visibility" class="secondary" hidden>Make private · sign</button></div><p id="home-summary" class="subtle">Buy Bounce Cushion or Meadow Lamp on the market, then place them on your 4×4 home grid.</p><div id="home-grid" class="home-grid" aria-label="Home plot"></div><div class="social-form"><label>Furniture to place <select id="home-furniture"><option value="">Select owned furniture…</option></select></label></div><p class="small">Empty cell + selected furniture → place (sign). Occupied cell → pick up (sign). Public plots are visible to visitors.</p></section><section id="quests" class="panel"><div class="section-title"><div><p class="eyebrow">STORIES · DAILIES · SEASONS</p><h2>Quests &amp; festivals</h2></div></div><p id="season-summary" class="subtle">Loading seasonal calendar…</p><div id="quest-list" class="market-grid"></div></section><section id="collections" class="panel"><div class="section-title"><div><p class="eyebrow">DISCOVERY LOG</p><h2>Collections</h2></div></div><p id="collections-summary" class="subtle">Unlock species, discoveries, and cosmetics as you play.</p><div id="collections-list" class="market-grid"></div></section><section id="market" class="panel"><div class="section-title"><div><p class="eyebrow">COSMETICS ONLY</p><h2>Boinglets &amp; the market</h2></div><div class="actions"><button id="claim" class="secondary" hidden>Claim care Boinglets</button><button id="claim-sparkles" class="secondary" hidden>Claim daily Sparkles</button></div></div><p id="economy-summary" class="subtle">Connect to claim care rewards into your spendable balance, then browse cosmetics.</p><div id="catalog" class="market-grid"></div><h3 class="market-sub">Player listings</h3><div id="listings" class="market-grid"></div><p class="small">5% sale fee sinks to the pasture treasury (anti-inflation). Sparkles are a testnet faucet currency for premium cosmetics — not a payment product.</p></section><section id="pasture"><div class="section-title"><div><p class="eyebrow">A NEIGHBORHOOD OF HAPPY ACCIDENTS</p><h2>The public pasture</h2></div><button id="refresh" class="secondary">Refresh ↻</button></div><p class="subtle">Bouncy, peckish, a little scruffy — everybody belongs here.</p><div id="gallery" class="gallery"></div><div class="pages"><button id="prev" class="secondary" hidden>← Previous</button><button id="next" class="secondary" hidden>More buddies →</button></div></section><section id="how" class="how"><article><b>01 / HATCH</b><h3>One wallet. One weirdo.</h3><p>Approve a real Boing testnet transaction in Express. Your wallet and hatch transaction reveal species, colors, and a permanent personality.</p></article><article><b>02 / DAILY CARE</b><h3>Hello, play, groom, feed.</h3><p>Signatures keep joy, energy, and hygiene up. Feeding fills the belly. Each action type is once per UTC day; any care counts toward your streak.</p></article><article><b>03 / GROW</b><h3>Stages, XP, and badges.</h3><p>Buddies grow from baby toward elder with age and care. Earn Boinglets, unlock achievements, and never lose your pet — strays always come home with a feed.</p></article></section></main><footer><span>Built for a little more joy on Boing.</span><a href="https://boing.express" target="_blank" rel="noreferrer">Wallet ↗</a><a href="https://boing.network/faucet" target="_blank" rel="noreferrer">Testnet faucet ↗</a><a href="https://github.com/Boing-Network/boing.pets">Source ↗</a><span>Testnet only. No monetary value or airdrop promise.</span></footer>`;
-const demoOwner = "0x" + "11".repeat(32);
-$("#hero-pets").innerHTML = [1, 2, 3]
-  .map(
-    (i) =>
-      `<div>${petSvg(traits(demoOwner, "0x" + String(i).repeat(64)))}</div>`,
-  )
-  .join("");
+  `${renderHeader(page)}<main class="page page-${page}">${body}</main>${FOOTER_HTML}`;
+wireNavDropdowns();
+if (page === "pasture") {
+  const demoOwner = "0x" + "11".repeat(32);
+  const hero = document.querySelector("#hero-pets");
+  if (hero) {
+    hero.innerHTML = [1, 2, 3]
+      .map(
+        (i) =>
+          `<div>${petSvg(traits(demoOwner, "0x" + String(i).repeat(64)))}</div>`,
+      )
+      .join("");
+  }
+}
 function notice(text: string, error = false) {
-  $("#notice").textContent = text;
-  $("#notice").classList.toggle("error", error);
+  const el = $maybe("#notice");
+  if (!el) return;
+  el.textContent = text;
+  el.classList.toggle("error", error);
 }
 async function api<T>(path: string, body?: unknown): Promise<T> {
   const r = await fetch(
@@ -1138,35 +1166,55 @@ function controls() {
     "prev",
     "claim",
   ])
-    $("#" + id).toggleAttribute("disabled", busy);
-  $("#hatch").hidden = !!mine;
-  $("#hatch").toggleAttribute("disabled", busy || !owner);
-  $("#checkin").hidden = !mine;
-  $("#play").hidden = !mine;
-  $("#groom").hidden = !mine;
-  $("#feed").hidden = !mine;
-  $("#checkin").toggleAttribute("disabled", busy || !!mine?.state.checkedIn);
-  $("#play").toggleAttribute("disabled", busy || !!mine?.state.playedToday);
-  $("#groom").toggleAttribute("disabled", busy || !!mine?.state.groomedToday);
-  $("#feed").toggleAttribute("disabled", busy || !!mine?.state.fedToday);
-  $("#checkin").textContent = mine?.state.checkedIn
-    ? "Hello sent today ✓"
-    : "Daily hello · sign only";
-  $("#play").textContent = mine?.state.playedToday
-    ? "Played today ✓"
-    : "Play · sign only";
-  $("#groom").textContent = mine?.state.groomedToday
-    ? "Groomed today ✓"
-    : "Groom · sign only";
-  $("#feed").textContent = mine?.state.fedToday
-    ? "Fed today ✓"
-    : "Feed · tiny transaction";
-  $("#retry").hidden = !pending() || pending()?.owner !== owner;
-  $("#forget").hidden = $("#retry").hidden;
-  $("#disconnect").hidden = !owner;
-  $("#connect").textContent = owner
-    ? `${owner.slice(0, 8)}…${owner.slice(-4)}`
-    : "Connect Express";
+    $maybe("#" + id)?.toggleAttribute("disabled", busy);
+  const hatch = $maybe("#hatch");
+  if (hatch) {
+    hatch.hidden = !!mine;
+    hatch.toggleAttribute("disabled", busy || !owner);
+  }
+  const checkin = $maybe("#checkin");
+  const play = $maybe("#play");
+  const groom = $maybe("#groom");
+  const feed = $maybe("#feed");
+  if (checkin) {
+    checkin.hidden = !mine;
+    checkin.toggleAttribute("disabled", busy || !!mine?.state.checkedIn);
+    checkin.textContent = mine?.state.checkedIn
+      ? "Hello sent today ✓"
+      : "Daily hello · sign only";
+  }
+  if (play) {
+    play.hidden = !mine;
+    play.toggleAttribute("disabled", busy || !!mine?.state.playedToday);
+    play.textContent = mine?.state.playedToday
+      ? "Played today ✓"
+      : "Play · sign only";
+  }
+  if (groom) {
+    groom.hidden = !mine;
+    groom.toggleAttribute("disabled", busy || !!mine?.state.groomedToday);
+    groom.textContent = mine?.state.groomedToday
+      ? "Groomed today ✓"
+      : "Groom · sign only";
+  }
+  if (feed) {
+    feed.hidden = !mine;
+    feed.toggleAttribute("disabled", busy || !!mine?.state.fedToday);
+    feed.textContent = mine?.state.fedToday
+      ? "Fed today ✓"
+      : "Feed · tiny transaction";
+  }
+  const retry = $maybe("#retry");
+  const forget = $maybe("#forget");
+  if (retry) retry.hidden = !pending() || pending()?.owner !== owner;
+  if (forget) forget.hidden = !!retry?.hidden;
+  const disconnectBtn = $maybe("#disconnect");
+  if (disconnectBtn) disconnectBtn.hidden = !owner;
+  const connect = $maybe("#connect");
+  if (connect)
+    connect.textContent = owner
+      ? `${owner.slice(0, 8)}…${owner.slice(-4)}`
+      : "Connect Express";
 }
 function meter(label: string, value: number) {
   return `<label>${label} <meter min="0" max="100" value="${value}"></meter> ${value}%</label>`;
@@ -1188,56 +1236,88 @@ function card(p: ViewPet) {
   el.innerHTML = `<div class="pet-picture">${petSvg(p.traits, ["scruffy", "stray"].includes(p.state.status))}</div><div class="card-head"><h3>${p.traits.species}</h3><span class="badge">${p.owner === owner ? "YOUR BUDDY" : p.state.status.toUpperCase()}</span></div><p class="subtle">${p.traits.personality} · ${p.state.stage} · ${p.state.skills.focus}</p><p class="subtle">${p.state.streak} day streak · ${p.state.xp} XP · ${p.state.boinglets} Boinglets · ${p.state.status}</p>${mind}${meter("Belly", p.state.hunger)}${meter("Joy", p.state.happiness)}${meter("Energy", p.state.energy)}${meter("Hygiene", p.state.hygiene)}${meter("Health", p.state.health)}${badges ? `<div class="ach-row">${badges}</div>` : ""}<p class="small">${p.owner.slice(0, 10)}…${p.owner.slice(-6)}</p><a class="small" target="_blank" rel="noreferrer" href="https://boing.observer/tx/${p.hatch_tx}">Hatch transaction ↗</a>`;
   return el;
 }
-async function refresh() {
+async function refreshBuddyCard() {
+  mine = owner
+    ? (await api<{ pet: ViewPet | null }>("/api/pet?owner=" + owner)).pet
+    : null;
+  const slot = $maybe("#my-pet");
+  if (!slot) return;
+  slot.replaceChildren();
+  if (mine) slot.append(card(mine));
+  else
+    slot.textContent = owner
+      ? "Your egg is waiting. Ready to meet the tiny oddball inside?"
+      : "Connect Boing Express to hatch your first buddy. You can browse the pasture without a wallet.";
+}
+
+async function refreshPastureGallery() {
+  const gallery = $maybe("#gallery");
+  if (!gallery) return;
   const data = await api<{ pets: ViewPet[]; next: number | null }>(
     "/api/pasture?offset=" + offset,
   );
   next = data.next;
-  $("#gallery").replaceChildren(...data.pets.map(card));
+  gallery.replaceChildren(...data.pets.map(card));
   if (!data.pets.length)
-    $("#gallery").textContent =
+    gallery.textContent =
       "A peaceful, empty pasture. Your buddy could be the very first.";
-  mine = owner
-    ? (await api<{ pet: ViewPet | null }>("/api/pet?owner=" + owner)).pet
-    : null;
-  $("#my-pet").replaceChildren();
-  if (mine) $("#my-pet").append(card(mine));
-  else
-    $("#my-pet").textContent = owner
-      ? "Your egg is waiting. Ready to meet the tiny oddball inside?"
-      : "Connect Boing Express to hatch your first buddy. You can browse the pasture without a wallet.";
-  $("#prev").hidden = offset === 0;
-  $("#next").hidden = next === null;
-  await refreshEconomy().catch(() => {
-    /* economy tables may be missing until migration 0004 */
-  });
-  await refreshQuests().catch(() => {
-    /* content tables may be missing until migration 0005 */
-  });
-  await refreshCollections().catch(() => {
-    /* content tables may be missing until migration 0005 */
-  });
-  await refreshSocial().catch(() => {
-    /* social tables may be missing until migration 0006 */
-  });
-  await refreshFishing().catch(() => {
-    /* fishing tables may be missing until migration 0008 */
-  });
-  await refreshHousing().catch(() => {
-    /* housing tables may be missing until migration 0009 */
-  });
-  await refreshTreasure().catch(() => {
-    /* treasure tables may be missing until migration 0011 */
-  });
-  await refreshGarden().catch(() => {
-    /* garden tables may be missing until migration 0013 */
-  });
-  await refreshKitchen().catch(() => {
-    /* cooking tables may be missing until migration 0014 */
-  });
-  await refreshMining().catch(() => {
-    /* mining tables may be missing until migration 0015 */
-  });
+  const prev = $maybe("#prev");
+  const nextBtn = $maybe("#next");
+  if (prev) prev.hidden = offset === 0;
+  if (nextBtn) nextBtn.hidden = next === null;
+}
+
+async function refresh() {
+  if (page === "pasture") {
+    await refreshBuddyCard();
+    await refreshPastureGallery();
+  } else if (owner || page === "friends") {
+    // Keep buddy vitals fresh when serving snacks / care-adjacent pages.
+    if (["kitchen", "home", "market", "quests"].includes(page) && owner)
+      mine = (
+        await api<{ pet: ViewPet | null }>("/api/pet?owner=" + owner)
+      ).pet;
+  }
+  if (page === "market")
+    await refreshEconomy().catch(() => {
+      /* economy tables may be missing until migration 0004 */
+    });
+  if (page === "quests")
+    await refreshQuests().catch(() => {
+      /* content tables may be missing until migration 0005 */
+    });
+  if (page === "collections")
+    await refreshCollections().catch(() => {
+      /* content tables may be missing until migration 0005 */
+    });
+  if (page === "friends")
+    await refreshSocial().catch(() => {
+      /* social tables may be missing until migration 0006 */
+    });
+  if (page === "fishing")
+    await refreshFishing().catch(() => {
+      /* fishing tables may be missing until migration 0008 */
+    });
+  if (page === "home")
+    await refreshHousing().catch(() => {
+      /* housing tables may be missing until migration 0009 */
+    });
+  if (page === "treasure")
+    await refreshTreasure().catch(() => {
+      /* treasure tables may be missing until migration 0011 */
+    });
+  if (page === "garden")
+    await refreshGarden().catch(() => {
+      /* garden tables may be missing until migration 0013 */
+    });
+  if (page === "kitchen")
+    await refreshKitchen().catch(() => {
+      /* cooking tables may be missing until migration 0014 */
+    });
+  if (page === "mining")
+    await refreshMining().catch(() => {
+      /* mining tables may be missing until migration 0015 */
+    });
   controls();
 }
 async function run(task: () => Promise<void>) {
@@ -1333,7 +1413,16 @@ async function act(action: Action) {
   );
   await confirmPending();
 }
-$("#connect").onclick = () =>
+function disconnect() {
+  provider?.removeListener?.("accountsChanged", disconnect);
+  provider?.removeListener?.("chainChanged", disconnect);
+  owner = "";
+  mine = null;
+  provider = null;
+  controls();
+  void refresh().catch(() => notice("Pasture unavailable", true));
+}
+on("#connect", "click", () =>
   void run(async () => {
     if (owner) {
       notice("Already connected. Use Disconnect to change wallets.");
@@ -1362,21 +1451,13 @@ $("#connect").onclick = () =>
     provider.on?.("chainChanged", disconnect);
     await refresh();
     notice("Connected on Boing testnet. Your pasture awaits.");
-  });
-function disconnect() {
-  provider?.removeListener?.("accountsChanged", disconnect);
-  provider?.removeListener?.("chainChanged", disconnect);
-  owner = "";
-  mine = null;
-  provider = null;
-  controls();
-  void refresh().catch(() => notice("Pasture unavailable", true));
-}
-$("#disconnect").onclick = disconnect;
+  }),
+);
+on("#disconnect", "click", () => disconnect());
 for (const action of ["hatch", "feed", "checkin", "play", "groom"] as Action[])
-  $("#" + action).onclick = () => void run(() => act(action));
-$("#retry").onclick = () => void run(confirmPending);
-$("#forget").onclick = () => {
+  on("#" + action, "click", () => void run(() => act(action)));
+on("#retry", "click", () => void run(confirmPending));
+on("#forget", "click", () => {
   if (busy) return;
   if (
     window.confirm(
@@ -1389,41 +1470,45 @@ $("#forget").onclick = () => {
       "Local pending record forgotten. This does not cancel the chain transaction.",
     );
   }
-};
-$("#claim").onclick = () => void run(() => economyAct("claim"));
-$("#claim-sparkles").onclick = () =>
-  void run(() => economyAct("sparkles_claim"));
-$("#fish-cast").onclick = () => void run(castLine);
-$("#mine-swing").onclick = () => void run(swingPick);
-$("#mine-strike").onclick = () => void run(strikeVein);
-$("#fish-reel").onclick = () => void run(reelIn);
-$("#treasure-start").onclick = () => void run(startTreasureDig);
-$("#home-visibility").onclick = () =>
+});
+on("#claim", "click", () => void run(() => economyAct("claim")));
+on("#claim-sparkles", "click", () =>
+  void run(() => economyAct("sparkles_claim")),
+);
+on("#fish-cast", "click", () => void run(castLine));
+on("#mine-swing", "click", () => void run(swingPick));
+on("#mine-strike", "click", () => void run(strikeVein));
+on("#fish-reel", "click", () => void run(reelIn));
+on("#treasure-start", "click", () => void run(startTreasureDig));
+on("#home-visibility", "click", () =>
   void run(async () => {
     const data = await api<{ plot: { visibility: string } | null }>(
       `/api/housing/plot?owner=${owner}&viewer=${owner}`,
     );
-    const next =
+    const nextVis =
       data.plot?.visibility === "public" ? "private" : "public";
-    await housingAct("set_visibility", { visibility: next });
-  });
-$("#save-profile").onclick = () =>
+    await housingAct("set_visibility", { visibility: nextVis });
+  }),
+);
+on("#save-profile", "click", () =>
   void run(() =>
     socialAct("set_profile", {
       display_name: ($("#display-name") as HTMLInputElement).value,
     }),
-  );
-$("#add-friend").onclick = () =>
+  ),
+);
+on("#add-friend", "click", () =>
   void run(() =>
     socialAct("friend_request", {
       target: ($("#friend-wallet") as HTMLInputElement).value.trim(),
     }),
-  );
-$("#party-create").onclick = () =>
-  void run(() => socialAct("party_create"));
-$("#party-leave").onclick = () =>
-  void run(() => socialAct("party_leave"));
-$("#dm-send").onclick = () =>
+  ),
+);
+on("#party-create", "click", () =>
+  void run(() => socialAct("party_create")),
+);
+on("#party-leave", "click", () => void run(() => socialAct("party_leave")));
+on("#dm-send", "click", () =>
   void run(async () => {
     if (!dmTarget) throw new Error("Pick a friend to message");
     await socialAct("send_message", {
@@ -1431,25 +1516,35 @@ $("#dm-send").onclick = () =>
       body: ($("#dm-body") as HTMLInputElement).value,
     });
     ($("#dm-body") as HTMLInputElement).value = "";
-  });
-$("#refresh").onclick = () =>
+  }),
+);
+on("#refresh", "click", () =>
   void run(async () => {
     await refresh();
     notice("Fresh from the pasture.");
-  });
-$("#next").onclick = () =>
+  }),
+);
+on("#next", "click", () =>
   void run(async () => {
     offset = next ?? 0;
     await refresh();
-  });
-$("#prev").onclick = () =>
+  }),
+);
+on("#prev", "click", () =>
   void run(async () => {
     offset = Math.max(0, offset - 24);
     await refresh();
-  });
+  }),
+);
 controls();
 void refresh()
-  .then(() => notice("Testnet pasture ready. Make yourself at home."))
+  .then(() =>
+    notice(
+      page === "pasture"
+        ? "Testnet pasture ready. Make yourself at home."
+        : `${PAGE_META[page].title} ready.`,
+    ),
+  )
   .catch(() =>
     notice(
       "Pasture API unavailable. Start the local API and apply the D1 migration (see README).",

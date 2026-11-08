@@ -13,4 +13,4 @@ Third activity loop: plant → water → harvest on three garden slots.
 `migrations/0013_gardening.sql`
 
 ## World hook
-Starter Town `station-garden` → `/#garden`
+Starter Town `station-garden` → `/garden.html`

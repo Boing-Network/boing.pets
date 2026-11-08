@@ -31,9 +31,18 @@ describe("Starter Town world config", () => {
     const care = STARTER_TOWN.stations.filter((s) => s.kind === "care");
     expect(care.length).toBeGreaterThanOrEqual(3);
     for (const station of care) {
-      expect(station.careHref).toMatch(/^\/#/);
+      expect(station.careHref).toMatch(/^\/(#|[a-z]+\.html)/);
       expect(station.radius).toBeGreaterThan(1);
     }
+  });
+
+  it("points activity portals at dedicated multipage routes", () => {
+    const byId = Object.fromEntries(
+      STARTER_TOWN.stations.map((s) => [s.id, s.careHref]),
+    );
+    expect(byId["station-fish"]).toBe("/fishing.html");
+    expect(byId["station-mine"]).toBe("/mining.html");
+    expect(byId["station-kitchen"]).toBe("/kitchen.html");
   });
 
   it("includes tutorial and marketplace hooks for later phases", () => {

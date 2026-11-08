@@ -23,4 +23,4 @@ Fifth activity loop: spend daily stamina to strike ore veins on a timing window;
 `migrations/0015_mining.sql`
 
 ## World hook
-Starter Town `station-mine` → `/#mining`
+Starter Town `station-mine` → `/mining.html`

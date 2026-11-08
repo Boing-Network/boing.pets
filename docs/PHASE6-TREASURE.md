@@ -14,4 +14,4 @@ Second activity loop: read a clue, pick a dig tile, sign the confirm.
 `migrations/0011_treasure.sql`
 
 ## World hook
-Starter Town `station-dig` → `/#treasure`
+Starter Town `station-dig` → `/treasure.html`

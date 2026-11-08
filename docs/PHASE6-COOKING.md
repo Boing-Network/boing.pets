@@ -24,4 +24,4 @@ Fourth activity loop: cook recipes from crops and fish, then serve snacks for hu
 `migrations/0014_cooking.sql`
 
 ## World hook
-Starter Town `station-kitchen` → `/#kitchen`
+Starter Town `station-kitchen` → `/kitchen.html`

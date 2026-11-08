@@ -19,7 +19,7 @@ Ship the first of 25 activity loops: cast → wait → reel timing with soft rew
 `migrations/0008_fishing.sql`
 
 ## World hook
-Starter Town `station-fish` (Pond Pier) → `/#fishing`
+Starter Town `station-fish` (Pond Pier) → `/fishing.html`
 
 ## Still open
 Rod tiers, beach zone mesh, sell fish on market, rare weight tables by season
