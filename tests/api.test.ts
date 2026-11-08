@@ -79,6 +79,7 @@ beforeEach(async () => {
   for (const file of [
     "../migrations/0001_pasture.sql",
     "../migrations/0002_phase1_progression.sql",
+    "../migrations/0003_world_positions.sql",
   ]) {
     db.exec(readFileSync(new NodeURL(file, import.meta.url), "utf8"));
   }
@@ -185,6 +186,40 @@ describe("Pets API", () => {
       version: 1,
       defaultZone: "starter-town",
       zones: [{ id: "starter-town", name: "Starter Town" }],
+    });
+  });
+  it("syncs a signed world position and returns it publicly", async () => {
+    expect(
+      (await request("/api/world/position?owner=" + owner)).status,
+    ).toBe(200);
+    expect(
+      await (await request("/api/world/position?owner=" + owner)).json(),
+    ).toMatchObject({ position: null });
+    const challenge = await request("/api/world/position/challenge", {
+      owner,
+      zone: "starter-town",
+      x: 1.5,
+      y: 0.9,
+      z: -2.25,
+    });
+    expect(challenge.status).toBe(200);
+    const c = (await challenge.json()) as { id: string; message: string };
+    const signature =
+      "0x" +
+      bytesToHex(
+        await ed.signAsync(
+          blake3(new TextEncoder().encode(c.message)),
+          fixtureKey,
+        ),
+      );
+    expect(
+      (await request("/api/world/position/confirm", { id: c.id, signature }))
+        .status,
+    ).toBe(200);
+    expect(
+      await (await request("/api/world/position?owner=" + owner)).json(),
+    ).toMatchObject({
+      position: { owner, zone: "starter-town", x: 1.5, y: 0.9, z: -2.25 },
     });
   });
   it("requires origin, valid identity and supported action", async () => {

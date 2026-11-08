@@ -149,6 +149,15 @@ async function api(req: Request, env: Env): Promise<Response> {
       now,
     });
   }
+  if (req.method === "GET" && url.pathname === "/api/world/position") {
+    const owner = hex32(url.searchParams.get("owner"));
+    const position = await env.DB.prepare(
+      "SELECT owner,zone,x,y,z,updated_at FROM player_positions WHERE owner=?",
+    )
+      .bind(owner)
+      .first();
+    return json({ position, now });
+  }
   if (req.method === "GET" && url.pathname === "/api/pasture") {
     const offset = Number(url.searchParams.get("offset") || 0);
     if (!Number.isSafeInteger(offset) || offset < 0 || offset > 10000)
@@ -202,6 +211,99 @@ async function api(req: Request, env: Env): Promise<Response> {
     if (!body || Array.isArray(body) || typeof body !== "object") throw Error();
   } catch {
     throw new HttpError(400, "Invalid JSON");
+  }
+  if (url.pathname === "/api/world/position/challenge") {
+    const owner = hex32(body.owner);
+    const zone = typeof body.zone === "string" ? body.zone.slice(0, 64) : "";
+    const x = Number(body.x),
+      y = Number(body.y),
+      z = Number(body.z);
+    if (
+      !zone ||
+      ![x, y, z].every((n) => Number.isFinite(n) && Math.abs(n) <= 10_000)
+    )
+      throw new HttpError(400, "Invalid world position");
+    const known = WORLD_CONFIG.zones.some((item) => item.id === zone);
+    if (!known) throw new HttpError(400, "Unknown zone");
+    const count = await env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM world_challenges WHERE owner=? AND created_at>?",
+    )
+      .bind(owner, now - 60_000)
+      .first<{ n: number }>();
+    if ((count?.n || 0) >= 8)
+      throw new HttpError(429, "Too many sync requests. Try again shortly.");
+    await env.DB.prepare(
+      "DELETE FROM world_challenges WHERE expires_at<?",
+    )
+      .bind(now)
+      .run();
+    const id = crypto.randomUUID(),
+      expires = now + 10 * 60_000;
+    const message = `Boing Pets world sync v1\nOrigin: ${env.APP_ORIGIN}\nChain: 6913\nOwner: ${owner}\nZone: ${zone}\nX: ${x}\nY: ${y}\nZ: ${z}\nNonce: ${id}\nExpires: ${expires}`;
+    await env.DB.prepare(
+      "INSERT INTO world_challenges(id,owner,zone,x,y,z,message,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?)",
+    )
+      .bind(id, owner, zone, x, y, z, message, now, expires)
+      .run();
+    return json({ id, owner, zone, x, y, z, message, expires_at: expires });
+  }
+  if (url.pathname === "/api/world/position/confirm") {
+    if (typeof body.id !== "string" || body.id.length > 64)
+      throw new HttpError(400, "Invalid world challenge");
+    const c = await env.DB.prepare(
+      "SELECT * FROM world_challenges WHERE id=?",
+    )
+      .bind(body.id)
+      .first<{
+        id: string;
+        owner: string;
+        zone: string;
+        x: number;
+        y: number;
+        z: number;
+        message: string;
+        expires_at: number;
+      }>();
+    if (!c) throw new HttpError(404, "World challenge not found");
+    if (c.expires_at < now)
+      throw new HttpError(410, "World challenge expired. Sync again.");
+    if (
+      typeof body.signature !== "string" ||
+      !/^(0x)?[0-9a-f]{128}$/i.test(body.signature)
+    )
+      throw new HttpError(400, "Invalid signature format");
+    const sig = hexToBytes(body.signature.replace(/^0x/i, "")),
+      key = hexToBytes(c.owner.slice(2));
+    if (
+      !(await ed.verifyAsync(
+        sig,
+        blake3(new TextEncoder().encode(c.message)),
+        key,
+      ))
+    )
+      throw new HttpError(
+        403,
+        "Signature does not match this wallet and world sync",
+      );
+    await env.DB.prepare(
+      "INSERT INTO player_positions(owner,zone,x,y,z,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(owner) DO UPDATE SET zone=excluded.zone,x=excluded.x,y=excluded.y,z=excluded.z,updated_at=excluded.updated_at",
+    )
+      .bind(c.owner, c.zone, c.x, c.y, c.z, now)
+      .run();
+    await env.DB.prepare("DELETE FROM world_challenges WHERE id=?")
+      .bind(c.id)
+      .run();
+    return json({
+      ok: true,
+      position: {
+        owner: c.owner,
+        zone: c.zone,
+        x: c.x,
+        y: c.y,
+        z: c.z,
+        updated_at: now,
+      },
+    });
   }
   if (url.pathname === "/api/challenge") {
     const owner = hex32(body.owner);
