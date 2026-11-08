@@ -2,9 +2,11 @@ import { Canvas } from "@react-three/fiber";
 import { Suspense, useCallback, useMemo, useRef, useState } from "react";
 import { STARTER_TOWN, type WorldStation } from "./config/zones";
 import { usePlayerControls } from "./hooks/usePlayerControls";
+import { usePlazaPresence } from "./hooks/usePlazaPresence";
 import { WorldHud } from "./hud/WorldHud";
 import { loadWorldPosition } from "./lib/storage";
 import { Player, type LivePose } from "./scene/Player";
+import { RemotePlayers } from "./scene/RemotePlayers";
 import { StarterTown } from "./scene/StarterTown";
 import "./world.css";
 
@@ -17,7 +19,10 @@ export function WorldApp() {
     z: STARTER_TOWN.spawn.z,
   });
   const [station, setStation] = useState<WorldStation | null>(null);
-  const [notice, setNotice] = useState("Walk the town. Cloud sync is optional.");
+  const [notice, setNotice] = useState(
+    "Plaza presence is live — other guests appear nearby.",
+  );
+  const [presenceOn, setPresenceOn] = useState(true);
   const preferPerf = useMemo(() => {
     if (typeof window === "undefined") return true;
     return (
@@ -33,6 +38,7 @@ export function WorldApp() {
   const onStation = useCallback((next: WorldStation | null) => {
     setStation(next);
   }, []);
+  const presence = usePlazaPresence(STARTER_TOWN.id, livePose, presenceOn);
 
   return (
     <div className="world-shell">
@@ -60,6 +66,7 @@ export function WorldApp() {
             livePose={livePose}
             onStation={onStation}
           />
+          <RemotePlayers players={presence.players} />
         </Suspense>
       </Canvas>
       <WorldHud
@@ -70,6 +77,11 @@ export function WorldApp() {
         preferPerf={preferPerf}
         notice={notice}
         onNotice={setNotice}
+        presenceStatus={presence.status}
+        presenceCount={presence.players.length}
+        presenceError={presence.error}
+        presenceOn={presenceOn}
+        onTogglePresence={() => setPresenceOn((v) => !v)}
       />
     </div>
   );

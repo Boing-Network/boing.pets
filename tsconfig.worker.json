@@ -5,5 +5,11 @@
     "types": ["@cloudflare/workers-types", "node"],
     "jsx": "react-jsx"
   },
-  "include": ["worker", "src/core.ts", "src/world/config/zones.ts", "tests"]
+  "include": [
+    "worker",
+    "src/core.ts",
+    "src/world/config/zones.ts",
+    "src/world/lib/presenceProtocol.ts",
+    "tests"
+  ]
 }

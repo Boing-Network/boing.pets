@@ -22,6 +22,20 @@
       "migrations_dir": "migrations",
     },
   ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "PLAZA",
+        "class_name": "PlazaRoom",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1-plaza",
+      "new_sqlite_classes": ["PlazaRoom"],
+    },
+  ],
   "observability": {
     "enabled": true,
     "logs": { "enabled": true, "head_sampling_rate": 1 },

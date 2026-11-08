@@ -93,28 +93,23 @@ Complexity key: **S** small · **M** medium · **L** large · **XL** multi-quart
 
 ---
 
-## Phase 3 — Multiplayer World
+## Phase 3 — Multiplayer World (presence spike shipping)
 
 **Goal:** MMO-lite presence in public hubs (Starter Town plaza).
 
-### User stories
-- See other players’ avatars + pet followers (capped).
-- Friend list, DM, party invite (text first).
-- Profiles show streak, achievements, species.
+### Shipped spike
+- Durable Object `PlazaRoom` + hibernation WebSockets
+- Guest avatars in Starter Town (cap 32, move rate limit)
+- Join/leave plaza toggle in world HUD
 
-### Tech
-- Cloudflare Durable Objects room per zone shard OR Socket.io on Node for prototype.
-- Interest management: grid AOI; max N entities/client.
-- Auth: short-lived presence tokens minted after wallet challenge.
-
-### DB
-- `friends`, `messages`, `parties`, `profiles` (display name moderated later).
-
-### Anti-abuse
-- Edge rate limits; mute/block; message length caps.
+### Still open
+- See pet followers; friend list, DM, party invite
+- Wallet-bound presence tokens
+- `friends` / `messages` / `parties` / `profiles` tables
+- Grid AOI for larger zones; edge rate limits
 
 ### Complexity
-**XL**
+**XL** (presence spike **M**)
 
 ---
 
