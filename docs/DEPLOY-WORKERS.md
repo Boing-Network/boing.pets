@@ -8,8 +8,8 @@ Target: **option A** — one `workers.dev` URL serves static UI + `/api`.
 
 - [x] Worker `boing-pets` deployed with static assets
 - [x] `APP_ORIGIN` = `https://boing-pets.nico-chikuji.workers.dev`
-- [x] D1 bound (reused empty remote DB id; local/CI name remains `pets`)
-- [x] Migrations `0001`–`0016` applied remotely
+- [x] D1 database **`boing-pets`** (`838d9755-4d84-41f5-af04-3aef48efa2a4`)
+- [x] Migrations `0001`–`0016` present on remote (imported from prior DB)
 - [x] Durable Object `PlazaRoom` bound
 
 ## Redeploy
@@ -22,7 +22,7 @@ npx wrangler deploy
 ## Remote migrations
 
 ```sh
-npx wrangler d1 migrations apply pets --remote
+npx wrangler d1 migrations apply boing-pets --remote
 ```
 
 ## Verify
@@ -33,6 +33,6 @@ curl -sS "https://boing-pets.nico-chikuji.workers.dev/api/pasture?offset=0"
 
 Open the workers.dev URL in the browser (same origin as `APP_ORIGIN`), Connect Express, then hatch/care.
 
-## Note on D1 name
+## D1 naming history
 
-Wrangler `database_name` is `pets` for local/CI. The remote UUID is a reused empty D1 whose dashboard label may still be `boing-wallet-db`. Optional cleanup later: create a dedicated `boing-pets` DB when the account has a free create slot.
+Cloudflare D1 cannot rename in place. The first deploy reused empty `boing-wallet-db`; data was exported and imported into a new **`boing-pets`** database, then the old DB was deleted.
