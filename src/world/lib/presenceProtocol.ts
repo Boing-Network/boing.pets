@@ -2,6 +2,9 @@
 
 export const PRESENCE_MAX_PLAYERS = 32;
 export const PRESENCE_MOVE_MIN_MS = 80;
+/** Wallet ids are `0x` + 64 hex (=66); guests use UUIDs. */
+export const PRESENCE_ID_MAX = 80;
+export const WALLET_ID_RE = /^0x[a-f0-9]{64}$/i;
 
 export interface PresencePlayer {
   id: string;
@@ -21,6 +24,8 @@ export type ClientPresenceMessage =
       x: number;
       y: number;
       z: number;
+      /** Short-lived wallet presence token from /api/world/presence/confirm */
+      token?: string;
     }
   | { type: "move"; x: number; y: number; z: number };
 
@@ -44,7 +49,7 @@ export function parseClientPresenceMessage(
       if (
         typeof data.id !== "string" ||
         data.id.length < 8 ||
-        data.id.length > 64 ||
+        data.id.length > PRESENCE_ID_MAX ||
         typeof data.name !== "string" ||
         data.name.length < 1 ||
         data.name.length > 24 ||
@@ -55,6 +60,10 @@ export function parseClientPresenceMessage(
         !isFinitePos(data.z)
       )
         return null;
+      const token =
+        typeof data.token === "string" && data.token.length <= 64
+          ? data.token
+          : undefined;
       return {
         type: "hello",
         id: data.id,
@@ -63,6 +72,7 @@ export function parseClientPresenceMessage(
         x: data.x,
         y: data.y,
         z: data.z,
+        ...(token ? { token } : {}),
       };
     }
     if (data.type === "move") {
@@ -76,6 +86,12 @@ export function parseClientPresenceMessage(
   }
 }
 
+export function colorFromSeed(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return hslToHex(h % 360, 65, 62);
+}
+
 export function guestPresenceIdentity(): {
   id: string;
   name: string;
@@ -85,9 +101,7 @@ export function guestPresenceIdentity(): {
     typeof crypto !== "undefined" && "randomUUID" in crypto
       ? crypto.randomUUID()
       : `guest-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const hue = Math.floor(Math.random() * 360);
-  const color = hslToHex(hue, 65, 62);
-  return { id, name: `Guest-${id.slice(0, 4)}`, color };
+  return { id, name: `Guest-${id.slice(0, 4)}`, color: colorFromSeed(id) };
 }
 
 function hslToHex(h: number, s: number, l: number): string {

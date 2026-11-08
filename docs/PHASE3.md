@@ -29,5 +29,8 @@ Let multiple guests see each other in Starter Town without rewriting care APIs.
 ## Friends & DMs (backlog shipped)
 See `docs/PHASE3-SOCIAL.md` — migration `0006`, signed social challenge/confirm, pasture Friends panel.
 
+## Wallet presence (shipped)
+See `docs/PHASE3-PRESENCE-AUTH.md` — migration `0007`, signed presence tokens, display names on plaza capsules.
+
 ## Next
-Parties / invites, wallet presence tokens, display names in plaza presence, AOI sharding for City District.
+Parties / invites, pet followers, AOI sharding for City District.
