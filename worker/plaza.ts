@@ -99,12 +99,21 @@ export class PlazaRoom extends DurableObject<Env> {
         return;
       }
 
+      // Reconnect / StrictMode remount / multi-tab: newest hello wins.
       for (const other of this.ctx.getWebSockets()) {
+        if (other === ws) continue;
         const att = readAttachment(other);
         if (att?.id === id) {
-          send(ws, { type: "error", message: "Duplicate presence id" });
-          ws.close(1008, "Duplicate presence id");
-          return;
+          send(other, {
+            type: "error",
+            message: "Replaced by a newer plaza session",
+          });
+          try {
+            other.close(1000, "replaced");
+          } catch {
+            /* already closing */
+          }
+          this.broadcast(other, { type: "leave", id });
         }
       }
       const player: PresencePlayer = {

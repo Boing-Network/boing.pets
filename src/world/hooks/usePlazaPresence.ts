@@ -11,18 +11,24 @@ export function usePlazaPresence(
   zoneId: string,
   livePose: MutableRefObject<LivePose>,
   enabled = true,
+  /** When true, may open Express to request accounts / sign a presence token. */
+  allowPrompt = false,
+  /** Bump to force a clean reconnect (e.g. retry wallet promote). */
+  joinNonce = 0,
 ) {
   const [players, setPlayers] = useState<PresencePlayer[]>([]);
   const [status, setStatus] = useState<"off" | "connecting" | "live" | "error">(
     "off",
   );
   const [error, setError] = useState<string | null>(null);
+  const [walletBound, setWalletBound] = useState(false);
   const selfId = useRef("");
 
   useEffect(() => {
     if (!enabled) {
       setStatus("off");
       setPlayers([]);
+      setWalletBound(false);
       return;
     }
 
@@ -31,11 +37,30 @@ export function usePlazaPresence(
     let timer = 0;
     setStatus("connecting");
     setError(null);
+    setWalletBound(false);
+
+    const tearDown = (code = 1000, reason = "leave") => {
+      closed = true;
+      window.clearInterval(timer);
+      if (socket) {
+        try {
+          socket.close(code, reason);
+        } catch {
+          /* already closed */
+        }
+        socket = null;
+      }
+    };
+
+    const onPageHide = () => tearDown(1000, "pagehide");
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("beforeunload", onPageHide);
 
     void (async () => {
-      const identity = await resolvePlazaIdentity(zoneId);
+      const identity = await resolvePlazaIdentity(zoneId, { allowPrompt });
       if (closed) return;
       selfId.current = identity.id;
+      setWalletBound(!!identity.wallet);
 
       const protocol = location.protocol === "https:" ? "wss:" : "ws:";
       socket = new WebSocket(
@@ -60,6 +85,7 @@ export function usePlazaPresence(
       };
 
       socket.addEventListener("open", () => {
+        if (closed) return;
         const pose = livePose.current;
         socket?.send(
           JSON.stringify({
@@ -129,18 +155,20 @@ export function usePlazaPresence(
     })();
 
     return () => {
-      closed = true;
-      window.clearInterval(timer);
-      socket?.close(1000, "leave");
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("beforeunload", onPageHide);
+      tearDown(1000, "leave");
       setPlayers([]);
       setStatus("off");
+      setWalletBound(false);
     };
-  }, [zoneId, enabled, livePose]);
+  }, [zoneId, enabled, livePose, allowPrompt, joinNonce]);
 
   return {
     players,
     status,
     error,
+    walletBound,
     selfId: selfId.current,
   };
 }
