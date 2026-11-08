@@ -1,3 +1,4 @@
+import { apiFetch } from "../../ui/apiClient";
 import { WALLET_ID_RE } from "./presenceProtocol";
 
 export interface PetLook {
@@ -22,12 +23,9 @@ export async function fetchPetLook(owner: string): Promise<PetLook | null> {
   if (pending) return pending;
   const task = (async () => {
     try {
-      const response = await fetch(
+      const data = await apiFetch<{ pet?: { traits?: PetLook } | null }>(
         "/api/pet?owner=" + encodeURIComponent(owner),
       );
-      const data = (await response.json()) as {
-        pet?: { traits?: PetLook } | null;
-      };
       const look = data.pet?.traits
         ? {
             species: data.pet.traits.species,

@@ -58,6 +58,10 @@ Belly loses 25 points/day since hatch or last feed; joy loses 20/day since any c
 
 Writes require the configured `APP_ORIGIN` and JSON bodies (4 KiB maximum), signatures or chain proofs. No private keys, sessions, cookies, client secrets, or wallet seed imports. Challenges are not authentication by themselves. Before public deployment, add edge/IP abuse controls (including for reads and wallet-rotation attacks), audit economics/security, test retention/backfill behavior, and monitor D1 read usage.
 
+## Vercel Git previews are frontend-only
+
+Vercel builds the Vite static site for PR/main previews. It does **not** run the Cloudflare Worker or D1 database, so `/api/*` returns a host 404 (“The page could not be found”). Connect/care will fail there until a Worker is approved and deployed. For a working pasture, use local `npm run dev:api` + `npm run dev` (http://localhost:5177).
+
 ## Deployment is deliberately not set up
 
 `wrangler.jsonc` is a local-first, unused-until-approved Worker + static assets configuration, with a **placeholder D1 id**, no routes, `workers_dev: false`, preview URLs disabled, and **no cron**. CI only bundles with `--dry-run`; it does not deploy or require secrets. Never deploy the placeholder config.
