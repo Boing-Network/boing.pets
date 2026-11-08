@@ -148,7 +148,7 @@ export const STARTER_TOWN: WorldZoneConfig = {
       position: { x: 11, y: 0, z: -1.2 },
       radius: 2.3,
       hint: "Browse cosmetics and player listings on the pasture market.",
-      careHref: "/#market",
+      careHref: "/market.html",
     },
     {
       id: "station-fish",
@@ -157,7 +157,7 @@ export const STARTER_TOWN: WorldZoneConfig = {
       position: { x: -12, y: 0, z: 10 },
       radius: 2.5,
       hint: "Cast, wait for a nibble, reel in time — up to 3 catches per UTC day.",
-      careHref: "/#fishing",
+      careHref: "/fishing.html",
     },
     {
       id: "station-home",
@@ -166,7 +166,7 @@ export const STARTER_TOWN: WorldZoneConfig = {
       position: { x: 14, y: 0, z: 5 },
       radius: 2.4,
       hint: "Visit your 4×4 home plot — place furniture bought from the market.",
-      careHref: "/#home",
+      careHref: "/home.html",
     },
     {
       id: "station-dig",
@@ -175,7 +175,7 @@ export const STARTER_TOWN: WorldZoneConfig = {
       position: { x: 6, y: 0, z: -12 },
       radius: 2.4,
       hint: "Read the clue, pick a tile, dig — up to 3 tries per UTC day.",
-      careHref: "/#treasure",
+      careHref: "/treasure.html",
     },
     {
       id: "station-garden",
@@ -184,7 +184,7 @@ export const STARTER_TOWN: WorldZoneConfig = {
       position: { x: 14, y: 0, z: 10 },
       radius: 2.5,
       hint: "Plant, water, and harvest crops on three garden slots.",
-      careHref: "/#garden",
+      careHref: "/garden.html",
     },
     {
       id: "station-kitchen",
@@ -193,7 +193,7 @@ export const STARTER_TOWN: WorldZoneConfig = {
       position: { x: -14, y: 0, z: 8 },
       radius: 2.5,
       hint: "Cook recipes from crops and fish, then serve snacks for care boosts.",
-      careHref: "/#kitchen",
+      careHref: "/kitchen.html",
     },
     {
       id: "station-mine",
@@ -202,7 +202,7 @@ export const STARTER_TOWN: WorldZoneConfig = {
       position: { x: -10, y: 0, z: -14 },
       radius: 2.5,
       hint: "Spend stamina to strike ore veins — upgrade pickaxes for rarer finds.",
-      careHref: "/#mining",
+      careHref: "/mining.html",
     },
   ],
   paths: [

@@ -26,6 +26,17 @@ export default defineConfig({
       input: {
         main: resolve(root, "index.html"),
         world: resolve(root, "world.html"),
+        friends: resolve(root, "friends.html"),
+        fishing: resolve(root, "fishing.html"),
+        treasure: resolve(root, "treasure.html"),
+        garden: resolve(root, "garden.html"),
+        kitchen: resolve(root, "kitchen.html"),
+        mining: resolve(root, "mining.html"),
+        home: resolve(root, "home.html"),
+        quests: resolve(root, "quests.html"),
+        collections: resolve(root, "collections.html"),
+        market: resolve(root, "market.html"),
+        how: resolve(root, "how.html"),
       },
       output: {
         manualChunks(id) {
