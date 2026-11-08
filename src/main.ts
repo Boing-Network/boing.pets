@@ -1,4 +1,3 @@
-import { createBoingWebWalletProvider } from "@boing-network/boing-sdk";
 import {
   ACHIEVEMENTS,
   hex32,
@@ -20,12 +19,13 @@ import {
   readPageId,
   wireNavDropdowns,
 } from "./ui/navDom";
-interface Provider {
-  request(args: { method: string; params?: unknown[] }): Promise<unknown>;
-  on?: (event: string, handler: () => void) => void;
-  removeListener?: (event: string, handler: () => void) => void;
-  isBoingWeb?: boolean;
-}
+import {
+  clearWalletSession,
+  requestWalletSession,
+  tryRestoreWalletSession,
+  type BoingProvider,
+} from "./wallet/session";
+type Provider = BoingProvider;
 type ViewPet = Pet & {
   traits: ReturnType<typeof traits>;
   state: ReturnType<typeof state>;
@@ -1517,14 +1517,37 @@ async function act(action: Action) {
   );
   await confirmPending();
 }
+function bindWallet(next: { provider: Provider; owner: string }) {
+  provider?.removeListener?.("accountsChanged", disconnect);
+  provider?.removeListener?.("chainChanged", disconnect);
+  provider = next.provider;
+  owner = next.owner;
+  provider.on?.("accountsChanged", disconnect);
+  provider.on?.("chainChanged", disconnect);
+}
 function disconnect() {
   provider?.removeListener?.("accountsChanged", disconnect);
   provider?.removeListener?.("chainChanged", disconnect);
+  clearWalletSession(provider);
   owner = "";
   mine = null;
   provider = null;
   controls();
   void refresh().catch(() => notice("Pasture unavailable", true));
+}
+async function attachRestoredSession() {
+  const session = await tryRestoreWalletSession();
+  if (!session) return false;
+  bindWallet(session);
+  try {
+    await assertWallet();
+  } catch {
+    clearWalletSession(provider);
+    owner = "";
+    provider = null;
+    return false;
+  }
+  return true;
 }
 on("#connect", "click", () =>
   void run(async () => {
@@ -1532,27 +1555,16 @@ on("#connect", "click", () =>
       notice("Already connected. Use Disconnect to change wallets.");
       return;
     }
-    const injected = (window as Window & { boing?: Provider }).boing;
-    provider =
-      injected ||
-      (createBoingWebWalletProvider({
-        chainId: "0x1b01",
-        mode: "popup",
-      }) as Provider);
-    const accounts = (await provider.request({
-      method: "boing_requestAccounts",
-      params: [],
-    })) as string[];
-    owner = hex32(accounts?.[0]);
+    const session = await requestWalletSession();
+    bindWallet(session);
     try {
       await assertWallet();
     } catch (e) {
+      clearWalletSession(provider);
       owner = "";
       provider = null;
       throw e;
     }
-    provider.on?.("accountsChanged", disconnect);
-    provider.on?.("chainChanged", disconnect);
     await refresh();
     notice("Connected on Boing testnet. Your pasture awaits.");
   }),
@@ -1643,19 +1655,23 @@ on("#prev", "click", () =>
   }),
 );
 controls();
-void refresh()
-  .then(() =>
+void (async () => {
+  const restored = await attachRestoredSession().catch(() => false);
+  try {
+    await refresh();
     notice(
-      page === "pasture"
-        ? "Testnet pasture ready. Make yourself at home."
-        : `${PAGE_META[page].title} ready.`,
-    ),
-  )
-  .catch((e) =>
+      restored
+        ? "Express session restored. Activities are ready."
+        : page === "pasture"
+          ? "Testnet pasture ready. Make yourself at home."
+          : `${PAGE_META[page].title} ready.`,
+    );
+  } catch (e) {
     notice(
       e instanceof Error
         ? e.message
         : "Pasture API unavailable. Start the local Worker (`npm run dev:api`) — see README.",
       true,
-    ),
-  );
+    );
+  }
+})();

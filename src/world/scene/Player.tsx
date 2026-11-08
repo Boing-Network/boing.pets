@@ -23,6 +23,7 @@ export function Player({
   spawn,
   livePose,
   onStation,
+  onNavigateAway,
   owner = null,
 }: {
   zone: WorldZoneConfig;
@@ -30,6 +31,8 @@ export function Player({
   spawn: { x: number; y: number; z: number };
   livePose: MutableRefObject<LivePose>;
   onStation: (station: WorldStation | null) => void;
+  /** Leave plaza / flush presence before multipage navigation. */
+  onNavigateAway?: (href: string) => void;
   owner?: string | null;
 }) {
   const body = useRef<THREE.Group>(null);
@@ -95,7 +98,8 @@ export function Player({
     if (input.interact) {
       if (!interactLatch.current && nearest?.careHref) {
         interactLatch.current = true;
-        window.location.href = nearest.careHref;
+        if (onNavigateAway) onNavigateAway(nearest.careHref);
+        else window.location.href = nearest.careHref;
       }
     } else {
       interactLatch.current = false;

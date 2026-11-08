@@ -1,14 +1,15 @@
 import { useState, type MutableRefObject } from "react";
 import { hex32 } from "../../core";
+import {
+  getBoingProvider,
+  readBoingAccounts,
+  type BoingProvider,
+} from "../../wallet/session";
 import type { WorldStation, WorldZoneConfig } from "../config/zones";
 import type { ControlState } from "../hooks/usePlayerControls";
 import { syncRemotePosition } from "../lib/positionApi";
 import type { LivePose } from "../scene/Player";
 import { Joystick } from "./Joystick";
-
-interface Provider {
-  request(args: { method: string; params?: unknown[] }): Promise<unknown>;
-}
 
 export function WorldHud({
   zone,
@@ -22,7 +23,10 @@ export function WorldHud({
   presenceCount,
   presenceError,
   presenceOn,
+  walletBound,
+  canPromoteWallet,
   onTogglePresence,
+  onLeavePlaza,
 }: {
   zone: WorldZoneConfig;
   station: WorldStation | null;
@@ -35,24 +39,44 @@ export function WorldHud({
   presenceCount: number;
   presenceError: string | null;
   presenceOn: boolean;
+  walletBound: boolean;
+  canPromoteWallet: boolean;
   onTogglePresence: () => void;
+  onLeavePlaza: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+
+  function navigateAway(href: string) {
+    onLeavePlaza();
+    // Let the WS close flush before the document unloads.
+    window.setTimeout(() => {
+      window.location.assign(href);
+    }, 50);
+  }
 
   async function cloudSave() {
     if (busy) return;
     setBusy(true);
     try {
-      const provider = (window as Window & { boing?: Provider }).boing;
-      if (!provider) {
+      let provider: BoingProvider;
+      try {
+        provider = getBoingProvider();
+      } catch {
         onNotice("Install/open Boing Express, then cloud-save from here.");
         return;
       }
-      const accounts = (await provider.request({
-        method: "boing_requestAccounts",
-        params: [],
-      })) as string[];
-      const owner = hex32(accounts?.[0]);
+      let accounts = await readBoingAccounts(provider);
+      if (!accounts[0]) {
+        accounts = (await provider.request({
+          method: "boing_requestAccounts",
+          params: [],
+        })) as string[];
+      }
+      if (!accounts?.[0]) {
+        onNotice("Connect Express before cloud-saving.");
+        return;
+      }
+      const owner = hex32(accounts[0]);
       const pose = livePose.current;
       await syncRemotePosition({
         owner,
@@ -80,7 +104,7 @@ export function WorldHud({
 
   const presenceLabel =
     presenceStatus === "live"
-      ? `Plaza · ${presenceCount} nearby`
+      ? `Plaza · ${presenceCount} nearby${walletBound ? " · wallet" : " · guest"}`
       : presenceStatus === "connecting"
         ? "Plaza connecting…"
         : presenceStatus === "error"
@@ -90,7 +114,14 @@ export function WorldHud({
   return (
     <div className="world-hud">
       <header className="world-top">
-        <a className="world-brand" href="/">
+        <a
+          className="world-brand"
+          href="/"
+          onClick={(event) => {
+            event.preventDefault();
+            navigateAway("/");
+          }}
+        >
           boing<span>pets</span>
         </a>
         <div className="world-title">
@@ -104,7 +135,11 @@ export function WorldHud({
             className="world-exit"
             onClick={onTogglePresence}
           >
-            {presenceOn ? "Leave plaza" : "Join plaza"}
+            {presenceOn
+              ? canPromoteWallet
+                ? "Appear as wallet"
+                : "Leave plaza"
+              : "Join plaza"}
           </button>
           <button
             type="button"
@@ -114,7 +149,14 @@ export function WorldHud({
           >
             {busy ? "Saving…" : "Cloud save"}
           </button>
-          <a className="world-exit" href="/">
+          <a
+            className="world-exit"
+            href="/"
+            onClick={(event) => {
+              event.preventDefault();
+              navigateAway("/");
+            }}
+          >
             ← Pasture
           </a>
         </div>
@@ -126,7 +168,14 @@ export function WorldHud({
             <strong>{station.label}</strong>
             <span>{station.hint}</span>
             {station.careHref ? (
-              <a className="prompt-cta" href={station.careHref}>
+              <a
+                className="prompt-cta"
+                href={station.careHref}
+                onClick={(event) => {
+                  event.preventDefault();
+                  navigateAway(station.careHref!);
+                }}
+              >
                 Open care desk · E
               </a>
             ) : (

@@ -7,20 +7,17 @@ import {
   useRef,
   useState,
 } from "react";
-import { hex32 } from "../core";
+import { tryRestoreWalletSession } from "../wallet/session";
 import { STARTER_TOWN, type WorldStation } from "./config/zones";
 import { usePlayerControls } from "./hooks/usePlayerControls";
 import { usePlazaPresence } from "./hooks/usePlazaPresence";
 import { WorldHud } from "./hud/WorldHud";
 import { loadWorldPosition } from "./lib/storage";
+import { loadPresenceToken } from "./lib/presenceTokenCache";
 import { Player, type LivePose } from "./scene/Player";
 import { RemotePlayers } from "./scene/RemotePlayers";
 import { StarterTown } from "./scene/StarterTown";
 import "./world.css";
-
-interface Provider {
-  request(args: { method: string; params?: unknown[] }): Promise<unknown>;
-}
 
 export function WorldApp() {
   const controls = usePlayerControls();
@@ -32,25 +29,27 @@ export function WorldApp() {
   });
   const [station, setStation] = useState<WorldStation | null>(null);
   const [localOwner, setLocalOwner] = useState<string | null>(null);
+  const [presenceOn, setPresenceOn] = useState(true);
+  const [allowPrompt, setAllowPrompt] = useState(false);
+  const [joinNonce, setJoinNonce] = useState(0);
   const [notice, setNotice] = useState(
-    "Plaza is live — connect Express to join as your wallet name; pets follow wallet players.",
+    "Plaza is live — guests join instantly; Join plaza once to appear as your Express wallet.",
   );
+
   useEffect(() => {
     void (async () => {
-      try {
-        const provider = (window as Window & { boing?: Provider }).boing;
-        if (!provider) return;
-        const accounts = (await provider.request({
-          method: "boing_accounts",
-          params: [],
-        })) as string[];
-        if (accounts?.[0]) setLocalOwner(hex32(accounts[0]));
-      } catch {
-        /* guest local avatar */
-      }
+      const session = await tryRestoreWalletSession();
+      if (!session) return;
+      setLocalOwner(session.owner);
+      const cached = loadPresenceToken(session.owner, STARTER_TOWN.id);
+      setNotice(
+        cached
+          ? "Express restored — rejoining the plaza as your wallet."
+          : "Express connected — click Join plaza once to appear as your wallet name (sign is cached for this session).",
+      );
     })();
   }, []);
-  const [presenceOn, setPresenceOn] = useState(true);
+
   const preferPerf = useMemo(() => {
     if (typeof window === "undefined") return true;
     return (
@@ -66,7 +65,60 @@ export function WorldApp() {
   const onStation = useCallback((next: WorldStation | null) => {
     setStation(next);
   }, []);
-  const presence = usePlazaPresence(STARTER_TOWN.id, livePose, presenceOn);
+  const presence = usePlazaPresence(
+    STARTER_TOWN.id,
+    livePose,
+    presenceOn,
+    allowPrompt,
+    joinNonce,
+  );
+
+  useEffect(() => {
+    if (!presenceOn) return;
+    if (presence.walletBound) {
+      setNotice("You are in the plaza as your Express wallet.");
+      return;
+    }
+    if (localOwner) {
+      setNotice(
+        "Joined as a guest for now — click Appear as wallet to sign once (cached for this session).",
+      );
+    }
+  }, [presence.walletBound, presenceOn, localOwner]);
+
+  const onTogglePresence = useCallback(() => {
+    if (presenceOn && !presence.walletBound && localOwner) {
+      setAllowPrompt(true);
+      setJoinNonce((n) => n + 1);
+      setNotice("Approve Express to appear as your wallet…");
+      return;
+    }
+    if (presenceOn) {
+      setPresenceOn(false);
+      setAllowPrompt(false);
+      setNotice("Left the plaza. Join again when you are ready.");
+      return;
+    }
+    setAllowPrompt(true);
+    setJoinNonce((n) => n + 1);
+    setPresenceOn(true);
+    setNotice("Joining plaza… approve Express if asked (cached afterward).");
+  }, [presenceOn, presence.walletBound, localOwner]);
+
+  const leavePlaza = useCallback(() => {
+    setPresenceOn(false);
+    setAllowPrompt(false);
+  }, []);
+
+  const navigateAway = useCallback(
+    (href: string) => {
+      leavePlaza();
+      window.setTimeout(() => {
+        window.location.assign(href);
+      }, 50);
+    },
+    [leavePlaza],
+  );
 
   return (
     <div className="world-shell">
@@ -93,6 +145,7 @@ export function WorldApp() {
             spawn={spawn}
             livePose={livePose}
             onStation={onStation}
+            onNavigateAway={navigateAway}
             owner={localOwner}
           />
           <RemotePlayers players={presence.players} />
@@ -110,7 +163,10 @@ export function WorldApp() {
         presenceCount={presence.players.length}
         presenceError={presence.error}
         presenceOn={presenceOn}
-        onTogglePresence={() => setPresenceOn((v) => !v)}
+        walletBound={presence.walletBound}
+        canPromoteWallet={!!localOwner && !presence.walletBound}
+        onTogglePresence={onTogglePresence}
+        onLeavePlaza={leavePlaza}
       />
     </div>
   );

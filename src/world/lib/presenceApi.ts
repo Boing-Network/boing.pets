@@ -1,11 +1,17 @@
 import { hex32 } from "../../core";
 import { shortWallet } from "../../social";
 import { apiFetch } from "../../ui/apiClient";
+import {
+  getBoingProvider,
+  readBoingAccounts,
+  type BoingProvider,
+} from "../../wallet/session";
 import { colorFromSeed, guestPresenceIdentity } from "./presenceProtocol";
-
-interface Provider {
-  request(args: { method: string; params?: unknown[] }): Promise<unknown>;
-}
+import {
+  clearPresenceToken,
+  loadPresenceToken,
+  savePresenceToken,
+} from "./presenceTokenCache";
 
 export interface PlazaIdentity {
   id: string;
@@ -19,50 +25,101 @@ async function api<T>(path: string, body?: unknown): Promise<T> {
   return apiFetch<T>(path, body);
 }
 
-/** Prefer a signed wallet session; fall back to guest identity. */
+async function profileName(owner: string): Promise<string> {
+  let name = shortWallet(owner);
+  try {
+    const profile = await api<{
+      profile: { display_name: string } | null;
+    }>("/api/social/profile?owner=" + encodeURIComponent(owner));
+    if (profile.profile?.display_name) name = profile.profile.display_name;
+  } catch {
+    /* profile optional */
+  }
+  return name;
+}
+
+async function mintPresenceToken(
+  provider: BoingProvider,
+  owner: string,
+  zoneId: string,
+): Promise<{ token: string; owner: string; expires_at: number }> {
+  const challenge = await api<{ id: string; message: string }>(
+    "/api/world/presence/challenge",
+    { owner, zone: zoneId },
+  );
+  const signature = await provider.request({
+    method: "boing_signMessage",
+    params: [challenge.message, owner],
+  });
+  if (typeof signature !== "string")
+    throw new Error("Wallet did not return a signature");
+  const confirmed = await api<{
+    token: string;
+    owner: string;
+    expires_at: number;
+  }>("/api/world/presence/confirm", { id: challenge.id, signature });
+  savePresenceToken({
+    token: confirmed.token,
+    owner: confirmed.owner,
+    zone: zoneId,
+    expires_at: confirmed.expires_at,
+  });
+  return confirmed;
+}
+
+/**
+ * Prefer a cached / silent wallet session; only prompt to sign when allowed.
+ * Falls back to guest identity when Express is missing or signing is declined.
+ */
 export async function resolvePlazaIdentity(
   zoneId: string,
+  opts: { allowPrompt?: boolean } = {},
 ): Promise<PlazaIdentity> {
-  const provider = (window as Window & { boing?: Provider }).boing;
-  if (!provider) return guestPresenceIdentity();
+  const allowPrompt = opts.allowPrompt ?? false;
+  let provider: BoingProvider;
+  try {
+    provider = getBoingProvider();
+  } catch {
+    return guestPresenceIdentity();
+  }
 
   try {
-    const accounts = (await provider.request({
-      method: "boing_requestAccounts",
-      params: [],
-    })) as string[];
-    const owner = hex32(accounts?.[0]);
-    const challenge = await api<{ id: string; message: string }>(
-      "/api/world/presence/challenge",
-      { owner, zone: zoneId },
-    );
-    const signature = await provider.request({
-      method: "boing_signMessage",
-      params: [challenge.message, owner],
-    });
-    if (typeof signature !== "string")
-      throw new Error("Wallet did not return a signature");
-    const confirmed = await api<{ token: string; owner: string }>(
-      "/api/world/presence/confirm",
-      { id: challenge.id, signature },
-    );
-    let name = shortWallet(owner);
-    try {
-      const profile = await api<{
-        profile: { display_name: string } | null;
-      }>("/api/social/profile?owner=" + encodeURIComponent(owner));
-      if (profile.profile?.display_name) name = profile.profile.display_name;
-    } catch {
-      /* profile optional */
+    let accounts = await readBoingAccounts(provider);
+    if (!accounts[0] && allowPrompt) {
+      accounts = (await provider.request({
+        method: "boing_requestAccounts",
+        params: [],
+      })) as string[];
     }
+    if (!accounts?.[0]) return guestPresenceIdentity();
+
+    const owner = hex32(accounts[0]);
+    const cached = loadPresenceToken(owner, zoneId);
+    if (cached) {
+      return {
+        id: cached.owner,
+        name: await profileName(cached.owner),
+        color: colorFromSeed(cached.owner),
+        token: cached.token,
+        wallet: true,
+      };
+    }
+
+    if (!allowPrompt) {
+      // Avoid blocked popups on automatic page load — Join plaza to sign once.
+      return guestPresenceIdentity();
+    }
+
+    const confirmed = await mintPresenceToken(provider, owner, zoneId);
     return {
       id: confirmed.owner,
-      name,
+      name: await profileName(confirmed.owner),
       color: colorFromSeed(confirmed.owner),
       token: confirmed.token,
       wallet: true,
     };
   } catch {
+    clearPresenceToken();
     return guestPresenceIdentity();
   }
 }
