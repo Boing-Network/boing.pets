@@ -66,6 +66,22 @@ export const CATALOG = [
     priceSparkles: 12,
     description: "Sparkles-only profile frame for the pasture card.",
   },
+  {
+    id: "tool-pick-iron",
+    name: "Iron Pick",
+    kind: "tool",
+    priceBoinglets: 80,
+    priceSparkles: 0,
+    description: "Tier-2 pickaxe for mining rarer veins. Cosmetic tool progression.",
+  },
+  {
+    id: "tool-pick-crystal",
+    name: "Crystal Pick",
+    kind: "tool",
+    priceBoinglets: 180,
+    priceSparkles: 0,
+    description: "Tier-3 pickaxe. Unlocks the best mining rolls.",
+  },
 ] as const;
 
 export type CatalogItem = (typeof CATALOG)[number];

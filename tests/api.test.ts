@@ -92,6 +92,7 @@ beforeEach(async () => {
     "../migrations/0012_parties.sql",
     "../migrations/0013_gardening.sql",
     "../migrations/0014_cooking.sql",
+    "../migrations/0015_mining.sql",
   ]) {
     db.exec(readFileSync(new NodeURL(file, import.meta.url), "utf8"));
   }
@@ -813,6 +814,46 @@ describe("Pets API", () => {
         )
         .get(owner)?.delta,
     ).toBe(6);
+  });
+  it("mines an ore vein within the strike window", async () => {
+    await hatch();
+    const swing = await request("/api/mining/challenge", { owner });
+    expect(swing.status).toBe(200);
+    const body = (await swing.json()) as {
+      id: string;
+      message: string;
+      strike_at: number;
+      window_ms: number;
+      ore_id: string;
+    };
+    db.prepare(
+      "UPDATE mining_challenges SET strike_at=? WHERE id=?",
+    ).run(Date.now() - 50, body.id);
+    const hit = await request("/api/mining/confirm", {
+      id: body.id,
+      signature: await signConfirm(body.message),
+    });
+    expect(hit.status).toBe(200);
+    const result = (await hit.json()) as {
+      ok: boolean;
+      ore?: { id: string };
+    };
+    expect(result.ok).toBe(true);
+    expect(result.ore?.id).toBe(body.ore_id);
+    expect(
+      db
+        .prepare(
+          "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
+        )
+        .get(owner, body.ore_id)?.qty,
+    ).toBe(1);
+    expect(
+      db
+        .prepare(
+          "SELECT spent FROM mining_stamina WHERE owner=?",
+        )
+        .get(owner)?.spent,
+    ).toBeGreaterThanOrEqual(1);
   });
   it("cooks a recipe and serves a snack for care boosts", async () => {
     await hatch();
