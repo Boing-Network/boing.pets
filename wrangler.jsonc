@@ -3,8 +3,9 @@
   "name": "boing-pets",
   "main": "worker/index.ts",
   "compatibility_date": "2026-11-06",
-  "workers_dev": false,
-  "preview_urls": false,
+  // Shared preview: one workers.dev origin serves UI + /api (option A).
+  "workers_dev": true,
+  "preview_urls": true,
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
@@ -12,13 +13,16 @@
   },
   "vars": {
     "RPC_URL": "https://testnet-rpc.boing.network",
-    "APP_ORIGIN": "http://localhost:5177",
+    // Must match the browser origin exactly (care POSTs are origin-gated).
+    "APP_ORIGIN": "https://boing-pets.nico-chikuji.workers.dev",
   },
   "d1_databases": [
     {
       "binding": "DB",
+      // Local/CI name stays `pets` (see package.json db:local).
+      // database_id points at reused empty remote D1 (account create limit).
       "database_name": "pets",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "7dd2c893-212a-45e8-9dae-8235ee3c7134",
       "migrations_dir": "migrations",
     },
   ],
