@@ -32,5 +32,8 @@ See `docs/PHASE3-SOCIAL.md` — migration `0006`, signed social challenge/confir
 ## Wallet presence (shipped)
 See `docs/PHASE3-PRESENCE-AUTH.md` — migration `0007`, signed presence tokens, display names on plaza capsules.
 
+## Pet followers (shipped)
+Wallet-bound plaza avatars load `GET /api/pet` traits and render a bobbing low-poly follower (`PetFollower`). Guests stay humanoid-only.
+
 ## Next
-Parties / invites, pet followers, AOI sharding for City District.
+Parties / invites, AOI sharding for City District.

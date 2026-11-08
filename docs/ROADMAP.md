@@ -106,9 +106,10 @@ Complexity key: **S** small · **M** medium · **L** large · **XL** multi-quart
 - Friends, profiles, DMs via signed `/api/social/*` + migration `0006`
 - Pasture Friends panel (see `docs/PHASE3-SOCIAL.md`)
 - Wallet-bound plaza tokens + display names (`0007`, `PHASE3-PRESENCE-AUTH.md`)
+- Pet followers beside wallet plaza avatars (client `GET /api/pet` + `PetFollower`)
 
 ### Still open
-- See pet followers; party invite
+- Party invite
 - `parties` tables
 - Grid AOI for larger zones; edge rate limits
 
