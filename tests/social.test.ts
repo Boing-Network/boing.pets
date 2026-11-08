@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   friendPair,
+  isSocialKind,
+  PARTY_SIZE_MAX,
   sanitizeDisplayName,
   sanitizeMessage,
 } from "../src/social";
@@ -20,5 +22,11 @@ describe("social helpers", () => {
     expect(sanitizeMessage("hello there")).toBe("hello there");
     expect(() => sanitizeMessage("")).toThrow();
     expect(() => sanitizeMessage("x".repeat(300))).toThrow();
+  });
+
+  it("includes party kinds and caps party size", () => {
+    expect(isSocialKind("party_create")).toBe(true);
+    expect(isSocialKind("party_invite")).toBe(true);
+    expect(PARTY_SIZE_MAX).toBe(4);
   });
 });

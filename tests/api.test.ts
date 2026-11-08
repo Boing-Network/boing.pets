@@ -89,6 +89,7 @@ beforeEach(async () => {
     "../migrations/0009_housing.sql",
     "../migrations/0010_sparkles_claim.sql",
     "../migrations/0011_treasure.sql",
+    "../migrations/0012_parties.sql",
   ]) {
     db.exec(readFileSync(new NodeURL(file, import.meta.url), "utf8"));
   }
@@ -429,6 +430,100 @@ describe("Pets API", () => {
       )
     );
   }
+  it("creates a party, invites a friend, and accepts", async () => {
+    await hatch();
+    const ownerB =
+      "0x" + bytesToHex(await ed.getPublicKeyAsync(fixtureKeyB));
+    const hatchB = await request("/api/challenge", {
+      owner: ownerB,
+      action: "hatch",
+    });
+    const hb = (await hatchB.json()) as { id: string; amount: string };
+    const ownerA = owner;
+    owner = ownerB;
+    amount = hb.amount;
+    rpcHash = "0x" + "cd".repeat(32);
+    expect(
+      (await request("/api/confirm", { id: hb.id, tx_hash: rpcHash })).status,
+    ).toBe(200);
+    owner = ownerA;
+
+    // Become friends first.
+    const req = await request("/api/social/challenge", {
+      owner,
+      kind: "friend_request",
+      target: ownerB,
+    });
+    const reqBody = (await req.json()) as { id: string; message: string };
+    await request("/api/social/confirm", {
+      id: reqBody.id,
+      signature: await signConfirm(reqBody.message),
+    });
+    const inbox = (await (
+      await request("/api/social/requests?owner=" + ownerB)
+    ).json()) as { incoming: Array<{ id: string }> };
+    const acceptFriend = await request("/api/social/challenge", {
+      owner: ownerB,
+      kind: "friend_accept",
+      request_id: inbox.incoming[0]!.id,
+    });
+    const af = (await acceptFriend.json()) as { id: string; message: string };
+    await request("/api/social/confirm", {
+      id: af.id,
+      signature: await signConfirm(af.message, fixtureKeyB),
+    });
+
+    const create = await request("/api/social/challenge", {
+      owner,
+      kind: "party_create",
+    });
+    expect(create.status).toBe(200);
+    const cb = (await create.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/social/confirm", {
+          id: cb.id,
+          signature: await signConfirm(cb.message),
+        })
+      ).status,
+    ).toBe(200);
+
+    const invite = await request("/api/social/challenge", {
+      owner,
+      kind: "party_invite",
+      target: ownerB,
+    });
+    expect(invite.status).toBe(200);
+    const ib = (await invite.json()) as { id: string; message: string };
+    await request("/api/social/confirm", {
+      id: ib.id,
+      signature: await signConfirm(ib.message),
+    });
+    const invites = (await (
+      await request("/api/social/party/invites?owner=" + ownerB)
+    ).json()) as { incoming: Array<{ id: string }> };
+    expect(invites.incoming[0]).toBeTruthy();
+    const acceptParty = await request("/api/social/challenge", {
+      owner: ownerB,
+      kind: "party_accept",
+      invite_id: invites.incoming[0]!.id,
+    });
+    const ap = (await acceptParty.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/social/confirm", {
+          id: ap.id,
+          signature: await signConfirm(ap.message, fixtureKeyB),
+        })
+      ).status,
+    ).toBe(200);
+    const party = (await (
+      await request("/api/social/party?owner=" + owner)
+    ).json()) as { party: { members: Array<{ owner: string }> } };
+    expect(party.party.members.map((m) => m.owner).sort()).toEqual(
+      [owner, ownerB].sort(),
+    );
+  });
   it("sets profiles, accepts friends, and exchanges DMs", async () => {
     await hatch();
     const ownerB =

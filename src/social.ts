@@ -1,5 +1,6 @@
 export const DISPLAY_NAME_MAX = 24;
 export const MESSAGE_MAX = 280;
+export const PARTY_SIZE_MAX = 4;
 export const SOCIAL_KINDS = [
   "set_profile",
   "friend_request",
@@ -7,6 +8,11 @@ export const SOCIAL_KINDS = [
   "friend_decline",
   "friend_remove",
   "send_message",
+  "party_create",
+  "party_invite",
+  "party_accept",
+  "party_decline",
+  "party_leave",
 ] as const;
 
 export type SocialKind = (typeof SOCIAL_KINDS)[number];

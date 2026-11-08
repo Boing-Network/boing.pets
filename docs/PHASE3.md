@@ -35,5 +35,8 @@ See `docs/PHASE3-PRESENCE-AUTH.md` — migration `0007`, signed presence tokens,
 ## Pet followers (shipped)
 Wallet-bound plaza avatars load `GET /api/pet` traits and render a bobbing low-poly follower (`PetFollower`). Guests stay humanoid-only.
 
+## Parties (foundation shipped)
+See `docs/PHASE3-PARTIES.md` — migration `0012`, signed create/invite/accept/leave (max 4).
+
 ## Next
-Parties / invites, AOI sharding for City District.
+Plaza party markers, AOI sharding for City District.

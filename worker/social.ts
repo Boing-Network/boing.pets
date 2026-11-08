@@ -5,6 +5,7 @@ import { hex32 } from "../src/core";
 import {
   friendPair,
   isSocialKind,
+  PARTY_SIZE_MAX,
   sanitizeDisplayName,
   sanitizeMessage,
   type SocialKind,
@@ -87,6 +88,23 @@ async function profileName(env: Env, owner: string): Promise<string | null> {
     .bind(owner)
     .first<{ display_name: string }>();
   return row?.display_name ?? null;
+}
+
+async function membershipOf(env: Env, owner: string) {
+  return env.DB.prepare(
+    "SELECT party_id,role FROM party_members WHERE owner=?",
+  )
+    .bind(owner)
+    .first<{ party_id: string; role: string }>();
+}
+
+async function partySize(env: Env, partyId: string) {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM party_members WHERE party_id=?",
+  )
+    .bind(partyId)
+    .first<{ n: number }>();
+  return row?.n || 0;
 }
 
 export async function socialGet(
@@ -204,6 +222,76 @@ export async function socialGet(
     });
   }
 
+  if (url.pathname === "/api/social/party") {
+    const owner = hex32(url.searchParams.get("owner"));
+    const membership = await membershipOf(env, owner);
+    if (!membership) {
+      return Response.json({
+        party: null,
+        maxSize: PARTY_SIZE_MAX,
+        now,
+      });
+    }
+    const party = await env.DB.prepare(
+      "SELECT id,leader,status,created_at FROM parties WHERE id=? AND status='open'",
+    )
+      .bind(membership.party_id)
+      .first<{
+        id: string;
+        leader: string;
+        status: string;
+        created_at: number;
+      }>();
+    if (!party) {
+      return Response.json({ party: null, maxSize: PARTY_SIZE_MAX, now });
+    }
+    const members = await env.DB.prepare(
+      "SELECT owner,role,joined_at FROM party_members WHERE party_id=? ORDER BY joined_at",
+    )
+      .bind(party.id)
+      .all<{ owner: string; role: string; joined_at: number }>();
+    return Response.json({
+      party: {
+        ...party,
+        members: await Promise.all(
+          members.results.map(async (m) => ({
+            ...m,
+            display_name: await profileName(env, m.owner),
+          })),
+        ),
+      },
+      maxSize: PARTY_SIZE_MAX,
+      now,
+    });
+  }
+
+  if (url.pathname === "/api/social/party/invites") {
+    const owner = hex32(url.searchParams.get("owner"));
+    const incoming = await env.DB.prepare(
+      `SELECT id,party_id,from_owner,to_owner,status,created_at FROM party_invites
+       WHERE to_owner=? AND status='pending' ORDER BY created_at DESC LIMIT 50`,
+    )
+      .bind(owner)
+      .all<{
+        id: string;
+        party_id: string;
+        from_owner: string;
+        to_owner: string;
+        status: string;
+        created_at: number;
+      }>();
+    return Response.json({
+      incoming: await Promise.all(
+        incoming.results.map(async (r) => ({
+          ...r,
+          from_name: await profileName(env, r.from_owner),
+        })),
+      ),
+      maxSize: PARTY_SIZE_MAX,
+      now,
+    });
+  }
+
   return null;
 }
 
@@ -303,6 +391,88 @@ export async function socialPost(
         await issue(env, owner, kind, { target, body: text }, now),
       );
     }
+
+    if (kind === "party_create") {
+      if (await membershipOf(env, owner))
+        throw new HttpError(409, "Already in a party");
+      return Response.json(await issue(env, owner, kind, {}, now));
+    }
+
+    if (kind === "party_invite") {
+      const target = hex32(body.target);
+      const membership = await membershipOf(env, owner);
+      if (!membership || membership.role !== "leader")
+        throw new HttpError(403, "Only the party leader can invite");
+      if (target === owner)
+        throw new HttpError(400, "Cannot invite yourself");
+      if (!(await areFriends(env, owner, target)))
+        throw new HttpError(403, "Party invites are limited to friends");
+      if (await membershipOf(env, target))
+        throw new HttpError(409, "That friend is already in a party");
+      if ((await partySize(env, membership.party_id)) >= PARTY_SIZE_MAX)
+        throw new HttpError(409, "Party is full");
+      const pending = await env.DB.prepare(
+        "SELECT status FROM party_invites WHERE party_id=? AND to_owner=?",
+      )
+        .bind(membership.party_id, target)
+        .first<{ status: string }>();
+      if (pending?.status === "pending")
+        throw new HttpError(409, "Invite already pending");
+      return Response.json(
+        await issue(
+          env,
+          owner,
+          kind,
+          { target, party_id: membership.party_id },
+          now,
+        ),
+      );
+    }
+
+    if (kind === "party_accept" || kind === "party_decline") {
+      const inviteId = String(body.invite_id || "");
+      if (!inviteId || inviteId.length > 64)
+        throw new HttpError(400, "Invalid invite id");
+      const invite = await env.DB.prepare(
+        "SELECT * FROM party_invites WHERE id=? AND to_owner=? AND status='pending'",
+      )
+        .bind(inviteId, owner)
+        .first<{ id: string; party_id: string; from_owner: string }>();
+      if (!invite) throw new HttpError(404, "Party invite not found");
+      if (kind === "party_accept") {
+        if (await membershipOf(env, owner))
+          throw new HttpError(409, "Already in a party");
+        if ((await partySize(env, invite.party_id)) >= PARTY_SIZE_MAX)
+          throw new HttpError(409, "Party is full");
+      }
+      return Response.json(
+        await issue(
+          env,
+          owner,
+          kind,
+          {
+            invite_id: invite.id,
+            party_id: invite.party_id,
+            from_owner: invite.from_owner,
+          },
+          now,
+        ),
+      );
+    }
+
+    if (kind === "party_leave") {
+      const membership = await membershipOf(env, owner);
+      if (!membership) throw new HttpError(409, "Not in a party");
+      return Response.json(
+        await issue(
+          env,
+          owner,
+          kind,
+          { party_id: membership.party_id, role: membership.role },
+          now,
+        ),
+      );
+    }
   }
 
   if (url.pathname === "/api/social/confirm") {
@@ -395,6 +565,110 @@ export async function socialPost(
       )
         .bind(c.id, c.owner, target, text, now)
         .run();
+    }
+
+    if (c.kind === "party_create") {
+      if (await membershipOf(env, c.owner))
+        throw new HttpError(409, "Already in a party");
+      try {
+        await env.DB.batch([
+          env.DB.prepare(
+            "INSERT INTO parties(id,leader,status,created_at,updated_at) VALUES(?,?,'open',?,?)",
+          ).bind(c.id, c.owner, now, now),
+          env.DB.prepare(
+            "INSERT INTO party_members(party_id,owner,role,joined_at) VALUES(?,?,?,?)",
+          ).bind(c.id, c.owner, "leader", now),
+        ]);
+      } catch {
+        throw new HttpError(409, "Could not create party");
+      }
+    }
+
+    if (c.kind === "party_invite") {
+      const target = hex32(payload.target);
+      const partyId = String(payload.party_id);
+      await env.DB.prepare(
+        `INSERT INTO party_invites(id,party_id,from_owner,to_owner,status,created_at,updated_at)
+         VALUES(?,?,?,?,'pending',?,?)
+         ON CONFLICT(party_id,to_owner) DO UPDATE SET
+           id=excluded.id, from_owner=excluded.from_owner, status='pending', updated_at=excluded.updated_at`,
+      )
+        .bind(c.id, partyId, c.owner, target, now, now)
+        .run();
+    }
+
+    if (c.kind === "party_accept") {
+      const inviteId = String(payload.invite_id);
+      const partyId = String(payload.party_id);
+      if (await membershipOf(env, c.owner))
+        throw new HttpError(409, "Already in a party");
+      if ((await partySize(env, partyId)) >= PARTY_SIZE_MAX)
+        throw new HttpError(409, "Party is full");
+      try {
+        await env.DB.batch([
+          env.DB.prepare(
+            "UPDATE party_invites SET status='accepted', updated_at=? WHERE id=? AND to_owner=? AND status='pending'",
+          ).bind(now, inviteId, c.owner),
+          env.DB.prepare(
+            "INSERT INTO party_members(party_id,owner,role,joined_at) VALUES(?,?,?,?)",
+          ).bind(partyId, c.owner, "member", now),
+          env.DB.prepare(
+            "UPDATE parties SET updated_at=? WHERE id=?",
+          ).bind(now, partyId),
+        ]);
+      } catch {
+        throw new HttpError(409, "Could not join party");
+      }
+    }
+
+    if (c.kind === "party_decline") {
+      const inviteId = String(payload.invite_id);
+      await env.DB.prepare(
+        "UPDATE party_invites SET status='declined', updated_at=? WHERE id=? AND to_owner=? AND status='pending'",
+      )
+        .bind(now, inviteId, c.owner)
+        .run();
+    }
+
+    if (c.kind === "party_leave") {
+      const partyId = String(payload.party_id);
+      const role = String(payload.role);
+      await env.DB.prepare(
+        "DELETE FROM party_members WHERE party_id=? AND owner=?",
+      )
+        .bind(partyId, c.owner)
+        .run();
+      const remaining = await env.DB.prepare(
+        "SELECT owner,role,joined_at FROM party_members WHERE party_id=? ORDER BY joined_at",
+      )
+        .bind(partyId)
+        .all<{ owner: string; role: string; joined_at: number }>();
+      if (!remaining.results.length) {
+        await env.DB.batch([
+          env.DB.prepare(
+            "UPDATE parties SET status='disbanded', updated_at=? WHERE id=?",
+          ).bind(now, partyId),
+          env.DB.prepare(
+            "UPDATE party_invites SET status='cancelled', updated_at=? WHERE party_id=? AND status='pending'",
+          ).bind(now, partyId),
+        ]);
+      } else if (role === "leader") {
+        const next = remaining.results[0]!;
+        await env.DB.batch([
+          env.DB.prepare(
+            "UPDATE party_members SET role='leader' WHERE party_id=? AND owner=?",
+          ).bind(partyId, next.owner),
+          env.DB.prepare(
+            "UPDATE parties SET leader=?, updated_at=? WHERE id=?",
+          ).bind(next.owner, now, partyId),
+        ]);
+      } else {
+        await env.DB.prepare(
+          "UPDATE parties SET updated_at=? WHERE id=?",
+        )
+          .bind(now, partyId)
+          .run();
+      }
     }
 
     await env.DB.prepare("DELETE FROM social_challenges WHERE id=?")
