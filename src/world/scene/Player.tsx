@@ -3,7 +3,9 @@ import { useMemo, useRef, type MutableRefObject } from "react";
 import * as THREE from "three";
 import type { WorldStation, WorldZoneConfig } from "../config/zones";
 import type { ControlState } from "../hooks/usePlayerControls";
+import { usePetLook } from "../hooks/usePetLook";
 import { saveWorldPosition } from "../lib/storage";
+import { PetFollower } from "./PetFollower";
 
 const SPEED = 6.5;
 const SAVE_EVERY_MS = 1500;
@@ -21,14 +23,17 @@ export function Player({
   spawn,
   livePose,
   onStation,
+  owner = null,
 }: {
   zone: WorldZoneConfig;
   controls: MutableRefObject<ControlState>;
   spawn: { x: number; y: number; z: number };
   livePose: MutableRefObject<LivePose>;
   onStation: (station: WorldStation | null) => void;
+  owner?: string | null;
 }) {
   const body = useRef<THREE.Group>(null);
+  const look = usePetLook(owner);
   const velocity = useMemo(() => new THREE.Vector3(), []);
   const lookTarget = useMemo(() => new THREE.Vector3(), []);
   const camTarget = useMemo(() => new THREE.Vector3(), []);
@@ -130,6 +135,7 @@ export function Player({
         <circleGeometry args={[0.55, 16]} />
         <meshBasicMaterial color="#142044" transparent opacity={0.25} />
       </mesh>
+      {look ? <PetFollower look={look} /> : null}
     </group>
   );
 }

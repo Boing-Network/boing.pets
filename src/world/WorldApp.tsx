@@ -1,5 +1,13 @@
 import { Canvas } from "@react-three/fiber";
-import { Suspense, useCallback, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { hex32 } from "../core";
 import { STARTER_TOWN, type WorldStation } from "./config/zones";
 import { usePlayerControls } from "./hooks/usePlayerControls";
 import { usePlazaPresence } from "./hooks/usePlazaPresence";
@@ -10,6 +18,10 @@ import { RemotePlayers } from "./scene/RemotePlayers";
 import { StarterTown } from "./scene/StarterTown";
 import "./world.css";
 
+interface Provider {
+  request(args: { method: string; params?: unknown[] }): Promise<unknown>;
+}
+
 export function WorldApp() {
   const controls = usePlayerControls();
   const livePose = useRef<LivePose>({
@@ -19,9 +31,25 @@ export function WorldApp() {
     z: STARTER_TOWN.spawn.z,
   });
   const [station, setStation] = useState<WorldStation | null>(null);
+  const [localOwner, setLocalOwner] = useState<string | null>(null);
   const [notice, setNotice] = useState(
-    "Plaza is live — connect Express to join as your wallet name; guests still welcome.",
+    "Plaza is live — connect Express to join as your wallet name; pets follow wallet players.",
   );
+  useEffect(() => {
+    void (async () => {
+      try {
+        const provider = (window as Window & { boing?: Provider }).boing;
+        if (!provider) return;
+        const accounts = (await provider.request({
+          method: "boing_accounts",
+          params: [],
+        })) as string[];
+        if (accounts?.[0]) setLocalOwner(hex32(accounts[0]));
+      } catch {
+        /* guest local avatar */
+      }
+    })();
+  }, []);
   const [presenceOn, setPresenceOn] = useState(true);
   const preferPerf = useMemo(() => {
     if (typeof window === "undefined") return true;
@@ -65,6 +93,7 @@ export function WorldApp() {
             spawn={spawn}
             livePose={livePose}
             onStation={onStation}
+            owner={localOwner}
           />
           <RemotePlayers players={presence.players} />
         </Suspense>
