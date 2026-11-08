@@ -307,6 +307,31 @@ meter {
   color: #c5d7f7;
   padding: 4px 9px;
 }
+.market-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 18px 0 10px;
+}
+.market-card {
+  background: #0f1930;
+  border: 1px solid #263552;
+  border-radius: 18px;
+  padding: 16px;
+}
+.market-card h3 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+.market-sub {
+  margin: 28px 0 0;
+  font-size: 0.95rem;
+}
+@media (max-width: 800px) {
+  .market-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .pages {
   display: flex;
   gap: 12px;
