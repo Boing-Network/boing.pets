@@ -18,6 +18,11 @@ import {
   type Pet,
 } from "../src/core";
 import { WORLD_CONFIG } from "../src/world/config/zones";
+import {
+  economyError,
+  economyGet,
+  economyPost,
+} from "./economy";
 import { verifyProof, type Receipt, type RpcBlock } from "./proof";
 export { PlazaRoom } from "./plaza";
 interface Challenge {
@@ -144,6 +149,10 @@ async function enrich(env: Env, pet: Pet, now: number) {
 async function api(req: Request, env: Env): Promise<Response> {
   const url = new URL(req.url),
     now = Date.now();
+  if (req.method === "GET") {
+    const economy = await economyGet(req, env, now);
+    if (economy) return economy;
+  }
   if (req.method === "GET" && url.pathname === "/api/world/config") {
     return json({
       ...WORLD_CONFIG,
@@ -212,6 +221,14 @@ async function api(req: Request, env: Env): Promise<Response> {
     if (!body || Array.isArray(body) || typeof body !== "object") throw Error();
   } catch {
     throw new HttpError(400, "Invalid JSON");
+  }
+  try {
+    const economy = await economyPost(url, env, body, now);
+    if (economy) return economy;
+  } catch (error) {
+    const mapped = economyError(error);
+    if (mapped) return mapped;
+    throw error;
   }
   if (url.pathname === "/api/world/position/challenge") {
     const owner = hex32(body.owner);

@@ -113,22 +113,25 @@ Complexity key: **S** small · **M** medium · **L** large · **XL** multi-quart
 
 ---
 
-## Phase 4 — Player Economy
+## Phase 4 — Player Economy (foundation shipping)
 
 **Goal:** soft + premium currencies, marketplace for cosmetics/furniture/resources; secure trade escrow.
 
-### User stories
-- Earn Boinglets from quests/activities; buy cosmetics.
-- List/buy on marketplace; peer trade with confirmations.
-- Premium currency for cosmetics/convenience only (no power).
+### Shipped foundation
+- Boinglets ledger + care claim bridge from Phase 1 rewards
+- Cosmetics catalog + inventory
+- Player listings with 5% sink fee
+- Signed economy challenge/confirm
+- Pasture Market UI panel
 
-### Tech
-- Ledger tables (double-entry); escrow state machine; idempotency keys.
-- Move economy to Postgres when D1 write contention appears.
-- Anti-inflation: sinks (repairs, fees, crafting burn), soft caps, decay on unused listings.
+### Still open
+- Sparkles premium checkout
+- Resource crafting / deeper escrow UX
+- Postgres cutover when D1 write contention appears
+- Listing expiry decay jobs
 
 ### Complexity
-**XL**
+**XL** (foundation **M**)
 
 ---
 

@@ -80,6 +80,7 @@ beforeEach(async () => {
     "../migrations/0001_pasture.sql",
     "../migrations/0002_phase1_progression.sql",
     "../migrations/0003_world_positions.sql",
+    "../migrations/0004_economy.sql",
   ]) {
     db.exec(readFileSync(new NodeURL(file, import.meta.url), "utf8"));
   }
@@ -191,6 +192,51 @@ describe("Pets API", () => {
       version: 1,
       defaultZone: "starter-town",
       zones: [{ id: "starter-town", name: "Starter Town" }],
+    });
+  });
+  it("claims care Boinglets and buys a cosmetic from the catalog", async () => {
+    await hatch();
+    const challenge = await request("/api/economy/challenge", {
+      owner,
+      kind: "claim",
+    });
+    expect(challenge.status).toBe(200);
+    const c = (await challenge.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/economy/confirm", {
+          id: c.id,
+          signature: await signConfirm(c.message),
+        })
+      ).status,
+    ).toBe(200);
+    const bal = await (
+      await request("/api/economy/balance?owner=" + owner)
+    ).json();
+    expect(bal).toMatchObject({
+      balances: { boinglets: 50 },
+      care: { claimable: 0 },
+    });
+    const buy = await request("/api/economy/challenge", {
+      owner,
+      kind: "buy_catalog",
+      item_id: "hat-ribbon",
+    });
+    expect(buy.status).toBe(200);
+    const b = (await buy.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/economy/confirm", {
+          id: b.id,
+          signature: await signConfirm(b.message),
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      await (await request("/api/economy/balance?owner=" + owner)).json(),
+    ).toMatchObject({
+      balances: { boinglets: 10 },
+      inventory: [{ item_id: "hat-ribbon", qty: 1 }],
     });
   });
   it("syncs a signed world position and returns it publicly", async () => {
