@@ -33,6 +33,11 @@ import {
   economyGet,
   economyPost,
 } from "./economy";
+import {
+  socialError,
+  socialGet,
+  socialPost,
+} from "./social";
 import { verifyProof, type Receipt, type RpcBlock } from "./proof";
 export { PlazaRoom } from "./plaza";
 interface Challenge {
@@ -190,6 +195,14 @@ async function api(req: Request, env: Env): Promise<Response> {
   const url = new URL(req.url),
     now = Date.now();
   if (req.method === "GET") {
+    try {
+      const social = await socialGet(req, env, now);
+      if (social) return social;
+    } catch (error) {
+      const mapped = socialError(error);
+      if (mapped) return mapped;
+      throw error;
+    }
     const content = await contentGet(req, env, now);
     if (content) return content;
     const economy = await economyGet(req, env, now);
@@ -263,6 +276,14 @@ async function api(req: Request, env: Env): Promise<Response> {
     if (!body || Array.isArray(body) || typeof body !== "object") throw Error();
   } catch {
     throw new HttpError(400, "Invalid JSON");
+  }
+  try {
+    const social = await socialPost(url, env, body, now);
+    if (social) return social;
+  } catch (error) {
+    const mapped = socialError(error);
+    if (mapped) return mapped;
+    throw error;
   }
   try {
     const content = await contentPost(url, env, body, now);

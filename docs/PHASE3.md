@@ -26,5 +26,8 @@ Let multiple guests see each other in Starter Town without rewriting care APIs.
 - Manual: two browser sessions in `/world.html`
 - `wrangler deploy --dry-run` includes DO class
 
+## Friends & DMs (backlog shipped)
+See `docs/PHASE3-SOCIAL.md` — migration `0006`, signed social challenge/confirm, pasture Friends panel.
+
 ## Next
-Friends/DM/parties, wallet presence tokens, AOI sharding for City District.
+Parties / invites, wallet presence tokens, display names in plaza presence, AOI sharding for City District.

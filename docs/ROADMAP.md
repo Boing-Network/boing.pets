@@ -102,10 +102,15 @@ Complexity key: **S** small · **M** medium · **L** large · **XL** multi-quart
 - Guest avatars in Starter Town (cap 32, move rate limit)
 - Join/leave plaza toggle in world HUD
 
+### Shipped social backlog
+- Friends, profiles, DMs via signed `/api/social/*` + migration `0006`
+- Pasture Friends panel (see `docs/PHASE3-SOCIAL.md`)
+
 ### Still open
-- See pet followers; friend list, DM, party invite
+- See pet followers; party invite
+- Display names on plaza presence
 - Wallet-bound presence tokens
-- `friends` / `messages` / `parties` / `profiles` tables
+- `parties` tables
 - Grid AOI for larger zones; edge rate limits
 
 ### Complexity

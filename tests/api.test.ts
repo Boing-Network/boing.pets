@@ -37,6 +37,7 @@ const origin = "http://localhost:5177",
   tx = "0x" + "ab".repeat(32);
 // Disposable deterministic fixture key, NOT a wallet or credential.
 const fixtureKey = new Uint8Array(32).fill(7);
+const fixtureKeyB = new Uint8Array(32).fill(9);
 let owner = "";
 let chainId = 6913,
   receiptSuccess = true,
@@ -82,6 +83,7 @@ beforeEach(async () => {
     "../migrations/0003_world_positions.sql",
     "../migrations/0004_economy.sql",
     "../migrations/0005_content_framework.sql",
+    "../migrations/0006_social.sql",
   ]) {
     db.exec(readFileSync(new NodeURL(file, import.meta.url), "utf8"));
   }
@@ -357,14 +359,129 @@ describe("Pets API", () => {
       db.prepare("SELECT COUNT(*) AS n FROM pet_memories").get()?.n,
     ).toBe(1);
   });
-  async function signConfirm(message: string) {
+  async function signConfirm(
+    message: string,
+    key: Uint8Array = fixtureKey,
+  ) {
     return (
       "0x" +
       bytesToHex(
-        await ed.signAsync(blake3(new TextEncoder().encode(message)), fixtureKey),
+        await ed.signAsync(blake3(new TextEncoder().encode(message)), key),
       )
     );
   }
+  it("sets profiles, accepts friends, and exchanges DMs", async () => {
+    await hatch();
+    const ownerB =
+      "0x" + bytesToHex(await ed.getPublicKeyAsync(fixtureKeyB));
+    // Hatch buddy B with a distinct tx hash.
+    const hatchB = await request("/api/challenge", {
+      owner: ownerB,
+      action: "hatch",
+    });
+    expect(hatchB.status).toBe(200);
+    const hb = (await hatchB.json()) as { id: string; amount: string };
+    const ownerA = owner;
+    owner = ownerB;
+    amount = hb.amount;
+    rpcHash = "0x" + "ef".repeat(32);
+    expect(
+      (await request("/api/confirm", { id: hb.id, tx_hash: rpcHash })).status,
+    ).toBe(200);
+    owner = ownerA;
+
+    for (const [who, key, name] of [
+      [owner, fixtureKey, "AlphaBounce"],
+      [ownerB, fixtureKeyB, "BetaBuddy"],
+    ] as const) {
+      const c = await request("/api/social/challenge", {
+        owner: who,
+        kind: "set_profile",
+        display_name: name,
+      });
+      expect(c.status).toBe(200);
+      const body = (await c.json()) as { id: string; message: string };
+      expect(
+        (
+          await request("/api/social/confirm", {
+            id: body.id,
+            signature: await signConfirm(body.message, key),
+          })
+        ).status,
+      ).toBe(200);
+    }
+
+    const req = await request("/api/social/challenge", {
+      owner,
+      kind: "friend_request",
+      target: ownerB,
+    });
+    expect(req.status).toBe(200);
+    const reqBody = (await req.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/social/confirm", {
+          id: reqBody.id,
+          signature: await signConfirm(reqBody.message),
+        })
+      ).status,
+    ).toBe(200);
+
+    const inbox = await (
+      await request("/api/social/requests?owner=" + ownerB)
+    ).json();
+    const incoming = (
+      inbox as { incoming: Array<{ id: string }> }
+    ).incoming[0];
+    expect(incoming).toBeTruthy();
+    const accept = await request("/api/social/challenge", {
+      owner: ownerB,
+      kind: "friend_accept",
+      request_id: incoming.id,
+    });
+    expect(accept.status).toBe(200);
+    const ab = (await accept.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/social/confirm", {
+          id: ab.id,
+          signature: await signConfirm(ab.message, fixtureKeyB),
+        })
+      ).status,
+    ).toBe(200);
+
+    const friends = await (
+      await request("/api/social/friends?owner=" + owner)
+    ).json();
+    expect(friends).toMatchObject({
+      friends: [{ owner: ownerB, display_name: "BetaBuddy" }],
+    });
+
+    const msg = await request("/api/social/challenge", {
+      owner,
+      kind: "send_message",
+      target: ownerB,
+      body: "Welcome to the pasture!",
+    });
+    expect(msg.status).toBe(200);
+    const mb = (await msg.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/social/confirm", {
+          id: mb.id,
+          signature: await signConfirm(mb.message),
+        })
+      ).status,
+    ).toBe(200);
+    const thread = await (
+      await request(
+        `/api/social/messages?owner=${ownerB}&with=${owner}`,
+      )
+    ).json();
+    expect(thread).toMatchObject({
+      messages: [{ from_owner: owner, body: "Welcome to the pasture!" }],
+    });
+  });
   it("verifies BLAKE3 + Ed25519 daily hello and rejects forged signatures", async () => {
     await hatch();
     const c = await challenge("checkin");
