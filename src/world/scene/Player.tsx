@@ -8,15 +8,24 @@ import { saveWorldPosition } from "../lib/storage";
 const SPEED = 6.5;
 const SAVE_EVERY_MS = 1500;
 
+export interface LivePose {
+  zone: string;
+  x: number;
+  y: number;
+  z: number;
+}
+
 export function Player({
   zone,
   controls,
   spawn,
+  livePose,
   onStation,
 }: {
   zone: WorldZoneConfig;
   controls: MutableRefObject<ControlState>;
   spawn: { x: number; y: number; z: number };
+  livePose: MutableRefObject<LivePose>;
   onStation: (station: WorldStation | null) => void;
 }) {
   const body = useRef<THREE.Group>(null);
@@ -52,6 +61,13 @@ export function Player({
     if (velocity.lengthSq() > 0.0001) {
       group.rotation.y = Math.atan2(velocity.x, velocity.z);
     }
+
+    livePose.current = {
+      zone: zone.id,
+      x: group.position.x,
+      y: group.position.y,
+      z: group.position.z,
+    };
 
     let nearest: WorldStation | null = null;
     let best = Infinity;
@@ -102,7 +118,7 @@ export function Player({
 
   return (
     <group ref={body} position={[spawn.x, spawn.y, spawn.z]}>
-      <mesh castShadow position={[0, 0.55, 0]}>
+      <mesh position={[0, 0.55, 0]}>
         <capsuleGeometry args={[0.35, 0.55, 4, 8]} />
         <meshStandardMaterial color="#7fa7ff" roughness={0.55} />
       </mesh>

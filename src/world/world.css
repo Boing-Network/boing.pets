@@ -99,7 +99,15 @@ body,
   font-size: 0.78rem;
 }
 
+.world-top-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .world-exit {
+  font: inherit;
   color: #d7e4ff;
   text-decoration: none;
   border: 1px solid #344568;
@@ -108,6 +116,12 @@ body,
   font-size: 0.75rem;
   font-weight: 700;
   background: #0d1730cc;
+  cursor: pointer;
+}
+
+.world-exit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .prompt {

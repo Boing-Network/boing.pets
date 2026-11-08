@@ -1,0 +1,39 @@
+@import url("https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;700&display=swap");
+
+html,
+body,
+#world-root {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  background: #07111f;
+  color: #e8eeff;
+  font-family: Comfortaa, "Segoe UI", sans-serif;
+}
+
+.world-boot {
+  min-height: 100%;
+  display: grid;
+  place-content: center;
+  gap: 10px;
+  text-align: center;
+  background:
+    radial-gradient(ellipse at 70% 20%, #182951 0, transparent 45%), #07111f;
+}
+
+.world-boot-brand {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -1.5px;
+}
+
+.world-boot-brand span {
+  color: #6f9bff;
+}
+
+.world-boot a {
+  color: #b7ccf0;
+  text-decoration: none;
+  font-size: 0.8rem;
+}

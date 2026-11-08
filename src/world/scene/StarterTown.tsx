@@ -5,11 +5,11 @@ function Landmark({ item }: { item: WorldLandmark }) {
   const roofY = item.height + 0.35;
   return (
     <group position={[item.position.x, item.position.y, item.position.z]}>
-      <mesh position={[0, item.height / 2, 0]} castShadow receiveShadow>
+      <mesh position={[0, item.height / 2, 0]}>
         <boxGeometry args={[item.width, item.height, item.depth]} />
         <meshStandardMaterial color={item.color} roughness={0.85} />
       </mesh>
-      <mesh position={[0, roofY, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
+      <mesh position={[0, roofY, 0]} rotation={[0, Math.PI / 4, 0]}>
         <coneGeometry args={[Math.max(item.width, item.depth) * 0.72, 1.4, 4]} />
         <meshStandardMaterial color="#5d7eb8" roughness={0.7} />
       </mesh>
@@ -78,11 +78,11 @@ export function StarterTown({ zone }: { zone: WorldZoneConfig }) {
 
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
         <circleGeometry args={[34, 48]} />
         <meshStandardMaterial color={zone.groundColor} roughness={1} />
       </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
         <ringGeometry args={[10, 14, 48]} />
         <meshStandardMaterial color="#6fa06a" roughness={1} />
       </mesh>

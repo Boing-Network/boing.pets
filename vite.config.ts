@@ -17,6 +17,16 @@ export default defineConfig({
         main: resolve(root, "index.html"),
         world: resolve(root, "world.html"),
       },
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          if (id.includes("@react-three")) return "r3f";
+          if (id.includes("/three/")) return "three";
+          if (id.includes("react-dom")) return "react-dom";
+          if (id.includes("/react/")) return "react";
+        },
+      },
     },
+    chunkSizeWarningLimit: 900,
   },
 });

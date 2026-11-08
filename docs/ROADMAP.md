@@ -77,14 +77,19 @@ Complexity key: **S** small · **M** medium · **L** large · **XL** multi-quart
 - Local position save (`localStorage`); server position auth deferred.
 - `GET /api/world/config` serves the same zone config.
 
-### Still open for Phase 2 hardening
+### Phase 2.5 hardening
+- Lazy world entry + vendor chunk splits
+- Perf mode (no shadows; mobile DPR/power hints)
+- Signed cloud position sync + `0003` migration
+- Favicon + boot screen
+
+### Still open
 - GLB art kit + Draco/meshopt LOD
-- Signed `PUT /api/world/position`
 - Playwright movement smoke
 - In-world care confirmations (wallet) without leaving the canvas
 
 ### Complexity
-**L** (spike **M** delivered)
+**L** (spike **M** + hardening **M**)
 
 ---
 
