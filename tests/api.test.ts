@@ -87,6 +87,7 @@ beforeEach(async () => {
     "../migrations/0007_presence_tokens.sql",
     "../migrations/0008_fishing.sql",
     "../migrations/0009_housing.sql",
+    "../migrations/0010_sparkles_claim.sql",
   ]) {
     db.exec(readFileSync(new NodeURL(file, import.meta.url), "utf8"));
   }
@@ -283,6 +284,60 @@ describe("Pets API", () => {
     ).toMatchObject({
       balances: { boinglets: 10 },
       inventory: [{ item_id: "hat-ribbon", qty: 1 }],
+    });
+  });
+  it("claims daily Sparkles and buys a premium cosmetic", async () => {
+    await hatch();
+    const challenge = await request("/api/economy/challenge", {
+      owner,
+      kind: "sparkles_claim",
+    });
+    expect(challenge.status).toBe(200);
+    const c = (await challenge.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/economy/confirm", {
+          id: c.id,
+          signature: await signConfirm(c.message),
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      await (await request("/api/economy/balance?owner=" + owner)).json(),
+    ).toMatchObject({
+      balances: { sparkles: 10 },
+      sparklesFaucet: { claimable: 0 },
+    });
+    expect(
+      (
+        await request("/api/economy/challenge", {
+          owner,
+          kind: "sparkles_claim",
+        })
+      ).status,
+    ).toBe(409);
+    const buy = await request("/api/economy/challenge", {
+      owner,
+      kind: "buy_catalog",
+      item_id: "hat-stardust",
+    });
+    expect(buy.status).toBe(200);
+    const b = (await buy.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/economy/confirm", {
+          id: b.id,
+          signature: await signConfirm(b.message),
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      await (await request("/api/economy/balance?owner=" + owner)).json(),
+    ).toMatchObject({
+      balances: { sparkles: 2 },
+      inventory: expect.arrayContaining([
+        { item_id: "hat-stardust", qty: 1 },
+      ]),
     });
   });
   it("syncs a signed world position and returns it publicly", async () => {

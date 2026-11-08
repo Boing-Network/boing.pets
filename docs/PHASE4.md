@@ -9,10 +9,10 @@ Introduce a cosmetics-only Boinglets ledger and marketplace without pay-to-win o
 - As a player, I can list owned cosmetics and buy others’ listings (5% sink fee).
 
 ## Technical specification
-- Currencies: `boinglets` (soft) · `sparkles` (premium reserved)
+- Currencies: `boinglets` (soft) · `sparkles` (testnet premium faucet)
 - Double-entry-ish `ledger` deltas; inventory stacks; open/sold/cancelled listings
-- Signed challenge/confirm for claim, catalog buy, list, buy listing, cancel
-- Catalog is code-defined cosmetics only (`src/economy.ts`)
+- Signed challenge/confirm for claim, sparkles_claim, catalog buy, list, buy listing, cancel
+- Catalog is code-defined cosmetics only (`src/economy.ts`) — Boinglets and Sparkles prices
 - Anti-inflation: catalog spend + 5% market fee → `boing-pets-sink`
 
 ## APIs
@@ -29,4 +29,4 @@ Introduce a cosmetics-only Boinglets ledger and marketplace without pay-to-win o
 Pasture `#market` panel: claim, catalog buy, browse listings.
 
 ## Next
-Premium Sparkles checkout (ethical cosmetics), trade escrow UX polish. Housing furniture placement shipped in Phase 6 foundation.
+Real Sparkles checkout (ethical cosmetics) when leaving testnet faucet mode — see `PHASE4-SPARKLES.md`. Trade escrow UX polish. Housing furniture placement shipped in Phase 6 foundation.

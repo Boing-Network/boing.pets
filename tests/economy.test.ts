@@ -3,20 +3,28 @@ import { CARE_REWARDS } from "../src/core";
 import {
   careEarnings,
   catalogItem,
+  catalogPrice,
   CATALOG,
   listingFee,
   netSellerProceeds,
+  SPARKLES_DAILY,
 } from "../src/economy";
 
 describe("economy foundation", () => {
-  it("keeps a cosmetics-only catalog with positive prices", () => {
+  it("keeps a cosmetics-only catalog with boinglets or sparkles prices", () => {
     expect(CATALOG.length).toBeGreaterThanOrEqual(3);
     for (const item of CATALOG) {
-      expect(item.priceBoinglets).toBeGreaterThan(0);
+      const priced = catalogPrice(item);
+      expect(priced.amount).toBeGreaterThan(0);
+      expect(["boinglets", "sparkles"]).toContain(priced.currency);
       expect(["pet_skin", "furniture", "profile"]).toContain(item.kind);
     }
     expect(catalogItem("missing")).toBeNull();
-    expect(catalogItem(CATALOG[0].id)?.name).toBe(CATALOG[0].name);
+    expect(catalogItem(CATALOG[0]!.id)?.name).toBe(CATALOG[0]!.name);
+    expect(catalogPrice(catalogItem("hat-stardust")!).currency).toBe(
+      "sparkles",
+    );
+    expect(SPARKLES_DAILY).toBe(10);
   });
 
   it("derives care earnings from the same Phase 1 reward table", () => {

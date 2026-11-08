@@ -4,10 +4,13 @@ import { hexToBytes } from "@noble/hashes/utils";
 import {
   careEarnings,
   catalogItem,
+  catalogPrice,
   CATALOG,
   listingFee,
   netSellerProceeds,
   SINK_OWNER,
+  SPARKLES_DAILY,
+  sparklesDayKey,
   type CatalogItemId,
 } from "../src/economy";
 import { hex32, type CareEvent } from "../src/core";
@@ -26,7 +29,8 @@ type EconomyKind =
   | "buy_catalog"
   | "list"
   | "buy_listing"
-  | "cancel_listing";
+  | "cancel_listing"
+  | "sparkles_claim";
 
 interface EconomyChallenge {
   id: string;
@@ -154,6 +158,12 @@ export async function economyGet(
     const claimed = await claimedCare(env, owner);
     const boinglets = await balanceOf(env, owner, "boinglets");
     const sparkles = await balanceOf(env, owner, "sparkles");
+    const dayKey = sparklesDayKey(now);
+    const sparklesClaimedToday = await env.DB.prepare(
+      "SELECT id FROM ledger WHERE owner=? AND currency='sparkles' AND reason='sparkles_claim' AND ref=?",
+    )
+      .bind(owner, dayKey)
+      .first();
     const inventory = await env.DB.prepare(
       "SELECT item_id,qty FROM inventory WHERE owner=? AND qty>0",
     )
@@ -163,6 +173,11 @@ export async function economyGet(
       owner,
       balances: { boinglets, sparkles },
       care: { earned, claimed, claimable: Math.max(0, earned - claimed) },
+      sparklesFaucet: {
+        daily: SPARKLES_DAILY,
+        day: dayKey,
+        claimable: sparklesClaimedToday ? 0 : SPARKLES_DAILY,
+      },
       inventory: inventory.results,
       now,
     });
@@ -186,11 +201,36 @@ export async function economyPost(
     const owner = hex32(body.owner);
     const kind = body.kind as EconomyKind;
     if (
-      !["claim", "buy_catalog", "list", "buy_listing", "cancel_listing"].includes(
-        kind,
-      )
+      ![
+        "claim",
+        "buy_catalog",
+        "list",
+        "buy_listing",
+        "cancel_listing",
+        "sparkles_claim",
+      ].includes(kind)
     )
       throw new HttpError(400, "Unknown economy action");
+
+    if (kind === "sparkles_claim") {
+      const dayKey = sparklesDayKey(now);
+      const already = await env.DB.prepare(
+        "SELECT id FROM ledger WHERE owner=? AND currency='sparkles' AND reason='sparkles_claim' AND ref=?",
+      )
+        .bind(owner, dayKey)
+        .first();
+      if (already)
+        throw new HttpError(409, "Sparkles already claimed today (UTC)");
+      return Response.json(
+        await issueChallenge(
+          env,
+          owner,
+          kind,
+          { amount: SPARKLES_DAILY, day: dayKey },
+          now,
+        ),
+      );
+    }
 
     if (kind === "claim") {
       const events = await env.DB.prepare(
@@ -212,15 +252,26 @@ export async function economyPost(
       const itemId = String(body.item_id || "");
       const item = catalogItem(itemId);
       if (!item) throw new HttpError(404, "Unknown catalog item");
-      const bal = await balanceOf(env, owner, "boinglets");
-      if (bal < item.priceBoinglets)
-        throw new HttpError(409, "Not enough Boinglets. Claim care rewards first.");
+      const priced = catalogPrice(item);
+      const bal = await balanceOf(env, owner, priced.currency);
+      if (bal < priced.amount) {
+        throw new HttpError(
+          409,
+          priced.currency === "sparkles"
+            ? "Not enough Sparkles. Claim the daily testnet faucet first."
+            : "Not enough Boinglets. Claim care rewards first.",
+        );
+      }
       return Response.json(
         await issueChallenge(
           env,
           owner,
           kind,
-          { item_id: item.id, price: item.priceBoinglets },
+          {
+            item_id: item.id,
+            price: priced.amount,
+            currency: priced.currency,
+          },
           now,
         ),
       );
@@ -321,6 +372,33 @@ export async function economyPost(
     const payload = JSON.parse(c.payload) as Record<string, unknown>;
     const statements: D1PreparedStatement[] = [];
 
+    if (c.kind === "sparkles_claim") {
+      const dayKey = String(payload.day || "");
+      const amount = Number(payload.amount);
+      if (dayKey !== sparklesDayKey(now) || amount !== SPARKLES_DAILY)
+        throw new HttpError(409, "Sparkles claim expired; retry");
+      const already = await env.DB.prepare(
+        "SELECT id FROM ledger WHERE owner=? AND currency='sparkles' AND reason='sparkles_claim' AND ref=?",
+      )
+        .bind(c.owner, dayKey)
+        .first();
+      if (already)
+        throw new HttpError(409, "Sparkles already claimed today (UTC)");
+      statements.push(
+        env.DB.prepare(
+          "INSERT INTO ledger(id,owner,currency,delta,reason,ref,created_at) VALUES(?,?,?,?,?,?,?)",
+        ).bind(
+          c.id,
+          c.owner,
+          "sparkles",
+          amount,
+          "sparkles_claim",
+          dayKey,
+          now,
+        ),
+      );
+    }
+
     if (c.kind === "claim") {
       const events = await env.DB.prepare(
         "SELECT action,created_at FROM events WHERE owner=? ORDER BY created_at",
@@ -342,18 +420,31 @@ export async function economyPost(
     if (c.kind === "buy_catalog") {
       const itemId = String(payload.item_id) as CatalogItemId;
       const price = Number(payload.price);
+      const currency =
+        payload.currency === "sparkles" ? "sparkles" : "boinglets";
       const item = catalogItem(itemId);
-      if (!item || item.priceBoinglets !== price)
+      const priced = item ? catalogPrice(item) : null;
+      if (
+        !item ||
+        !priced ||
+        priced.amount !== price ||
+        priced.currency !== currency
+      )
         throw new HttpError(409, "Catalog changed; retry");
-      if ((await balanceOf(env, c.owner, "boinglets")) < price)
-        throw new HttpError(409, "Not enough Boinglets");
+      if ((await balanceOf(env, c.owner, currency)) < price)
+        throw new HttpError(
+          409,
+          currency === "sparkles"
+            ? "Not enough Sparkles"
+            : "Not enough Boinglets",
+        );
       statements.push(
         env.DB.prepare(
           "INSERT INTO ledger(id,owner,currency,delta,reason,ref,created_at) VALUES(?,?,?,?,?,?,?)",
         ).bind(
           c.id,
           c.owner,
-          "boinglets",
+          currency,
           -price,
           "catalog_buy",
           itemId,
@@ -364,7 +455,7 @@ export async function economyPost(
         ).bind(
           c.id + ":sink",
           SINK_OWNER,
-          "boinglets",
+          currency,
           price,
           "catalog_sink",
           itemId,
