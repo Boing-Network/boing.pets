@@ -170,7 +170,7 @@ Complexity key: **S** small · **M** medium · **L** large · **XL** multi-quart
 - Config-driven quests + seasonal events + collection log
 - Expansion zone stubs with portal hooks
 - Titles on quest claim; Boinglets rewards via ledger
-- Quests UI on pasture
+- Quests UI + Collections log UI on pasture
 
 ### Shipped activities
 - Fishing v1 — cast / nibble / reel (`0008`, `docs/PHASE6-FISHING.md`)

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { DAY } from "../src/core";
-import { unlockedCollections } from "../src/content/collections";
+import {
+  COLLECTION_DEFS,
+  collectionProgress,
+  unlockedCollections,
+} from "../src/content/collections";
 import { isQuestComplete, questPeriodKey, QUESTS } from "../src/content/quests";
 import { activeEvents } from "../src/content/seasons";
 
@@ -47,4 +51,16 @@ describe("content framework", () => {
       expect.arrayContaining(["species:Boingle", "cosmetic:hat-ribbon"]),
     );
   });
+
+  it("summarizes collection progress by category", () => {
+    const progress = collectionProgress(COLLECTION_DEFS, [
+      "species:Boingle",
+      "cosmetic:hat-ribbon",
+    ]);
+    expect(progress.total).toBe(COLLECTION_DEFS.length);
+    expect(progress.unlocked).toBe(2);
+    expect(progress.byCategory.species?.unlocked).toBe(1);
+    expect(progress.byCategory.cosmetic?.unlocked).toBe(1);
+  });
 });
+
