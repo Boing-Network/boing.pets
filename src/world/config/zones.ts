@@ -159,6 +159,15 @@ export const STARTER_TOWN: WorldZoneConfig = {
       hint: "Cast, wait for a nibble, reel in time — up to 3 catches per UTC day.",
       careHref: "/#fishing",
     },
+    {
+      id: "station-home",
+      label: "Cottage Gate",
+      kind: "portal",
+      position: { x: 14, y: 0, z: 5 },
+      radius: 2.4,
+      hint: "Visit your 4×4 home plot — place furniture bought from the market.",
+      careHref: "/#home",
+    },
   ],
   paths: [
     [

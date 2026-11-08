@@ -11,6 +11,7 @@ Config-driven quests, seasons, collections, and expansion zone stubs so content 
 - Pasture Quests UI panel
 - Migration `0005_content_framework.sql`
 - Fishing v1 activity loop (`0008`, `PHASE6-FISHING.md`)
+- Housing foundation — 4×4 plots + furniture place/pickup (`0009`, `PHASE6-HOUSING.md`)
 
 ## APIs
 - `GET /api/content/quests?owner=`
@@ -21,10 +22,12 @@ Config-driven quests, seasons, collections, and expansion zone stubs so content 
 - `GET /api/fishing/status?owner=`
 - `POST /api/fishing/challenge`
 - `POST /api/fishing/confirm`
+- `GET /api/housing/plot?owner=`
+- `POST /api/housing/challenge` / `confirm`
 
 ## Still open (content production)
 - Full zone meshes / LOD kits
-- Housing editor + visitor ACLs
+- Housing editor polish + visitor ACLs
 - Avatar cosmetic wardrobe UI
 - Battle pass season track
 - Remaining mini-game implementations (design backlog remains in ROADMAP)

@@ -29,4 +29,4 @@ Introduce a cosmetics-only Boinglets ledger and marketplace without pay-to-win o
 Pasture `#market` panel: claim, catalog buy, browse listings.
 
 ## Next
-Premium Sparkles checkout (ethical cosmetics), housing furniture placement, trade escrow UX polish.
+Premium Sparkles checkout (ethical cosmetics), trade escrow UX polish. Housing furniture placement shipped in Phase 6 foundation.

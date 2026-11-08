@@ -170,9 +170,10 @@ Complexity key: **S** small · **M** medium · **L** large · **XL** multi-quart
 
 ### Shipped activities
 - Fishing v1 — cast / nibble / reel (`0008`, `docs/PHASE6-FISHING.md`)
+- Housing foundation — 4×4 plots + furniture (`0009`, `docs/PHASE6-HOUSING.md`)
 
 ### Still open (years of content)
-- Full zone art / housing editor / avatar wardrobe
+- Full zone art / housing editor polish / avatar wardrobe
 - Guilds + battle pass track
 - Remaining mini-game implementations (see backlog table)
 

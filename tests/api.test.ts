@@ -86,6 +86,7 @@ beforeEach(async () => {
     "../migrations/0006_social.sql",
     "../migrations/0007_presence_tokens.sql",
     "../migrations/0008_fishing.sql",
+    "../migrations/0009_housing.sql",
   ]) {
     db.exec(readFileSync(new NodeURL(file, import.meta.url), "utf8"));
   }
@@ -593,6 +594,86 @@ describe("Pets API", () => {
       ).status,
     ).toBe(413);
     expect((await request("/api/pasture?offset=-1")).status).toBe(400);
+  });
+  it("places and picks up furniture on a home plot", async () => {
+    await hatch();
+    db.prepare(
+      "INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,?)",
+    ).run(owner, "furn-cushion", 1);
+    const place = await request("/api/housing/challenge", {
+      owner,
+      kind: "place",
+      item_id: "furn-cushion",
+      x: 1,
+      y: 2,
+    });
+    expect(place.status).toBe(200);
+    const pb = (await place.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/housing/confirm", {
+          id: pb.id,
+          signature: await signConfirm(pb.message),
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      db
+        .prepare(
+          "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
+        )
+        .get(owner, "furn-cushion"),
+    ).toBeUndefined();
+    const plot = (await (
+      await request(`/api/housing/plot?owner=${owner}&viewer=${owner}`)
+    ).json()) as {
+      placements: Array<{ id: string; item_id: string; x: number; y: number }>;
+      plot: { visibility: string };
+    };
+    expect(plot.placements).toEqual([
+      expect.objectContaining({ item_id: "furn-cushion", x: 1, y: 2 }),
+    ]);
+    const pickup = await request("/api/housing/challenge", {
+      owner,
+      kind: "pickup",
+      placement_id: plot.placements[0]!.id,
+    });
+    expect(pickup.status).toBe(200);
+    const ub = (await pickup.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/housing/confirm", {
+          id: ub.id,
+          signature: await signConfirm(ub.message),
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      db
+        .prepare(
+          "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
+        )
+        .get(owner, "furn-cushion")?.qty,
+    ).toBe(1);
+    const vis = await request("/api/housing/challenge", {
+      owner,
+      kind: "set_visibility",
+      visibility: "private",
+    });
+    const vb = (await vis.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/housing/confirm", {
+          id: vb.id,
+          signature: await signConfirm(vb.message),
+        })
+      ).status,
+    ).toBe(200);
+    const stranger = (await (
+      await request(`/api/housing/plot?owner=${owner}`)
+    ).json()) as { private?: boolean; placements: unknown[] };
+    expect(stranger.private).toBe(true);
+    expect(stranger.placements).toEqual([]);
   });
   it("casts, reels in the bite window, and awards fish", async () => {
     await hatch();
