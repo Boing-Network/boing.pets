@@ -6,6 +6,7 @@ export type PageId =
   | "garden"
   | "kitchen"
   | "mining"
+  | "racing"
   | "home"
   | "quests"
   | "collections"
@@ -51,6 +52,11 @@ export const PAGE_META: Record<
     title: "Mine",
     docTitle: "Boing Pets · Mining",
   },
+  racing: {
+    path: "/racing.html",
+    title: "Racing",
+    docTitle: "Boing Pets · Pet Racing",
+  },
   home: {
     path: "/home.html",
     title: "Home",
@@ -88,6 +94,7 @@ export const HASH_REDIRECTS: Record<string, string> = {
   garden: "/garden.html",
   kitchen: "/kitchen.html",
   mining: "/mining.html",
+  racing: "/racing.html",
   home: "/home.html",
   quests: "/quests.html",
   collections: "/collections.html",
@@ -112,7 +119,7 @@ function dropdown(
 }
 
 export function renderHeader(active: PageId): string {
-  return `<header><a class="brand" href="/">boing<span>pets</span><i>✦</i></a><nav aria-label="Main">${dropdown("Play", ["pasture", "home"], active, '<a href="/world.html">Starter Town</a>')}${dropdown("Activities", ["fishing", "treasure", "garden", "kitchen", "mining"], active)}${dropdown("Social", ["friends"], active)}${dropdown("Progress", ["quests", "collections"], active)}${link("market", active)}${dropdown("Help", ["how"], active, '<a href="https://boing.network/testnet" target="_blank" rel="noreferrer">Boing Network ↗</a>')}</nav><button id="connect">Connect Express</button></header>`;
+  return `<header><a class="brand" href="/">boing<span>pets</span><i>✦</i></a><nav aria-label="Main">${dropdown("Play", ["pasture", "home"], active, '<a href="/world.html">Starter Town</a>')}${dropdown("Activities", ["fishing", "treasure", "garden", "kitchen", "mining", "racing"], active)}${dropdown("Social", ["friends"], active)}${dropdown("Progress", ["quests", "collections"], active)}${link("market", active)}${dropdown("Help", ["how"], active, '<a href="https://boing.network/testnet" target="_blank" rel="noreferrer">Boing Network ↗</a>')}</nav><button id="connect">Connect Express</button></header>`;
 }
 
 export function isPageId(value: string): value is PageId {

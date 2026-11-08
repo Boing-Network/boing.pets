@@ -43,6 +43,7 @@ describe("Starter Town world config", () => {
     expect(byId["station-fish"]).toBe("/fishing.html");
     expect(byId["station-mine"]).toBe("/mining.html");
     expect(byId["station-kitchen"]).toBe("/kitchen.html");
+    expect(byId["station-race"]).toBe("/racing.html");
   });
 
   it("includes tutorial and marketplace hooks for later phases", () => {

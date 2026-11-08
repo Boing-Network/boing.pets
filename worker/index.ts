@@ -68,6 +68,11 @@ import {
   miningGet,
   miningPost,
 } from "./mining";
+import {
+  racingError,
+  racingGet,
+  racingPost,
+} from "./racing";
 import { applyFoodBoosts } from "../src/content/cooking";
 import { verifyProof, type Receipt, type RpcBlock } from "./proof";
 export { PlazaRoom } from "./plaza";
@@ -293,6 +298,14 @@ async function api(req: Request, env: Env): Promise<Response> {
       if (mapped) return mapped;
       throw error;
     }
+    try {
+      const racing = await racingGet(req, env, now);
+      if (racing) return racing;
+    } catch (error) {
+      const mapped = racingError(error);
+      if (mapped) return mapped;
+      throw error;
+    }
     const economy = await economyGet(req, env, now);
     if (economy) return economy;
   }
@@ -426,6 +439,14 @@ async function api(req: Request, env: Env): Promise<Response> {
     if (mining) return mining;
   } catch (error) {
     const mapped = miningError(error);
+    if (mapped) return mapped;
+    throw error;
+  }
+  try {
+    const racing = await racingPost(url, env, body, now);
+    if (racing) return racing;
+  } catch (error) {
+    const mapped = racingError(error);
     if (mapped) return mapped;
     throw error;
   }

@@ -179,6 +179,7 @@ Complexity key: **S** small · **M** medium · **L** large · **XL** multi-quart
 - Gardening — plant / water / harvest (`0013`, `docs/PHASE6-GARDENING.md`)
 - Cooking — recipes + serve snacks for care boosts (`0014`, `docs/PHASE6-COOKING.md`)
 - Mining — stamina veins + pickaxe tiers (`0015`, `docs/PHASE6-MINING.md`)
+- Pet racing — timed heats + ribbons (`0016`, `docs/PHASE6-RACING.md`)
 
 ### Still open (years of content)
 - Full zone art / housing editor polish / avatar wardrobe

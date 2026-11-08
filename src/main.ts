@@ -376,6 +376,117 @@ function clearMiningTimer() {
   miningTimer = 0;
 }
 
+let racingTimer = 0;
+let racingChallenge: {
+  id: string;
+  message: string;
+  go_at: number;
+  window_ms: number;
+  track_name: string;
+} | null = null;
+function clearRacingTimer() {
+  if (racingTimer) window.clearTimeout(racingTimer);
+  racingTimer = 0;
+}
+
+async function refreshRacing() {
+  const data = await api<{
+    tracks: Array<{ id: string; name: string; blurb: string }>;
+    remaining: number;
+    heatsToday: number;
+    dailyCap: number;
+  }>("/api/racing/status" + (owner ? `?owner=${owner}` : ""));
+  $("#racing-summary").textContent = owner
+    ? `${data.heatsToday}/${data.dailyCap} heats today · ${data.remaining} left`
+    : "Connect Express and hatch a buddy to line up at the race track.";
+  const startBtn = $("#race-start") as HTMLButtonElement;
+  startBtn.hidden = !owner;
+  startBtn.disabled = busy || data.remaining <= 0 || !!racingChallenge;
+  startBtn.textContent =
+    data.remaining <= 0 ? "Daily limit reached ✓" : "Line up · sign";
+  $("#race-log").replaceChildren(
+    ...data.tracks.map((t) => {
+      const el = document.createElement("article");
+      el.className = "market-card";
+      el.innerHTML = `<h3>${t.name}</h3><p class="subtle">${t.blurb}</p>`;
+      return el;
+    }),
+  );
+}
+
+async function startRace() {
+  await assertWallet();
+  notice("Approve your lineup in Express…");
+  const challenge = await api<{
+    id: string;
+    message: string;
+    go_at: number;
+    window_ms: number;
+    track_name: string;
+  }>("/api/racing/challenge", { owner });
+  racingChallenge = challenge;
+  const finishBtn = $("#race-finish") as HTMLButtonElement;
+  const startBtn = $("#race-start") as HTMLButtonElement;
+  finishBtn.hidden = false;
+  finishBtn.disabled = true;
+  startBtn.disabled = true;
+  $("#racing-prompt").textContent = `${challenge.track_name}: on your marks…`;
+  $("#racing-needle").className = "waiting";
+  const wait = Math.max(0, challenge.go_at - Date.now());
+  clearRacingTimer();
+  racingTimer = window.setTimeout(() => {
+    $("#racing-prompt").textContent =
+      `Go! Finish ${challenge.track_name} — ${Math.round(challenge.window_ms / 100) / 10}s window.`;
+    $("#racing-needle").className = "bite";
+    finishBtn.disabled = false;
+    racingTimer = window.setTimeout(() => {
+      $("#racing-prompt").textContent =
+        "Too slow — you missed the finish. Line up again.";
+      $("#racing-needle").className = "";
+      finishBtn.hidden = true;
+      racingChallenge = null;
+      void refreshRacing();
+    }, challenge.window_ms);
+  }, wait);
+  notice("Lined up. Watch for the starting flash…");
+}
+
+async function finishRace() {
+  if (!racingChallenge) throw new Error("Line up first");
+  await assertWallet();
+  clearRacingTimer();
+  ($("#race-finish") as HTMLButtonElement).disabled = true;
+  notice("Signing your finish…");
+  const signature = await provider!.request({
+    method: "boing_signMessage",
+    params: [racingChallenge.message, owner],
+  });
+  const result = await api<{
+    ok: boolean;
+    result: string;
+    message?: string;
+    place?: number;
+    ribbon?: { name: string; rewardBoinglets: number };
+    track?: { name: string };
+  }>("/api/racing/confirm", {
+    id: racingChallenge.id,
+    signature,
+  });
+  racingChallenge = null;
+  $("#race-finish").hidden = true;
+  $("#racing-needle").className = "";
+  if (!result.ok) {
+    $("#racing-prompt").textContent =
+      result.message || "Missed the window. Line up again.";
+    notice(result.message || "Missed the finish.", true);
+  } else {
+    $("#racing-prompt").textContent = `${result.track?.name}: ${result.place}${result.place === 1 ? "st" : result.place === 2 ? "nd" : "rd"} · ${result.ribbon?.name} (+${result.ribbon?.rewardBoinglets}ℬ)`;
+    notice(`Placed ${result.place} — ${result.ribbon?.name}.`);
+  }
+  await refreshEconomy().catch(() => undefined);
+  await refreshRacing();
+}
+
 let fishingTimer = 0;
 let fishingChallenge: {
   id: string;
@@ -1318,6 +1429,10 @@ async function refresh() {
     await refreshMining().catch(() => {
       /* mining tables may be missing until migration 0015 */
     });
+  if (page === "racing")
+    await refreshRacing().catch(() => {
+      /* racing tables may be missing until migration 0016 */
+    });
   controls();
 }
 async function run(task: () => Promise<void>) {
@@ -1478,6 +1593,8 @@ on("#claim-sparkles", "click", () =>
 on("#fish-cast", "click", () => void run(castLine));
 on("#mine-swing", "click", () => void run(swingPick));
 on("#mine-strike", "click", () => void run(strikeVein));
+on("#race-start", "click", () => void run(startRace));
+on("#race-finish", "click", () => void run(finishRace));
 on("#fish-reel", "click", () => void run(reelIn));
 on("#treasure-start", "click", () => void run(startTreasureDig));
 on("#home-visibility", "click", () =>
