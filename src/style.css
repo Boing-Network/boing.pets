@@ -443,6 +443,17 @@ meter {
     filter: brightness(1.25);
   }
 }
+.garden-plots {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+@media (max-width: 800px) {
+  .garden-plots {
+    grid-template-columns: 1fr;
+  }
+}
 .treasure-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(64px, 1fr));

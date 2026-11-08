@@ -177,6 +177,15 @@ export const STARTER_TOWN: WorldZoneConfig = {
       hint: "Read the clue, pick a tile, dig — up to 3 tries per UTC day.",
       careHref: "/#treasure",
     },
+    {
+      id: "station-garden",
+      label: "Garden Beds",
+      kind: "portal",
+      position: { x: 14, y: 0, z: 10 },
+      radius: 2.5,
+      hint: "Plant, water, and harvest crops on three garden slots.",
+      careHref: "/#garden",
+    },
   ],
   paths: [
     [
