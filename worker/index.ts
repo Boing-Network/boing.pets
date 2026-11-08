@@ -38,6 +38,11 @@ import {
   socialGet,
   socialPost,
 } from "./social";
+import {
+  fishingError,
+  fishingGet,
+  fishingPost,
+} from "./fishing";
 import { verifyProof, type Receipt, type RpcBlock } from "./proof";
 export { PlazaRoom } from "./plaza";
 interface Challenge {
@@ -205,6 +210,14 @@ async function api(req: Request, env: Env): Promise<Response> {
     }
     const content = await contentGet(req, env, now);
     if (content) return content;
+    try {
+      const fishing = await fishingGet(req, env, now);
+      if (fishing) return fishing;
+    } catch (error) {
+      const mapped = fishingError(error);
+      if (mapped) return mapped;
+      throw error;
+    }
     const economy = await economyGet(req, env, now);
     if (economy) return economy;
   }
@@ -290,6 +303,14 @@ async function api(req: Request, env: Env): Promise<Response> {
     if (content) return content;
   } catch (error) {
     const mapped = contentError(error);
+    if (mapped) return mapped;
+    throw error;
+  }
+  try {
+    const fishing = await fishingPost(url, env, body, now);
+    if (fishing) return fishing;
+  } catch (error) {
+    const mapped = fishingError(error);
     if (mapped) return mapped;
     throw error;
   }

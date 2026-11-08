@@ -56,7 +56,7 @@ let provider: Provider | null = null,
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) =>
   document.querySelector<T>(selector)!;
 $("#app").innerHTML =
-  `<header><a class="brand" href="#">boing<span>pets</span><i>✦</i></a><nav aria-label="Main"><a href="#pasture">The pasture</a><a href="#social">Friends</a><a href="#quests">Quests</a><a href="#market">Market</a><a href="/world.html">Starter Town</a><a href="#how">How to play</a><a href="https://boing.network/testnet" target="_blank" rel="noreferrer">Boing Network ↗</a></nav><button id="connect">Connect Express</button></header><main><section class="hero"><div><p class="eyebrow">BOING TESTNET · CHAIN 6913 <span class="pill">PHASE 6 / CONTENT PREVIEW</span></p><h1>A little bounce.<br>A buddy for life.</h1><p class="lede">Hatch, care, quest, trade cosmetics, and wander expanding zones.<br>Seasons and collections are config-driven for years of drops ahead.</p><div class="hero-cta"><a class="button" href="#buddy">Meet your buddy ↓</a><a class="button secondary" href="/world.html">Enter Starter Town</a></div><p class="small">No dying. Cosmetics-only market. Testnet only.</p></div><div class="hero-pets" id="hero-pets" aria-hidden="true"></div></section><div id="notice" role="status" aria-live="polite">Loading the pasture…</div><section id="buddy" class="panel"><div class="section-title"><div><p class="eyebrow">YOUR LITTLE CORNER</p><h2>Home, sweet wallet.</h2></div><button id="disconnect" class="quiet" hidden>Disconnect</button></div><div id="my-pet"></div><div class="actions"><button id="hatch">Hatch a buddy</button><button id="checkin" class="secondary" hidden>Daily hello · sign only</button><button id="play" class="secondary" hidden>Play · sign only</button><button id="groom" class="secondary" hidden>Groom · sign only</button><button id="feed" hidden>Feed · tiny transaction</button><button id="retry" class="secondary" hidden>Confirm pending transaction</button><button id="forget" class="quiet" hidden>Forget pending record</button></div><p class="small">Hatch & feed: ~0.001 BOING self-transfer + network fee. Hello, play, and groom: free signatures. Daily limits reset at midnight UTC. Care earns Boinglets and XP.</p></section><section id="social" class="panel"><div class="section-title"><div><p class="eyebrow">MMO-LITE SOCIAL</p><h2>Friends &amp; messages</h2></div></div><p id="social-summary" class="subtle">Connect to set a display name, add friends by wallet, and DM.</p><div class="social-form"><label>Display name <input id="display-name" maxlength="24" placeholder="PasturePal" /></label><button id="save-profile" class="secondary" hidden>Save name · sign</button></div><div class="social-form"><label>Friend wallet <input id="friend-wallet" placeholder="0x…" /></label><button id="add-friend" class="secondary" hidden>Send request · sign</button></div><div class="social-cols"><div><h3 class="market-sub">Requests</h3><div id="friend-requests"></div></div><div><h3 class="market-sub">Friends</h3><div id="friends-list"></div></div></div><div id="dm-panel" hidden><h3 class="market-sub">Messages with <span id="dm-with"></span></h3><div id="dm-thread" class="dm-thread"></div><div class="social-form"><input id="dm-body" maxlength="280" placeholder="Say hello…" /><button id="dm-send" class="secondary">Send · sign</button></div></div></section><section id="quests" class="panel"><div class="section-title"><div><p class="eyebrow">STORIES · DAILIES · SEASONS</p><h2>Quests &amp; festivals</h2></div></div><p id="season-summary" class="subtle">Loading seasonal calendar…</p><div id="quest-list" class="market-grid"></div></section><section id="market" class="panel"><div class="section-title"><div><p class="eyebrow">COSMETICS ONLY</p><h2>Boinglets &amp; the market</h2></div><button id="claim" class="secondary" hidden>Claim care Boinglets</button></div><p id="economy-summary" class="subtle">Connect to claim care rewards into your spendable balance, then browse cosmetics.</p><div id="catalog" class="market-grid"></div><h3 class="market-sub">Player listings</h3><div id="listings" class="market-grid"></div><p class="small">5% sale fee sinks to the pasture treasury (anti-inflation). Sparkles (premium) are reserved for later cosmetics — not sold here yet.</p></section><section id="pasture"><div class="section-title"><div><p class="eyebrow">A NEIGHBORHOOD OF HAPPY ACCIDENTS</p><h2>The public pasture</h2></div><button id="refresh" class="secondary">Refresh ↻</button></div><p class="subtle">Bouncy, peckish, a little scruffy — everybody belongs here.</p><div id="gallery" class="gallery"></div><div class="pages"><button id="prev" class="secondary" hidden>← Previous</button><button id="next" class="secondary" hidden>More buddies →</button></div></section><section id="how" class="how"><article><b>01 / HATCH</b><h3>One wallet. One weirdo.</h3><p>Approve a real Boing testnet transaction in Express. Your wallet and hatch transaction reveal species, colors, and a permanent personality.</p></article><article><b>02 / DAILY CARE</b><h3>Hello, play, groom, feed.</h3><p>Signatures keep joy, energy, and hygiene up. Feeding fills the belly. Each action type is once per UTC day; any care counts toward your streak.</p></article><article><b>03 / GROW</b><h3>Stages, XP, and badges.</h3><p>Buddies grow from baby toward elder with age and care. Earn Boinglets, unlock achievements, and never lose your pet — strays always come home with a feed.</p></article></section></main><footer><span>Built for a little more joy on Boing.</span><a href="https://boing.express" target="_blank" rel="noreferrer">Wallet ↗</a><a href="https://boing.network/faucet" target="_blank" rel="noreferrer">Testnet faucet ↗</a><a href="https://github.com/Boing-Network/boing.pets">Source ↗</a><span>Testnet only. No monetary value or airdrop promise.</span></footer>`;
+  `<header><a class="brand" href="#">boing<span>pets</span><i>✦</i></a><nav aria-label="Main"><a href="#pasture">The pasture</a><a href="#social">Friends</a><a href="#fishing">Fishing</a><a href="#quests">Quests</a><a href="#market">Market</a><a href="/world.html">Starter Town</a><a href="#how">How to play</a><a href="https://boing.network/testnet" target="_blank" rel="noreferrer">Boing Network ↗</a></nav><button id="connect">Connect Express</button></header><main><section class="hero"><div><p class="eyebrow">BOING TESTNET · CHAIN 6913 <span class="pill">PHASE 6 / CONTENT PREVIEW</span></p><h1>A little bounce.<br>A buddy for life.</h1><p class="lede">Hatch, care, quest, trade cosmetics, and wander expanding zones.<br>Seasons and collections are config-driven for years of drops ahead.</p><div class="hero-cta"><a class="button" href="#buddy">Meet your buddy ↓</a><a class="button secondary" href="/world.html">Enter Starter Town</a></div><p class="small">No dying. Cosmetics-only market. Testnet only.</p></div><div class="hero-pets" id="hero-pets" aria-hidden="true"></div></section><div id="notice" role="status" aria-live="polite">Loading the pasture…</div><section id="buddy" class="panel"><div class="section-title"><div><p class="eyebrow">YOUR LITTLE CORNER</p><h2>Home, sweet wallet.</h2></div><button id="disconnect" class="quiet" hidden>Disconnect</button></div><div id="my-pet"></div><div class="actions"><button id="hatch">Hatch a buddy</button><button id="checkin" class="secondary" hidden>Daily hello · sign only</button><button id="play" class="secondary" hidden>Play · sign only</button><button id="groom" class="secondary" hidden>Groom · sign only</button><button id="feed" hidden>Feed · tiny transaction</button><button id="retry" class="secondary" hidden>Confirm pending transaction</button><button id="forget" class="quiet" hidden>Forget pending record</button></div><p class="small">Hatch & feed: ~0.001 BOING self-transfer + network fee. Hello, play, and groom: free signatures. Daily limits reset at midnight UTC. Care earns Boinglets and XP.</p></section><section id="social" class="panel"><div class="section-title"><div><p class="eyebrow">MMO-LITE SOCIAL</p><h2>Friends &amp; messages</h2></div></div><p id="social-summary" class="subtle">Connect to set a display name, add friends by wallet, and DM.</p><div class="social-form"><label>Display name <input id="display-name" maxlength="24" placeholder="PasturePal" /></label><button id="save-profile" class="secondary" hidden>Save name · sign</button></div><div class="social-form"><label>Friend wallet <input id="friend-wallet" placeholder="0x…" /></label><button id="add-friend" class="secondary" hidden>Send request · sign</button></div><div class="social-cols"><div><h3 class="market-sub">Requests</h3><div id="friend-requests"></div></div><div><h3 class="market-sub">Friends</h3><div id="friends-list"></div></div></div><div id="dm-panel" hidden><h3 class="market-sub">Messages with <span id="dm-with"></span></h3><div id="dm-thread" class="dm-thread"></div><div class="social-form"><input id="dm-body" maxlength="280" placeholder="Say hello…" /><button id="dm-send" class="secondary">Send · sign</button></div></div></section><section id="fishing" class="panel"><div class="section-title"><div><p class="eyebrow">FIRST ACTIVITY LOOP</p><h2>Pond pier fishing</h2></div></div><p id="fishing-summary" class="subtle">Connect, hatch a buddy, then cast — wait for the nibble and reel in the window.</p><div class="fishing-stage" id="fishing-stage"><div class="fishing-meter" aria-hidden="true"><span id="fishing-needle"></span></div><p id="fishing-prompt" class="subtle">Ready when you are.</p><div class="actions"><button id="fish-cast" class="secondary" hidden>Cast · sign</button><button id="fish-reel" hidden disabled>Reel!</button></div></div><div id="fish-log" class="market-grid"></div><p class="small">Up to 3 successful catches per UTC day. Timing window is server-checked. Catches add fish to inventory, Boinglets to your ledger, and collection discoveries.</p></section><section id="quests" class="panel"><div class="section-title"><div><p class="eyebrow">STORIES · DAILIES · SEASONS</p><h2>Quests &amp; festivals</h2></div></div><p id="season-summary" class="subtle">Loading seasonal calendar…</p><div id="quest-list" class="market-grid"></div></section><section id="market" class="panel"><div class="section-title"><div><p class="eyebrow">COSMETICS ONLY</p><h2>Boinglets &amp; the market</h2></div><button id="claim" class="secondary" hidden>Claim care Boinglets</button></div><p id="economy-summary" class="subtle">Connect to claim care rewards into your spendable balance, then browse cosmetics.</p><div id="catalog" class="market-grid"></div><h3 class="market-sub">Player listings</h3><div id="listings" class="market-grid"></div><p class="small">5% sale fee sinks to the pasture treasury (anti-inflation). Sparkles (premium) are reserved for later cosmetics — not sold here yet.</p></section><section id="pasture"><div class="section-title"><div><p class="eyebrow">A NEIGHBORHOOD OF HAPPY ACCIDENTS</p><h2>The public pasture</h2></div><button id="refresh" class="secondary">Refresh ↻</button></div><p class="subtle">Bouncy, peckish, a little scruffy — everybody belongs here.</p><div id="gallery" class="gallery"></div><div class="pages"><button id="prev" class="secondary" hidden>← Previous</button><button id="next" class="secondary" hidden>More buddies →</button></div></section><section id="how" class="how"><article><b>01 / HATCH</b><h3>One wallet. One weirdo.</h3><p>Approve a real Boing testnet transaction in Express. Your wallet and hatch transaction reveal species, colors, and a permanent personality.</p></article><article><b>02 / DAILY CARE</b><h3>Hello, play, groom, feed.</h3><p>Signatures keep joy, energy, and hygiene up. Feeding fills the belly. Each action type is once per UTC day; any care counts toward your streak.</p></article><article><b>03 / GROW</b><h3>Stages, XP, and badges.</h3><p>Buddies grow from baby toward elder with age and care. Earn Boinglets, unlock achievements, and never lose your pet — strays always come home with a feed.</p></article></section></main><footer><span>Built for a little more joy on Boing.</span><a href="https://boing.express" target="_blank" rel="noreferrer">Wallet ↗</a><a href="https://boing.network/faucet" target="_blank" rel="noreferrer">Testnet faucet ↗</a><a href="https://github.com/Boing-Network/boing.pets">Source ↗</a><span>Testnet only. No monetary value or airdrop promise.</span></footer>`;
 const demoOwner = "0x" + "11".repeat(32);
 $("#hero-pets").innerHTML = [1, 2, 3]
   .map(
@@ -243,6 +243,120 @@ async function refreshSocial() {
       $("#dm-panel").hidden = true;
     }
   }
+}
+
+let fishingTimer = 0;
+let fishingChallenge: {
+  id: string;
+  message: string;
+  bite_at: number;
+  window_ms: number;
+  fish_name: string;
+} | null = null;
+
+function clearFishingTimer() {
+  if (fishingTimer) window.clearTimeout(fishingTimer);
+  fishingTimer = 0;
+}
+
+async function refreshFishing() {
+  const data = await api<{
+    fish: Array<{
+      id: string;
+      name: string;
+      rarity: string;
+      rewardBoinglets: number;
+    }>;
+    remaining: number;
+    catchesToday: number;
+    dailyCap: number;
+  }>("/api/fishing/status" + (owner ? `?owner=${owner}` : ""));
+  $("#fishing-summary").textContent = owner
+    ? `${data.catchesToday}/${data.dailyCap} catches today · ${data.remaining} left`
+    : "Connect Express and hatch a buddy to cast at the pond pier.";
+  const castBtn = $("#fish-cast") as HTMLButtonElement;
+  castBtn.hidden = !owner;
+  castBtn.disabled = busy || data.remaining <= 0 || !!fishingChallenge;
+  castBtn.textContent =
+    data.remaining <= 0 ? "Daily limit reached ✓" : "Cast · sign";
+  $("#fish-log").replaceChildren(
+    ...data.fish.map((f) => {
+      const el = document.createElement("article");
+      el.className = "market-card";
+      el.innerHTML = `<h3>${f.name}</h3><p class="subtle">${f.rarity} · ${f.rewardBoinglets} Boinglets</p><p class="small">Collection: discovery:fish:${f.id}</p>`;
+      return el;
+    }),
+  );
+}
+
+async function castLine() {
+  await assertWallet();
+  notice("Approve your cast in Express…");
+  const challenge = await api<{
+    id: string;
+    message: string;
+    bite_at: number;
+    window_ms: number;
+    fish_name: string;
+  }>("/api/fishing/challenge", { owner });
+  fishingChallenge = challenge;
+  const reelBtn = $("#fish-reel") as HTMLButtonElement;
+  const castBtn = $("#fish-cast") as HTMLButtonElement;
+  reelBtn.hidden = false;
+  reelBtn.disabled = true;
+  castBtn.disabled = true;
+  $("#fishing-prompt").textContent = "Line is out… wait for the nibble.";
+  $("#fishing-needle").className = "waiting";
+  const wait = Math.max(0, challenge.bite_at - Date.now());
+  clearFishingTimer();
+  fishingTimer = window.setTimeout(() => {
+    $("#fishing-prompt").textContent =
+      `Nibble! Reel ${challenge.fish_name} — ${Math.round(challenge.window_ms / 100) / 10}s window.`;
+    $("#fishing-needle").className = "bite";
+    reelBtn.disabled = false;
+    fishingTimer = window.setTimeout(() => {
+      $("#fishing-prompt").textContent = "Too slow — the fish got away. Cast again.";
+      $("#fishing-needle").className = "";
+      reelBtn.hidden = true;
+      fishingChallenge = null;
+      void refreshFishing();
+    }, challenge.window_ms);
+  }, wait);
+  notice("Cast approved. Watch for the nibble…");
+}
+
+async function reelIn() {
+  if (!fishingChallenge) throw new Error("Cast a line first");
+  await assertWallet();
+  clearFishingTimer();
+  ($("#fish-reel") as HTMLButtonElement).disabled = true;
+  notice("Signing your catch…");
+  const signature = await provider!.request({
+    method: "boing_signMessage",
+    params: [fishingChallenge.message, owner],
+  });
+  const result = await api<{
+    ok: boolean;
+    result: string;
+    message?: string;
+    fish?: { name: string; rewardBoinglets: number; rarity: string };
+  }>("/api/fishing/confirm", {
+    id: fishingChallenge.id,
+    signature,
+  });
+  fishingChallenge = null;
+  $("#fish-reel").hidden = true;
+  $("#fishing-needle").className = "";
+  if (!result.ok) {
+    $("#fishing-prompt").textContent =
+      result.message || "Missed the window. Cast again.";
+    notice(result.message || "The fish got away.", true);
+  } else {
+    $("#fishing-prompt").textContent = `Caught ${result.fish?.name}! +${result.fish?.rewardBoinglets} Boinglets.`;
+    notice(`Caught ${result.fish?.name} (${result.fish?.rarity}).`);
+  }
+  await refreshEconomy().catch(() => undefined);
+  await refreshFishing();
 }
 
 async function claimQuest(questId: string) {
@@ -473,6 +587,9 @@ async function refresh() {
   await refreshSocial().catch(() => {
     /* social tables may be missing until migration 0006 */
   });
+  await refreshFishing().catch(() => {
+    /* fishing tables may be missing until migration 0008 */
+  });
   controls();
 }
 async function run(task: () => Promise<void>) {
@@ -626,6 +743,8 @@ $("#forget").onclick = () => {
   }
 };
 $("#claim").onclick = () => void run(() => economyAct("claim"));
+$("#fish-cast").onclick = () => void run(castLine);
+$("#fish-reel").onclick = () => void run(reelIn);
 $("#save-profile").onclick = () =>
   void run(() =>
     socialAct("set_profile", {

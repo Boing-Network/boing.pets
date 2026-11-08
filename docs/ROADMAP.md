@@ -168,10 +168,13 @@ Complexity key: **S** small · **M** medium · **L** large · **XL** multi-quart
 - Titles on quest claim; Boinglets rewards via ledger
 - Quests UI on pasture
 
+### Shipped activities
+- Fishing v1 — cast / nibble / reel (`0008`, `docs/PHASE6-FISHING.md`)
+
 ### Still open (years of content)
 - Full zone art / housing editor / avatar wardrobe
 - Guilds + battle pass track
-- 25 mini-game implementations (see backlog table)
+- Remaining mini-game implementations (see backlog table)
 
 ### Complexity
 **XL** (framework **M**; content ongoing)
