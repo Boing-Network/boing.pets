@@ -339,6 +339,63 @@ meter {
   font-size: 0.62rem;
   color: #9ad7c2;
 }
+.social-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+  margin: 14px 0;
+}
+.social-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  flex: 1;
+  min-width: 220px;
+}
+.social-form input {
+  font: inherit;
+  color: #e8eeff;
+  background: #0b1528;
+  border: 1px solid #344568;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.social-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.social-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #243149;
+  font-size: 0.78rem;
+}
+.dm-thread {
+  max-height: 220px;
+  overflow: auto;
+  background: #0b1528;
+  border: 1px solid #263552;
+  border-radius: 14px;
+  padding: 12px;
+  margin: 10px 0;
+}
+.dm-line {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  color: #c5d7f7;
+}
+@media (max-width: 800px) {
+  .social-cols {
+    grid-template-columns: 1fr;
+  }
+}
 @media (max-width: 800px) {
   .market-grid {
     grid-template-columns: 1fr;
