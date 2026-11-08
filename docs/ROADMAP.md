@@ -129,8 +129,11 @@ Complexity key: **S** small · **M** medium · **L** large · **XL** multi-quart
 - Signed economy challenge/confirm
 - Pasture Market UI panel
 
+### Shipped Sparkles (testnet)
+- Daily signed Sparkles faucet + Sparkles-priced cosmetics (`0010`, `PHASE4-SPARKLES.md`)
+
 ### Still open
-- Sparkles premium checkout
+- Real Sparkles checkout (post-faucet)
 - Resource crafting / deeper escrow UX
 - Postgres cutover when D1 write contention appears
 - Listing expiry decay jobs
