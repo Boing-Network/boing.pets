@@ -1,5 +1,15 @@
 import { createBoingWebWalletProvider } from "@boing-network/boing-sdk";
-import { hex32, petSvg, traits, state, type Action, type Pet } from "./core";
+import {
+  ACHIEVEMENTS,
+  hex32,
+  isSignatureAction,
+  petSvg,
+  traits,
+  state,
+  type AchievementCode,
+  type Action,
+  type Pet,
+} from "./core";
 import "./style.css";
 interface Provider {
   request(args: { method: string; params?: unknown[] }): Promise<unknown>;
@@ -10,6 +20,12 @@ interface Provider {
 type ViewPet = Pet & {
   traits: ReturnType<typeof traits>;
   state: ReturnType<typeof state>;
+  achievements?: Array<{
+    code: AchievementCode;
+    unlocked_at: number;
+    title: string;
+    description: string;
+  }>;
 };
 interface Challenge {
   id: string;
@@ -32,7 +48,7 @@ let provider: Provider | null = null,
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) =>
   document.querySelector<T>(selector)!;
 $("#app").innerHTML =
-  `<header><a class="brand" href="#">boing<span>pets</span><i>✦</i></a><nav aria-label="Main"><a href="#pasture">The pasture</a><a href="#how">How to play</a><a href="https://boing.network/testnet" target="_blank" rel="noreferrer">Boing Network ↗</a></nav><button id="connect">Connect Express</button></header><main><section class="hero"><div><p class="eyebrow">BOING TESTNET · CHAIN 6913 <span class="pill">MVP / LOCAL PREVIEW</span></p><h1>A little bounce.<br>A buddy for life.</h1><p class="lede">Hatch something wonderfully weird. Feed it a little love.<br>Your corner of the Boing universe is about to get cuter.</p><a class="button" href="#buddy">Meet your buddy ↓</a><p class="small">No trading. No dying. Just good company on-chain.</p></div><div class="hero-pets" id="hero-pets" aria-hidden="true"></div></section><div id="notice" role="status" aria-live="polite">Loading the pasture…</div><section id="buddy" class="panel"><div class="section-title"><div><p class="eyebrow">YOUR LITTLE CORNER</p><h2>Home, sweet wallet.</h2></div><button id="disconnect" class="quiet" hidden>Disconnect</button></div><div id="my-pet"></div><div class="actions"><button id="hatch">Hatch a buddy</button><button id="checkin" class="secondary" hidden>Daily hello · sign only</button><button id="feed" hidden>Feed · tiny transaction</button><button id="retry" class="secondary" hidden>Confirm pending transaction</button><button id="forget" class="quiet" hidden>Forget pending record</button></div><p class="small">Hatch & feed: ~0.001 BOING self-transfer + network fee. The transfer stays in your wallet. Check-in: free signature. Daily limits reset at midnight UTC.</p></section><section id="pasture"><div class="section-title"><div><p class="eyebrow">A NEIGHBORHOOD OF HAPPY ACCIDENTS</p><h2>The public pasture</h2></div><button id="refresh" class="secondary">Refresh ↻</button></div><p class="subtle">Bouncy, peckish, a little scruffy — everybody belongs here.</p><div id="gallery" class="gallery"></div><div class="pages"><button id="prev" class="secondary" hidden>← Previous</button><button id="next" class="secondary" hidden>More buddies →</button></div></section><section id="how" class="how"><article><b>01 / HATCH</b><h3>One wallet. One weirdo.</h3><p>Approve a real Boing testnet transaction in Express. Your wallet and hatch transaction reveal one of ten species, with its own colors and quirks.</p></article><article><b>02 / SAY HELLO</b><h3>Make a little ritual.</h3><p>A daily signed hello builds your streak and happiness. Feeding fills the belly. Both count as a care day, but more transactions never buy a longer streak.</p></article><article><b>03 / ALWAYS WELCOME</b><h3>Missed a few days? It's okay.</h3><p>After two days without food, buddies get scruffy. After four, they roam as strays. A feed always brings them home — no pet is ever permanently lost.</p></article></section></main><footer><span>Built for a little more joy on Boing.</span><a href="https://boing.express" target="_blank" rel="noreferrer">Wallet ↗</a><a href="https://boing.network/faucet" target="_blank" rel="noreferrer">Testnet faucet ↗</a><a href="https://github.com/Boing-Network/boing.pets">Source ↗</a><span>Testnet only. No monetary value or airdrop promise.</span></footer>`;
+  `<header><a class="brand" href="#">boing<span>pets</span><i>✦</i></a><nav aria-label="Main"><a href="#pasture">The pasture</a><a href="#how">How to play</a><a href="https://boing.network/testnet" target="_blank" rel="noreferrer">Boing Network ↗</a></nav><button id="connect">Connect Express</button></header><main><section class="hero"><div><p class="eyebrow">BOING TESTNET · CHAIN 6913 <span class="pill">PHASE 1 / LOCAL PREVIEW</span></p><h1>A little bounce.<br>A buddy for life.</h1><p class="lede">Hatch something wonderfully weird. Feed it, play, groom, and grow together.<br>Your corner of the Boing universe is about to get cuter.</p><a class="button" href="#buddy">Meet your buddy ↓</a><p class="small">No trading. No dying. Just good company on-chain.</p></div><div class="hero-pets" id="hero-pets" aria-hidden="true"></div></section><div id="notice" role="status" aria-live="polite">Loading the pasture…</div><section id="buddy" class="panel"><div class="section-title"><div><p class="eyebrow">YOUR LITTLE CORNER</p><h2>Home, sweet wallet.</h2></div><button id="disconnect" class="quiet" hidden>Disconnect</button></div><div id="my-pet"></div><div class="actions"><button id="hatch">Hatch a buddy</button><button id="checkin" class="secondary" hidden>Daily hello · sign only</button><button id="play" class="secondary" hidden>Play · sign only</button><button id="groom" class="secondary" hidden>Groom · sign only</button><button id="feed" hidden>Feed · tiny transaction</button><button id="retry" class="secondary" hidden>Confirm pending transaction</button><button id="forget" class="quiet" hidden>Forget pending record</button></div><p class="small">Hatch & feed: ~0.001 BOING self-transfer + network fee. Hello, play, and groom: free signatures. Daily limits reset at midnight UTC. Care earns Boinglets and XP.</p></section><section id="pasture"><div class="section-title"><div><p class="eyebrow">A NEIGHBORHOOD OF HAPPY ACCIDENTS</p><h2>The public pasture</h2></div><button id="refresh" class="secondary">Refresh ↻</button></div><p class="subtle">Bouncy, peckish, a little scruffy — everybody belongs here.</p><div id="gallery" class="gallery"></div><div class="pages"><button id="prev" class="secondary" hidden>← Previous</button><button id="next" class="secondary" hidden>More buddies →</button></div></section><section id="how" class="how"><article><b>01 / HATCH</b><h3>One wallet. One weirdo.</h3><p>Approve a real Boing testnet transaction in Express. Your wallet and hatch transaction reveal species, colors, and a permanent personality.</p></article><article><b>02 / DAILY CARE</b><h3>Hello, play, groom, feed.</h3><p>Signatures keep joy, energy, and hygiene up. Feeding fills the belly. Each action type is once per UTC day; any care counts toward your streak.</p></article><article><b>03 / GROW</b><h3>Stages, XP, and badges.</h3><p>Buddies grow from baby toward elder with age and care. Earn Boinglets, unlock achievements, and never lose your pet — strays always come home with a feed.</p></article></section></main><footer><span>Built for a little more joy on Boing.</span><a href="https://boing.express" target="_blank" rel="noreferrer">Wallet ↗</a><a href="https://boing.network/faucet" target="_blank" rel="noreferrer">Testnet faucet ↗</a><a href="https://github.com/Boing-Network/boing.pets">Source ↗</a><span>Testnet only. No monetary value or airdrop promise.</span></footer>`;
 const demoOwner = "0x" + "11".repeat(32);
 $("#hero-pets").innerHTML = [1, 2, 3]
   .map(
@@ -73,6 +89,8 @@ function controls() {
     "connect",
     "hatch",
     "checkin",
+    "play",
+    "groom",
     "feed",
     "retry",
     "refresh",
@@ -83,12 +101,22 @@ function controls() {
   $("#hatch").hidden = !!mine;
   $("#hatch").toggleAttribute("disabled", busy || !owner);
   $("#checkin").hidden = !mine;
+  $("#play").hidden = !mine;
+  $("#groom").hidden = !mine;
   $("#feed").hidden = !mine;
   $("#checkin").toggleAttribute("disabled", busy || !!mine?.state.checkedIn);
+  $("#play").toggleAttribute("disabled", busy || !!mine?.state.playedToday);
+  $("#groom").toggleAttribute("disabled", busy || !!mine?.state.groomedToday);
   $("#feed").toggleAttribute("disabled", busy || !!mine?.state.fedToday);
   $("#checkin").textContent = mine?.state.checkedIn
     ? "Hello sent today ✓"
     : "Daily hello · sign only";
+  $("#play").textContent = mine?.state.playedToday
+    ? "Played today ✓"
+    : "Play · sign only";
+  $("#groom").textContent = mine?.state.groomedToday
+    ? "Groomed today ✓"
+    : "Groom · sign only";
   $("#feed").textContent = mine?.state.fedToday
     ? "Fed today ✓"
     : "Feed · tiny transaction";
@@ -99,11 +127,21 @@ function controls() {
     ? `${owner.slice(0, 8)}…${owner.slice(-4)}`
     : "Connect Express";
 }
+function meter(label: string, value: number) {
+  return `<label>${label} <meter min="0" max="100" value="${value}"></meter> ${value}%</label>`;
+}
 function card(p: ViewPet) {
   const el = document.createElement("article");
   el.className = "pet-card" + (p.owner === owner ? " yours" : "");
+  const badges = (p.achievements || [])
+    .slice(0, 4)
+    .map(
+      (a) =>
+        `<span class="ach" title="${ACHIEVEMENTS[a.code]?.description || a.description}">${a.title}</span>`,
+    )
+    .join("");
   // SVG is generated exclusively from validated hashes and internal palettes, never user HTML.
-  el.innerHTML = `<div class="pet-picture">${petSvg(p.traits, ["scruffy", "stray"].includes(p.state.status))}</div><div class="card-head"><h3>${p.traits.species}</h3><span class="badge">${p.owner === owner ? "YOUR BUDDY" : p.state.status.toUpperCase()}</span></div><p class="subtle">${p.state.streak} day care streak · ${p.state.status}</p><label>Belly <meter min="0" max="100" value="${p.state.hunger}"></meter> ${p.state.hunger}%</label><label>Joy <meter min="0" max="100" value="${p.state.happiness}"></meter> ${p.state.happiness}%</label><p class="small">${p.owner.slice(0, 10)}…${p.owner.slice(-6)}</p><a class="small" target="_blank" rel="noreferrer" href="https://boing.observer/tx/${p.hatch_tx}">Hatch transaction ↗</a>`;
+  el.innerHTML = `<div class="pet-picture">${petSvg(p.traits, ["scruffy", "stray"].includes(p.state.status))}</div><div class="card-head"><h3>${p.traits.species}</h3><span class="badge">${p.owner === owner ? "YOUR BUDDY" : p.state.status.toUpperCase()}</span></div><p class="subtle">${p.traits.personality} · ${p.state.stage} · ${p.state.skills.focus}</p><p class="subtle">${p.state.streak} day streak · ${p.state.xp} XP · ${p.state.boinglets} Boinglets · ${p.state.status}</p>${meter("Belly", p.state.hunger)}${meter("Joy", p.state.happiness)}${meter("Energy", p.state.energy)}${meter("Hygiene", p.state.hygiene)}${meter("Health", p.state.health)}${badges ? `<div class="ach-row">${badges}</div>` : ""}<p class="small">${p.owner.slice(0, 10)}…${p.owner.slice(-6)}</p><a class="small" target="_blank" rel="noreferrer" href="https://boing.observer/tx/${p.hatch_tx}">Hatch transaction ↗</a>`;
   return el;
 }
 async function refresh() {
@@ -178,9 +216,14 @@ async function act(action: Action) {
       "Confirm your pending transaction first; do not pay twice.",
     );
   const c = await api<Challenge>("/api/challenge", { owner, action });
-  if (action === "checkin") {
+  if (isSignatureAction(action)) {
+    const labels: Record<string, string> = {
+      checkin: "daily hello",
+      play: "play session",
+      groom: "grooming",
+    };
     notice(
-      "Approve your daily hello in Express. This is a signature, not a transaction.",
+      `Approve your ${labels[action] || action} in Express. This is a signature, not a transaction.`,
     );
     const signature = await provider!.request({
       method: "boing_signMessage",
@@ -188,7 +231,13 @@ async function act(action: Action) {
     });
     await api("/api/confirm", { id: c.id, signature });
     await refresh();
-    notice("Hello sent. A little love goes a long way.");
+    notice(
+      action === "checkin"
+        ? "Hello sent. A little love goes a long way."
+        : action === "play"
+          ? "Playtime logged. Energy up!"
+          : "All fresh. Hygiene restored.",
+    );
     return;
   }
   notice(
@@ -250,7 +299,7 @@ function disconnect() {
   void refresh().catch(() => notice("Pasture unavailable", true));
 }
 $("#disconnect").onclick = disconnect;
-for (const action of ["hatch", "feed", "checkin"] as Action[])
+for (const action of ["hatch", "feed", "checkin", "play", "groom"] as Action[])
   $("#" + action).onclick = () => void run(() => act(action));
 $("#retry").onclick = () => void run(confirmPending);
 $("#forget").onclick = () => {

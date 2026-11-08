@@ -1,6 +1,8 @@
 # Boing Pets
 
-**A little bounce. A buddy for life.** A small, Boing-native virtual pet game: hatch a creature, say hello, feed it, and meet everyone on the public pasture.
+**A little bounce. A buddy for life.** A small, Boing-native virtual pet game: hatch a creature, say hello, play, groom, feed it, grow with XP and Boinglets, unlock achievements, and meet everyone on the public pasture.
+
+Universe redesign docs: [docs/AUDIT.md](docs/AUDIT.md) · [docs/ROADMAP.md](docs/ROADMAP.md) · [docs/DESIGN.md](docs/DESIGN.md). Phase 1 ships on the existing Workers + D1 stack; later phases add 3D worlds, multiplayer, and economy incrementally.
 
 Testnet only (6913). This is an MVP, not an NFT marketplace, financial product, or airdrop promise. No contracts, consensus changes, custody keys, or scheduled jobs. Nothing is deployed automatically.
 
@@ -31,10 +33,11 @@ Open **http://localhost:5177** (use this exact origin, not 127.0.0.1). Vite prox
 2. Connect Express. The injected `window.boing` provider is preferred; the SDK's official **boing.express popup wallet** is the fallback. Allow popups. Keys never enter Pets.
 3. **Hatch**: approve a tiny native self-transfer. After inclusion, confirm the pending transaction if needed. One permanent buddy per wallet; ten SVG species, colors, spots, and traits derive from the normalized wallet + hatch transaction hash.
 4. **Daily hello** signs a server-generated, origin/account/chain/action/nonce/expiry-bound message. The server verifies Ed25519 over BLAKE3(UTF-8 message), matching current Express. No transaction fee.
-5. **Feed** approves another tiny self-transfer and restores the belly. Feeding is capped at once per UTC day to prevent accidental repeat fees. Each action type is once/day; either care action counts for the streak, never twice on the same day.
-6. The public pasture shows buddies, streaks, belly, joy and status. Yours is highlighted. Browse without connecting. Use Refresh to recompute time-dependent state.
+5. **Feed** approves another tiny self-transfer and restores the belly. Feeding is capped at once per UTC day to prevent accidental repeat fees. Each action type is once/day; any care action counts for the streak, never twice on the same day.
+6. **Play** and **Groom** are free daily signatures (like hello) that restore energy and hygiene.
+7. The public pasture shows buddies, streaks, vitals, stage, personality, XP, Boinglets, and status. Yours is highlighted. Browse without connecting. Use Refresh to recompute time-dependent state.
 
-Belly loses 25 points/day since hatch or last feed; joy loses 20/day since any care. After two days without feeding, a buddy is scruffy; after four, a stray. A hello cheers up a stray but only a feed restores its belly. No permanent death or deletion. Streaks count consecutive UTC calendar days; yesterday's streak remains visible until today is missed. This is a calendar-day ritual, not a rolling 24-hour timer.
+Belly loses 25 points/day since hatch or last feed; joy loses 20/day since any care; energy loses 15/day since play/hatch; hygiene loses 18/day since groom/hatch; health is a weighted composite. After two days without feeding, a buddy is scruffy; after four, a stray. A hello cheers up a stray but only a feed restores its belly. No permanent death or deletion. Streaks count consecutive UTC calendar days; yesterday's streak remains visible until today is missed. This is a calendar-day ritual, not a rolling 24-hour timer. Pets also gain a seeded personality, growth stage, event-sourced XP/Boinglets, and achievements.
 
 ## How it actually works
 

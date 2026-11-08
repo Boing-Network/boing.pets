@@ -1,5 +1,7 @@
 import { blake3 } from "@noble/hashes/blake3";
+
 export const DAY = 86_400_000;
+
 export const SPECIES = [
   "Blobbit",
   "Sprout",
@@ -12,22 +14,95 @@ export const SPECIES = [
   "Mushling",
   "Boingle",
 ] as const;
-export type Action = "hatch" | "feed" | "checkin";
+
+export const PERSONALITIES = [
+  "Curious",
+  "Lazy",
+  "Adventurous",
+  "Friendly",
+  "Mischievous",
+  "Cozy",
+  "Peppy",
+  "Dreamy",
+] as const;
+
+export const STAGES = [
+  "egg",
+  "baby",
+  "child",
+  "teen",
+  "adult",
+  "elder",
+] as const;
+
+export const ACTIONS = [
+  "hatch",
+  "feed",
+  "checkin",
+  "play",
+  "groom",
+] as const;
+
+export type Action = (typeof ACTIONS)[number];
+export type Personality = (typeof PERSONALITIES)[number];
+export type Stage = (typeof STAGES)[number];
+
 export interface Pet {
   owner: string;
   hatch_tx: string;
   created_at: number;
 }
+
 export interface CareEvent {
   action: Action;
   created_at: number;
 }
+
+/** Soft-currency and XP granted per verified care event (event-sourced). */
+export const CARE_REWARDS: Record<Action, { boinglets: number; xp: number }> =
+  {
+    hatch: { boinglets: 50, xp: 25 },
+    feed: { boinglets: 12, xp: 10 },
+    checkin: { boinglets: 6, xp: 6 },
+    play: { boinglets: 10, xp: 8 },
+    groom: { boinglets: 10, xp: 8 },
+  };
+
+export const ACHIEVEMENTS = {
+  first_bounce: { title: "First Bounce", description: "Hatch your buddy." },
+  kind_hello: { title: "Kind Hello", description: "Send a daily hello." },
+  full_bowl: { title: "Full Bowl", description: "Feed your buddy." },
+  playtime: { title: "Playtime", description: "Play with your buddy." },
+  fresh_coat: { title: "Fresh Coat", description: "Groom your buddy." },
+  streak_3: { title: "Three-Day Glow", description: "Keep a 3-day care streak." },
+  streak_7: {
+    title: "Week of Wobbles",
+    description: "Keep a 7-day care streak.",
+  },
+  balanced_day: {
+    title: "Balanced Day",
+    description: "Feed, hello, play, and groom in one UTC day.",
+  },
+} as const;
+
+export type AchievementCode = keyof typeof ACHIEVEMENTS;
+
 export function hex32(value: unknown): string {
   if (typeof value !== "string" || !/^(0x)?[a-f0-9]{64}$/i.test(value))
     throw new Error("Expected a 32-byte Boing account or transaction id");
   return "0x" + value.replace(/^0x/i, "").toLowerCase();
 }
+
 export const dayOf = (time: number) => Math.floor(time / DAY);
+
+export function isAction(value: unknown): value is Action {
+  return typeof value === "string" && (ACTIONS as readonly string[]).includes(value);
+}
+
+export function isSignatureAction(action: Action): boolean {
+  return action === "checkin" || action === "play" || action === "groom";
+}
+
 export function traits(owner: string, tx: string) {
   const seed = blake3(
     new TextEncoder().encode(`boing.pets:v1:${hex32(owner)}:${hex32(tx)}`),
@@ -39,16 +114,83 @@ export function traits(owner: string, tx: string) {
     accent: (seed[2] * 360) / 256,
     spots: seed[3] % 4,
     antenna: seed[4] % 3,
+    personality: PERSONALITIES[seed[5] % PERSONALITIES.length] as Personality,
   };
 }
+
+function lastOf(
+  pet: Pet,
+  valid: CareEvent[],
+  match: (e: CareEvent) => boolean,
+): number {
+  const times = valid.filter(match).map((e) => e.created_at);
+  return Math.max(pet.created_at, ...times);
+}
+
+function decay(from: number, now: number, perDay: number): number {
+  return Math.max(0, Math.round(100 - (perDay * Math.max(0, now - from)) / DAY));
+}
+
+export function growthStage(
+  pet: Pet,
+  careDays: number,
+  now: number,
+): Stage {
+  const ageDays = Math.max(0, (now - pet.created_at) / DAY);
+  if (ageDays >= 120) return "elder";
+  if (ageDays >= 21 && careDays >= 10) return "adult";
+  if (ageDays >= 7 && careDays >= 4) return "teen";
+  if (ageDays >= 2 && careDays >= 1) return "child";
+  return "baby";
+}
+
+export function skillLeanings(valid: CareEvent[]) {
+  const scores = {
+    Explorer: 0,
+    Athlete: 0,
+    Scholar: 0,
+    Performer: 0,
+    Collector: 0,
+  };
+  for (const e of valid) {
+    if (e.action === "play") scores.Athlete += 2;
+    if (e.action === "groom") scores.Performer += 1;
+    if (e.action === "feed") scores.Collector += 1;
+    if (e.action === "checkin") scores.Scholar += 1;
+    if (e.action === "hatch") scores.Explorer += 2;
+  }
+  const top = (
+    Object.entries(scores) as [keyof typeof scores, number][]
+  ).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
+  return { scores, focus: top[1] > 0 ? top[0] : ("Explorer" as const) };
+}
+
+export function rewardTotals(valid: CareEvent[]) {
+  let boinglets = 0;
+  let xp = 0;
+  for (const e of valid) {
+    const reward = CARE_REWARDS[e.action];
+    boinglets += reward.boinglets;
+    xp += reward.xp;
+  }
+  return { boinglets, xp };
+}
+
 export function state(pet: Pet, events: CareEvent[], now: number) {
   const valid = events.filter(
     (e) => e.created_at <= now && e.created_at >= pet.created_at,
   );
   const lastCare = Math.max(pet.created_at, ...valid.map((e) => e.created_at));
-  const lastFed = Math.max(
-    pet.created_at,
-    ...valid.filter((e) => e.action === "feed").map((e) => e.created_at),
+  const lastFed = lastOf(pet, valid, (e) => e.action === "feed");
+  const lastPlay = lastOf(
+    pet,
+    valid,
+    (e) => e.action === "play" || e.action === "hatch",
+  );
+  const lastGroom = lastOf(
+    pet,
+    valid,
+    (e) => e.action === "groom" || e.action === "hatch",
   );
   const days = new Set([
     dayOf(pet.created_at),
@@ -61,13 +203,12 @@ export function state(pet: Pet, events: CareEvent[], now: number) {
     streak++;
     cursor--;
   }
-  const hunger = Math.max(
-    0,
-    Math.round(100 - (25 * Math.max(0, now - lastFed)) / DAY),
-  );
-  const happiness = Math.max(
-    0,
-    Math.round(100 - (20 * Math.max(0, now - lastCare)) / DAY),
+  const hunger = decay(lastFed, now, 25);
+  const happiness = decay(lastCare, now, 20);
+  const energy = decay(lastPlay, now, 15);
+  const hygiene = decay(lastGroom, now, 18);
+  const health = Math.round(
+    hunger * 0.3 + happiness * 0.25 + energy * 0.2 + hygiene * 0.25,
   );
   const status =
     now - lastFed >= 4 * DAY
@@ -77,21 +218,72 @@ export function state(pet: Pet, events: CareEvent[], now: number) {
         : hunger < 75
           ? "peckish"
           : "bouncy";
+  const today = dayOf(now);
+  const todayActions = new Set(
+    valid.filter((e) => dayOf(e.created_at) === today).map((e) => e.action),
+  );
+  const rewards = rewardTotals(valid);
+  const skills = skillLeanings(valid);
   return {
     hunger,
     happiness,
+    energy,
+    hygiene,
+    health,
     streak,
     status,
+    stage: growthStage(pet, days.size, now),
+    careDays: days.size,
     lastCare,
     lastFed,
-    checkedIn: valid.some(
-      (e) => e.action === "checkin" && dayOf(e.created_at) === dayOf(now),
-    ),
-    fedToday: valid.some(
-      (e) => e.action === "feed" && dayOf(e.created_at) === dayOf(now),
-    ),
+    checkedIn: todayActions.has("checkin"),
+    fedToday: todayActions.has("feed"),
+    playedToday: todayActions.has("play"),
+    groomedToday: todayActions.has("groom"),
+    boinglets: rewards.boinglets + streak * 2,
+    xp: rewards.xp,
+    skills,
   };
 }
+
+/** Achievements unlocked purely from event history + derived streak. */
+export function unlockedAchievements(
+  pet: Pet,
+  events: CareEvent[],
+  now: number,
+): AchievementCode[] {
+  const valid = events.filter(
+    (e) => e.created_at <= now && e.created_at >= pet.created_at,
+  );
+  const actions = new Set(valid.map((e) => e.action));
+  const { streak } = state(pet, events, now);
+  const byDay = new Map<number, Set<Action>>();
+  for (const e of valid) {
+    const d = dayOf(e.created_at);
+    const set = byDay.get(d) ?? new Set();
+    set.add(e.action);
+    byDay.set(d, set);
+  }
+  const balanced = [...byDay.values()].some(
+    (set) =>
+      set.has("feed") &&
+      set.has("checkin") &&
+      set.has("play") &&
+      set.has("groom"),
+  );
+  const out: AchievementCode[] = [];
+  // A persisted pet implies a successful hatch (and usually a hatch event).
+  out.push("first_bounce");
+  if (actions.has("checkin")) out.push("kind_hello");
+  if (actions.has("feed")) out.push("full_bowl");
+  if (actions.has("play")) out.push("playtime");
+  if (actions.has("groom")) out.push("fresh_coat");
+  if (streak >= 3) out.push("streak_3");
+  if (streak >= 7) out.push("streak_7");
+  if (balanced) out.push("balanced_day");
+  return out;
+}
+
 // A challenge marker encoded in a tiny self-transfer: 0.001 BOING + <0.000001 BOING.
 // This is NOT a signed memo. The unique amount binds the chain action to its API challenge.
 export function markerAmount(id: string, action: Action): string {
@@ -101,6 +293,7 @@ export function markerAmount(id: string, action: Action): string {
     1_000_000_000_000n;
   return (1_000_000_000_000_000n + n).toString();
 }
+
 export function petSvg(t: ReturnType<typeof traits>, sad = false): string {
   const color = `hsl(${t.hue} 75% 72%)`,
     accent = `hsl(${t.accent} 80% 70%)`;
