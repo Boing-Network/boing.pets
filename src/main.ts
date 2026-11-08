@@ -13,6 +13,7 @@ import {
 import { CATALOG } from "./economy";
 import "./style.css";
 import { FOOTER_HTML, PAGE_BODIES } from "./ui/pageBodies";
+import { apiFetch } from "./ui/apiClient";
 import { PAGE_META, renderHeader, type PageId } from "./ui/nav";
 import {
   applyLegacyHashRedirect,
@@ -97,19 +98,7 @@ function notice(text: string, error = false) {
   el.classList.toggle("error", error);
 }
 async function api<T>(path: string, body?: unknown): Promise<T> {
-  const r = await fetch(
-    path,
-    body
-      ? {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(body),
-        }
-      : undefined,
-  );
-  const data = (await r.json()) as T & { error?: string };
-  if (!r.ok) throw new Error(data.error || "Pasture unavailable");
-  return data as T;
+  return apiFetch<T>(path, body);
 }
 function pending(): Pending | null {
   try {
@@ -1662,9 +1651,11 @@ void refresh()
         : `${PAGE_META[page].title} ready.`,
     ),
   )
-  .catch(() =>
+  .catch((e) =>
     notice(
-      "Pasture API unavailable. Start the local API and apply the D1 migration (see README).",
+      e instanceof Error
+        ? e.message
+        : "Pasture API unavailable. Start the local Worker (`npm run dev:api`) — see README.",
       true,
     ),
   );

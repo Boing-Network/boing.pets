@@ -1,5 +1,6 @@
 import { hex32 } from "../../core";
 import { shortWallet } from "../../social";
+import { apiFetch } from "../../ui/apiClient";
 import { colorFromSeed, guestPresenceIdentity } from "./presenceProtocol";
 
 interface Provider {
@@ -15,19 +16,7 @@ export interface PlazaIdentity {
 }
 
 async function api<T>(path: string, body?: unknown): Promise<T> {
-  const response = await fetch(
-    path,
-    body
-      ? {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(body),
-        }
-      : undefined,
-  );
-  const data = (await response.json()) as T & { error?: string };
-  if (!response.ok) throw new Error(data.error || "Presence auth unavailable");
-  return data as T;
+  return apiFetch<T>(path, body);
 }
 
 /** Prefer a signed wallet session; fall back to guest identity. */
