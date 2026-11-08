@@ -177,6 +177,7 @@ Complexity key: **S** small · **M** medium · **L** large · **XL** multi-quart
 - Housing foundation — 4×4 plots + furniture (`0009`, `docs/PHASE6-HOUSING.md`)
 - Treasure dig — clue / tile / sign (`0011`, `docs/PHASE6-TREASURE.md`)
 - Gardening — plant / water / harvest (`0013`, `docs/PHASE6-GARDENING.md`)
+- Cooking — recipes + serve snacks for care boosts (`0014`, `docs/PHASE6-COOKING.md`)
 
 ### Still open (years of content)
 - Full zone art / housing editor polish / avatar wardrobe

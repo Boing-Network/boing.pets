@@ -186,6 +186,15 @@ export const STARTER_TOWN: WorldZoneConfig = {
       hint: "Plant, water, and harvest crops on three garden slots.",
       careHref: "/#garden",
     },
+    {
+      id: "station-kitchen",
+      label: "Pasture Kitchen",
+      kind: "portal",
+      position: { x: -14, y: 0, z: 8 },
+      radius: 2.5,
+      hint: "Cook recipes from crops and fish, then serve snacks for care boosts.",
+      careHref: "/#kitchen",
+    },
   ],
   paths: [
     [
