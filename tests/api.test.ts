@@ -85,6 +85,7 @@ beforeEach(async () => {
     "../migrations/0005_content_framework.sql",
     "../migrations/0006_social.sql",
     "../migrations/0007_presence_tokens.sql",
+    "../migrations/0008_fishing.sql",
   ]) {
     db.exec(readFileSync(new NodeURL(file, import.meta.url), "utf8"));
   }
@@ -592,6 +593,59 @@ describe("Pets API", () => {
       ).status,
     ).toBe(413);
     expect((await request("/api/pasture?offset=-1")).status).toBe(400);
+  });
+  it("casts, reels in the bite window, and awards fish", async () => {
+    await hatch();
+    const status = await (
+      await request("/api/fishing/status?owner=" + owner)
+    ).json();
+    expect(status).toMatchObject({ remaining: 3, catchesToday: 0 });
+    const cast = await request("/api/fishing/challenge", { owner });
+    expect(cast.status).toBe(200);
+    const body = (await cast.json()) as {
+      id: string;
+      message: string;
+      bite_at: number;
+      window_ms: number;
+      fish_id: string;
+    };
+    // Too early should fail.
+    expect(
+      (
+        await request("/api/fishing/confirm", {
+          id: body.id,
+          signature: await signConfirm(body.message),
+        })
+      ).status,
+    ).toBe(409);
+    // Advance "now" by rewriting bite_at into the past inside the window.
+    db.prepare(
+      "UPDATE fishing_challenges SET bite_at=? WHERE id=?",
+    ).run(Date.now() - 100, body.id);
+    const caught = await request("/api/fishing/confirm", {
+      id: body.id,
+      signature: await signConfirm(body.message),
+    });
+    expect(caught.status).toBe(200);
+    expect(await caught.json()).toMatchObject({
+      ok: true,
+      result: "caught",
+      fish: { id: body.fish_id },
+    });
+    expect(
+      db
+        .prepare(
+          "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
+        )
+        .get(owner, body.fish_id)?.qty,
+    ).toBe(1);
+    expect(
+      db
+        .prepare(
+          "SELECT delta FROM ledger WHERE owner=? AND reason='fishing_reward'",
+        )
+        .get(owner)?.delta,
+    ).toBeGreaterThan(0);
   });
   it("issues wallet-bound plaza presence tokens", async () => {
     await hatch();

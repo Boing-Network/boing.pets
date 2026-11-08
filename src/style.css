@@ -391,6 +391,58 @@ meter {
   font-size: 0.78rem;
   color: #c5d7f7;
 }
+.fishing-stage {
+  margin: 16px 0 22px;
+  padding: 16px;
+  border: 1px solid #2a3f5f;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 20% 20%, #16324f 0%, transparent 45%),
+    linear-gradient(160deg, #0d1a2e, #12243b);
+}
+.fishing-meter {
+  position: relative;
+  height: 14px;
+  border-radius: 999px;
+  background: #0a1424;
+  border: 1px solid #314866;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+#fishing-needle {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 18%;
+  background: linear-gradient(90deg, #5ec4ff, #9ad7c2);
+  border-radius: inherit;
+  transform: translateX(-100%);
+  transition: transform 0.2s ease;
+}
+#fishing-needle.waiting {
+  animation: fishing-wait 1.1s ease-in-out infinite;
+}
+#fishing-needle.bite {
+  width: 100%;
+  transform: none;
+  background: linear-gradient(90deg, #ffd27a, #7dffb2);
+  animation: fishing-bite 0.35s ease-in-out infinite alternate;
+}
+@keyframes fishing-wait {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(480%);
+  }
+}
+@keyframes fishing-bite {
+  from {
+    filter: brightness(1);
+  }
+  to {
+    filter: brightness(1.25);
+  }
+}
 @media (max-width: 800px) {
   .social-cols {
     grid-template-columns: 1fr;

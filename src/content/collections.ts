@@ -2,6 +2,7 @@ import type { CareEvent, Pet } from "../core";
 import { state } from "../core";
 import { CATALOG } from "../economy";
 import { SPECIES } from "../core";
+import { FISH, isFishItem } from "./fishing";
 
 export interface CollectionEntry {
   id: string;
@@ -29,6 +30,12 @@ export const COLLECTION_DEFS: CollectionEntry[] = [
     description: "Reach a 7-day care streak.",
     category: "discovery",
   },
+  ...FISH.map((fish) => ({
+    id: `discovery:fish:${fish.id}`,
+    title: fish.name,
+    description: `Catch a ${fish.name} (${fish.rarity}).`,
+    category: "discovery" as const,
+  })),
   ...CATALOG.map((item) => ({
     id: `cosmetic:${item.id}`,
     title: item.name,
@@ -52,6 +59,9 @@ export function unlockedCollections(args: {
     if (s.streak >= 7) out.push("discovery:streak_7");
     if (args.sawScruffyFeed) out.push("discovery:stray_home");
   }
-  for (const id of args.inventoryIds) out.push(`cosmetic:${id}`);
+  for (const id of args.inventoryIds) {
+    if (isFishItem(id)) out.push(`discovery:fish:${id}`);
+    else out.push(`cosmetic:${id}`);
+  }
   return [...new Set(out)];
 }

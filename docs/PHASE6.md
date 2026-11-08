@@ -10,6 +10,7 @@ Config-driven quests, seasons, collections, and expansion zone stubs so content 
 - Expansion zone stubs: Forest, Beach, Mountains, City, Academy
 - Pasture Quests UI panel
 - Migration `0005_content_framework.sql`
+- Fishing v1 activity loop (`0008`, `PHASE6-FISHING.md`)
 
 ## APIs
 - `GET /api/content/quests?owner=`
@@ -17,13 +18,16 @@ Config-driven quests, seasons, collections, and expansion zone stubs so content 
 - `GET /api/content/collections?owner=`
 - `POST /api/content/quest/challenge`
 - `POST /api/content/quest/confirm`
+- `GET /api/fishing/status?owner=`
+- `POST /api/fishing/challenge`
+- `POST /api/fishing/confirm`
 
 ## Still open (content production)
 - Full zone meshes / LOD kits
 - Housing editor + visitor ACLs
 - Avatar cosmetic wardrobe UI
 - Battle pass season track
-- 25 mini-games implementations (design backlog remains in ROADMAP)
+- Remaining mini-game implementations (design backlog remains in ROADMAP)
 
 ## Doctrine
 Gameplay loops and data model first; art polish and LLM flavor later.
