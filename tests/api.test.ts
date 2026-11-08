@@ -93,6 +93,7 @@ beforeEach(async () => {
     "../migrations/0013_gardening.sql",
     "../migrations/0014_cooking.sql",
     "../migrations/0015_mining.sql",
+    "../migrations/0016_racing.sql",
   ]) {
     db.exec(readFileSync(new NodeURL(file, import.meta.url), "utf8"));
   }
@@ -814,6 +815,40 @@ describe("Pets API", () => {
         )
         .get(owner)?.delta,
     ).toBe(6);
+  });
+  it("finishes a pet race heat for a ribbon", async () => {
+    await hatch();
+    const start = await request("/api/racing/challenge", { owner });
+    expect(start.status).toBe(200);
+    const body = (await start.json()) as {
+      id: string;
+      message: string;
+      track_id: string;
+    };
+    db.prepare("UPDATE race_challenges SET go_at=? WHERE id=?").run(
+      Date.now() - 100,
+      body.id,
+    );
+    const finish = await request("/api/racing/confirm", {
+      id: body.id,
+      signature: await signConfirm(body.message),
+    });
+    expect(finish.status).toBe(200);
+    const result = (await finish.json()) as {
+      ok: boolean;
+      place?: number;
+      ribbon?: { id: string };
+    };
+    expect(result.ok).toBe(true);
+    expect(result.place).toBeGreaterThanOrEqual(1);
+    expect(result.ribbon?.id).toMatch(/^ribbon-/);
+    expect(
+      db
+        .prepare(
+          "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
+        )
+        .get(owner, result.ribbon!.id)?.qty,
+    ).toBe(1);
   });
   it("mines an ore vein within the strike window", async () => {
     await hatch();

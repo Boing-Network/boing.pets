@@ -204,6 +204,15 @@ export const STARTER_TOWN: WorldZoneConfig = {
       hint: "Spend stamina to strike ore veins — upgrade pickaxes for rarer finds.",
       careHref: "/mining.html",
     },
+    {
+      id: "station-race",
+      label: "Race Track",
+      kind: "portal",
+      position: { x: 12, y: 0, z: -8 },
+      radius: 2.5,
+      hint: "Line up for a heat — finish on the flash for gold, silver, or bronze.",
+      careHref: "/racing.html",
+    },
   ],
   paths: [
     [

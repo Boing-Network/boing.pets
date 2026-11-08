@@ -18,6 +18,7 @@ Config-driven quests, seasons, collections, and expansion zone stubs so content 
 - Gardening plant/water/harvest (`0013`, `PHASE6-GARDENING.md`)
 - Cooking recipes + serve snacks (`0014`, `PHASE6-COOKING.md`)
 - Mining veins + stamina / pickaxe tiers (`0015`, `PHASE6-MINING.md`)
+- Pet racing heats + ribbons (`0016`, `PHASE6-RACING.md`)
 
 ## APIs
 - `GET /api/content/quests?owner=`
@@ -38,6 +39,8 @@ Config-driven quests, seasons, collections, and expansion zone stubs so content 
 - `POST /api/cook/challenge` / `confirm`
 - `GET /api/mining/status?owner=`
 - `POST /api/mining/challenge` / `confirm`
+- `GET /api/racing/status?owner=`
+- `POST /api/racing/challenge` / `confirm`
 
 ## Still open (content production)
 - Full zone meshes / LOD kits

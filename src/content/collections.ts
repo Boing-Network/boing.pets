@@ -6,6 +6,7 @@ import { FISH, isFishItem } from "./fishing";
 import { CROPS, isCropItem } from "./gardening";
 import { isFoodItem, RECIPES } from "./cooking";
 import { isOreItem, ORES } from "./mining";
+import { isRibbonItem, RIBBONS } from "./racing";
 import { isTreasureItem, TREASURES } from "./treasure";
 
 export interface CollectionEntry {
@@ -64,6 +65,12 @@ export const COLLECTION_DEFS: CollectionEntry[] = [
     description: `Mine a ${ore.name} (${ore.rarity}).`,
     category: "discovery" as const,
   })),
+  ...RIBBONS.map((ribbon) => ({
+    id: `discovery:ribbon:${ribbon.id}`,
+    title: ribbon.name,
+    description: `Place ${ribbon.place}${ribbon.place === 1 ? "st" : ribbon.place === 2 ? "nd" : "rd"} in a pet race.`,
+    category: "discovery" as const,
+  })),
   ...CATALOG.map((item) => ({
     id: `cosmetic:${item.id}`,
     title: item.name,
@@ -92,6 +99,7 @@ export function unlockedCollections(args: {
     else if (isTreasureItem(id)) out.push(`discovery:treasure:${id}`);
     else if (isCropItem(id)) out.push(`discovery:crop:${id}`);
     else if (isOreItem(id)) out.push(`discovery:ore:${id}`);
+    else if (isRibbonItem(id)) out.push(`discovery:ribbon:${id}`);
     else if (isFoodItem(id)) {
       /* dishes unlock via recipe discovery on cook */
     } else out.push(`cosmetic:${id}`);
