@@ -43,6 +43,11 @@ import {
   fishingGet,
   fishingPost,
 } from "./fishing";
+import {
+  housingError,
+  housingGet,
+  housingPost,
+} from "./housing";
 import { verifyProof, type Receipt, type RpcBlock } from "./proof";
 export { PlazaRoom } from "./plaza";
 interface Challenge {
@@ -218,6 +223,14 @@ async function api(req: Request, env: Env): Promise<Response> {
       if (mapped) return mapped;
       throw error;
     }
+    try {
+      const housing = await housingGet(req, env, now);
+      if (housing) return housing;
+    } catch (error) {
+      const mapped = housingError(error);
+      if (mapped) return mapped;
+      throw error;
+    }
     const economy = await economyGet(req, env, now);
     if (economy) return economy;
   }
@@ -311,6 +324,14 @@ async function api(req: Request, env: Env): Promise<Response> {
     if (fishing) return fishing;
   } catch (error) {
     const mapped = fishingError(error);
+    if (mapped) return mapped;
+    throw error;
+  }
+  try {
+    const housing = await housingPost(url, env, body, now);
+    if (housing) return housing;
+  } catch (error) {
+    const mapped = housingError(error);
     if (mapped) return mapped;
     throw error;
   }

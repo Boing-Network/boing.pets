@@ -27,14 +27,14 @@ export const CATALOG = [
     name: "Bounce Cushion",
     kind: "furniture",
     priceBoinglets: 60,
-    description: "A round cushion for future homes.",
+    description: "A round cushion for your home plot.",
   },
   {
     id: "furn-lamp",
     name: "Meadow Lamp",
     kind: "furniture",
     priceBoinglets: 90,
-    description: "Warm light for housing (Phase 6).",
+    description: "Warm light for your cottage grid.",
   },
   {
     id: "frame-gold",

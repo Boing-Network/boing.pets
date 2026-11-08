@@ -11,6 +11,7 @@
     "src/economy.ts",
     "src/memory.ts",
     "src/social.ts",
+    "src/housing.ts",
     "src/content/**/*.ts",
     "src/world/config/zones.ts",
     "src/world/lib/presenceProtocol.ts",

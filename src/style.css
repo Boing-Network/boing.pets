@@ -443,6 +443,34 @@ meter {
     filter: brightness(1.25);
   }
 }
+.home-grid {
+  --home-grid: 4;
+  display: grid;
+  grid-template-columns: repeat(var(--home-grid), minmax(64px, 1fr));
+  gap: 8px;
+  margin: 16px 0;
+  max-width: 420px;
+}
+.home-cell {
+  aspect-ratio: 1;
+  border-radius: 14px;
+  border: 1px dashed #3a5478;
+  background: #0d1a2e;
+  color: #9eb6d8;
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+.home-cell.filled {
+  border-style: solid;
+  border-color: #5ec4ff;
+  background: linear-gradient(160deg, #16324f, #1a3d3a);
+  color: #d7fff0;
+}
+.home-cell:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
 @media (max-width: 800px) {
   .social-cols {
     grid-template-columns: 1fr;
