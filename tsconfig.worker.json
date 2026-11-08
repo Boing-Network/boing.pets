@@ -2,7 +2,8 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "lib": ["ES2022"],
-    "types": ["@cloudflare/workers-types", "node"]
+    "types": ["@cloudflare/workers-types", "node"],
+    "jsx": "react-jsx"
   },
-  "include": ["worker", "src/core.ts", "tests"]
+  "include": ["worker", "src/core.ts", "src/world/config/zones.ts", "tests"]
 }

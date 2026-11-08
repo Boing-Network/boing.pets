@@ -178,6 +178,15 @@ describe("Pets API", () => {
     expect(r.status).toBe(200);
     expect(await r.json()).toMatchObject({ pets: [], next: null });
   });
+  it("serves world config for the 3D Starter Town island", async () => {
+    const r = await request("/api/world/config");
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({
+      version: 1,
+      defaultZone: "starter-town",
+      zones: [{ id: "starter-town", name: "Starter Town" }],
+    });
+  });
   it("requires origin, valid identity and supported action", async () => {
     expect(
       (

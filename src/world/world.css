@@ -1,0 +1,236 @@
+@import url("https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap");
+
+:root {
+  font-family: Comfortaa, "Segoe UI", sans-serif;
+  color: #e8eeff;
+  --muted: #a5b4d4;
+  --accent: #6f9bff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#world-root,
+.world-shell {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #07111f;
+}
+
+.world-shell {
+  position: relative;
+}
+
+.world-shell canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  touch-action: none;
+}
+
+.world-hud {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 18px 20px 22px;
+}
+
+.world-top,
+.prompt,
+.world-controls,
+.world-help,
+.prompt-cta,
+.interact-btn,
+.joystick,
+.world-exit,
+.world-brand {
+  pointer-events: auto;
+}
+
+.world-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.world-brand {
+  color: inherit;
+  text-decoration: none;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -1.5px;
+}
+
+.world-brand span {
+  color: var(--accent);
+}
+
+.world-title {
+  text-align: center;
+  text-shadow: 0 2px 12px #041018aa;
+}
+
+.world-title .eyebrow {
+  margin: 0;
+  font-size: 0.62rem;
+  letter-spacing: 1.5px;
+  color: #b7ccf0;
+}
+
+.world-title h1 {
+  margin: 4px 0;
+  font-size: 1.45rem;
+  letter-spacing: -1px;
+}
+
+.world-title p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.world-exit {
+  color: #d7e4ff;
+  text-decoration: none;
+  border: 1px solid #344568;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #0d1730cc;
+}
+
+.prompt {
+  align-self: center;
+  min-width: min(420px, 92vw);
+  max-width: 520px;
+  background: #0b1528e6;
+  border: 1px solid #314868;
+  border-radius: 18px;
+  padding: 14px 16px;
+  display: grid;
+  gap: 6px;
+  opacity: 0.55;
+  transform: translateY(8px);
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+
+.prompt.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.prompt strong {
+  font-size: 0.95rem;
+}
+
+.prompt span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.prompt-cta {
+  margin-top: 4px;
+  display: inline-flex;
+  width: fit-content;
+  text-decoration: none;
+  color: #09122c;
+  background: #7fa7ff;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.prompt-cta.muted {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid #344568;
+}
+
+.world-controls {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 8px;
+}
+
+.joystick {
+  width: 118px;
+  height: 118px;
+  border-radius: 50%;
+  border: 1px solid #3a547a;
+  background: #101c35aa;
+  position: relative;
+  touch-action: none;
+}
+
+.joystick-knob {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #7fa7ff;
+  position: absolute;
+  left: 35px;
+  top: 35px;
+  box-shadow: 0 4px 12px #0005;
+}
+
+.interact-btn {
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.8rem;
+  border: 0;
+  border-radius: 999px;
+  background: #7fa7ff;
+  color: #09122c;
+  padding: 16px 22px;
+  min-width: 112px;
+}
+
+.world-help {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  font-size: 0.62rem;
+  color: #9db0d2;
+}
+
+@media (min-width: 900px) {
+  .joystick {
+    opacity: 0.35;
+  }
+}
+
+@media (max-width: 720px) {
+  .world-title p {
+    display: none;
+  }
+  .world-help {
+    display: none;
+  }
+  .world-top {
+    align-items: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prompt {
+    transition: none;
+  }
+}

@@ -7,7 +7,7 @@ export default ts.config(
   js.configs.recommended,
   ...ts.configs.recommended,
   {
-    files: ["**/*.ts"],
+    files: ["**/*.{ts,tsx}"],
     rules: { "@typescript-eslint/no-explicit-any": "error" },
   },
   {
