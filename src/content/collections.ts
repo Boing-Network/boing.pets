@@ -3,6 +3,7 @@ import { state } from "../core";
 import { CATALOG } from "../economy";
 import { SPECIES } from "../core";
 import { FISH, isFishItem } from "./fishing";
+import { isTreasureItem, TREASURES } from "./treasure";
 
 export interface CollectionEntry {
   id: string;
@@ -36,6 +37,12 @@ export const COLLECTION_DEFS: CollectionEntry[] = [
     description: `Catch a ${fish.name} (${fish.rarity}).`,
     category: "discovery" as const,
   })),
+  ...TREASURES.map((loot) => ({
+    id: `discovery:treasure:${loot.id}`,
+    title: loot.name,
+    description: `Dig up a ${loot.name} (${loot.rarity}).`,
+    category: "discovery" as const,
+  })),
   ...CATALOG.map((item) => ({
     id: `cosmetic:${item.id}`,
     title: item.name,
@@ -61,6 +68,7 @@ export function unlockedCollections(args: {
   }
   for (const id of args.inventoryIds) {
     if (isFishItem(id)) out.push(`discovery:fish:${id}`);
+    else if (isTreasureItem(id)) out.push(`discovery:treasure:${id}`);
     else out.push(`cosmetic:${id}`);
   }
   return [...new Set(out)];
