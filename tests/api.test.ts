@@ -90,6 +90,7 @@ beforeEach(async () => {
     "../migrations/0010_sparkles_claim.sql",
     "../migrations/0011_treasure.sql",
     "../migrations/0012_parties.sql",
+    "../migrations/0013_gardening.sql",
   ]) {
     db.exec(readFileSync(new NodeURL(file, import.meta.url), "utf8"));
   }
@@ -745,6 +746,72 @@ describe("Pets API", () => {
       ).status,
     ).toBe(413);
     expect((await request("/api/pasture?offset=-1")).status).toBe(400);
+  });
+  it("plants, waters, and harvests a garden crop", async () => {
+    await hatch();
+    const plant = await request("/api/garden/challenge", {
+      owner,
+      kind: "plant",
+      slot: 0,
+      crop_id: "crop-sprout",
+    });
+    expect(plant.status).toBe(200);
+    const pb = (await plant.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/garden/confirm", {
+          id: pb.id,
+          signature: await signConfirm(pb.message),
+        })
+      ).status,
+    ).toBe(200);
+    const water = await request("/api/garden/challenge", {
+      owner,
+      kind: "water",
+      slot: 0,
+    });
+    expect(water.status).toBe(200);
+    const wb = (await water.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/garden/confirm", {
+          id: wb.id,
+          signature: await signConfirm(wb.message),
+        })
+      ).status,
+    ).toBe(200);
+    db.prepare(
+      "UPDATE garden_plots SET ready_at=0 WHERE owner=? AND slot=0",
+    ).run(owner);
+    const harvest = await request("/api/garden/challenge", {
+      owner,
+      kind: "harvest",
+      slot: 0,
+    });
+    expect(harvest.status).toBe(200);
+    const hb = (await harvest.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/garden/confirm", {
+          id: hb.id,
+          signature: await signConfirm(hb.message),
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      db
+        .prepare(
+          "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
+        )
+        .get(owner, "crop-sprout")?.qty,
+    ).toBe(1);
+    expect(
+      db
+        .prepare(
+          "SELECT delta FROM ledger WHERE owner=? AND reason='garden_reward'",
+        )
+        .get(owner)?.delta,
+    ).toBe(6);
   });
   it("digs treasure from a clue and awards loot on a hit", async () => {
     await hatch();

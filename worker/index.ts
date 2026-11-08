@@ -53,6 +53,11 @@ import {
   treasureGet,
   treasurePost,
 } from "./treasure";
+import {
+  gardeningError,
+  gardeningGet,
+  gardeningPost,
+} from "./gardening";
 import { verifyProof, type Receipt, type RpcBlock } from "./proof";
 export { PlazaRoom } from "./plaza";
 interface Challenge {
@@ -244,6 +249,14 @@ async function api(req: Request, env: Env): Promise<Response> {
       if (mapped) return mapped;
       throw error;
     }
+    try {
+      const garden = await gardeningGet(req, env, now);
+      if (garden) return garden;
+    } catch (error) {
+      const mapped = gardeningError(error);
+      if (mapped) return mapped;
+      throw error;
+    }
     const economy = await economyGet(req, env, now);
     if (economy) return economy;
   }
@@ -353,6 +366,14 @@ async function api(req: Request, env: Env): Promise<Response> {
     if (treasure) return treasure;
   } catch (error) {
     const mapped = treasureError(error);
+    if (mapped) return mapped;
+    throw error;
+  }
+  try {
+    const garden = await gardeningPost(url, env, body, now);
+    if (garden) return garden;
+  } catch (error) {
+    const mapped = gardeningError(error);
     if (mapped) return mapped;
     throw error;
   }
