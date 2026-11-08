@@ -443,6 +443,10 @@ meter {
     filter: brightness(1.25);
   }
 }
+.collection-unlocked {
+  border-color: #5ec4ff;
+  background: linear-gradient(160deg, #12263a, #16324f);
+}
 .garden-plots {
   display: grid;
   grid-template-columns: repeat(3, minmax(140px, 1fr));

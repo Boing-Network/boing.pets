@@ -9,6 +9,7 @@ Config-driven quests, seasons, collections, and expansion zone stubs so content 
 - Collection log defs + persisted unlocks
 - Expansion zone stubs: Forest, Beach, Mountains, City, Academy
 - Pasture Quests UI panel
+- Pasture Collections log UI (`#collections`)
 - Migration `0005_content_framework.sql`
 - Fishing v1 activity loop (`0008`, `PHASE6-FISHING.md`)
 - Housing foundation — 4×4 plots + furniture place/pickup (`0009`, `PHASE6-HOUSING.md`)
