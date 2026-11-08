@@ -58,6 +58,12 @@ import {
   gardeningGet,
   gardeningPost,
 } from "./gardening";
+import {
+  cookingError,
+  cookingGet,
+  cookingPost,
+} from "./cooking";
+import { applyFoodBoosts } from "../src/content/cooking";
 import { verifyProof, type Receipt, type RpcBlock } from "./proof";
 export { PlazaRoom } from "./plaza";
 interface Challenge {
@@ -202,10 +208,19 @@ async function enrich(env: Env, pet: Pet, now: number) {
     ...ACHIEVEMENTS[code],
   }));
   const t = traits(pet.owner, pet.hatch_tx);
+  const snacks = await env.DB.prepare(
+    "SELECT food_id FROM snack_log WHERE owner=? AND day=? ORDER BY created_at",
+  )
+    .bind(pet.owner, dayOf(now))
+    .all<{ food_id: string }>();
+  const vitals = applyFoodBoosts(
+    state(pet, events.results, now),
+    snacks.results,
+  );
   return {
     ...pet,
     traits: t,
-    state: state(pet, events.results, now),
+    state: vitals,
     achievements,
     mind: buildPetMind(pet, events.results, t.personality, now),
     memories: memories.results,
@@ -254,6 +269,14 @@ async function api(req: Request, env: Env): Promise<Response> {
       if (garden) return garden;
     } catch (error) {
       const mapped = gardeningError(error);
+      if (mapped) return mapped;
+      throw error;
+    }
+    try {
+      const cook = await cookingGet(req, env, now);
+      if (cook) return cook;
+    } catch (error) {
+      const mapped = cookingError(error);
       if (mapped) return mapped;
       throw error;
     }
@@ -374,6 +397,14 @@ async function api(req: Request, env: Env): Promise<Response> {
     if (garden) return garden;
   } catch (error) {
     const mapped = gardeningError(error);
+    if (mapped) return mapped;
+    throw error;
+  }
+  try {
+    const cook = await cookingPost(url, env, body, now);
+    if (cook) return cook;
+  } catch (error) {
+    const mapped = cookingError(error);
     if (mapped) return mapped;
     throw error;
   }

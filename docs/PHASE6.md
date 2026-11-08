@@ -15,6 +15,7 @@ Config-driven quests, seasons, collections, and expansion zone stubs so content 
 - Housing foundation — 4×4 plots + furniture place/pickup (`0009`, `PHASE6-HOUSING.md`)
 - Treasure dig activity (`0011`, `PHASE6-TREASURE.md`)
 - Gardening plant/water/harvest (`0013`, `PHASE6-GARDENING.md`)
+- Cooking recipes + serve snacks (`0014`, `PHASE6-COOKING.md`)
 
 ## APIs
 - `GET /api/content/quests?owner=`
@@ -31,6 +32,8 @@ Config-driven quests, seasons, collections, and expansion zone stubs so content 
 - `POST /api/treasure/challenge` / `confirm`
 - `GET /api/garden/status?owner=`
 - `POST /api/garden/challenge` / `confirm`
+- `GET /api/cook/status?owner=`
+- `POST /api/cook/challenge` / `confirm`
 
 ## Still open (content production)
 - Full zone meshes / LOD kits

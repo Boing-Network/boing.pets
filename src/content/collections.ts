@@ -4,6 +4,7 @@ import { CATALOG } from "../economy";
 import { SPECIES } from "../core";
 import { FISH, isFishItem } from "./fishing";
 import { CROPS, isCropItem } from "./gardening";
+import { isFoodItem, RECIPES } from "./cooking";
 import { isTreasureItem, TREASURES } from "./treasure";
 
 export interface CollectionEntry {
@@ -50,6 +51,12 @@ export const COLLECTION_DEFS: CollectionEntry[] = [
     description: `Harvest a ${crop.name} from your garden.`,
     category: "discovery" as const,
   })),
+  ...RECIPES.map((recipe) => ({
+    id: `discovery:recipe:${recipe.id}`,
+    title: recipe.name,
+    description: `Cook ${recipe.name} for the first time.`,
+    category: "discovery" as const,
+  })),
   ...CATALOG.map((item) => ({
     id: `cosmetic:${item.id}`,
     title: item.name,
@@ -77,7 +84,9 @@ export function unlockedCollections(args: {
     if (isFishItem(id)) out.push(`discovery:fish:${id}`);
     else if (isTreasureItem(id)) out.push(`discovery:treasure:${id}`);
     else if (isCropItem(id)) out.push(`discovery:crop:${id}`);
-    else out.push(`cosmetic:${id}`);
+    else if (isFoodItem(id)) {
+      /* dishes unlock via recipe discovery on cook */
+    } else out.push(`cosmetic:${id}`);
   }
   return [...new Set(out)];
 }

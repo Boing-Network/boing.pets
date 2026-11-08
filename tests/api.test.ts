@@ -91,6 +91,7 @@ beforeEach(async () => {
     "../migrations/0011_treasure.sql",
     "../migrations/0012_parties.sql",
     "../migrations/0013_gardening.sql",
+    "../migrations/0014_cooking.sql",
   ]) {
     db.exec(readFileSync(new NodeURL(file, import.meta.url), "utf8"));
   }
@@ -812,6 +813,76 @@ describe("Pets API", () => {
         )
         .get(owner)?.delta,
     ).toBe(6);
+  });
+  it("cooks a recipe and serves a snack for care boosts", async () => {
+    await hatch();
+    db.prepare(
+      "INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,1)",
+    ).run(owner, "crop-sprout");
+    const cook = await request("/api/cook/challenge", {
+      owner,
+      kind: "cook",
+      recipe_id: "recipe-sprout-salad",
+    });
+    expect(cook.status).toBe(200);
+    const cb = (await cook.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/cook/confirm", {
+          id: cb.id,
+          signature: await signConfirm(cb.message),
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      db
+        .prepare(
+          "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
+        )
+        .get(owner, "crop-sprout")?.qty,
+    ).toBe(0);
+    expect(
+      db
+        .prepare(
+          "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
+        )
+        .get(owner, "food-sprout-salad")?.qty,
+    ).toBe(1);
+    expect(
+      db
+        .prepare(
+          "SELECT delta FROM ledger WHERE owner=? AND reason='cook_reward'",
+        )
+        .get(owner)?.delta,
+    ).toBe(4);
+    expect(
+      db
+        .prepare(
+          "SELECT entry_id FROM collection_unlocks WHERE owner=? AND entry_id=?",
+        )
+        .get(owner, "discovery:recipe:recipe-sprout-salad")?.entry_id,
+    ).toBe("discovery:recipe:recipe-sprout-salad");
+    const serve = await request("/api/cook/challenge", {
+      owner,
+      kind: "serve",
+      food_id: "food-sprout-salad",
+    });
+    expect(serve.status).toBe(200);
+    const sb = (await serve.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/cook/confirm", {
+          id: sb.id,
+          signature: await signConfirm(sb.message),
+        })
+      ).status,
+    ).toBe(200);
+    const pet = await request("/api/pet?owner=" + owner);
+    const body = (await pet.json()) as {
+      pet: { state: { hunger: number; snacksToday: number } };
+    };
+    expect(body.pet.state.snacksToday).toBe(1);
+    expect(body.pet.state.hunger).toBeGreaterThanOrEqual(15);
   });
   it("digs treasure from a clue and awards loot on a hit", async () => {
     await hatch();
