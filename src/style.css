@@ -210,11 +210,20 @@ h3 {
   color: var(--muted);
   font-size: 0.9rem;
 }
-.actions {
+.actions,
+.hero-cta {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 22px;
+}
+.hero-cta {
+  margin-top: 18px;
+}
+.hero-cta .secondary {
+  background: transparent;
+  border-color: #344568;
+  color: #d0dfff;
 }
 .subtle {
   color: var(--muted);

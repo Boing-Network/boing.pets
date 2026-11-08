@@ -2,7 +2,7 @@
 
 **A little bounce. A buddy for life.** A small, Boing-native virtual pet game: hatch a creature, say hello, play, groom, feed it, grow with XP and Boinglets, unlock achievements, and meet everyone on the public pasture.
 
-Universe redesign docs: [docs/AUDIT.md](docs/AUDIT.md) · [docs/ROADMAP.md](docs/ROADMAP.md) · [docs/DESIGN.md](docs/DESIGN.md). Phase 1 ships on the existing Workers + D1 stack; later phases add 3D worlds, multiplayer, and economy incrementally.
+Universe redesign docs: [docs/AUDIT.md](docs/AUDIT.md) · [docs/ROADMAP.md](docs/ROADMAP.md) · [docs/DESIGN.md](docs/DESIGN.md). Phase 1 ships on the existing Workers + D1 stack. Phase 2 adds a React Three Fiber **Starter Town** island at [`/world.html`](world.html) while the pasture care desk stays the default home.
 
 Testnet only (6913). This is an MVP, not an NFT marketplace, financial product, or airdrop promise. No contracts, consensus changes, custody keys, or scheduled jobs. Nothing is deployed automatically.
 
@@ -23,7 +23,7 @@ Leave the API running. In another terminal:
 npm run dev
 ```
 
-Open **http://localhost:5177** (use this exact origin, not 127.0.0.1). Vite proxies `/api` to the local Worker on port 8787. Wrangler uses a **local** D1 database in `.wrangler/state`; no Cloudflare login, project, paid resource, or secrets are needed. Keep that directory to preserve your local pasture. A different local checkout has a different pasture.
+Open **http://localhost:5177** (use this exact origin, not 127.0.0.1). Starter Town is at **http://localhost:5177/world.html**. Vite proxies `/api` to the local Worker on port 8787. Wrangler uses a **local** D1 database in `.wrangler/state`; no Cloudflare login, project, paid resource, or secrets are needed. Keep that directory to preserve your local pasture. A different local checkout has a different pasture.
 
 `npm run verify` runs lint, strict TypeScript, production build, and core/proof tests. `npm run smoke:rpc` performs read-only testnet metadata and block/receipt checks. RPC outages do not break deterministic CI.
 

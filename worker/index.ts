@@ -17,6 +17,7 @@ import {
   type CareEvent,
   type Pet,
 } from "../src/core";
+import { WORLD_CONFIG } from "../src/world/config/zones";
 import { verifyProof, type Receipt, type RpcBlock } from "./proof";
 interface Challenge {
   id: string;
@@ -142,6 +143,12 @@ async function enrich(env: Env, pet: Pet, now: number) {
 async function api(req: Request, env: Env): Promise<Response> {
   const url = new URL(req.url),
     now = Date.now();
+  if (req.method === "GET" && url.pathname === "/api/world/config") {
+    return json({
+      ...WORLD_CONFIG,
+      now,
+    });
+  }
   if (req.method === "GET" && url.pathname === "/api/pasture") {
     const offset = Number(url.searchParams.get("offset") || 0);
     if (!Number.isSafeInteger(offset) || offset < 0 || offset > 10000)

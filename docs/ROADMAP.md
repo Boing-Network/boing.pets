@@ -61,39 +61,30 @@ Complexity key: **S** small · **M** medium · **L** large · **XL** multi-quart
 
 ---
 
-## Phase 2 — 3D Single Player World
+## Phase 2 — 3D Single Player World (in progress / spike shipped)
 
 **Goal:** navigable low-poly Starter Town (adoption plaza + tutorial path) in-browser; pets remain 2D/SVG companions in UI overlay first.
 
 ### User stories
 - Walk an avatar through Starter Town; enter Pet Center / Tutorial markers.
-- Interact with care stations that call existing care APIs.
+- Interact with care stations that deep-link to existing care desk.
 - Mobile: virtual joystick + tap interact.
 
-### Tech
-- Vite + React Three Fiber island (or Next.js later) mounted at `/world`.
-- Low-poly GLB in `public/world/`; Draco/meshopt; LOD placeholders.
-- Keep Worker API; session-less wallet identity unchanged.
+### Tech (shipped spike)
+- Vite multi-page + React Three Fiber island at `/world.html` (pasture SPA unchanged).
+- Procedural low-poly town (no heavy GLB pipeline yet); fog + soft follow camera.
+- Config-driven zone layout in `src/world/config/zones.ts`.
+- Local position save (`localStorage`); server position auth deferred.
+- `GET /api/world/config` serves the same zone config.
 
-### DB
-- `player_positions(owner, zone, x,y,z, updated_at)` optional soft save.
-- `zones` config JSON (no code deploy for layout tweaks).
-
-### API
-- `GET /api/world/config` · `PUT /api/world/position` (signed challenge or wallet-bound).
-
-### UI wireframes
-- Full-bleed canvas; overlay care HUD; zone title; interact prompt.
-
-### Testing
-- Playwright smoke: load world, move, open care panel.
-- Perf budget: desktop 60 FPS empty town; mobile 30 FPS mid LOD.
-
-### Migration
-- Feature-flag world route; pasture remains default home.
+### Still open for Phase 2 hardening
+- GLB art kit + Draco/meshopt LOD
+- Signed `PUT /api/world/position`
+- Playwright movement smoke
+- In-world care confirmations (wallet) without leaving the canvas
 
 ### Complexity
-**L**
+**L** (spike **M** delivered)
 
 ---
 
