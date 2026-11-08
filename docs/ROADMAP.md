@@ -135,21 +135,22 @@ Complexity key: **S** small · **M** medium · **L** large · **XL** multi-quart
 
 ---
 
-## Phase 5 — AI-Driven Pets
+## Phase 5 — AI-Driven Pets (memory engine shipping)
 
 **Goal:** personality engine with memory; pets suggest activities based on history.
 
-### User stories
-- Pet remembers favorite activities / friends / neglect.
-- Behavior changes (wander bias, dialogue prompts) without breaking care math.
+### Shipped
+- Deterministic `buildPetMind` from care history + personality
+- Bounded episodic `pet_memories` on confirm
+- Buddy card mood / cues / suggestion UI
 
-### Tech
-- `pet_memories` writes on activities; embedding optional later.
-- Behavior FSM on client; server validates memory writes.
-- No unbounded LLM on request path — cached prompts / small models / batch.
+### Still open
+- Remember plaza friends; wander bias in 3D
+- Optional offline LLM flavor (never on hot path)
+- Embeddings for long-term recall
 
 ### Complexity
-**L**
+**L** (engine spike **M**)
 
 ---
 
