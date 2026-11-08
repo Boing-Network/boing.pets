@@ -19,10 +19,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      // Local/CI name stays `pets` (see package.json db:local).
-      // database_id points at reused empty remote D1 (account create limit).
-      "database_name": "pets",
-      "database_id": "7dd2c893-212a-45e8-9dae-8235ee3c7134",
+      "database_name": "boing-pets",
+      "database_id": "838d9755-4d84-41f5-af04-3aef48efa2a4",
       "migrations_dir": "migrations",
     },
   ],
