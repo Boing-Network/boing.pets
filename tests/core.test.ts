@@ -7,6 +7,10 @@ import {
   markerAmount,
   petSvg,
   SPECIES,
+  PERSONALITIES,
+  growthStage,
+  unlockedAchievements,
+  CARE_REWARDS,
 } from "../src/core";
 import { verifyProof } from "../worker/proof";
 const owner = "0x" + "11".repeat(32),
@@ -31,6 +35,7 @@ describe("identity and generative creatures", () => {
       ),
     );
     expect(names.size).toBe(SPECIES.length);
+    expect(PERSONALITIES).toContain(traits(owner, tx).personality);
   });
   it("only emits controlled SVG", () => {
     expect(petSvg(traits(owner, tx))).toContain("<svg");
@@ -52,8 +57,14 @@ describe("lazy care and streaks", () => {
     expect(state(pet, [], created)).toMatchObject({
       hunger: 100,
       happiness: 100,
+      energy: 100,
+      hygiene: 100,
+      health: 100,
       streak: 1,
       status: "bouncy",
+      stage: "baby",
+      boinglets: 2,
+      xp: 0,
     });
   });
   it("becomes scruffy then stray without deleting identity", () => {
@@ -76,6 +87,22 @@ describe("lazy care and streaks", () => {
       state(pet, [{ action: "checkin", created_at: now }], now),
     ).toMatchObject({ happiness: 100, hunger: 0, status: "stray" });
   });
+  it("play and groom restore energy and hygiene", () => {
+    const now = created + 3 * DAY;
+    const tired = state(pet, [], now);
+    expect(tired.energy).toBeLessThan(100);
+    expect(tired.hygiene).toBeLessThan(100);
+    expect(
+      state(
+        pet,
+        [
+          { action: "play", created_at: now },
+          { action: "groom", created_at: now },
+        ],
+        now,
+      ),
+    ).toMatchObject({ energy: 100, hygiene: 100, playedToday: true, groomedToday: true });
+  });
   it("counts unique UTC care days, not transactions", () => {
     const events = [
       { action: "checkin" as const, created_at: created + DAY },
@@ -97,6 +124,42 @@ describe("lazy care and streaks", () => {
         created,
       ).lastFed,
     ).toBe(created);
+  });
+  it("grows with age and care days", () => {
+    expect(growthStage(pet, 0, created)).toBe("baby");
+    expect(growthStage(pet, 1, created + 2 * DAY)).toBe("child");
+    expect(growthStage(pet, 4, created + 7 * DAY)).toBe("teen");
+    expect(growthStage(pet, 10, created + 21 * DAY)).toBe("adult");
+    expect(growthStage(pet, 10, created + 120 * DAY)).toBe("elder");
+  });
+  it("awards event-sourced Boinglets/XP and achievements", () => {
+    const now = created + DAY;
+    const events = [
+      { action: "hatch" as const, created_at: created },
+      { action: "feed" as const, created_at: now },
+      { action: "checkin" as const, created_at: now },
+      { action: "play" as const, created_at: now },
+      { action: "groom" as const, created_at: now },
+    ];
+    const s = state(pet, events, now);
+    const expectedXp =
+      CARE_REWARDS.hatch.xp +
+      CARE_REWARDS.feed.xp +
+      CARE_REWARDS.checkin.xp +
+      CARE_REWARDS.play.xp +
+      CARE_REWARDS.groom.xp;
+    expect(s.xp).toBe(expectedXp);
+    expect(s.boinglets).toBeGreaterThan(CARE_REWARDS.hatch.boinglets);
+    expect(unlockedAchievements(pet, events, now)).toEqual(
+      expect.arrayContaining([
+        "first_bounce",
+        "full_bowl",
+        "kind_hello",
+        "playtime",
+        "fresh_coat",
+        "balanced_day",
+      ]),
+    );
   });
 });
 describe("server-side transaction proof (never trust a hash alone)", () => {

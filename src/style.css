@@ -277,11 +277,26 @@ meter {
   display: grid;
   grid-template-columns: 200px 1fr;
   gap: 2px 24px;
-  max-width: 650px;
+  max-width: 720px;
   margin: 12px 0;
 }
 #my-pet .pet-picture {
-  grid-row: span 7;
+  grid-row: span 12;
+}
+.ach-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 4px;
+}
+.ach {
+  font-size: 0.55rem;
+  letter-spacing: 0.4px;
+  border-radius: 999px;
+  border: 1px solid #3a547a;
+  background: #15233f;
+  color: #c5d7f7;
+  padding: 4px 9px;
 }
 .pages {
   display: flex;

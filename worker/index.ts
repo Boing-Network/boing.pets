@@ -2,12 +2,17 @@ import * as ed from "@noble/ed25519";
 import { blake3 } from "@noble/hashes/blake3";
 import { hexToBytes } from "@noble/hashes/utils";
 import {
+  ACHIEVEMENTS,
   DAY,
   dayOf,
   hex32,
+  isAction,
+  isSignatureAction,
   markerAmount,
   state,
   traits,
+  unlockedAchievements,
+  type AchievementCode,
   type Action,
   type CareEvent,
   type Pet,
@@ -88,16 +93,50 @@ async function checkNetwork(env: Env) {
   if (info.chain_id !== 6913)
     throw new HttpError(503, "Pets only supports Boing testnet 6913");
 }
+async function persistAchievements(
+  env: Env,
+  pet: Pet,
+  events: CareEvent[],
+  now: number,
+) {
+  const codes = unlockedAchievements(pet, events, now);
+  for (const code of codes) {
+    await env.DB.prepare(
+      "INSERT OR IGNORE INTO achievements(owner,code,unlocked_at) VALUES(?,?,?)",
+    )
+      .bind(pet.owner, code, now)
+      .run();
+  }
+  return codes;
+}
+
 async function enrich(env: Env, pet: Pet, now: number) {
   const events = await env.DB.prepare(
     "SELECT action,created_at FROM events WHERE owner=? ORDER BY created_at",
   )
     .bind(pet.owner)
     .all<CareEvent>();
+  const stored = await env.DB.prepare(
+    "SELECT code,unlocked_at FROM achievements WHERE owner=? ORDER BY unlocked_at",
+  )
+    .bind(pet.owner)
+    .all<{ code: AchievementCode; unlocked_at: number }>();
+  // Derive on read so legacy pets gain badges without a backfill job.
+  const derived = unlockedAchievements(pet, events.results, now);
+  const byCode = new Map(
+    stored.results.map((row) => [row.code, row.unlocked_at]),
+  );
+  for (const code of derived) if (!byCode.has(code)) byCode.set(code, now);
+  const achievements = [...byCode.entries()].map(([code, unlocked_at]) => ({
+    code,
+    unlocked_at,
+    ...ACHIEVEMENTS[code],
+  }));
   return {
     ...pet,
     traits: traits(pet.owner, pet.hatch_tx),
     state: state(pet, events.results, now),
+    achievements,
   };
 }
 async function api(req: Request, env: Env): Promise<Response> {
@@ -158,10 +197,10 @@ async function api(req: Request, env: Env): Promise<Response> {
     throw new HttpError(400, "Invalid JSON");
   }
   if (url.pathname === "/api/challenge") {
-    const owner = hex32(body.owner),
-      action = body.action as Action;
-    if (!["hatch", "feed", "checkin"].includes(action))
+    const owner = hex32(body.owner);
+    if (!isAction(body.action))
       throw new HttpError(400, "Unknown care action");
+    const action = body.action;
     const pet = await env.DB.prepare("SELECT * FROM pets WHERE owner=?")
       .bind(owner)
       .first<Pet>();
@@ -190,7 +229,7 @@ async function api(req: Request, env: Env): Promise<Response> {
     )
       .bind(owner, now - 60_000)
       .first<{ n: number }>();
-    if ((count?.n || 0) >= 6)
+    if ((count?.n || 0) >= 8)
       throw new HttpError(429, "Too many requests. Try again in a minute.");
     await env.DB.prepare(
       "DELETE FROM challenges WHERE expires_at<? AND id NOT IN (SELECT id FROM events)",
@@ -198,7 +237,7 @@ async function api(req: Request, env: Env): Promise<Response> {
       .bind(now - DAY)
       .run();
     let height = 0;
-    if (action !== "checkin") {
+    if (!isSignatureAction(action)) {
       await checkNetwork(env);
       height = await rpc<number>(env, "boing_chainHeight");
       if (!Number.isSafeInteger(height) || height < 0)
@@ -218,17 +257,16 @@ async function api(req: Request, env: Env): Promise<Response> {
       message,
       amount,
       expires_at: expires,
-      transaction:
-        action === "checkin"
-          ? null
-          : {
-              type: "transfer",
-              from: owner,
-              to: owner,
-              amount,
-              priority_tip: "0",
-              display: `Boing Pets: ${action} your pet. Tiny self-transfer; only the network fee leaves your wallet.`,
-            },
+      transaction: isSignatureAction(action)
+        ? null
+        : {
+            type: "transfer",
+            from: owner,
+            to: owner,
+            amount,
+            priority_tip: "0",
+            display: `Boing Pets: ${action} your pet. Tiny self-transfer; only the network fee leaves your wallet.`,
+          },
     });
   }
   if (url.pathname === "/api/confirm") {
@@ -245,7 +283,7 @@ async function api(req: Request, env: Env): Promise<Response> {
     if (c.expires_at < now)
       throw new HttpError(410, "Challenge expired. Start a new care action.");
     let hash: string | null = null;
-    if (c.action === "checkin") {
+    if (isSignatureAction(c.action)) {
       if (
         typeof body.signature !== "string" ||
         !/^(0x)?[0-9a-f]{128}$/i.test(body.signature)
@@ -307,6 +345,20 @@ async function api(req: Request, env: Env): Promise<Response> {
         409,
         "Already confirmed, or this care action was done today. Refresh your pasture.",
       );
+    }
+    const petRow =
+      c.action === "hatch"
+        ? ({ owner: c.owner, hatch_tx: hash!, created_at: now } satisfies Pet)
+        : await env.DB.prepare("SELECT * FROM pets WHERE owner=?")
+            .bind(c.owner)
+            .first<Pet>();
+    if (petRow) {
+      const events = await env.DB.prepare(
+        "SELECT action,created_at FROM events WHERE owner=? ORDER BY created_at",
+      )
+        .bind(c.owner)
+        .all<CareEvent>();
+      await persistAchievements(env, petRow, events.results, now);
     }
     return json({ ok: true });
   }

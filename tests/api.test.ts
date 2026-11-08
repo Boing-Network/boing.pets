@@ -76,12 +76,12 @@ beforeEach(async () => {
   receiptSuccess = true;
   pending = false;
   db = new DatabaseSync(":memory:");
-  db.exec(
-    readFileSync(
-      new NodeURL("../migrations/0001_pasture.sql", import.meta.url),
-      "utf8",
-    ),
-  );
+  for (const file of [
+    "../migrations/0001_pasture.sql",
+    "../migrations/0002_phase1_progression.sql",
+  ]) {
+    db.exec(readFileSync(new NodeURL(file, import.meta.url), "utf8"));
+  }
   const adapter = {
     prepare: (sql: string) => new Statement(db, sql),
     batch: async (statements: Statement[]) => {
@@ -213,6 +213,14 @@ describe("Pets API", () => {
     });
     expect(db.prepare("SELECT COUNT(*) AS n FROM events").get()?.n).toBe(1);
   });
+  async function signConfirm(message: string) {
+    return (
+      "0x" +
+      bytesToHex(
+        await ed.signAsync(blake3(new TextEncoder().encode(message)), fixtureKey),
+      )
+    );
+  }
   it("verifies BLAKE3 + Ed25519 daily hello and rejects forged signatures", async () => {
     await hatch();
     const c = await challenge("checkin");
@@ -224,16 +232,13 @@ describe("Pets API", () => {
         })
       ).status,
     ).toBe(403);
-    const signature =
-      "0x" +
-      bytesToHex(
-        await ed.signAsync(
-          blake3(new TextEncoder().encode(c.message)),
-          fixtureKey,
-        ),
-      );
     expect(
-      (await request("/api/confirm", { id: c.id, signature })).status,
+      (
+        await request("/api/confirm", {
+          id: c.id,
+          signature: await signConfirm(c.message),
+        })
+      ).status,
     ).toBe(200);
     expect(
       (await request("/api/challenge", { owner, action: "checkin" })).status,
@@ -242,6 +247,38 @@ describe("Pets API", () => {
     expect(await r.json()).toMatchObject({
       pet: { state: { streak: 1, checkedIn: true } },
     });
+  });
+  it("accepts once-per-day play and groom signatures and unlocks badges", async () => {
+    await hatch();
+    for (const action of ["play", "groom"] as const) {
+      const c = await challenge(action);
+      expect(
+        (
+          await request("/api/confirm", {
+            id: c.id,
+            signature: await signConfirm(c.message),
+          })
+        ).status,
+      ).toBe(200);
+      expect(
+        (await request("/api/challenge", { owner, action })).status,
+      ).toBe(409);
+    }
+    const r = await request("/api/pet?owner=" + owner);
+    const body = (await r.json()) as {
+      pet: {
+        state: { playedToday: boolean; groomedToday: boolean; energy: number };
+        achievements: Array<{ code: string }>;
+      };
+    };
+    expect(body.pet.state).toMatchObject({
+      playedToday: true,
+      groomedToday: true,
+      energy: 100,
+    });
+    expect(body.pet.achievements.map((a) => a.code)).toEqual(
+      expect.arrayContaining(["first_bounce", "playtime", "fresh_coat"]),
+    );
   });
   it("rejects expired and unknown challenges", async () => {
     const c = await challenge("hatch");
