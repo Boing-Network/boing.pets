@@ -88,6 +88,7 @@ beforeEach(async () => {
     "../migrations/0008_fishing.sql",
     "../migrations/0009_housing.sql",
     "../migrations/0010_sparkles_claim.sql",
+    "../migrations/0011_treasure.sql",
   ]) {
     db.exec(readFileSync(new NodeURL(file, import.meta.url), "utf8"));
   }
@@ -649,6 +650,53 @@ describe("Pets API", () => {
       ).status,
     ).toBe(413);
     expect((await request("/api/pasture?offset=-1")).status).toBe(400);
+  });
+  it("digs treasure from a clue and awards loot on a hit", async () => {
+    await hatch();
+    const start = await request("/api/treasure/challenge", { owner });
+    expect(start.status).toBe(200);
+    const body = (await start.json()) as {
+      id: string;
+      message: string;
+      clue: string;
+    };
+    expect(body.clue.length).toBeGreaterThan(5);
+    expect(body.message).not.toMatch(/Spot:/);
+    const spot = db
+      .prepare("SELECT spot,loot_id FROM treasure_challenges WHERE id=?")
+      .get(body.id) as { spot: number; loot_id: string };
+    const miss = await request("/api/treasure/confirm", {
+      id: body.id,
+      signature: await signConfirm(body.message),
+      guess: (spot.spot + 1) % 9,
+    });
+    // First challenge consumed on miss — start a fresh dig for a hit.
+    expect(miss.status).toBe(200);
+    expect(await miss.json()).toMatchObject({ ok: false, result: "miss" });
+
+    const start2 = await request("/api/treasure/challenge", { owner });
+    const body2 = (await start2.json()) as { id: string; message: string };
+    const spot2 = db
+      .prepare("SELECT spot,loot_id FROM treasure_challenges WHERE id=?")
+      .get(body2.id) as { spot: number; loot_id: string };
+    const hit = await request("/api/treasure/confirm", {
+      id: body2.id,
+      signature: await signConfirm(body2.message),
+      guess: spot2.spot,
+    });
+    expect(hit.status).toBe(200);
+    expect(await hit.json()).toMatchObject({
+      ok: true,
+      result: "found",
+      treasure: { id: spot2.loot_id },
+    });
+    expect(
+      db
+        .prepare(
+          "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
+        )
+        .get(owner, spot2.loot_id)?.qty,
+    ).toBe(1);
   });
   it("places and picks up furniture on a home plot", async () => {
     await hatch();

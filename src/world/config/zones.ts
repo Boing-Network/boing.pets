@@ -168,6 +168,15 @@ export const STARTER_TOWN: WorldZoneConfig = {
       hint: "Visit your 4×4 home plot — place furniture bought from the market.",
       careHref: "/#home",
     },
+    {
+      id: "station-dig",
+      label: "Dig Site",
+      kind: "portal",
+      position: { x: 6, y: 0, z: -12 },
+      radius: 2.4,
+      hint: "Read the clue, pick a tile, dig — up to 3 tries per UTC day.",
+      careHref: "/#treasure",
+    },
   ],
   paths: [
     [
