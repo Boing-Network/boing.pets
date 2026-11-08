@@ -178,6 +178,7 @@ Complexity key: **S** small · **M** medium · **L** large · **XL** multi-quart
 - Treasure dig — clue / tile / sign (`0011`, `docs/PHASE6-TREASURE.md`)
 - Gardening — plant / water / harvest (`0013`, `docs/PHASE6-GARDENING.md`)
 - Cooking — recipes + serve snacks for care boosts (`0014`, `docs/PHASE6-COOKING.md`)
+- Mining — stamina veins + pickaxe tiers (`0015`, `docs/PHASE6-MINING.md`)
 
 ### Still open (years of content)
 - Full zone art / housing editor polish / avatar wardrobe

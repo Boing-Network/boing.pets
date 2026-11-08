@@ -63,6 +63,11 @@ import {
   cookingGet,
   cookingPost,
 } from "./cooking";
+import {
+  miningError,
+  miningGet,
+  miningPost,
+} from "./mining";
 import { applyFoodBoosts } from "../src/content/cooking";
 import { verifyProof, type Receipt, type RpcBlock } from "./proof";
 export { PlazaRoom } from "./plaza";
@@ -280,6 +285,14 @@ async function api(req: Request, env: Env): Promise<Response> {
       if (mapped) return mapped;
       throw error;
     }
+    try {
+      const mining = await miningGet(req, env, now);
+      if (mining) return mining;
+    } catch (error) {
+      const mapped = miningError(error);
+      if (mapped) return mapped;
+      throw error;
+    }
     const economy = await economyGet(req, env, now);
     if (economy) return economy;
   }
@@ -405,6 +418,14 @@ async function api(req: Request, env: Env): Promise<Response> {
     if (cook) return cook;
   } catch (error) {
     const mapped = cookingError(error);
+    if (mapped) return mapped;
+    throw error;
+  }
+  try {
+    const mining = await miningPost(url, env, body, now);
+    if (mining) return mining;
+  } catch (error) {
+    const mapped = miningError(error);
     if (mapped) return mapped;
     throw error;
   }

@@ -195,6 +195,15 @@ export const STARTER_TOWN: WorldZoneConfig = {
       hint: "Cook recipes from crops and fish, then serve snacks for care boosts.",
       careHref: "/#kitchen",
     },
+    {
+      id: "station-mine",
+      label: "Crystal Cavern",
+      kind: "portal",
+      position: { x: -10, y: 0, z: -14 },
+      radius: 2.5,
+      hint: "Spend stamina to strike ore veins — upgrade pickaxes for rarer finds.",
+      careHref: "/#mining",
+    },
   ],
   paths: [
     [

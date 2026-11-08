@@ -17,7 +17,7 @@ describe("economy foundation", () => {
       const priced = catalogPrice(item);
       expect(priced.amount).toBeGreaterThan(0);
       expect(["boinglets", "sparkles"]).toContain(priced.currency);
-      expect(["pet_skin", "furniture", "profile"]).toContain(item.kind);
+      expect(["pet_skin", "furniture", "profile", "tool"]).toContain(item.kind);
     }
     expect(catalogItem("missing")).toBeNull();
     expect(catalogItem(CATALOG[0]!.id)?.name).toBe(CATALOG[0]!.name);
