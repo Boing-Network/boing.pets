@@ -19,6 +19,7 @@ import {
 } from "../src/core";
 import { WORLD_CONFIG } from "../src/world/config/zones";
 import { verifyProof, type Receipt, type RpcBlock } from "./proof";
+export { PlazaRoom } from "./plaza";
 interface Challenge {
   id: string;
   owner: string;
@@ -475,8 +476,23 @@ async function api(req: Request, env: Env): Promise<Response> {
 }
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
-    if (!new URL(req.url).pathname.startsWith("/api/"))
-      return env.ASSETS.fetch(req);
+    const url = new URL(req.url);
+    if (url.pathname === "/api/world/presence") {
+      const origin = req.headers.get("Origin");
+      if (origin && origin !== env.APP_ORIGIN) {
+        return json({ error: "This origin is not allowed" }, 403);
+      }
+      if (req.headers.get("Upgrade") !== "websocket") {
+        return json({ error: "WebSocket upgrade required" }, 426);
+      }
+      const zone = url.searchParams.get("zone") || WORLD_CONFIG.defaultZone;
+      if (!WORLD_CONFIG.zones.some((item) => item.id === zone)) {
+        return json({ error: "Unknown zone" }, 400);
+      }
+      const stub = env.PLAZA.getByName(zone);
+      return stub.fetch(req);
+    }
+    if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(req);
     try {
       return await api(req, env);
     } catch (e) {

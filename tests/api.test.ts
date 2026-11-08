@@ -101,6 +101,11 @@ beforeEach(async () => {
     ASSETS: { fetch: async () => new Response("assets") } as unknown as Fetcher,
     RPC_URL: "https://rpc.example",
     APP_ORIGIN: origin,
+    PLAZA: {
+      getByName: () => ({
+        fetch: async () => new Response("plaza stub"),
+      }),
+    } as unknown as Env["PLAZA"],
   };
   vi.stubGlobal(
     "fetch",

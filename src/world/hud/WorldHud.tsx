@@ -18,6 +18,11 @@ export function WorldHud({
   preferPerf,
   notice,
   onNotice,
+  presenceStatus,
+  presenceCount,
+  presenceError,
+  presenceOn,
+  onTogglePresence,
 }: {
   zone: WorldZoneConfig;
   station: WorldStation | null;
@@ -26,6 +31,11 @@ export function WorldHud({
   preferPerf: boolean;
   notice: string;
   onNotice: (text: string) => void;
+  presenceStatus: "off" | "connecting" | "live" | "error";
+  presenceCount: number;
+  presenceError: string | null;
+  presenceOn: boolean;
+  onTogglePresence: () => void;
 }) {
   const [busy, setBusy] = useState(false);
 
@@ -68,6 +78,15 @@ export function WorldHud({
     }
   }
 
+  const presenceLabel =
+    presenceStatus === "live"
+      ? `Plaza · ${presenceCount} nearby`
+      : presenceStatus === "connecting"
+        ? "Plaza connecting…"
+        : presenceStatus === "error"
+          ? presenceError || "Plaza offline"
+          : "Plaza off";
+
   return (
     <div className="world-hud">
       <header className="world-top">
@@ -75,11 +94,18 @@ export function WorldHud({
           boing<span>pets</span>
         </a>
         <div className="world-title">
-          <p className="eyebrow">PHASE 2.5 · HARDENED PREVIEW</p>
+          <p className="eyebrow">PHASE 3 · PLAZA PRESENCE</p>
           <h1>{zone.name}</h1>
           <p>{zone.tagline}</p>
         </div>
         <div className="world-top-actions">
+          <button
+            type="button"
+            className="world-exit"
+            onClick={onTogglePresence}
+          >
+            {presenceOn ? "Leave plaza" : "Join plaza"}
+          </button>
           <button
             type="button"
             className="world-exit"
@@ -108,7 +134,10 @@ export function WorldHud({
             )}
           </>
         ) : (
-          <span>{notice}</span>
+          <>
+            <strong>{presenceLabel}</strong>
+            <span>{notice}</span>
+          </>
         )}
       </div>
 
