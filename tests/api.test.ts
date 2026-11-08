@@ -304,9 +304,17 @@ describe("Pets API", () => {
     ).toBe(409);
     const r = await request("/api/pet?owner=" + owner);
     expect(await r.json()).toMatchObject({
-      pet: { owner, hatch_tx: tx, state: { streak: 1, hunger: 100 } },
+      pet: {
+        owner,
+        hatch_tx: tx,
+        state: { streak: 1, hunger: 100 },
+        mind: { mood: expect.any(String), suggestion: expect.any(String) },
+      },
     });
     expect(db.prepare("SELECT COUNT(*) AS n FROM events").get()?.n).toBe(1);
+    expect(
+      db.prepare("SELECT COUNT(*) AS n FROM pet_memories").get()?.n,
+    ).toBe(1);
   });
   async function signConfirm(message: string) {
     return (

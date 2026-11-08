@@ -17,6 +17,11 @@ import {
   type CareEvent,
   type Pet,
 } from "../src/core";
+import {
+  buildPetMind,
+  episodePayload,
+  type PetMemoryRow,
+} from "../src/memory";
 import { WORLD_CONFIG } from "../src/world/config/zones";
 import {
   economyError,
@@ -117,6 +122,28 @@ async function persistAchievements(
   return codes;
 }
 
+async function recordEpisode(
+  env: Env,
+  owner: string,
+  action: Action,
+  at: number,
+) {
+  await env.DB.prepare(
+    "INSERT INTO pet_memories(id,owner,kind,payload,created_at) VALUES(?,?,?,?,?)",
+  )
+    .bind(crypto.randomUUID(), owner, "episode", episodePayload(action, at), at)
+    .run();
+  // Keep episodic memory bounded for scalable reads.
+  await env.DB.prepare(
+    `DELETE FROM pet_memories WHERE owner=? AND kind='episode' AND id NOT IN (
+      SELECT id FROM pet_memories WHERE owner=? AND kind='episode'
+      ORDER BY created_at DESC LIMIT 40
+    )`,
+  )
+    .bind(owner, owner)
+    .run();
+}
+
 async function enrich(env: Env, pet: Pet, now: number) {
   const events = await env.DB.prepare(
     "SELECT action,created_at FROM events WHERE owner=? ORDER BY created_at",
@@ -128,6 +155,11 @@ async function enrich(env: Env, pet: Pet, now: number) {
   )
     .bind(pet.owner)
     .all<{ code: AchievementCode; unlocked_at: number }>();
+  const memories = await env.DB.prepare(
+    "SELECT id,owner,kind,payload,created_at FROM pet_memories WHERE owner=? ORDER BY created_at DESC LIMIT 12",
+  )
+    .bind(pet.owner)
+    .all<PetMemoryRow>();
   // Derive on read so legacy pets gain badges without a backfill job.
   const derived = unlockedAchievements(pet, events.results, now);
   const byCode = new Map(
@@ -139,11 +171,14 @@ async function enrich(env: Env, pet: Pet, now: number) {
     unlocked_at,
     ...ACHIEVEMENTS[code],
   }));
+  const t = traits(pet.owner, pet.hatch_tx);
   return {
     ...pet,
-    traits: traits(pet.owner, pet.hatch_tx),
+    traits: t,
     state: state(pet, events.results, now),
     achievements,
+    mind: buildPetMind(pet, events.results, t.personality, now),
+    memories: memories.results,
   };
 }
 async function api(req: Request, env: Env): Promise<Response> {
@@ -486,6 +521,7 @@ async function api(req: Request, env: Env): Promise<Response> {
         .bind(c.owner)
         .all<CareEvent>();
       await persistAchievements(env, petRow, events.results, now);
+      await recordEpisode(env, c.owner, c.action, now);
     }
     return json({ ok: true });
   }

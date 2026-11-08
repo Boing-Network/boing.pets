@@ -327,6 +327,18 @@ meter {
   margin: 28px 0 0;
   font-size: 0.95rem;
 }
+.mind {
+  margin: 8px 0 4px;
+  font-size: 0.78rem;
+  color: #d7e4ff;
+  line-height: 1.45;
+}
+.mind b {
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-size: 0.62rem;
+  color: #9ad7c2;
+}
 @media (max-width: 800px) {
   .market-grid {
     grid-template-columns: 1fr;
