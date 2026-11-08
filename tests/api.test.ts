@@ -81,6 +81,7 @@ beforeEach(async () => {
     "../migrations/0002_phase1_progression.sql",
     "../migrations/0003_world_positions.sql",
     "../migrations/0004_economy.sql",
+    "../migrations/0005_content_framework.sql",
   ]) {
     db.exec(readFileSync(new NodeURL(file, import.meta.url), "utf8"));
   }
@@ -188,10 +189,50 @@ describe("Pets API", () => {
   it("serves world config for the 3D Starter Town island", async () => {
     const r = await request("/api/world/config");
     expect(r.status).toBe(200);
-    expect(await r.json()).toMatchObject({
-      version: 1,
-      defaultZone: "starter-town",
-      zones: [{ id: "starter-town", name: "Starter Town" }],
+    const body = (await r.json()) as {
+      version: number;
+      defaultZone: string;
+      zones: Array<{ id: string; name: string }>;
+    };
+    expect(body).toMatchObject({ version: 1, defaultZone: "starter-town" });
+    expect(body.zones.map((z) => z.id)).toEqual(
+      expect.arrayContaining([
+        "starter-town",
+        "forest",
+        "beach",
+        "mountains",
+        "city",
+        "academy",
+      ]),
+    );
+  });
+  it("claims the story hatch quest reward", async () => {
+    await hatch();
+    const challenge = await request("/api/content/quest/challenge", {
+      owner,
+      quest_id: "story_first_bounce",
+    });
+    expect(challenge.status).toBe(200);
+    const c = (await challenge.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/content/quest/confirm", {
+          id: c.id,
+          signature: await signConfirm(c.message),
+        })
+      ).status,
+    ).toBe(200);
+    const quests = await (
+      await request("/api/content/quests?owner=" + owner)
+    ).json();
+    expect(quests).toMatchObject({
+      quests: expect.arrayContaining([
+        expect.objectContaining({
+          id: "story_first_bounce",
+          complete: true,
+          claimed: true,
+        }),
+      ]),
     });
   });
   it("claims care Boinglets and buys a cosmetic from the catalog", async () => {

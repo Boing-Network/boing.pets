@@ -55,7 +55,7 @@ let provider: Provider | null = null,
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) =>
   document.querySelector<T>(selector)!;
 $("#app").innerHTML =
-  `<header><a class="brand" href="#">boing<span>pets</span><i>✦</i></a><nav aria-label="Main"><a href="#pasture">The pasture</a><a href="#market">Market</a><a href="/world.html">Starter Town</a><a href="#how">How to play</a><a href="https://boing.network/testnet" target="_blank" rel="noreferrer">Boing Network ↗</a></nav><button id="connect">Connect Express</button></header><main><section class="hero"><div><p class="eyebrow">BOING TESTNET · CHAIN 6913 <span class="pill">PHASE 4 / ECONOMY PREVIEW</span></p><h1>A little bounce.<br>A buddy for life.</h1><p class="lede">Hatch something wonderfully weird. Care, explore Starter Town, and trade cosmetics with Boinglets.<br>No pay-to-win — soft currency for ribbons, furniture, and frames.</p><div class="hero-cta"><a class="button" href="#buddy">Meet your buddy ↓</a><a class="button secondary" href="/world.html">Enter Starter Town</a></div><p class="small">No dying. Cosmetics-only market. Testnet only.</p></div><div class="hero-pets" id="hero-pets" aria-hidden="true"></div></section><div id="notice" role="status" aria-live="polite">Loading the pasture…</div><section id="buddy" class="panel"><div class="section-title"><div><p class="eyebrow">YOUR LITTLE CORNER</p><h2>Home, sweet wallet.</h2></div><button id="disconnect" class="quiet" hidden>Disconnect</button></div><div id="my-pet"></div><div class="actions"><button id="hatch">Hatch a buddy</button><button id="checkin" class="secondary" hidden>Daily hello · sign only</button><button id="play" class="secondary" hidden>Play · sign only</button><button id="groom" class="secondary" hidden>Groom · sign only</button><button id="feed" hidden>Feed · tiny transaction</button><button id="retry" class="secondary" hidden>Confirm pending transaction</button><button id="forget" class="quiet" hidden>Forget pending record</button></div><p class="small">Hatch & feed: ~0.001 BOING self-transfer + network fee. Hello, play, and groom: free signatures. Daily limits reset at midnight UTC. Care earns Boinglets and XP.</p></section><section id="market" class="panel"><div class="section-title"><div><p class="eyebrow">COSMETICS ONLY</p><h2>Boinglets &amp; the market</h2></div><button id="claim" class="secondary" hidden>Claim care Boinglets</button></div><p id="economy-summary" class="subtle">Connect to claim care rewards into your spendable balance, then browse cosmetics.</p><div id="catalog" class="market-grid"></div><h3 class="market-sub">Player listings</h3><div id="listings" class="market-grid"></div><p class="small">5% sale fee sinks to the pasture treasury (anti-inflation). Sparkles (premium) are reserved for later cosmetics — not sold here yet.</p></section><section id="pasture"><div class="section-title"><div><p class="eyebrow">A NEIGHBORHOOD OF HAPPY ACCIDENTS</p><h2>The public pasture</h2></div><button id="refresh" class="secondary">Refresh ↻</button></div><p class="subtle">Bouncy, peckish, a little scruffy — everybody belongs here.</p><div id="gallery" class="gallery"></div><div class="pages"><button id="prev" class="secondary" hidden>← Previous</button><button id="next" class="secondary" hidden>More buddies →</button></div></section><section id="how" class="how"><article><b>01 / HATCH</b><h3>One wallet. One weirdo.</h3><p>Approve a real Boing testnet transaction in Express. Your wallet and hatch transaction reveal species, colors, and a permanent personality.</p></article><article><b>02 / DAILY CARE</b><h3>Hello, play, groom, feed.</h3><p>Signatures keep joy, energy, and hygiene up. Feeding fills the belly. Each action type is once per UTC day; any care counts toward your streak.</p></article><article><b>03 / GROW</b><h3>Stages, XP, and badges.</h3><p>Buddies grow from baby toward elder with age and care. Earn Boinglets, unlock achievements, and never lose your pet — strays always come home with a feed.</p></article></section></main><footer><span>Built for a little more joy on Boing.</span><a href="https://boing.express" target="_blank" rel="noreferrer">Wallet ↗</a><a href="https://boing.network/faucet" target="_blank" rel="noreferrer">Testnet faucet ↗</a><a href="https://github.com/Boing-Network/boing.pets">Source ↗</a><span>Testnet only. No monetary value or airdrop promise.</span></footer>`;
+  `<header><a class="brand" href="#">boing<span>pets</span><i>✦</i></a><nav aria-label="Main"><a href="#pasture">The pasture</a><a href="#quests">Quests</a><a href="#market">Market</a><a href="/world.html">Starter Town</a><a href="#how">How to play</a><a href="https://boing.network/testnet" target="_blank" rel="noreferrer">Boing Network ↗</a></nav><button id="connect">Connect Express</button></header><main><section class="hero"><div><p class="eyebrow">BOING TESTNET · CHAIN 6913 <span class="pill">PHASE 6 / CONTENT PREVIEW</span></p><h1>A little bounce.<br>A buddy for life.</h1><p class="lede">Hatch, care, quest, trade cosmetics, and wander expanding zones.<br>Seasons and collections are config-driven for years of drops ahead.</p><div class="hero-cta"><a class="button" href="#buddy">Meet your buddy ↓</a><a class="button secondary" href="/world.html">Enter Starter Town</a></div><p class="small">No dying. Cosmetics-only market. Testnet only.</p></div><div class="hero-pets" id="hero-pets" aria-hidden="true"></div></section><div id="notice" role="status" aria-live="polite">Loading the pasture…</div><section id="buddy" class="panel"><div class="section-title"><div><p class="eyebrow">YOUR LITTLE CORNER</p><h2>Home, sweet wallet.</h2></div><button id="disconnect" class="quiet" hidden>Disconnect</button></div><div id="my-pet"></div><div class="actions"><button id="hatch">Hatch a buddy</button><button id="checkin" class="secondary" hidden>Daily hello · sign only</button><button id="play" class="secondary" hidden>Play · sign only</button><button id="groom" class="secondary" hidden>Groom · sign only</button><button id="feed" hidden>Feed · tiny transaction</button><button id="retry" class="secondary" hidden>Confirm pending transaction</button><button id="forget" class="quiet" hidden>Forget pending record</button></div><p class="small">Hatch & feed: ~0.001 BOING self-transfer + network fee. Hello, play, and groom: free signatures. Daily limits reset at midnight UTC. Care earns Boinglets and XP.</p></section><section id="quests" class="panel"><div class="section-title"><div><p class="eyebrow">STORIES · DAILIES · SEASONS</p><h2>Quests &amp; festivals</h2></div></div><p id="season-summary" class="subtle">Loading seasonal calendar…</p><div id="quest-list" class="market-grid"></div></section><section id="market" class="panel"><div class="section-title"><div><p class="eyebrow">COSMETICS ONLY</p><h2>Boinglets &amp; the market</h2></div><button id="claim" class="secondary" hidden>Claim care Boinglets</button></div><p id="economy-summary" class="subtle">Connect to claim care rewards into your spendable balance, then browse cosmetics.</p><div id="catalog" class="market-grid"></div><h3 class="market-sub">Player listings</h3><div id="listings" class="market-grid"></div><p class="small">5% sale fee sinks to the pasture treasury (anti-inflation). Sparkles (premium) are reserved for later cosmetics — not sold here yet.</p></section><section id="pasture"><div class="section-title"><div><p class="eyebrow">A NEIGHBORHOOD OF HAPPY ACCIDENTS</p><h2>The public pasture</h2></div><button id="refresh" class="secondary">Refresh ↻</button></div><p class="subtle">Bouncy, peckish, a little scruffy — everybody belongs here.</p><div id="gallery" class="gallery"></div><div class="pages"><button id="prev" class="secondary" hidden>← Previous</button><button id="next" class="secondary" hidden>More buddies →</button></div></section><section id="how" class="how"><article><b>01 / HATCH</b><h3>One wallet. One weirdo.</h3><p>Approve a real Boing testnet transaction in Express. Your wallet and hatch transaction reveal species, colors, and a permanent personality.</p></article><article><b>02 / DAILY CARE</b><h3>Hello, play, groom, feed.</h3><p>Signatures keep joy, energy, and hygiene up. Feeding fills the belly. Each action type is once per UTC day; any care counts toward your streak.</p></article><article><b>03 / GROW</b><h3>Stages, XP, and badges.</h3><p>Buddies grow from baby toward elder with age and care. Earn Boinglets, unlock achievements, and never lose your pet — strays always come home with a feed.</p></article></section></main><footer><span>Built for a little more joy on Boing.</span><a href="https://boing.express" target="_blank" rel="noreferrer">Wallet ↗</a><a href="https://boing.network/faucet" target="_blank" rel="noreferrer">Testnet faucet ↗</a><a href="https://github.com/Boing-Network/boing.pets">Source ↗</a><span>Testnet only. No monetary value or airdrop promise.</span></footer>`;
 const demoOwner = "0x" + "11".repeat(32);
 $("#hero-pets").innerHTML = [1, 2, 3]
   .map(
@@ -108,6 +108,63 @@ async function economyAct(
   await api("/api/economy/confirm", { id: challenge.id, signature });
   await refreshEconomy();
   notice("Economy action confirmed.");
+}
+
+async function claimQuest(questId: string) {
+  await assertWallet();
+  notice("Approve quest reward claim in Express…");
+  const challenge = await api<{ id: string; message: string }>(
+    "/api/content/quest/challenge",
+    { owner, quest_id: questId },
+  );
+  const signature = await provider!.request({
+    method: "boing_signMessage",
+    params: [challenge.message, owner],
+  });
+  await api("/api/content/quest/confirm", { id: challenge.id, signature });
+  await refreshEconomy();
+  await refreshQuests();
+  notice("Quest reward claimed!");
+}
+
+async function refreshQuests() {
+  const data = await api<{
+    activeEvents: Array<{ id: string; name: string; description: string }>;
+    quests: Array<{
+      id: string;
+      kind: string;
+      title: string;
+      description: string;
+      rewardBoinglets: number;
+      complete: boolean;
+      claimed: boolean;
+    }>;
+  }>("/api/content/quests" + (owner ? `?owner=${owner}` : ""));
+  $("#season-summary").textContent = data.activeEvents.length
+    ? `Live now: ${data.activeEvents.map((e) => e.name).join(", ")}`
+    : "No seasonal event active — check back for festivals.";
+  $("#quest-list").replaceChildren(
+    ...data.quests.map((q) => {
+      const el = document.createElement("article");
+      el.className = "market-card";
+      el.innerHTML = `<h3>${q.title}</h3><p class="subtle">${q.kind} · ${q.rewardBoinglets} Boinglets</p><p class="small">${q.description}</p>`;
+      const btn = document.createElement("button");
+      btn.className = "secondary";
+      if (q.claimed) {
+        btn.textContent = "Claimed ✓";
+        btn.disabled = true;
+      } else if (q.complete && owner) {
+        btn.textContent = "Claim · sign";
+        btn.disabled = busy;
+        btn.onclick = () => void run(() => claimQuest(q.id));
+      } else {
+        btn.textContent = q.complete ? "Connect to claim" : "In progress";
+        btn.disabled = true;
+      }
+      el.append(btn);
+      return el;
+    }),
+  );
 }
 
 async function refreshEconomy() {
@@ -274,6 +331,9 @@ async function refresh() {
   $("#next").hidden = next === null;
   await refreshEconomy().catch(() => {
     /* economy tables may be missing until migration 0004 */
+  });
+  await refreshQuests().catch(() => {
+    /* content tables may be missing until migration 0005 */
   });
   controls();
 }

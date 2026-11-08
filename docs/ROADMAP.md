@@ -154,21 +154,23 @@ Complexity key: **S** small · **M** medium · **L** large · **XL** multi-quart
 
 ---
 
-## Phase 6 — Full Virtual World
+## Phase 6 — Full Virtual World (framework shipping)
 
 **Goal:** Forest / Beach / Mountains / City / Academy zones; housing; quests; seasons; 25+ activities; guilds; collections.
 
-### Systems checklist
-- Zones with unique aesthetics + expansion hooks
-- Housing 3D editor + visitor ACLs
-- Avatar cosmetics economy
-- Quest engine (story/daily/weekly/seasonal/pet-specific) — config-driven
-- Seasonal event framework (JSON, no code deploys)
-- Collection log, badges, titles
-- Ethical battle pass / cosmetics monetization
+### Shipped framework
+- Config-driven quests + seasonal events + collection log
+- Expansion zone stubs with portal hooks
+- Titles on quest claim; Boinglets rewards via ledger
+- Quests UI on pasture
+
+### Still open (years of content)
+- Full zone art / housing editor / avatar wardrobe
+- Guilds + battle pass track
+- 25 mini-game implementations (see backlog table)
 
 ### Complexity
-**XL** (years of content; engine in Phase 4–5)
+**XL** (framework **M**; content ongoing)
 
 ---
 

@@ -2,7 +2,7 @@
 
 **A little bounce. A buddy for life.** A small, Boing-native virtual pet game: hatch a creature, say hello, play, groom, feed it, grow with XP and Boinglets, unlock achievements, and meet everyone on the public pasture.
 
-Universe redesign docs: [docs/AUDIT.md](docs/AUDIT.md) · [docs/ROADMAP.md](docs/ROADMAP.md) · [docs/DESIGN.md](docs/DESIGN.md) · [docs/PHASE2.md](docs/PHASE2.md) · [docs/PHASE3.md](docs/PHASE3.md) · [docs/PHASE4.md](docs/PHASE4.md). Incremental stack: Workers + D1 + pasture SPA + Starter Town + plaza presence + cosmetics Boinglets market.
+Universe redesign docs live in `docs/` (AUDIT, ROADMAP, DESIGN, PHASE2–6). Incremental stack through Phase 6 framework: Workers + D1 + pasture SPA + Starter Town + plaza presence + cosmetics market + pet mind + config-driven quests/seasons/collections.
 
 Testnet only (6913). This is an MVP, not an NFT marketplace, financial product, or airdrop promise. No contracts, consensus changes, custody keys, or scheduled jobs. Nothing is deployed automatically.
 

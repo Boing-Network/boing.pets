@@ -163,6 +163,90 @@ export const STARTER_TOWN: WorldZoneConfig = {
   ],
 };
 
+/** Expansion stubs — unique palettes + portal hooks; full meshes arrive later. */
+function stubZone(
+  partial: Pick<
+    WorldZoneConfig,
+    "id" | "name" | "tagline" | "fogColor" | "groundColor" | "accentColor"
+  >,
+): WorldZoneConfig {
+  return {
+    ...partial,
+    spawn: { x: 0, y: 0.9, z: 6 },
+    bounds: { minX: -20, maxX: 20, minZ: -20, maxZ: 20 },
+    landmarks: [
+      {
+        id: `${partial.id}-gate`,
+        label: `${partial.name} Gate`,
+        position: { x: 0, y: 0, z: -8 },
+        color: partial.accentColor,
+        height: 3.5,
+        width: 5,
+        depth: 2,
+      },
+    ],
+    stations: [
+      {
+        id: `${partial.id}-info`,
+        label: "Coming Soon",
+        kind: "info",
+        position: { x: 0, y: 0, z: 0 },
+        radius: 2.2,
+        hint: `${partial.name} expands in a future content drop. Portal hooks are ready.`,
+      },
+    ],
+    paths: [
+      [
+        { x: 0, y: 0.02, z: 8 },
+        { x: 0, y: 0.02, z: -10 },
+      ],
+    ],
+  };
+}
+
+export const EXPANSION_ZONES: WorldZoneConfig[] = [
+  stubZone({
+    id: "forest",
+    name: "Forest Zone",
+    tagline: "Gathering groves and rare rustles.",
+    fogColor: "#8fbf9a",
+    groundColor: "#3f7a4a",
+    accentColor: "#c6e6a8",
+  }),
+  stubZone({
+    id: "beach",
+    name: "Beach Zone",
+    tagline: "Fishing pier and seasonal tides.",
+    fogColor: "#9fd0e6",
+    groundColor: "#e2d2a8",
+    accentColor: "#7ec8e3",
+  }),
+  stubZone({
+    id: "mountains",
+    name: "Mountains",
+    tagline: "Overlook quests and hidden collectibles.",
+    fogColor: "#b7c4d8",
+    groundColor: "#8b93a3",
+    accentColor: "#dfe6f2",
+  }),
+  stubZone({
+    id: "city",
+    name: "City District",
+    tagline: "Social plazas and player shops.",
+    fogColor: "#c5c9d8",
+    groundColor: "#6d7384",
+    accentColor: "#f0c27a",
+  }),
+  stubZone({
+    id: "academy",
+    name: "Boing Academy",
+    tagline: "Pet training campus and exams.",
+    fogColor: "#d7e4ff",
+    groundColor: "#6f9b7a",
+    accentColor: "#9bb7ff",
+  }),
+];
+
 export type WorldConfigResponse = {
   version: 1;
   defaultZone: string;
@@ -172,5 +256,5 @@ export type WorldConfigResponse = {
 export const WORLD_CONFIG: WorldConfigResponse = {
   version: 1,
   defaultZone: STARTER_TOWN.id,
-  zones: [STARTER_TOWN],
+  zones: [STARTER_TOWN, ...EXPANSION_ZONES],
 };

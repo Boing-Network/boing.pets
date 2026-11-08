@@ -5,7 +5,16 @@ describe("Starter Town world config", () => {
   it("exposes a coherent default zone for the API and client", () => {
     expect(WORLD_CONFIG.version).toBe(1);
     expect(WORLD_CONFIG.defaultZone).toBe(STARTER_TOWN.id);
-    expect(WORLD_CONFIG.zones.map((z) => z.id)).toContain("starter-town");
+    expect(WORLD_CONFIG.zones.map((z) => z.id)).toEqual(
+      expect.arrayContaining([
+        "starter-town",
+        "forest",
+        "beach",
+        "mountains",
+        "city",
+        "academy",
+      ]),
+    );
   });
 
   it("keeps landmarks and care stations inside walk bounds", () => {

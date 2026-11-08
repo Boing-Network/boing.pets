@@ -10,6 +10,7 @@
     "src/core.ts",
     "src/economy.ts",
     "src/memory.ts",
+    "src/content/**/*.ts",
     "src/world/config/zones.ts",
     "src/world/lib/presenceProtocol.ts",
     "tests"

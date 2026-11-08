@@ -24,6 +24,11 @@ import {
 } from "../src/memory";
 import { WORLD_CONFIG } from "../src/world/config/zones";
 import {
+  contentError,
+  contentGet,
+  contentPost,
+} from "./content";
+import {
   economyError,
   economyGet,
   economyPost,
@@ -185,6 +190,8 @@ async function api(req: Request, env: Env): Promise<Response> {
   const url = new URL(req.url),
     now = Date.now();
   if (req.method === "GET") {
+    const content = await contentGet(req, env, now);
+    if (content) return content;
     const economy = await economyGet(req, env, now);
     if (economy) return economy;
   }
@@ -256,6 +263,14 @@ async function api(req: Request, env: Env): Promise<Response> {
     if (!body || Array.isArray(body) || typeof body !== "object") throw Error();
   } catch {
     throw new HttpError(400, "Invalid JSON");
+  }
+  try {
+    const content = await contentPost(url, env, body, now);
+    if (content) return content;
+  } catch (error) {
+    const mapped = contentError(error);
+    if (mapped) return mapped;
+    throw error;
   }
   try {
     const economy = await economyPost(url, env, body, now);
