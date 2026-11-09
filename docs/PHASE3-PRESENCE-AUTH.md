@@ -1,15 +1,18 @@
 # Phase 3 — Wallet-bound plaza presence
 
 ## Goal
+
 Bind plaza avatars to wallets when Express is connected, and show profile display names above remotes.
 
 ## User stories
+
 - As a connected player, I join the plaza as my wallet (not a random Guest-*).
 - As a friend, I see your display name (or short wallet) above your capsule.
 - As a guest without a wallet, I can still join anonymously.
 - As the system, guests cannot spoof wallet-shaped ids without a signed token.
 
 ## Flow
+
 1. Client restores Express via silent `boing_accounts` when possible (no Connect click).
 2. Cached presence token in `sessionStorage` (same owner+zone, not near expiry) skips a new sign.
 3. Otherwise (user gesture / Appear as wallet): `POST /api/world/presence/challenge` `{ owner, zone }`
@@ -21,9 +24,11 @@ Bind plaza avatars to wallets when Express is connected, and show profile displa
 9. Leaving the page (`pagehide` / care-station navigation) closes the plaza socket first
 
 ## Migration
+
 `migrations/0007_presence_tokens.sql` — `presence_challenges`, `presence_tokens`
 
 ## Still open
+
 - Pet followers beside avatars
 - Party invites
 - AOI sharding for larger hubs

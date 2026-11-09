@@ -25,10 +25,7 @@ async function verifySignature(
   message: string,
   signature: unknown,
 ) {
-  if (
-    typeof signature !== "string" ||
-    !/^(0x)?[0-9a-f]{128}$/i.test(signature)
-  )
+  if (typeof signature !== "string" || !/^(0x)?[0-9a-f]{128}$/i.test(signature))
     throw new HttpError(400, "Invalid signature format");
   const ok = await ed.verifyAsync(
     hexToBytes(signature.replace(/^0x/i, "")),
@@ -81,7 +78,6 @@ async function areFriends(env: Env, a: string, b: string): Promise<boolean> {
   return !!row;
 }
 
-
 async function requireSocialSession(
   req: Request,
   env: Env,
@@ -114,18 +110,17 @@ async function requireSocialSession(
     throw new HttpError(403, "Social session does not match this wallet");
 }
 
-async function issueSocialSession(
-  env: Env,
-  owner: string,
-  now: number,
-) {
+async function issueSocialSession(env: Env, owner: string, now: number) {
   const count = await env.DB.prepare(
     "SELECT COUNT(*) AS n FROM social_session_challenges WHERE owner=? AND created_at>?",
   )
     .bind(owner, now - 60_000)
     .first<{ n: number }>();
   if ((count?.n || 0) >= 8)
-    throw new HttpError(429, "Too many social session requests. Try again shortly.");
+    throw new HttpError(
+      429,
+      "Too many social session requests. Try again shortly.",
+    );
   await env.DB.prepare(
     "DELETE FROM social_session_challenges WHERE expires_at<?",
   )
@@ -152,9 +147,7 @@ async function profileName(env: Env, owner: string): Promise<string | null> {
 }
 
 async function membershipOf(env: Env, owner: string) {
-  return env.DB.prepare(
-    "SELECT party_id,role FROM party_members WHERE owner=?",
-  )
+  return env.DB.prepare("SELECT party_id,role FROM party_members WHERE owner=?")
     .bind(owner)
     .first<{ party_id: string; role: string }>();
 }
@@ -434,8 +427,7 @@ export async function socialPost(
 
     if (kind === "friend_request") {
       const target = hex32(body.target);
-      if (target === owner)
-        throw new HttpError(400, "Cannot friend yourself");
+      if (target === owner) throw new HttpError(400, "Cannot friend yourself");
       if (await areFriends(env, owner, target))
         throw new HttpError(409, "Already friends");
       const existing = await env.DB.prepare(
@@ -449,9 +441,7 @@ export async function socialPost(
         .bind(target)
         .first();
       if (!pet) throw new HttpError(404, "That wallet has no pet yet");
-      return Response.json(
-        await issue(env, owner, kind, { target }, now),
-      );
+      return Response.json(await issue(env, owner, kind, { target }, now));
     }
 
     if (kind === "friend_accept" || kind === "friend_decline") {
@@ -479,9 +469,7 @@ export async function socialPost(
       const target = hex32(body.target);
       if (!(await areFriends(env, owner, target)))
         throw new HttpError(409, "Not friends");
-      return Response.json(
-        await issue(env, owner, kind, { target }, now),
-      );
+      return Response.json(await issue(env, owner, kind, { target }, now));
     }
 
     if (kind === "send_message") {
@@ -513,8 +501,7 @@ export async function socialPost(
       const membership = await membershipOf(env, owner);
       if (!membership || membership.role !== "leader")
         throw new HttpError(403, "Only the party leader can invite");
-      if (target === owner)
-        throw new HttpError(400, "Cannot invite yourself");
+      if (target === owner) throw new HttpError(400, "Cannot invite yourself");
       if (!(await areFriends(env, owner, target)))
         throw new HttpError(403, "Party invites are limited to friends");
       if (await membershipOf(env, target))
@@ -588,9 +575,7 @@ export async function socialPost(
   if (url.pathname === "/api/social/confirm") {
     if (typeof body.id !== "string" || body.id.length > 64)
       throw new HttpError(400, "Invalid social challenge");
-    const c = await env.DB.prepare(
-      "SELECT * FROM social_challenges WHERE id=?",
-    )
+    const c = await env.DB.prepare("SELECT * FROM social_challenges WHERE id=?")
       .bind(body.id)
       .first<{
         id: string;
@@ -722,9 +707,10 @@ export async function socialPost(
           env.DB.prepare(
             "INSERT INTO party_members(party_id,owner,role,joined_at) VALUES(?,?,?,?)",
           ).bind(partyId, c.owner, "member", now),
-          env.DB.prepare(
-            "UPDATE parties SET updated_at=? WHERE id=?",
-          ).bind(now, partyId),
+          env.DB.prepare("UPDATE parties SET updated_at=? WHERE id=?").bind(
+            now,
+            partyId,
+          ),
         ]);
       } catch {
         throw new HttpError(409, "Could not join party");
@@ -773,9 +759,7 @@ export async function socialPost(
           ).bind(next.owner, now, partyId),
         ]);
       } else {
-        await env.DB.prepare(
-          "UPDATE parties SET updated_at=? WHERE id=?",
-        )
+        await env.DB.prepare("UPDATE parties SET updated_at=? WHERE id=?")
           .bind(now, partyId)
           .run();
       }

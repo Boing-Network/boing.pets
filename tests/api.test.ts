@@ -355,15 +355,13 @@ describe("Pets API", () => {
       await (await request("/api/economy/balance?owner=" + owner)).json(),
     ).toMatchObject({
       balances: { sparkles: 2 },
-      inventory: expect.arrayContaining([
-        { item_id: "hat-stardust", qty: 1 },
-      ]),
+      inventory: expect.arrayContaining([{ item_id: "hat-stardust", qty: 1 }]),
     });
   });
   it("syncs a signed world position and returns it publicly", async () => {
-    expect(
-      (await request("/api/world/position?owner=" + owner)).status,
-    ).toBe(200);
+    expect((await request("/api/world/position?owner=" + owner)).status).toBe(
+      200,
+    );
     expect(
       await (await request("/api/world/position?owner=" + owner)).json(),
     ).toMatchObject({ position: null });
@@ -433,14 +431,11 @@ describe("Pets API", () => {
       },
     });
     expect(db.prepare("SELECT COUNT(*) AS n FROM events").get()?.n).toBe(1);
-    expect(
-      db.prepare("SELECT COUNT(*) AS n FROM pet_memories").get()?.n,
-    ).toBe(1);
+    expect(db.prepare("SELECT COUNT(*) AS n FROM pet_memories").get()?.n).toBe(
+      1,
+    );
   });
-  async function signConfirm(
-    message: string,
-    key: Uint8Array = fixtureKey,
-  ) {
+  async function signConfirm(message: string, key: Uint8Array = fixtureKey) {
     return (
       "0x" +
       bytesToHex(
@@ -471,8 +466,7 @@ describe("Pets API", () => {
   }
   it("creates a party, invites a friend, and accepts", async () => {
     await hatch();
-    const ownerB =
-      "0x" + bytesToHex(await ed.getPublicKeyAsync(fixtureKeyB));
+    const ownerB = "0x" + bytesToHex(await ed.getPublicKeyAsync(fixtureKeyB));
     const hatchB = await request("/api/challenge", {
       owner: ownerB,
       action: "hatch",
@@ -567,8 +561,7 @@ describe("Pets API", () => {
   });
   it("sets profiles, accepts friends, and exchanges DMs", async () => {
     await hatch();
-    const ownerB =
-      "0x" + bytesToHex(await ed.getPublicKeyAsync(fixtureKeyB));
+    const ownerB = "0x" + bytesToHex(await ed.getPublicKeyAsync(fixtureKeyB));
     // Hatch buddy B with a distinct tx hash.
     const hatchB = await request("/api/challenge", {
       owner: ownerB,
@@ -626,9 +619,7 @@ describe("Pets API", () => {
     const inbox = await (
       await authedSocialGet("/api/social/requests?owner=" + ownerB, tokenB)
     ).json();
-    const incoming = (
-      inbox as { incoming: Array<{ id: string }> }
-    ).incoming[0];
+    const incoming = (inbox as { incoming: Array<{ id: string }> }).incoming[0];
     expect(incoming).toBeTruthy();
     const accept = await request("/api/social/challenge", {
       owner: ownerB,
@@ -719,9 +710,9 @@ describe("Pets API", () => {
           })
         ).status,
       ).toBe(200);
-      expect(
-        (await request("/api/challenge", { owner, action })).status,
-      ).toBe(409);
+      expect((await request("/api/challenge", { owner, action })).status).toBe(
+        409,
+      );
     }
     const r = await request("/api/pet?owner=" + owner);
     const body = (await r.json()) as {
@@ -843,9 +834,7 @@ describe("Pets API", () => {
     ).toBe(200);
     expect(
       db
-        .prepare(
-          "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
-        )
+        .prepare("SELECT qty FROM inventory WHERE owner=? AND item_id=?")
         .get(owner, "crop-sprout")?.qty,
     ).toBe(1);
     expect(
@@ -888,9 +877,7 @@ describe("Pets API", () => {
     expect(result.ribbon?.id).toMatch(/^ribbon-/);
     expect(
       db
-        .prepare(
-          "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
-        )
+        .prepare("SELECT qty FROM inventory WHERE owner=? AND item_id=?")
         .get(owner, result.ribbon!.id)?.qty,
     ).toBe(1);
   });
@@ -912,9 +899,10 @@ describe("Pets API", () => {
     const committedOre = db
       .prepare("SELECT ore_id FROM mining_challenges WHERE id=?")
       .get(body.id) as { ore_id: string };
-    db.prepare(
-      "UPDATE mining_challenges SET strike_at=? WHERE id=?",
-    ).run(Date.now() - 50, body.id);
+    db.prepare("UPDATE mining_challenges SET strike_at=? WHERE id=?").run(
+      Date.now() - 50,
+      body.id,
+    );
     const hit = await request("/api/mining/confirm", {
       id: body.id,
       signature: await signConfirm(body.message),
@@ -928,24 +916,20 @@ describe("Pets API", () => {
     expect(result.ore?.id).toBe(committedOre.ore_id);
     expect(
       db
-        .prepare(
-          "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
-        )
+        .prepare("SELECT qty FROM inventory WHERE owner=? AND item_id=?")
         .get(owner, committedOre.ore_id)?.qty,
     ).toBe(1);
     expect(
-      db
-        .prepare(
-          "SELECT spent FROM mining_stamina WHERE owner=?",
-        )
-        .get(owner)?.spent,
+      db.prepare("SELECT spent FROM mining_stamina WHERE owner=?").get(owner)
+        ?.spent,
     ).toBeGreaterThanOrEqual(1);
   });
   it("cooks a recipe and serves a snack for care boosts", async () => {
     await hatch();
-    db.prepare(
-      "INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,1)",
-    ).run(owner, "crop-sprout");
+    db.prepare("INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,1)").run(
+      owner,
+      "crop-sprout",
+    );
     const cook = await request("/api/cook/challenge", {
       owner,
       kind: "cook",
@@ -963,16 +947,12 @@ describe("Pets API", () => {
     ).toBe(200);
     expect(
       db
-        .prepare(
-          "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
-        )
+        .prepare("SELECT qty FROM inventory WHERE owner=? AND item_id=?")
         .get(owner, "crop-sprout")?.qty,
     ).toBe(0);
     expect(
       db
-        .prepare(
-          "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
-        )
+        .prepare("SELECT qty FROM inventory WHERE owner=? AND item_id=?")
         .get(owner, "food-sprout-salad")?.qty,
     ).toBe(1);
     expect(
@@ -1052,17 +1032,17 @@ describe("Pets API", () => {
     });
     expect(
       db
-        .prepare(
-          "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
-        )
+        .prepare("SELECT qty FROM inventory WHERE owner=? AND item_id=?")
         .get(owner, spot2.loot_id)?.qty,
     ).toBe(1);
   });
   it("places and picks up furniture on a home plot", async () => {
     await hatch();
-    db.prepare(
-      "INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,?)",
-    ).run(owner, "furn-cushion", 1);
+    db.prepare("INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,?)").run(
+      owner,
+      "furn-cushion",
+      1,
+    );
     const place = await request("/api/housing/challenge", {
       owner,
       kind: "place",
@@ -1082,9 +1062,7 @@ describe("Pets API", () => {
     ).toBe(200);
     expect(
       db
-        .prepare(
-          "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
-        )
+        .prepare("SELECT qty FROM inventory WHERE owner=? AND item_id=?")
         .get(owner, "furn-cushion"),
     ).toBeUndefined();
     const plot = (await (
@@ -1113,9 +1091,7 @@ describe("Pets API", () => {
     ).toBe(200);
     expect(
       db
-        .prepare(
-          "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
-        )
+        .prepare("SELECT qty FROM inventory WHERE owner=? AND item_id=?")
         .get(owner, "furn-cushion")?.qty,
     ).toBe(1);
     const vis = await request("/api/housing/challenge", {
@@ -1170,9 +1146,10 @@ describe("Pets API", () => {
       ).status,
     ).toBe(409);
     // Advance "now" by rewriting bite_at into the past inside the window.
-    db.prepare(
-      "UPDATE fishing_challenges SET bite_at=? WHERE id=?",
-    ).run(Date.now() - 100, body.id);
+    db.prepare("UPDATE fishing_challenges SET bite_at=? WHERE id=?").run(
+      Date.now() - 100,
+      body.id,
+    );
     const caught = await request("/api/fishing/confirm", {
       id: body.id,
       signature: await signConfirm(body.message),
@@ -1185,9 +1162,7 @@ describe("Pets API", () => {
     });
     expect(
       db
-        .prepare(
-          "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
-        )
+        .prepare("SELECT qty FROM inventory WHERE owner=? AND item_id=?")
         .get(owner, committedFish.fish_id)?.qty,
     ).toBe(1);
     expect(
@@ -1236,12 +1211,12 @@ describe("Pets API", () => {
 
   it("rejects social private GETs without a signed session", async () => {
     await hatch();
-    expect(
-      (await request("/api/social/friends?owner=" + owner)).status,
-    ).toBe(401);
-    expect(
-      (await request("/api/social/requests?owner=" + owner)).status,
-    ).toBe(401);
+    expect((await request("/api/social/friends?owner=" + owner)).status).toBe(
+      401,
+    );
+    expect((await request("/api/social/requests?owner=" + owner)).status).toBe(
+      401,
+    );
     expect(
       (await request("/api/social/party/invites?owner=" + owner)).status,
     ).toBe(401);
@@ -1253,23 +1228,18 @@ describe("Pets API", () => {
       ).status,
     ).toBe(401);
     // Public profile remains readable.
-    expect(
-      (await request("/api/social/profile?owner=" + owner)).status,
-    ).toBe(200);
+    expect((await request("/api/social/profile?owner=" + owner)).status).toBe(
+      200,
+    );
   });
 
   it("does not allow a session for wallet A to read wallet B social data", async () => {
     await hatch();
-    const ownerB =
-      "0x" + bytesToHex(await ed.getPublicKeyAsync(fixtureKeyB));
+    const ownerB = "0x" + bytesToHex(await ed.getPublicKeyAsync(fixtureKeyB));
     const tokenA = await socialSession(owner);
     expect(
-      (
-        await authedSocialGet(
-          "/api/social/friends?owner=" + ownerB,
-          tokenA,
-        )
-      ).status,
+      (await authedSocialGet("/api/social/friends?owner=" + ownerB, tokenA))
+        .status,
     ).toBe(403);
   });
 
@@ -1352,5 +1322,4 @@ describe("Pets API", () => {
       .first<{ qty: number }>();
     expect(inv?.qty || 0).toBe(1);
   });
-
 });

@@ -78,7 +78,10 @@ export class PlazaRoom extends DurableObject<Env> {
           .bind(parsed.token)
           .first<{ owner: string; zone: string; expires_at: number }>();
         if (!row || row.expires_at < now) {
-          send(ws, { type: "error", message: "Presence token invalid or expired" });
+          send(ws, {
+            type: "error",
+            message: "Presence token invalid or expired",
+          });
           ws.close(1008, "Bad presence token");
           return;
         }

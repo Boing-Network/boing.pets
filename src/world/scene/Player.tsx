@@ -48,10 +48,8 @@ export function Player({
     const group = body.current;
     if (!group) return;
     const input = controls.current;
-    const moveX =
-      (input.right ? 1 : 0) - (input.left ? 1 : 0) + input.stickX;
-    const moveZ =
-      (input.back ? 1 : 0) - (input.forward ? 1 : 0) - input.stickY;
+    const moveX = (input.right ? 1 : 0) - (input.left ? 1 : 0) + input.stickX;
+    const moveZ = (input.back ? 1 : 0) - (input.forward ? 1 : 0) - input.stickY;
     velocity.set(moveX, 0, moveZ);
     if (velocity.lengthSq() > 1) velocity.normalize();
     group.position.x += velocity.x * SPEED * delta;

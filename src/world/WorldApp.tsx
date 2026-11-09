@@ -60,7 +60,9 @@ export function WorldApp() {
   }, []);
   const spawn = useMemo(() => {
     const saved = loadWorldPosition();
-    return saved?.zone === STARTER_TOWN.id ? saved.position : STARTER_TOWN.spawn;
+    return saved?.zone === STARTER_TOWN.id
+      ? saved.position
+      : STARTER_TOWN.spawn;
   }, []);
   const onStation = useCallback((next: WorldStation | null) => {
     setStation(next);

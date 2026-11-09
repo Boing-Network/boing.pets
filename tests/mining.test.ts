@@ -19,8 +19,9 @@ describe("mining content", () => {
   });
 
   it("gates rare crystal ore behind pickaxe tier 2", () => {
-    const samples = Array.from({ length: 40 }, (_, i) =>
-      pickOre(`seed-${i}`, 1).id,
+    const samples = Array.from(
+      { length: 40 },
+      (_, i) => pickOre(`seed-${i}`, 1).id,
     );
     expect(samples).not.toContain("ore-crystal");
     expect(pickOre("crystal-seed", 2).minTier).toBeLessThanOrEqual(2);

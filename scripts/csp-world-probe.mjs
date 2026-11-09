@@ -36,9 +36,11 @@ const server = http.createServer((req, res) => {
     return;
   }
   const candidate = path.join(dist, url.pathname.replace(/^\//, ""));
-  if ((!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) &&
-      fs.existsSync(candidate) &&
-      fs.statSync(candidate).isFile()) {
+  if (
+    (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) &&
+    fs.existsSync(candidate) &&
+    fs.statSync(candidate).isFile()
+  ) {
     filePath = candidate;
   }
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {

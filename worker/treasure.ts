@@ -28,10 +28,7 @@ async function verifySignature(
   message: string,
   signature: unknown,
 ) {
-  if (
-    typeof signature !== "string" ||
-    !/^(0x)?[0-9a-f]{128}$/i.test(signature)
-  )
+  if (typeof signature !== "string" || !/^(0x)?[0-9a-f]{128}$/i.test(signature))
     throw new HttpError(400, "Invalid signature format");
   const ok = await ed.verifyAsync(
     hexToBytes(signature.replace(/^0x/i, "")),
@@ -98,7 +95,10 @@ export async function treasurePost(
     const dayKey = treasureDayKey(now);
     const dug = await digsToday(env, owner, dayKey);
     if (dug >= TREASURE_DAILY_DIG_CAP)
-      throw new HttpError(409, "Daily dig limit reached. Come back tomorrow UTC.");
+      throw new HttpError(
+        409,
+        "Daily dig limit reached. Come back tomorrow UTC.",
+      );
     const recent = await env.DB.prepare(
       "SELECT COUNT(*) AS n FROM treasure_challenges WHERE owner=? AND created_at>?",
     )
@@ -180,15 +180,15 @@ export async function treasurePost(
                 "INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,1) ON CONFLICT(owner,item_id) DO UPDATE SET qty=qty+1",
               ).bind(c.owner, loot.id),
               ...ledgerCreditPair(
-          env,
-          c.id,
-          c.owner,
-          "boinglets",
-          loot.rewardBoinglets,
-          "treasure_reward",
-          loot.id,
-          now,
-        ),
+                env,
+                c.id,
+                c.owner,
+                "boinglets",
+                loot.rewardBoinglets,
+                "treasure_reward",
+                loot.id,
+                now,
+              ),
               env.DB.prepare(
                 "INSERT OR IGNORE INTO collection_unlocks(owner,entry_id,unlocked_at) VALUES(?,?,?)",
               ).bind(c.owner, `discovery:treasure:${loot.id}`, now),

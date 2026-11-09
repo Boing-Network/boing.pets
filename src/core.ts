@@ -35,13 +35,7 @@ export const STAGES = [
   "elder",
 ] as const;
 
-export const ACTIONS = [
-  "hatch",
-  "feed",
-  "checkin",
-  "play",
-  "groom",
-] as const;
+export const ACTIONS = ["hatch", "feed", "checkin", "play", "groom"] as const;
 
 export type Action = (typeof ACTIONS)[number];
 export type Personality = (typeof PERSONALITIES)[number];
@@ -59,14 +53,13 @@ export interface CareEvent {
 }
 
 /** Soft-currency and XP granted per verified care event (event-sourced). */
-export const CARE_REWARDS: Record<Action, { boinglets: number; xp: number }> =
-  {
-    hatch: { boinglets: 50, xp: 25 },
-    feed: { boinglets: 12, xp: 10 },
-    checkin: { boinglets: 6, xp: 6 },
-    play: { boinglets: 10, xp: 8 },
-    groom: { boinglets: 10, xp: 8 },
-  };
+export const CARE_REWARDS: Record<Action, { boinglets: number; xp: number }> = {
+  hatch: { boinglets: 50, xp: 25 },
+  feed: { boinglets: 12, xp: 10 },
+  checkin: { boinglets: 6, xp: 6 },
+  play: { boinglets: 10, xp: 8 },
+  groom: { boinglets: 10, xp: 8 },
+};
 
 export const ACHIEVEMENTS = {
   first_bounce: { title: "First Bounce", description: "Hatch your buddy." },
@@ -74,7 +67,10 @@ export const ACHIEVEMENTS = {
   full_bowl: { title: "Full Bowl", description: "Feed your buddy." },
   playtime: { title: "Playtime", description: "Play with your buddy." },
   fresh_coat: { title: "Fresh Coat", description: "Groom your buddy." },
-  streak_3: { title: "Three-Day Glow", description: "Keep a 3-day care streak." },
+  streak_3: {
+    title: "Three-Day Glow",
+    description: "Keep a 3-day care streak.",
+  },
   streak_7: {
     title: "Week of Wobbles",
     description: "Keep a 7-day care streak.",
@@ -96,7 +92,9 @@ export function hex32(value: unknown): string {
 export const dayOf = (time: number) => Math.floor(time / DAY);
 
 export function isAction(value: unknown): value is Action {
-  return typeof value === "string" && (ACTIONS as readonly string[]).includes(value);
+  return (
+    typeof value === "string" && (ACTIONS as readonly string[]).includes(value)
+  );
 }
 
 export function isSignatureAction(action: Action): boolean {
@@ -128,14 +126,13 @@ function lastOf(
 }
 
 function decay(from: number, now: number, perDay: number): number {
-  return Math.max(0, Math.round(100 - (perDay * Math.max(0, now - from)) / DAY));
+  return Math.max(
+    0,
+    Math.round(100 - (perDay * Math.max(0, now - from)) / DAY),
+  );
 }
 
-export function growthStage(
-  pet: Pet,
-  careDays: number,
-  now: number,
-): Stage {
+export function growthStage(pet: Pet, careDays: number, now: number): Stage {
   const ageDays = Math.max(0, (now - pet.created_at) / DAY);
   if (ageDays >= 120) return "elder";
   if (ageDays >= 21 && careDays >= 10) return "adult";
@@ -159,9 +156,9 @@ export function skillLeanings(valid: CareEvent[]) {
     if (e.action === "checkin") scores.Scholar += 1;
     if (e.action === "hatch") scores.Explorer += 2;
   }
-  const top = (
-    Object.entries(scores) as [keyof typeof scores, number][]
-  ).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
+  const top = (Object.entries(scores) as [keyof typeof scores, number][]).sort(
+    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+  )[0];
   return { scores, focus: top[1] > 0 ? top[0] : ("Explorer" as const) };
 }
 
@@ -331,10 +328,7 @@ export function emptyActionCounts(): Record<Action, number> {
 function isBalancedDay(actions: Iterable<Action>): boolean {
   const set = actions instanceof Set ? actions : new Set(actions);
   return (
-    set.has("feed") &&
-    set.has("checkin") &&
-    set.has("play") &&
-    set.has("groom")
+    set.has("feed") && set.has("checkin") && set.has("play") && set.has("groom")
   );
 }
 
@@ -397,7 +391,10 @@ export function applyCareToRollup(
   petCreatedAt: number,
 ): CareRollup {
   const day = dayOf(at);
-  const counts = { ...rollup.actionCounts, [action]: (rollup.actionCounts[action] || 0) + 1 };
+  const counts = {
+    ...rollup.actionCounts,
+    [action]: (rollup.actionCounts[action] || 0) + 1,
+  };
   const careDays = rollup.careDays.includes(day)
     ? rollup.careDays
     : [...rollup.careDays, day].sort((a, b) => a - b);
@@ -471,9 +468,9 @@ export function stateFromRollup(pet: Pet, rollup: CareRollup, now: number) {
     Performer: (rollup.actionCounts.groom || 0) * 1,
     Collector: (rollup.actionCounts.feed || 0) * 1,
   };
-  const top = (
-    Object.entries(scores) as [keyof typeof scores, number][]
-  ).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
+  const top = (Object.entries(scores) as [keyof typeof scores, number][]).sort(
+    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+  )[0];
   return {
     hunger,
     happiness,

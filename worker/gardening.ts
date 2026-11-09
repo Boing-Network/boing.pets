@@ -26,10 +26,7 @@ async function verifySignature(
   message: string,
   signature: unknown,
 ) {
-  if (
-    typeof signature !== "string" ||
-    !/^(0x)?[0-9a-f]{128}$/i.test(signature)
-  )
+  if (typeof signature !== "string" || !/^(0x)?[0-9a-f]{128}$/i.test(signature))
     throw new HttpError(400, "Invalid signature format");
   const ok = await ed.verifyAsync(
     hexToBytes(signature.replace(/^0x/i, "")),
@@ -209,9 +206,7 @@ export async function gardeningPost(
   if (url.pathname === "/api/garden/confirm") {
     if (typeof body.id !== "string" || body.id.length > 64)
       throw new HttpError(400, "Invalid garden challenge");
-    const c = await env.DB.prepare(
-      "SELECT * FROM garden_challenges WHERE id=?",
-    )
+    const c = await env.DB.prepare("SELECT * FROM garden_challenges WHERE id=?")
       .bind(body.id)
       .first<{
         id: string;
@@ -285,15 +280,15 @@ export async function gardeningPost(
             "INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,1) ON CONFLICT(owner,item_id) DO UPDATE SET qty=qty+1",
           ).bind(c.owner, crop.id),
           ...ledgerCreditPair(
-          env,
-          c.id,
-          c.owner,
-          "boinglets",
-          reward,
-          "garden_reward",
-          crop.id,
-          now,
-        ),
+            env,
+            c.id,
+            c.owner,
+            "boinglets",
+            reward,
+            "garden_reward",
+            crop.id,
+            now,
+          ),
           env.DB.prepare(
             "INSERT OR IGNORE INTO collection_unlocks(owner,entry_id,unlocked_at) VALUES(?,?,?)",
           ).bind(c.owner, `discovery:crop:${crop.id}`, now),

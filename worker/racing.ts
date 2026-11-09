@@ -29,10 +29,7 @@ async function verifySignature(
   message: string,
   signature: unknown,
 ) {
-  if (
-    typeof signature !== "string" ||
-    !/^(0x)?[0-9a-f]{128}$/i.test(signature)
-  )
+  if (typeof signature !== "string" || !/^(0x)?[0-9a-f]{128}$/i.test(signature))
     throw new HttpError(400, "Invalid signature format");
   const ok = await ed.verifyAsync(
     hexToBytes(signature.replace(/^0x/i, "")),
@@ -99,7 +96,10 @@ export async function racingPost(
     const dayKey = racingDayKey(now);
     const heats = await heatsToday(env, owner, dayKey);
     if (heats >= RACE_DAILY_HEAT_CAP)
-      throw new HttpError(409, "Daily race limit reached. Come back tomorrow UTC.");
+      throw new HttpError(
+        409,
+        "Daily race limit reached. Come back tomorrow UTC.",
+      );
     const recent = await env.DB.prepare(
       "SELECT COUNT(*) AS n FROM race_challenges WHERE owner=? AND created_at>?",
     )

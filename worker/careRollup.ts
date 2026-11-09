@@ -123,7 +123,12 @@ export async function bumpRollupAfterCare(
     .first<RollupRow>();
   let rollup: CareRollup;
   if (existing) {
-    rollup = applyCareToRollup(rowToRollup(existing), action, at, pet.created_at);
+    rollup = applyCareToRollup(
+      rowToRollup(existing),
+      action,
+      at,
+      pet.created_at,
+    );
   } else {
     const events = await env.DB.prepare(
       "SELECT action,created_at FROM events WHERE owner=? ORDER BY created_at",

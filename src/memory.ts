@@ -8,11 +8,7 @@ import {
   type Personality,
 } from "./core";
 
-export type MemoryKind =
-  | "episode"
-  | "preference"
-  | "neglect"
-  | "suggestion";
+export type MemoryKind = "episode" | "preference" | "neglect" | "suggestion";
 
 export interface PetMemoryRow {
   id: string;
@@ -55,9 +51,9 @@ export function activityCounts(events: CareEvent[]): Record<Action, number> {
 export function favoriteActivity(
   counts: Record<Action, number>,
 ): Action | "none" {
-  const ranked = (
-    Object.entries(counts) as [Action, number][]
-  ).filter(([action]) => action !== "hatch");
+  const ranked = (Object.entries(counts) as [Action, number][]).filter(
+    ([action]) => action !== "hatch",
+  );
   ranked.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   if (!ranked.length || ranked[0][1] <= 0) return "none";
   return ranked[0][0];

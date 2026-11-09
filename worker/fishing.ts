@@ -27,10 +27,7 @@ async function verifySignature(
   message: string,
   signature: unknown,
 ) {
-  if (
-    typeof signature !== "string" ||
-    !/^(0x)?[0-9a-f]{128}$/i.test(signature)
-  )
+  if (typeof signature !== "string" || !/^(0x)?[0-9a-f]{128}$/i.test(signature))
     throw new HttpError(400, "Invalid signature format");
   const ok = await ed.verifyAsync(
     hexToBytes(signature.replace(/^0x/i, "")),
@@ -97,7 +94,10 @@ export async function fishingPost(
     const dayKey = fishingDayKey(now);
     const caught = await catchesToday(env, owner, dayKey);
     if (caught >= FISHING_DAILY_CATCH_CAP)
-      throw new HttpError(409, "Daily fishing limit reached. Come back tomorrow UTC.");
+      throw new HttpError(
+        409,
+        "Daily fishing limit reached. Come back tomorrow UTC.",
+      );
     const recent = await env.DB.prepare(
       "SELECT COUNT(*) AS n FROM fishing_challenges WHERE owner=? AND created_at>?",
     )

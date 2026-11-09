@@ -47,10 +47,7 @@ interface EconomyChallenge {
   expires_at: number;
 }
 
-async function claimedCare(
-  env: Env,
-  owner: string,
-): Promise<number> {
+async function claimedCare(env: Env, owner: string): Promise<number> {
   const row = await env.DB.prepare(
     "SELECT COALESCE(SUM(delta),0) AS bal FROM ledger WHERE owner=? AND currency='boinglets' AND reason='care_claim'",
   )
@@ -110,10 +107,7 @@ async function verifySignature(
   message: string,
   signature: unknown,
 ) {
-  if (
-    typeof signature !== "string" ||
-    !/^(0x)?[0-9a-f]{128}$/i.test(signature)
-  )
+  if (typeof signature !== "string" || !/^(0x)?[0-9a-f]{128}$/i.test(signature))
     throw new HttpError(400, "Invalid signature format");
   const ok = await ed.verifyAsync(
     hexToBytes(signature.replace(/^0x/i, "")),
@@ -339,13 +333,7 @@ export async function economyPost(
       if (listing.seller !== owner)
         throw new HttpError(403, "Only the seller can cancel");
       return Response.json(
-        await issueChallenge(
-          env,
-          owner,
-          kind,
-          { listing_id: listing.id },
-          now,
-        ),
+        await issueChallenge(env, owner, kind, { listing_id: listing.id }, now),
       );
     }
   }

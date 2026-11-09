@@ -105,7 +105,12 @@ describe("lazy care and streaks", () => {
         ],
         now,
       ),
-    ).toMatchObject({ energy: 100, hygiene: 100, playedToday: true, groomedToday: true });
+    ).toMatchObject({
+      energy: 100,
+      hygiene: 100,
+      playedToday: true,
+      groomedToday: true,
+    });
   });
   it("counts unique UTC care days, not transactions", () => {
     const events = [
@@ -233,7 +238,11 @@ describe("care rollup parity", () => {
 
   it("applyCareToRollup matches rebuild from events", () => {
     const t0 = created;
-    const base = rollupFromEvents(pet, [{ action: "hatch", created_at: t0 }], t0);
+    const base = rollupFromEvents(
+      pet,
+      [{ action: "hatch", created_at: t0 }],
+      t0,
+    );
     const nextAt = created + DAY;
     const applied = applyCareToRollup(base, "feed", nextAt, pet.created_at);
     const rebuilt = rollupFromEvents(

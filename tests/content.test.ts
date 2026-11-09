@@ -63,4 +63,3 @@ describe("content framework", () => {
     expect(progress.byCategory.cosmetic?.unlocked).toBe(1);
   });
 });
-

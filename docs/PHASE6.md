@@ -1,9 +1,11 @@
 # Phase 6 — Full virtual world content framework
 
 ## Goal
+
 Config-driven quests, seasons, collections, and expansion zone stubs so content can ship for years without rewriting core systems.
 
 ## Shipped
+
 - Quest defs (story/daily/weekly/seasonal/pet) + signed claim → Boinglets + titles
 - Seasonal events config (`seasons.ts`) incl. always-on Testnet Festival
 - Collection log defs + persisted unlocks
@@ -21,6 +23,7 @@ Config-driven quests, seasons, collections, and expansion zone stubs so content 
 - Pet racing heats + ribbons (`0016`, `PHASE6-RACING.md`)
 
 ## APIs
+
 - `GET /api/content/quests?owner=`
 - `GET /api/content/seasons`
 - `GET /api/content/collections?owner=`
@@ -43,6 +46,7 @@ Config-driven quests, seasons, collections, and expansion zone stubs so content 
 - `POST /api/racing/challenge` / `confirm`
 
 ## Still open (content production)
+
 - Full zone meshes / LOD kits
 - Housing editor polish + visitor ACLs
 - Avatar cosmetic wardrobe UI
@@ -50,4 +54,5 @@ Config-driven quests, seasons, collections, and expansion zone stubs so content 
 - Remaining mini-game implementations (design backlog remains in ROADMAP)
 
 ## Doctrine
+
 Gameplay loops and data model first; art polish and LLM flavor later.

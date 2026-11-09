@@ -38,7 +38,11 @@ const FORBIDDEN_CHARS =
   /[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/u;
 
 function normalizeUgText(raw: string): string {
-  return raw.normalize("NFKC").replace(FORBIDDEN_CHARS, "").replace(/\s+/g, " ").trim();
+  return raw
+    .normalize("NFKC")
+    .replace(FORBIDDEN_CHARS, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function sanitizeDisplayName(raw: unknown): string {

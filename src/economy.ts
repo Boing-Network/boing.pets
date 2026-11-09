@@ -72,7 +72,8 @@ export const CATALOG = [
     kind: "tool",
     priceBoinglets: 80,
     priceSparkles: 0,
-    description: "Tier-2 pickaxe for mining rarer veins. Cosmetic tool progression.",
+    description:
+      "Tier-2 pickaxe for mining rarer veins. Cosmetic tool progression.",
   },
   {
     id: "tool-pick-crystal",

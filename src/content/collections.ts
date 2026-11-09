@@ -110,7 +110,11 @@ export function unlockedCollections(args: {
 export function collectionProgress(
   defs: CollectionEntry[],
   unlockedIds: string[],
-): { unlocked: number; total: number; byCategory: Record<string, { unlocked: number; total: number }> } {
+): {
+  unlocked: number;
+  total: number;
+  byCategory: Record<string, { unlocked: number; total: number }>;
+} {
   const unlocked = new Set(unlockedIds);
   const byCategory: Record<string, { unlocked: number; total: number }> = {};
   for (const def of defs) {

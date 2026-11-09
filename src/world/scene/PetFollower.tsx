@@ -37,14 +37,15 @@ export function PetFollower({
       {look.antenna > 0 ? (
         <mesh position={[0, 0.52, 0]}>
           <sphereGeometry args={[0.055, 8, 8]} />
-          <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.2} />
+          <meshStandardMaterial
+            color={accent}
+            emissive={accent}
+            emissiveIntensity={0.2}
+          />
         </mesh>
       ) : null}
       {Array.from({ length: Math.min(look.spots, 3) }, (_, i) => (
-        <mesh
-          key={i}
-          position={[-0.1 + i * 0.1, 0.22, 0.18]}
-        >
+        <mesh key={i} position={[-0.1 + i * 0.1, 0.22, 0.18]}>
           <sphereGeometry args={[0.035, 6, 6]} />
           <meshStandardMaterial color={accent} transparent opacity={0.7} />
         </mesh>

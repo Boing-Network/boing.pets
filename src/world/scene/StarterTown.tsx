@@ -10,7 +10,9 @@ function Landmark({ item }: { item: WorldLandmark }) {
         <meshStandardMaterial color={item.color} roughness={0.85} />
       </mesh>
       <mesh position={[0, roofY, 0]} rotation={[0, Math.PI / 4, 0]}>
-        <coneGeometry args={[Math.max(item.width, item.depth) * 0.72, 1.4, 4]} />
+        <coneGeometry
+          args={[Math.max(item.width, item.depth) * 0.72, 1.4, 4]}
+        />
         <meshStandardMaterial color="#5d7eb8" roughness={0.7} />
       </mesh>
       <Text

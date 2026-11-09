@@ -6,12 +6,12 @@ This document originally audited the local-first MVP at `2975dd6`. `main` has si
 
 ### Security follow-ups landed on main
 
-| Finding | Resolution |
-|---------|------------|
-| Social GETs trusted `?owner=` alone (DM / friends / requests / invites leakage) | Signed **social session** tokens (`migrations/0017_security_hardening.sql`); private social GETs require `Authorization: Bearer` |
-| No IP rate limiting on public Worker | D1-backed per-IP soft limits in `worker/rateLimit.ts` (30/min pasture, 120/min other `/api/*`). **Still recommended:** Cloudflare WAF / Rate Limiting Rules in the dashboard (no Workers Rate Limiting binding required for the soft limiter) |
-| Soft-currency overdraft under concurrent buys | `account_balances` with guarded debit (`CASE … ELSE NULL`) + ledger audit trail (`worker/ledger.ts`) |
-| Docs claimed deploy was unset | README + this update reflect live workers.dev preview |
+| Finding                                                                         | Resolution                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Social GETs trusted `?owner=` alone (DM / friends / requests / invites leakage) | Signed **social session** tokens (`migrations/0017_security_hardening.sql`); private social GETs require `Authorization: Bearer`                                                                                                              |
+| No IP rate limiting on public Worker                                            | D1-backed per-IP soft limits in `worker/rateLimit.ts` (30/min pasture, 120/min other `/api/*`). **Still recommended:** Cloudflare WAF / Rate Limiting Rules in the dashboard (no Workers Rate Limiting binding required for the soft limiter) |
+| Soft-currency overdraft under concurrent buys                                   | `account_balances` with guarded debit (`CASE … ELSE NULL`) + ledger audit trail (`worker/ledger.ts`)                                                                                                                                          |
+| Docs claimed deploy was unset                                                   | README + this update reflect live workers.dev preview                                                                                                                                                                                         |
 
 ### Still open / ops
 
@@ -65,14 +65,14 @@ Boing Pets is a **local-first Cloudflare Workers + Vite** testnet MVP: hatch one
 
 ## Existing game loops
 
-| Loop | Trigger | Proof | Effect |
-|------|---------|-------|--------|
-| **Hatch** | Once per wallet | Tiny self-transfer (~0.001 BOING marker amount) + receipt proof | Creates pet; traits from `blake3(owner+tx)` |
-| **Feed** | Once per UTC day | Same transfer proof | Restores belly; care day for streak |
-| **Daily hello** | Once per UTC day | Ed25519 over `BLAKE3(UTF-8 message)` | Restores joy; care day for streak |
-| **Decay** | Lazy on read | None (derived) | Hunger −25/day since feed; joy −20/day since care |
-| **Status** | Lazy on read | Derived | bouncy → peckish → scruffy (≥2d) → stray (≥4d) |
-| **Pasture browse** | Public GET | None | Paginated gallery (24/page) |
+| Loop               | Trigger          | Proof                                                           | Effect                                            |
+| ------------------ | ---------------- | --------------------------------------------------------------- | ------------------------------------------------- |
+| **Hatch**          | Once per wallet  | Tiny self-transfer (~0.001 BOING marker amount) + receipt proof | Creates pet; traits from `blake3(owner+tx)`       |
+| **Feed**           | Once per UTC day | Same transfer proof                                             | Restores belly; care day for streak               |
+| **Daily hello**    | Once per UTC day | Ed25519 over `BLAKE3(UTF-8 message)`                            | Restores joy; care day for streak                 |
+| **Decay**          | Lazy on read     | None (derived)                                                  | Hunger −25/day since feed; joy −20/day since care |
+| **Status**         | Lazy on read     | Derived                                                         | bouncy → peckish → scruffy (≥2d) → stray (≥4d)    |
+| **Pasture browse** | Public GET       | None                                                            | Paginated gallery (24/page)                       |
 
 There is **no death, trade, naming, inventory, XP, multiplayer presence, or 3D world**.
 
@@ -125,17 +125,17 @@ Indexes: challenge expiry/owner; events by owner+time; pets by recency.
 
 ## Technical debt report
 
-| Item | Severity | Notes |
-|------|----------|-------|
-| Monolithic `main.ts` HTML string | Medium | Hard to extend UI; blocks componentization |
-| Shared `core.ts` + dual tsconfigs | Low | Intentional; keep for domain purity |
-| Placeholder D1 / no deploy path | Medium | Blocks shared pasture; by design for now |
-| No rate limiting at edge | High (prod) | Documented; wallet throttle ≠ IP abuse protection |
-| Pasture N+1 enrich queries | Medium | 24 pets × events query per page |
-| Action CHECK enum in SQL | Medium | Extending care verbs needs careful migrations |
-| No profile/inventory tables | Expected | Blocks economy/housing until Phase 1+ |
-| Dark navy UI only | Low | Fine for brand; 3D worlds need art direction system |
-| Test RPC probe flaky historically | Low | CI mocks RPC; smoke script is optional |
+| Item                              | Severity    | Notes                                               |
+| --------------------------------- | ----------- | --------------------------------------------------- |
+| Monolithic `main.ts` HTML string  | Medium      | Hard to extend UI; blocks componentization          |
+| Shared `core.ts` + dual tsconfigs | Low         | Intentional; keep for domain purity                 |
+| Placeholder D1 / no deploy path   | Medium      | Blocks shared pasture; by design for now            |
+| No rate limiting at edge          | High (prod) | Documented; wallet throttle ≠ IP abuse protection   |
+| Pasture N+1 enrich queries        | Medium      | 24 pets × events query per page                     |
+| Action CHECK enum in SQL          | Medium      | Extending care verbs needs careful migrations       |
+| No profile/inventory tables       | Expected    | Blocks economy/housing until Phase 1+               |
+| Dark navy UI only                 | Low         | Fine for brand; 3D worlds need art direction system |
+| Test RPC probe flaky historically | Low         | CI mocks RPC; smoke script is optional              |
 
 ---
 
@@ -152,17 +152,17 @@ Indexes: challenge expiry/owner; events by owner+time; pets by recency.
 
 ## Security concerns
 
-| Risk | Status |
-|------|--------|
-| Client-trusted “success” flags | Mitigated — server verifies receipt+block |
-| Signature replay | Mitigated — nonce/expiry/origin/chain in message |
-| Double care / double hatch | Mitigated — UNIQUE constraints + batch |
-| XSS via pet names | N/A — no UGC names yet |
-| Origin spoofing | Partial — checks `Origin` header; needs CDN/WAF in prod |
-| RPC malice | Accepted trust boundary (documented) |
-| Challenge spam | Soft per-wallet 6/min; needs edge rate limits |
-| Economy exploits | N/A until currency/trade |
-| Pay-to-win | Intentionally avoided; keep that doctrine |
+| Risk                           | Status                                                  |
+| ------------------------------ | ------------------------------------------------------- |
+| Client-trusted “success” flags | Mitigated — server verifies receipt+block               |
+| Signature replay               | Mitigated — nonce/expiry/origin/chain in message        |
+| Double care / double hatch     | Mitigated — UNIQUE constraints + batch                  |
+| XSS via pet names              | N/A — no UGC names yet                                  |
+| Origin spoofing                | Partial — checks `Origin` header; needs CDN/WAF in prod |
+| RPC malice                     | Accepted trust boundary (documented)                    |
+| Challenge spam                 | Soft per-wallet 6/min; needs edge rate limits           |
+| Economy exploits               | N/A until currency/trade                                |
+| Pay-to-win                     | Intentionally avoided; keep that doctrine               |
 
 ---
 
@@ -199,14 +199,14 @@ Indexes: challenge expiry/owner; events by owner+time; pets by recency.
 
 ## Recommended stack migration stance
 
-| Layer | Now | Phase 1–2 | Phase 3–6 |
-|-------|-----|-----------|-----------|
-| Frontend | Vite + TS | Keep; optional React islands | Next.js + R3F when world ships |
-| 3D | None | Prototype R3F scene in Vite | Full zones + LOD |
-| API | Workers | Extend Workers | Workers + DO realtime; Nest only if needed |
-| DB | D1 | Additive migrations | Postgres for economy/social; D1 or KV for edge cache |
-| Realtime | None | Presence stub | Socket/DO rooms |
-| Storage | None | R2 for GLB later | S3-compatible CDN |
-| Deploy | Local | Approved preview Worker | Vercel (web) + CF (edge/API) |
+| Layer    | Now       | Phase 1–2                    | Phase 3–6                                            |
+| -------- | --------- | ---------------------------- | ---------------------------------------------------- |
+| Frontend | Vite + TS | Keep; optional React islands | Next.js + R3F when world ships                       |
+| 3D       | None      | Prototype R3F scene in Vite  | Full zones + LOD                                     |
+| API      | Workers   | Extend Workers               | Workers + DO realtime; Nest only if needed           |
+| DB       | D1        | Additive migrations          | Postgres for economy/social; D1 or KV for edge cache |
+| Realtime | None      | Presence stub                | Socket/DO rooms                                      |
+| Storage  | None      | R2 for GLB later             | S3-compatible CDN                                    |
+| Deploy   | Local     | Approved preview Worker      | Vercel (web) + CF (edge/API)                         |
 
 **Do not rewrite to NestJS/Postgres/Next.js in Phase 1.** Preserve working hatch/feed/hello; add columns/tables and domain logic first.

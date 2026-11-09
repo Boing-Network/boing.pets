@@ -1,12 +1,7 @@
 import type { Action, CareEvent, Pet } from "../core";
 import { dayOf, state } from "../core";
 
-export type QuestKind =
-  | "story"
-  | "daily"
-  | "weekly"
-  | "seasonal"
-  | "pet";
+export type QuestKind = "story" | "daily" | "weekly" | "seasonal" | "pet";
 
 export interface QuestDef {
   id: string;
@@ -109,9 +104,7 @@ export function isQuestComplete(
       return (
         activeEventIds.length > 0 &&
         events.some(
-          (e) =>
-            e.action === "feed" &&
-            dayOf(e.created_at) === dayOf(now),
+          (e) => e.action === "feed" && dayOf(e.created_at) === dayOf(now),
         )
       );
     default:

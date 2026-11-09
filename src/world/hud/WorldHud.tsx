@@ -179,7 +179,9 @@ export function WorldHud({
                 Open care desk · E
               </a>
             ) : (
-              <span className="prompt-cta muted">Look around for care pads</span>
+              <span className="prompt-cta muted">
+                Look around for care pads
+              </span>
             )}
           </>
         ) : (

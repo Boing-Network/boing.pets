@@ -65,9 +65,7 @@ export function clearPresenceToken(owner?: string, zone?: string) {
   }
   writeAll(
     readAll().filter((row) =>
-      zone
-        ? !(row.owner === owner && row.zone === zone)
-        : row.owner !== owner,
+      zone ? !(row.owner === owner && row.zone === zone) : row.owner !== owner,
     ),
   );
 }

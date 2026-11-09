@@ -162,10 +162,7 @@ function pending(): Pending | null {
     return null;
   }
 }
-async function economyAct(
-  kind: string,
-  extra: Record<string, unknown> = {},
-) {
+async function economyAct(kind: string, extra: Record<string, unknown> = {}) {
   await assertWallet();
   notice("Approve the economy signature in Express…");
   const challenge = await api<{ id: string; message: string }>(
@@ -269,16 +266,12 @@ async function refreshSocial() {
         accept.className = "secondary";
         accept.textContent = "Accept";
         accept.onclick = () =>
-          void run(() =>
-            socialAct("friend_accept", { request_id: r.id }),
-          );
+          void run(() => socialAct("friend_accept", { request_id: r.id }));
         const decline = document.createElement("button");
         decline.className = "quiet";
         decline.textContent = "Decline";
         decline.onclick = () =>
-          void run(() =>
-            socialAct("friend_decline", { request_id: r.id }),
-          );
+          void run(() => socialAct("friend_decline", { request_id: r.id }));
         row.append(accept, decline);
         return row;
       }),
@@ -308,9 +301,7 @@ async function refreshSocial() {
     }>;
   }>("/api/social/party/invites?owner=" + owner);
   const isLeader = party.party?.leader === owner;
-  const memberOwners = new Set(
-    party.party?.members.map((m) => m.owner) || [],
-  );
+  const memberOwners = new Set(party.party?.members.map((m) => m.owner) || []);
   if (!friends.friends.length) {
     $("#friends-list").textContent = "No friends yet.";
   } else {
@@ -357,7 +348,8 @@ async function refreshSocial() {
     partyCreate.disabled = busy;
     partyLeave.hidden = true;
   } else {
-    $("#party-summary").textContent = `Party ${party.party.members.length}/${party.maxSize}${isLeader ? " · you lead" : ""}`;
+    $("#party-summary").textContent =
+      `Party ${party.party.members.length}/${party.maxSize}${isLeader ? " · you lead" : ""}`;
     $("#party-roster").replaceChildren(
       ...party.party.members.map((m) => {
         const row = document.createElement("div");
@@ -527,7 +519,8 @@ async function finishRace() {
       result.message || "Missed the window. Line up again.";
     notice(result.message || "Missed the finish.", true);
   } else {
-    $("#racing-prompt").textContent = `${result.track?.name}: ${result.place}${result.place === 1 ? "st" : result.place === 2 ? "nd" : "rd"} · ${result.ribbon?.name} (+${result.ribbon?.rewardBoinglets}ℬ)`;
+    $("#racing-prompt").textContent =
+      `${result.track?.name}: ${result.place}${result.place === 1 ? "st" : result.place === 2 ? "nd" : "rd"} · ${result.ribbon?.name} (+${result.ribbon?.rewardBoinglets}ℬ)`;
     notice(`Placed ${result.place} — ${result.ribbon?.name}.`);
   }
   await refreshEconomy().catch(() => undefined);
@@ -602,7 +595,8 @@ async function castLine() {
     $("#fishing-needle").className = "bite";
     reelBtn.disabled = false;
     fishingTimer = window.setTimeout(() => {
-      $("#fishing-prompt").textContent = "Too slow — the fish got away. Cast again.";
+      $("#fishing-prompt").textContent =
+        "Too slow — the fish got away. Cast again.";
       $("#fishing-needle").className = "";
       reelBtn.hidden = true;
       fishingChallenge = null;
@@ -639,7 +633,8 @@ async function reelIn() {
       result.message || "Missed the window. Cast again.";
     notice(result.message || "The fish got away.", true);
   } else {
-    $("#fishing-prompt").textContent = `Caught ${result.fish?.name}! +${result.fish?.rewardBoinglets} Boinglets.`;
+    $("#fishing-prompt").textContent =
+      `Caught ${result.fish?.name}! +${result.fish?.rewardBoinglets} Boinglets.`;
     notice(`Caught ${result.fish?.name} (${result.fish?.rarity}).`);
   }
   await refreshEconomy().catch(() => undefined);
@@ -748,7 +743,8 @@ async function strikeVein() {
       result.message || "Missed the window. Swing again.";
     notice(result.message || "The vein sealed.", true);
   } else {
-    $("#mining-prompt").textContent = `Mined ${result.ore?.name}! +${result.ore?.rewardBoinglets} Boinglets.`;
+    $("#mining-prompt").textContent =
+      `Mined ${result.ore?.name}! +${result.ore?.rewardBoinglets} Boinglets.`;
     notice(`Mined ${result.ore?.name} (${result.ore?.rarity}).`);
   }
   await refreshEconomy().catch(() => undefined);
@@ -844,7 +840,8 @@ async function digTreasureTile(guess: number) {
       `Miss — treasure was tile ${(result.spot ?? 0) + 1}. Dig again.`;
     notice(result.message || "Empty dirt.", true);
   } else {
-    $("#treasure-clue").textContent = `Found ${result.treasure?.name}! +${result.treasure?.rewardBoinglets} Boinglets.`;
+    $("#treasure-clue").textContent =
+      `Found ${result.treasure?.name}! +${result.treasure?.rewardBoinglets} Boinglets.`;
     notice(`Found ${result.treasure?.name} (${result.treasure?.rarity}).`);
   }
   await refreshEconomy().catch(() => undefined);
@@ -921,8 +918,7 @@ async function refreshGarden() {
         water.className = "secondary";
         water.textContent = "Water · sign";
         water.disabled = busy || !owner;
-        water.onclick = () =>
-          void run(() => gardenAct("water", { slot }));
+        water.onclick = () => void run(() => gardenAct("water", { slot }));
         card.append(water);
       }
       if (plot.ready) {
@@ -930,8 +926,7 @@ async function refreshGarden() {
         harvest.className = "secondary";
         harvest.textContent = "Harvest · sign";
         harvest.disabled = busy || !owner;
-        harvest.onclick = () =>
-          void run(() => gardenAct("harvest", { slot }));
+        harvest.onclick = () => void run(() => gardenAct("harvest", { slot }));
         card.append(harvest);
       }
     }
@@ -994,8 +989,7 @@ async function refreshKitchen() {
       btn.className = "secondary";
       btn.textContent = "Cook · sign";
       btn.hidden = !owner;
-      btn.disabled =
-        busy || !can || data.cookedToday >= data.cookCap;
+      btn.disabled = busy || !can || data.cookedToday >= data.cookCap;
       btn.onclick = () =>
         void run(() => kitchenAct("cook", { recipe_id: recipe.id }));
       el.append(btn);
@@ -1018,8 +1012,7 @@ async function refreshKitchen() {
         const btn = document.createElement("button");
         btn.className = "secondary";
         btn.textContent = "Serve · sign";
-        btn.disabled =
-          busy || !owner || data.servedToday >= data.serveCap;
+        btn.disabled = busy || !owner || data.servedToday >= data.serveCap;
         btn.onclick = () =>
           void run(() => kitchenAct("serve", { food_id: foodId }));
         el.append(btn);
@@ -1053,12 +1046,7 @@ async function refreshHousing() {
     private?: boolean;
     placements: Array<{ id: string; item_id: string; x: number; y: number }>;
     furniture: Array<{ item_id: string; qty: number; name: string }>;
-  }>(
-    "/api/housing/plot" +
-      (owner
-        ? `?owner=${owner}&viewer=${owner}`
-        : ""),
-  );
+  }>("/api/housing/plot" + (owner ? `?owner=${owner}&viewer=${owner}` : ""));
   const visBtn = $("#home-visibility") as HTMLButtonElement;
   if (!owner || !data.plot) {
     $("#home-summary").textContent = owner
@@ -1083,13 +1071,9 @@ async function refreshHousing() {
   const select = $("#home-furniture") as HTMLSelectElement;
   select.replaceChildren(new Option("Select owned furniture…", ""));
   for (const stack of data.furniture) {
-    select.append(
-      new Option(`${stack.name} ×${stack.qty}`, stack.item_id),
-    );
+    select.append(new Option(`${stack.name} ×${stack.qty}`, stack.item_id));
   }
-  const byCell = new Map(
-    data.placements.map((p) => [`${p.x},${p.y}`, p]),
-  );
+  const byCell = new Map(data.placements.map((p) => [`${p.x},${p.y}`, p]));
   const cells: HTMLButtonElement[] = [];
   for (let y = 0; y < data.grid; y++) {
     for (let x = 0; x < data.grid; x++) {
@@ -1105,9 +1089,7 @@ async function refreshHousing() {
       cell.disabled = busy;
       if (placed) {
         cell.onclick = () =>
-          void run(() =>
-            housingAct("pickup", { placement_id: placed.id }),
-          );
+          void run(() => housingAct("pickup", { placement_id: placed.id }));
       } else {
         cell.onclick = () =>
           void run(async () => {
@@ -1297,9 +1279,7 @@ async function refreshEconomy() {
         btn.textContent = "Buy listing · sign";
         btn.disabled = busy || !owner || listing.seller === owner;
         btn.onclick = () =>
-          void run(() =>
-            economyAct("buy_listing", { listing_id: listing.id }),
-          );
+          void run(() => economyAct("buy_listing", { listing_id: listing.id }));
         el.append(btn);
         return el;
       }),
@@ -1429,9 +1409,8 @@ async function refresh() {
   } else if (owner || page === "friends") {
     // Keep buddy vitals fresh when serving snacks / care-adjacent pages.
     if (["kitchen", "home", "market", "quests"].includes(page) && owner)
-      mine = (
-        await api<{ pet: ViewPet | null }>("/api/pet?owner=" + owner)
-      ).pet;
+      mine = (await api<{ pet: ViewPet | null }>("/api/pet?owner=" + owner))
+        .pet;
   }
   if (page === "market")
     await refreshEconomy().catch(() => {
@@ -1605,25 +1584,28 @@ async function attachRestoredSession() {
   }
   return true;
 }
-on("#connect", "click", () =>
-  void run(async () => {
-    if (owner) {
-      notice("Already connected. Use Disconnect to change wallets.");
-      return;
-    }
-    const session = await requestWalletSession();
-    bindWallet(session);
-    try {
-      await assertWallet();
-    } catch (e) {
-      clearWalletSession(provider);
-      owner = "";
-      provider = null;
-      throw e;
-    }
-    await refresh();
-    notice("Connected on Boing testnet. Your pasture awaits.");
-  }),
+on(
+  "#connect",
+  "click",
+  () =>
+    void run(async () => {
+      if (owner) {
+        notice("Already connected. Use Disconnect to change wallets.");
+        return;
+      }
+      const session = await requestWalletSession();
+      bindWallet(session);
+      try {
+        await assertWallet();
+      } catch (e) {
+        clearWalletSession(provider);
+        owner = "";
+        provider = null;
+        throw e;
+      }
+      await refresh();
+      notice("Connected on Boing testnet. Your pasture awaits.");
+    }),
 );
 on("#disconnect", "click", () => disconnect());
 for (const action of ["hatch", "feed", "checkin", "play", "groom"] as Action[])
@@ -1644,8 +1626,10 @@ on("#forget", "click", () => {
   }
 });
 on("#claim", "click", () => void run(() => economyAct("claim")));
-on("#claim-sparkles", "click", () =>
-  void run(() => economyAct("sparkles_claim")),
+on(
+  "#claim-sparkles",
+  "click",
+  () => void run(() => economyAct("sparkles_claim")),
 );
 on("#fish-cast", "click", () => void run(castLine));
 on("#mine-swing", "click", () => void run(swingPick));
@@ -1654,61 +1638,79 @@ on("#race-start", "click", () => void run(startRace));
 on("#race-finish", "click", () => void run(finishRace));
 on("#fish-reel", "click", () => void run(reelIn));
 on("#treasure-start", "click", () => void run(startTreasureDig));
-on("#home-visibility", "click", () =>
-  void run(async () => {
-    const data = await api<{ plot: { visibility: string } | null }>(
-      `/api/housing/plot?owner=${owner}&viewer=${owner}`,
-    );
-    const nextVis =
-      data.plot?.visibility === "public" ? "private" : "public";
-    await housingAct("set_visibility", { visibility: nextVis });
-  }),
-);
-on("#save-profile", "click", () =>
-  void run(() =>
-    socialAct("set_profile", {
-      display_name: ($("#display-name") as HTMLInputElement).value,
+on(
+  "#home-visibility",
+  "click",
+  () =>
+    void run(async () => {
+      const data = await api<{ plot: { visibility: string } | null }>(
+        `/api/housing/plot?owner=${owner}&viewer=${owner}`,
+      );
+      const nextVis = data.plot?.visibility === "public" ? "private" : "public";
+      await housingAct("set_visibility", { visibility: nextVis });
     }),
-  ),
 );
-on("#add-friend", "click", () =>
-  void run(() =>
-    socialAct("friend_request", {
-      target: ($("#friend-wallet") as HTMLInputElement).value.trim(),
-    }),
-  ),
+on(
+  "#save-profile",
+  "click",
+  () =>
+    void run(() =>
+      socialAct("set_profile", {
+        display_name: ($("#display-name") as HTMLInputElement).value,
+      }),
+    ),
 );
-on("#party-create", "click", () =>
-  void run(() => socialAct("party_create")),
+on(
+  "#add-friend",
+  "click",
+  () =>
+    void run(() =>
+      socialAct("friend_request", {
+        target: ($("#friend-wallet") as HTMLInputElement).value.trim(),
+      }),
+    ),
 );
+on("#party-create", "click", () => void run(() => socialAct("party_create")));
 on("#party-leave", "click", () => void run(() => socialAct("party_leave")));
-on("#dm-send", "click", () =>
-  void run(async () => {
-    if (!dmTarget) throw new Error("Pick a friend to message");
-    await socialAct("send_message", {
-      target: dmTarget,
-      body: ($("#dm-body") as HTMLInputElement).value,
-    });
-    ($("#dm-body") as HTMLInputElement).value = "";
-  }),
+on(
+  "#dm-send",
+  "click",
+  () =>
+    void run(async () => {
+      if (!dmTarget) throw new Error("Pick a friend to message");
+      await socialAct("send_message", {
+        target: dmTarget,
+        body: ($("#dm-body") as HTMLInputElement).value,
+      });
+      ($("#dm-body") as HTMLInputElement).value = "";
+    }),
 );
-on("#refresh", "click", () =>
-  void run(async () => {
-    await refresh();
-    notice("Fresh from the pasture.");
-  }),
+on(
+  "#refresh",
+  "click",
+  () =>
+    void run(async () => {
+      await refresh();
+      notice("Fresh from the pasture.");
+    }),
 );
-on("#next", "click", () =>
-  void run(async () => {
-    offset = next ?? 0;
-    await refresh();
-  }),
+on(
+  "#next",
+  "click",
+  () =>
+    void run(async () => {
+      offset = next ?? 0;
+      await refresh();
+    }),
 );
-on("#prev", "click", () =>
-  void run(async () => {
-    offset = Math.max(0, offset - 24);
-    await refresh();
-  }),
+on(
+  "#prev",
+  "click",
+  () =>
+    void run(async () => {
+      offset = Math.max(0, offset - 24);
+      await refresh();
+    }),
 );
 controls();
 void (async () => {

@@ -24,56 +24,16 @@ import {
 } from "../src/memory";
 import { bumpRollupAfterCare, loadOrBuildRollup } from "./careRollup";
 import { WORLD_CONFIG } from "../src/world/config/zones";
-import {
-  contentError,
-  contentGet,
-  contentPost,
-} from "./content";
-import {
-  economyError,
-  economyGet,
-  economyPost,
-} from "./economy";
-import {
-  socialError,
-  socialGet,
-  socialPost,
-} from "./social";
-import {
-  fishingError,
-  fishingGet,
-  fishingPost,
-} from "./fishing";
-import {
-  housingError,
-  housingGet,
-  housingPost,
-} from "./housing";
-import {
-  treasureError,
-  treasureGet,
-  treasurePost,
-} from "./treasure";
-import {
-  gardeningError,
-  gardeningGet,
-  gardeningPost,
-} from "./gardening";
-import {
-  cookingError,
-  cookingGet,
-  cookingPost,
-} from "./cooking";
-import {
-  miningError,
-  miningGet,
-  miningPost,
-} from "./mining";
-import {
-  racingError,
-  racingGet,
-  racingPost,
-} from "./racing";
+import { contentError, contentGet, contentPost } from "./content";
+import { economyError, economyGet, economyPost } from "./economy";
+import { socialError, socialGet, socialPost } from "./social";
+import { fishingError, fishingGet, fishingPost } from "./fishing";
+import { housingError, housingGet, housingPost } from "./housing";
+import { treasureError, treasureGet, treasurePost } from "./treasure";
+import { gardeningError, gardeningGet, gardeningPost } from "./gardening";
+import { cookingError, cookingGet, cookingPost } from "./cooking";
+import { miningError, miningGet, miningPost } from "./mining";
+import { racingError, racingGet, racingPost } from "./racing";
 import { applyFoodBoosts } from "../src/content/cooking";
 import { verifyProof, type Receipt, type RpcBlock } from "./proof";
 import { enforceIpRateLimit, rateLimitError } from "./rateLimit";
@@ -476,9 +436,7 @@ async function api(req: Request, env: Env): Promise<Response> {
       .first<{ n: number }>();
     if ((count?.n || 0) >= 8)
       throw new HttpError(429, "Too many sync requests. Try again shortly.");
-    await env.DB.prepare(
-      "DELETE FROM world_challenges WHERE expires_at<?",
-    )
+    await env.DB.prepare("DELETE FROM world_challenges WHERE expires_at<?")
       .bind(now)
       .run();
     const id = crypto.randomUUID(),
@@ -494,9 +452,7 @@ async function api(req: Request, env: Env): Promise<Response> {
   if (url.pathname === "/api/world/position/confirm") {
     if (typeof body.id !== "string" || body.id.length > 64)
       throw new HttpError(400, "Invalid world challenge");
-    const c = await env.DB.prepare(
-      "SELECT * FROM world_challenges WHERE id=?",
-    )
+    const c = await env.DB.prepare("SELECT * FROM world_challenges WHERE id=?")
       .bind(body.id)
       .first<{
         id: string;
@@ -560,10 +516,11 @@ async function api(req: Request, env: Env): Promise<Response> {
       .bind(owner, now - 60_000)
       .first<{ n: number }>();
     if ((count?.n || 0) >= 8)
-      throw new HttpError(429, "Too many presence requests. Try again shortly.");
-    await env.DB.prepare(
-      "DELETE FROM presence_challenges WHERE expires_at<?",
-    )
+      throw new HttpError(
+        429,
+        "Too many presence requests. Try again shortly.",
+      );
+    await env.DB.prepare("DELETE FROM presence_challenges WHERE expires_at<?")
       .bind(now)
       .run();
     const id = crypto.randomUUID(),
@@ -614,9 +571,7 @@ async function api(req: Request, env: Env): Promise<Response> {
     await env.DB.prepare("DELETE FROM presence_tokens WHERE expires_at<?")
       .bind(now)
       .run();
-    await env.DB.prepare(
-      "DELETE FROM presence_tokens WHERE owner=? AND zone=?",
-    )
+    await env.DB.prepare("DELETE FROM presence_tokens WHERE owner=? AND zone=?")
       .bind(c.owner, c.zone)
       .run();
     const token = crypto.randomUUID();
@@ -639,8 +594,7 @@ async function api(req: Request, env: Env): Promise<Response> {
   }
   if (url.pathname === "/api/challenge") {
     const owner = hex32(body.owner);
-    if (!isAction(body.action))
-      throw new HttpError(400, "Unknown care action");
+    if (!isAction(body.action)) throw new HttpError(400, "Unknown care action");
     const action = body.action;
     const pet = await env.DB.prepare("SELECT * FROM pets WHERE owner=?")
       .bind(owner)

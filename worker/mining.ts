@@ -29,10 +29,7 @@ async function verifySignature(
   message: string,
   signature: unknown,
 ) {
-  if (
-    typeof signature !== "string" ||
-    !/^(0x)?[0-9a-f]{128}$/i.test(signature)
-  )
+  if (typeof signature !== "string" || !/^(0x)?[0-9a-f]{128}$/i.test(signature))
     throw new HttpError(400, "Invalid signature format");
   const ok = await ed.verifyAsync(
     hexToBytes(signature.replace(/^0x/i, "")),
@@ -168,9 +165,7 @@ export async function miningPost(
   if (url.pathname === "/api/mining/confirm") {
     if (typeof body.id !== "string" || body.id.length > 64)
       throw new HttpError(400, "Invalid mining challenge");
-    const c = await env.DB.prepare(
-      "SELECT * FROM mining_challenges WHERE id=?",
-    )
+    const c = await env.DB.prepare("SELECT * FROM mining_challenges WHERE id=?")
       .bind(body.id)
       .first<{
         id: string;

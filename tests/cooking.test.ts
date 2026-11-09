@@ -20,10 +20,10 @@ describe("cooking content", () => {
   });
 
   it("applies hunger and energy boosts from servings", () => {
-    const boosted = applyFoodBoosts(
-      { hunger: 50, energy: 40 },
-      [{ food_id: "food-berry-glaze" }, { food_id: "food-sprout-salad" }],
-    );
+    const boosted = applyFoodBoosts({ hunger: 50, energy: 40 }, [
+      { food_id: "food-berry-glaze" },
+      { food_id: "food-sprout-salad" },
+    ]);
     expect(boosted.hunger).toBe(90);
     expect(boosted.energy).toBe(50);
     expect(boosted.snacksToday).toBe(2);
