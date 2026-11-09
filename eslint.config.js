@@ -20,6 +20,7 @@ export default ts.config(
         AbortSignal: "readonly",
         URL: "readonly",
         setTimeout: "readonly",
+        TextEncoder: "readonly",
       },
     },
     rules: {

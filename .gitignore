@@ -10,3 +10,4 @@ coverage/
 
 scripts/csp-world-probe-result.json
 scripts/csp-probe-out.txt
+playtest-artifacts/
