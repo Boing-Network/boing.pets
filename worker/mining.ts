@@ -14,6 +14,7 @@ import {
 } from "../src/content/mining";
 import { hex32 } from "../src/core";
 import { ledgerCreditPair } from "./ledger";
+import { resolvePartyBonus } from "./partyBonus";
 
 class HttpError extends Error {
   constructor(
@@ -221,6 +222,13 @@ export async function miningPost(
       });
     }
 
+    const party = await resolvePartyBonus(
+      env,
+      c.owner,
+      "mining",
+      ore.rewardBoinglets,
+      now,
+    );
     try {
       await env.DB.batch([
         env.DB.prepare(
@@ -239,6 +247,7 @@ export async function miningPost(
         env.DB.prepare(
           "INSERT OR IGNORE INTO collection_unlocks(owner,entry_id,unlocked_at) VALUES(?,?,?)",
         ).bind(c.owner, `discovery:ore:${ore.id}`, now),
+        ...party.statements,
       ]);
     } catch {
       throw new HttpError(409, "Strike already recorded or ledger busy");
@@ -254,6 +263,8 @@ export async function miningPost(
         rarity: ore.rarity,
         rewardBoinglets: ore.rewardBoinglets,
       },
+      party_bonus: party.bonus.eligible ? party.bonus : null,
+      variety_awarded: party.varietyAwarded || 0,
     });
   }
 

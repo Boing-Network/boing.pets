@@ -11,7 +11,7 @@ export function controls() {
     "feed",
     "retry",
     "refresh",
-    "app.next",
+    "next",
     "prev",
     "claim",
   ])
@@ -93,8 +93,7 @@ export function card(p: ViewPet) {
 }
 export async function refreshBuddyCard() {
   app.mine = app.owner
-    ? (await api<{ pet: ViewPet | null }>("/api/pet?app.owner=" + app.owner))
-        .pet
+    ? (await api<{ pet: ViewPet | null }>("/api/pet?owner=" + app.owner)).pet
     : null;
   const slot = $maybe("#my-pet");
   if (!slot) return;
@@ -110,7 +109,7 @@ export async function refreshPastureGallery() {
   const gallery = $maybe("#gallery");
   if (!gallery) return;
   const data = await api<{ pets: ViewPet[]; next: number | null }>(
-    "/api/pasture?app.offset=" + app.offset,
+    "/api/pasture?offset=" + app.offset,
   );
   app.next = data.next;
   gallery.replaceChildren(...data.pets.map(card));
@@ -118,7 +117,7 @@ export async function refreshPastureGallery() {
     gallery.textContent =
       "A peaceful, empty pasture. Your buddy could be the very first.";
   const prev = $maybe("#prev");
-  const nextBtn = $maybe("#app.next");
+  const nextBtn = $maybe("#next");
   if (prev) prev.hidden = app.offset === 0;
   if (nextBtn) nextBtn.hidden = app.next === null;
 }

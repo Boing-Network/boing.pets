@@ -12,6 +12,7 @@ import {
 } from "../src/content/fishing";
 import { hex32 } from "../src/core";
 import { ledgerCreditPair } from "./ledger";
+import { resolvePartyBonus } from "./partyBonus";
 
 class HttpError extends Error {
   constructor(
@@ -185,6 +186,13 @@ export async function fishingPost(
     if (caught >= FISHING_DAILY_CATCH_CAP)
       throw new HttpError(409, "Daily fishing limit reached");
 
+    const party = await resolvePartyBonus(
+      env,
+      c.owner,
+      "fishing",
+      fish.rewardBoinglets,
+      now,
+    );
     try {
       await env.DB.batch([
         env.DB.prepare(
@@ -207,6 +215,7 @@ export async function fishingPost(
         env.DB.prepare(
           "INSERT OR IGNORE INTO collection_unlocks(owner,entry_id,unlocked_at) VALUES(?,?,?)",
         ).bind(c.owner, `discovery:fish:${fish.id}`, now),
+        ...party.statements,
       ]);
     } catch {
       throw new HttpError(409, "Catch already recorded or ledger busy");
@@ -221,6 +230,8 @@ export async function fishingPost(
         rarity: fish.rarity,
         rewardBoinglets: fish.rewardBoinglets,
       },
+      party_bonus: party.bonus.eligible ? party.bonus : null,
+      variety_awarded: party.varietyAwarded || 0,
     });
   }
 

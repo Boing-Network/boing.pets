@@ -12,6 +12,7 @@ import {
 } from "../src/content/cooking";
 import { DAY, dayOf, hex32 } from "../src/core";
 import { ledgerCreditPair } from "./ledger";
+import { resolvePartyBonus } from "./partyBonus";
 
 class HttpError extends Error {
   constructor(
@@ -263,6 +264,7 @@ export async function cookingPost(
           ).bind(ing.qty, c.owner, ing.itemId, ing.qty),
         );
       }
+      const party = await resolvePartyBonus(env, c.owner, "cook", reward, now);
       statements.push(
         env.DB.prepare(
           "INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,1) ON CONFLICT(owner,item_id) DO UPDATE SET qty=qty+1",
@@ -280,12 +282,21 @@ export async function cookingPost(
         env.DB.prepare(
           "INSERT OR IGNORE INTO collection_unlocks(owner,entry_id,unlocked_at) VALUES(?,?,?)",
         ).bind(c.owner, `discovery:recipe:${recipe.id}`, now),
+        ...party.statements,
       );
       try {
         await env.DB.batch(statements);
       } catch {
         throw new HttpError(409, "Could not finish cooking");
       }
+      await env.DB.prepare("DELETE FROM cook_challenges WHERE id=?")
+        .bind(c.id)
+        .run();
+      return Response.json({
+        ok: true,
+        party_bonus: party.bonus.eligible ? party.bonus : null,
+        variety_awarded: party.varietyAwarded || 0,
+      });
     }
 
     if (c.kind === "serve") {

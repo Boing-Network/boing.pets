@@ -108,6 +108,7 @@ beforeEach(async () => {
     "../migrations/0016_racing.sql",
     "../migrations/0017_security_hardening.sql",
     "../migrations/0018_pet_care_rollup.sql",
+    "../migrations/0019_party_bonuses.sql",
   ]) {
     db.exec(readFileSync(new NodeURL(file, import.meta.url), "utf8"));
   }

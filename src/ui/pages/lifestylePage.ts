@@ -2,6 +2,31 @@ import { api, app, $, notice } from "../appRuntime";
 import { assertWallet, run } from "../careActions";
 import { refreshEconomy } from "./progressPage";
 
+function rewardExtrasNotice(
+  bonus:
+    | {
+        percent: number;
+        amount: number;
+        together: boolean;
+        partySize: number;
+      }
+    | null
+    | undefined,
+  varietyAwarded?: number | null,
+) {
+  const parts: string[] = [];
+  if (bonus && bonus.amount) {
+    const pct = Math.round(bonus.percent * 100);
+    parts.push(
+      `Party bonus +${pct}% (+${bonus.amount}ℬ${bonus.together ? ", together" : ""})`,
+    );
+  }
+  if (varietyAwarded && varietyAwarded > 0) {
+    parts.push(`Variety day +${varietyAwarded}ℬ`);
+  }
+  return parts.length ? ` ${parts.join(" · ")}.` : "";
+}
+
 export async function gardenAct(
   kind: string,
   extra: Record<string, unknown> = {},
@@ -16,10 +41,23 @@ export async function gardenAct(
     method: "boing_signMessage",
     params: [challenge.message, app.owner],
   });
-  await api("/api/garden/confirm", { id: challenge.id, signature });
+  const result = await api<{
+    ok?: boolean;
+    party_bonus?: {
+      percent: number;
+      amount: number;
+      together: boolean;
+      partySize: number;
+    } | null;
+    variety_awarded?: number;
+  }>("/api/garden/confirm", { id: challenge.id, signature });
   await refreshGarden();
   await refreshEconomy().catch(() => undefined);
-  notice("Garden updated.");
+  notice(
+    kind === "harvest"
+      ? `Harvest complete.${rewardExtrasNotice(result.party_bonus, result.variety_awarded)}`
+      : "Garden updated.",
+  );
 }
 
 export async function refreshGarden() {
@@ -34,7 +72,7 @@ export async function refreshGarden() {
       ready_at: number;
       crop: { name: string } | null;
     }>;
-  }>("/api/garden/status" + (app.owner ? `?app.owner=${app.owner}` : ""));
+  }>("/api/garden/status" + (app.owner ? `?owner=${app.owner}` : ""));
   const select = $("#garden-crop") as HTMLSelectElement;
   select.replaceChildren(
     ...data.crops.map(
@@ -106,10 +144,23 @@ export async function kitchenAct(
     method: "boing_signMessage",
     params: [challenge.message, app.owner],
   });
-  await api("/api/cook/confirm", { id: challenge.id, signature });
+  const result = await api<{
+    ok?: boolean;
+    party_bonus?: {
+      percent: number;
+      amount: number;
+      together: boolean;
+      partySize: number;
+    } | null;
+    variety_awarded?: number;
+  }>("/api/cook/confirm", { id: challenge.id, signature });
   await refreshKitchen();
   await refreshEconomy().catch(() => undefined);
-  notice(kind === "serve" ? "Snack served — vitals boosted." : "Dish cooked.");
+  if (kind === "serve") notice("Snack served — vitals boosted.");
+  else
+    notice(
+      `Dish cooked.${rewardExtrasNotice(result.party_bonus, result.variety_awarded)}`,
+    );
 }
 
 export async function refreshKitchen() {
@@ -130,7 +181,7 @@ export async function refreshKitchen() {
     serveCap: number;
     pantry: Record<string, number>;
     dishes: Record<string, number>;
-  }>("/api/cook/status" + (app.owner ? `?app.owner=${app.owner}` : ""));
+  }>("/api/cook/status" + (app.owner ? `?owner=${app.owner}` : ""));
   $("#kitchen-summary").textContent = app.owner
     ? `Cooked ${data.cookedToday}/${data.cookCap} · served ${data.servedToday}/${data.serveCap} today`
     : "Connect Express, gather crops or fish, then cook and serve snacks.";
@@ -212,7 +263,7 @@ export async function refreshHousing() {
     furniture: Array<{ item_id: string; qty: number; name: string }>;
   }>(
     "/api/housing/plot" +
-      (app.owner ? `?app.owner=${app.owner}&viewer=${app.owner}` : ""),
+      (app.owner ? `?owner=${app.owner}&viewer=${app.owner}` : ""),
   );
   const visBtn = $("#home-visibility") as HTMLButtonElement;
   if (!app.owner || !data.plot) {

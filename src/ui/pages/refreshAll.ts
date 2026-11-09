@@ -27,7 +27,7 @@ export async function refresh(page: PageId) {
     // Keep buddy vitals fresh when serving snacks / care-adjacent pages.
     if (["kitchen", "home", "market", "quests"].includes(page) && app.owner)
       app.mine = (
-        await api<{ pet: ViewPet | null }>("/api/pet?app.owner=" + app.owner)
+        await api<{ pet: ViewPet | null }>("/api/pet?owner=" + app.owner)
       ).pet;
   }
   if (page === "market")

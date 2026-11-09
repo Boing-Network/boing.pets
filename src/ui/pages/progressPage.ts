@@ -47,7 +47,7 @@ export async function refreshCollections() {
       category: string;
     }>;
     unlocked: Array<{ entry_id: string; unlocked_at: number }>;
-  }>("/api/content/collections" + (app.owner ? `?app.owner=${app.owner}` : ""));
+  }>("/api/content/collections" + (app.owner ? `?owner=${app.owner}` : ""));
   const unlocked = new Set(data.unlocked.map((u) => u.entry_id));
   const total = data.defs.length;
   const found = data.defs.filter((d) => unlocked.has(d.id)).length;
@@ -84,7 +84,7 @@ export async function refreshQuests() {
       complete: boolean;
       claimed: boolean;
     }>;
-  }>("/api/content/quests" + (app.owner ? `?app.owner=${app.owner}` : ""));
+  }>("/api/content/quests" + (app.owner ? `?owner=${app.owner}` : ""));
   $("#season-summary").textContent = data.activeEvents.length
     ? `Live now: ${data.activeEvents.map((e) => e.name).join(", ")}`
     : "No seasonal event active — check back for festivals.";
@@ -142,7 +142,7 @@ export async function refreshEconomy() {
       care: { earned: number; claimed: number; claimable: number };
       sparklesFaucet: { daily: number; claimable: number };
       inventory: Array<{ item_id: string; qty: number }>;
-    }>("/api/economy/balance?app.owner=" + app.owner);
+    }>("/api/economy/balance?owner=" + app.owner);
     summary = `${bal.balances.boinglets} Boinglets · ${bal.balances.sparkles} Sparkles · ${bal.care.claimable} care claimable · ${bal.inventory.length} inventory stacks`;
     claimBtn.hidden = false;
     claimBtn.disabled = app.busy || bal.care.claimable <= 0;

@@ -11,6 +11,7 @@ import {
 } from "../src/content/gardening";
 import { hex32 } from "../src/core";
 import { ledgerCreditPair } from "./ledger";
+import { resolvePartyBonus } from "./partyBonus";
 
 class HttpError extends Error {
   constructor(
@@ -271,6 +272,13 @@ export async function gardeningPost(
         .first<{ ready_at: number }>();
       if (!plot || now < plot.ready_at)
         throw new HttpError(409, "Crop is not ready");
+      const party = await resolvePartyBonus(
+        env,
+        c.owner,
+        "garden_harvest",
+        reward,
+        now,
+      );
       try {
         await env.DB.batch([
           env.DB.prepare(
@@ -292,10 +300,19 @@ export async function gardeningPost(
           env.DB.prepare(
             "INSERT OR IGNORE INTO collection_unlocks(owner,entry_id,unlocked_at) VALUES(?,?,?)",
           ).bind(c.owner, `discovery:crop:${crop.id}`, now),
+          ...party.statements,
         ]);
       } catch {
         throw new HttpError(409, "Could not harvest crop");
       }
+      await env.DB.prepare("DELETE FROM garden_challenges WHERE id=?")
+        .bind(c.id)
+        .run();
+      return Response.json({
+        ok: true,
+        party_bonus: party.bonus.eligible ? party.bonus : null,
+        variety_awarded: party.varietyAwarded || 0,
+      });
     }
 
     await env.DB.prepare("DELETE FROM garden_challenges WHERE id=?")

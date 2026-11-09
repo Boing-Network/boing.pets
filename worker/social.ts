@@ -10,6 +10,7 @@ import {
   sanitizeMessage,
   type SocialKind,
 } from "../src/social";
+import { partyBonusPercent } from "../src/partyBonus";
 
 class HttpError extends Error {
   constructor(
@@ -319,6 +320,8 @@ export async function socialGet(
         ),
       },
       maxSize: PARTY_SIZE_MAX,
+      bonusPercent: partyBonusPercent(members.results.length, false),
+      togetherBonusPercent: partyBonusPercent(members.results.length, true),
       now,
     });
   }

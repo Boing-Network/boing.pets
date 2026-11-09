@@ -76,7 +76,7 @@ export async function openDm(friendOwner: string, label: string) {
       body: string;
       created_at: number;
     }>;
-  }>(`/api/social/messages?app.owner=${app.owner}&with=${friendOwner}`);
+  }>(`/api/social/messages?owner=${app.owner}&with=${friendOwner}`);
   $("#dm-thread").replaceChildren(
     ...data.messages.map((m) => {
       const p = document.createElement("p");
@@ -109,7 +109,7 @@ export async function refreshSocial() {
   $("#add-friend").hidden = false;
   const profile = await api<{
     profile: { display_name: string } | null;
-  }>("/api/social/profile?app.owner=" + app.owner);
+  }>("/api/social/profile?owner=" + app.owner);
   if (profile.profile)
     ($("#display-name") as HTMLInputElement).value =
       profile.profile.display_name;
@@ -122,7 +122,7 @@ export async function refreshSocial() {
       from_owner: string;
       from_name: string | null;
     }>;
-  }>("/api/social/requests?app.owner=" + app.owner);
+  }>("/api/social/requests?owner=" + app.owner);
   if (!requests.incoming.length) {
     $("#friend-requests").textContent = "No pending requests.";
   } else {
@@ -151,7 +151,7 @@ export async function refreshSocial() {
   }
   const friends = await socialApi<{
     friends: Array<{ owner: string; display_name: string | null }>;
-  }>("/api/social/friends?app.owner=" + app.owner);
+  }>("/api/social/friends?owner=" + app.owner);
   const party = await socialApi<{
     party: {
       id: string;
@@ -163,7 +163,9 @@ export async function refreshSocial() {
       }>;
     } | null;
     maxSize: number;
-  }>("/api/social/party?app.owner=" + app.owner);
+    bonusPercent?: number;
+    togetherBonusPercent?: number;
+  }>("/api/social/party?owner=" + app.owner);
   const partyInvites = await socialApi<{
     incoming: Array<{
       id: string;
@@ -171,7 +173,7 @@ export async function refreshSocial() {
       from_owner: string;
       from_name: string | null;
     }>;
-  }>("/api/social/party/invites?app.owner=" + app.owner);
+  }>("/api/social/party/invites?owner=" + app.owner);
   const isLeader = party.party?.leader === app.owner;
   const memberOwners = new Set(party.party?.members.map((m) => m.owner) || []);
   if (!friends.friends.length) {
@@ -221,7 +223,7 @@ export async function refreshSocial() {
     partyLeave.hidden = true;
   } else {
     $("#party-summary").textContent =
-      `Party ${party.party.members.length}/${party.maxSize}${isLeader ? " · you lead" : ""}`;
+      `Party ${party.party.members.length}/${party.maxSize}${isLeader ? " — you lead" : ""}${typeof party.bonusPercent === "number" && party.bonusPercent > 0 ? ` · Party bonus +${Math.round(party.bonusPercent * 100)}%` : ""}`;
     $("#party-roster").replaceChildren(
       ...party.party.members.map((m) => {
         const row = document.createElement("div");

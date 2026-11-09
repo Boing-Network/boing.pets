@@ -89,3 +89,7 @@ Next projects: [boing.wall](https://github.com/Boing-Network/boing.wall), [boing
 Local lint, separate browser/Worker typechecks, build, deterministic vitest suite, local D1 migration and Worker dry-run are included. API tests use real SQLite transactions and a mocked testnet RPC; they never send chain transactions. The live RPC probe from the Windows machine failed with a TLS connection error during initial setup, so a real Express hatch/feed round trip still needs Nico's testnet-wallet approval and a reachable testnet RPC. Nothing was sent from a wallet by the implementation process.
 
 Worker binding types are generated from config: run `npm run types:generate` after config changes. Observability is configured for a future approved deployment; production hardening remains deferred.
+
+### Party & daily extras
+
+Active parties earn a server-side Boinglet bonus on shared activities (see `docs/PHASE3-PARTIES.md`). Variety-day and streak-milestone Sparkles reward exploring multiple activities and daily hellos.

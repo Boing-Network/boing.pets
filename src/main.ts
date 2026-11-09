@@ -34,6 +34,39 @@ import {
 import { housingAct } from "./ui/pages/lifestylePage";
 import { socialAct } from "./ui/pages/socialPage";
 
+function showOnboardingTip() {
+  if (localStorage.getItem("boing-pets-onboarded")) return;
+  if (page !== "pasture") return;
+  const tips = [
+    "Tip: Hatch once with a tiny self-transfer, then say hello daily for streaks.",
+    "Tip: Play and Groom are free signatures once per UTC day.",
+    "Tip: Form a party with friends — shared activities earn a Party bonus.",
+    "Tip: Try fishing, mining, racing, and cooking for variety-day Boinglets.",
+  ];
+  const tip = tips[Math.floor(Date.now() / 60_000) % tips.length];
+  const el = document.querySelector("#onboarding-tip");
+  if (el) el.textContent = tip;
+  else {
+    const banner = document.createElement("p");
+    banner.id = "onboarding-tip";
+    banner.className = "subtle";
+    banner.textContent = tip;
+    document.querySelector("main.page")?.prepend(banner);
+  }
+  const dismiss = document.createElement("button");
+  dismiss.className = "quiet";
+  dismiss.textContent = "Got it";
+  dismiss.onclick = () => {
+    localStorage.setItem("boing-pets-onboarded", "1");
+    document.querySelector("#onboarding-tip")?.remove();
+    dismiss.remove();
+  };
+  if (!document.querySelector("#onboarding-dismiss")) {
+    dismiss.id = "onboarding-dismiss";
+    document.querySelector("main.page")?.prepend(dismiss);
+  }
+}
+
 setCareHooks({
   refresh: () => refresh(page),
   controls,
@@ -46,6 +79,7 @@ const body = PAGE_BODIES[page] || PAGE_BODIES.pasture;
 $("#app").innerHTML =
   `${renderHeader(page)}<main class="page page-${page}">${body}</main>${FOOTER_HTML}`;
 wireNavDropdowns();
+showOnboardingTip();
 if (page === "pasture") {
   const demoOwner = "0x" + "11".repeat(32);
   const hero = document.querySelector("#hero-pets");
@@ -107,8 +141,8 @@ on(
   () => void run(() => economyAct("sparkles_claim")),
 );
 on("#fish-cast", "click", () => void run(castLine));
-on("#app.mine-swing", "click", () => void run(swingPick));
-on("#app.mine-strike", "click", () => void run(strikeVein));
+on("#mine-swing", "click", () => void run(swingPick));
+on("#mine-strike", "click", () => void run(strikeVein));
 on("#race-start", "click", () => void run(startRace));
 on("#race-finish", "click", () => void run(finishRace));
 on("#fish-reel", "click", () => void run(reelIn));
@@ -119,7 +153,7 @@ on(
   () =>
     void run(async () => {
       const data = await api<{ plot: { visibility: string } | null }>(
-        `/api/housing/plot?app.owner=${app.owner}&viewer=${app.owner}`,
+        `/api/housing/plot?owner=${app.owner}&viewer=${app.owner}`,
       );
       const nextVis = data.plot?.visibility === "public" ? "private" : "public";
       await housingAct("set_visibility", { visibility: nextVis });
@@ -170,7 +204,7 @@ on(
     }),
 );
 on(
-  "#app.next",
+  "#next",
   "click",
   () =>
     void run(async () => {

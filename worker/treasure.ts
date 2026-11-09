@@ -13,6 +13,7 @@ import {
 } from "../src/content/treasure";
 import { hex32 } from "../src/core";
 import { ledgerCreditPair } from "./ledger";
+import { resolvePartyBonus } from "./partyBonus";
 
 class HttpError extends Error {
   constructor(
@@ -168,6 +169,15 @@ export async function treasurePost(
       .run();
 
     const hit = guess === c.spot;
+    const party = hit
+      ? await resolvePartyBonus(
+          env,
+          c.owner,
+          "treasure",
+          loot.rewardBoinglets,
+          now,
+        )
+      : null;
     try {
       await env.DB.batch([
         env.DB.prepare(
@@ -192,6 +202,7 @@ export async function treasurePost(
               env.DB.prepare(
                 "INSERT OR IGNORE INTO collection_unlocks(owner,entry_id,unlocked_at) VALUES(?,?,?)",
               ).bind(c.owner, `discovery:treasure:${loot.id}`, now),
+              ...(party?.statements || []),
             ]
           : []),
       ]);
@@ -218,6 +229,8 @@ export async function treasurePost(
         rarity: loot.rarity,
         rewardBoinglets: loot.rewardBoinglets,
       },
+      party_bonus: party?.bonus.eligible ? party.bonus : null,
+      variety_awarded: party?.varietyAwarded || 0,
     });
   }
 

@@ -23,6 +23,8 @@ import {
   type PetMemoryRow,
 } from "../src/memory";
 import { bumpRollupAfterCare, loadOrBuildRollup } from "./careRollup";
+import { ledgerCreditPair } from "./ledger";
+import { STREAK_MILESTONE_SPARKLES } from "../src/partyBonus";
 import { WORLD_CONFIG } from "../src/world/config/zones";
 import { contentError, contentGet, contentPost } from "./content";
 import { economyError, economyGet, economyPost } from "./economy";
@@ -747,12 +749,43 @@ async function api(req: Request, env: Env): Promise<Response> {
         : await env.DB.prepare("SELECT * FROM pets WHERE owner=?")
             .bind(c.owner)
             .first<Pet>();
+    let streakMilestone: { streak: number; sparkles: number } | null = null;
     if (petRow) {
       const rollup = await bumpRollupAfterCare(env, petRow, c.action, now);
       await persistAchievementsFromRollup(env, petRow, rollup, now);
       await recordEpisode(env, c.owner, c.action, now);
+      if (c.action === "checkin") {
+        const { streak } = stateFromRollup(petRow, rollup, now);
+        const sparkles = STREAK_MILESTONE_SPARKLES[streak];
+        if (sparkles) {
+          const already = await env.DB.prepare(
+            "SELECT 1 AS ok FROM ledger WHERE owner=? AND reason=? LIMIT 1",
+          )
+            .bind(c.owner, `streak_milestone_${streak}`)
+            .first();
+          if (!already) {
+            try {
+              await env.DB.batch(
+                ledgerCreditPair(
+                  env,
+                  `streak:${streak}:${c.owner}`,
+                  c.owner,
+                  "sparkles",
+                  sparkles,
+                  `streak_milestone_${streak}`,
+                  String(streak),
+                  now,
+                ),
+              );
+              streakMilestone = { streak, sparkles };
+            } catch {
+              /* unique ledger id race — ignore */
+            }
+          }
+        }
+      }
     }
-    return json({ ok: true });
+    return json({ ok: true, streak_milestone: streakMilestone });
   }
   throw new HttpError(404, "Not found");
 }

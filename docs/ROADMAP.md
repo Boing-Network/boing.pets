@@ -265,6 +265,13 @@ Complexity key: **S** small · **M** medium · **L** large · **XL** multi-quart
 
 ---
 
+## Shipped gameplay loops (local / pending deploy)
+
+- **Party bonus:** +10% Boinglets per extra party member (cap +30%), optional +5% together-window; friendship + pet maturity gates; 50ℬ daily cap.
+- **Variety day:** +10ℬ after 3 distinct activities in a UTC day.
+- **Streak Sparkles:** days 3 / 7 grant 3 / 7 Sparkles once per wallet.
+- **Onboarding tips** on first pasture visit (dismissible).
+
 ## Next highest-value milestone after Phase 1
 
 **Phase 1.5 / Phase 2 spike:** R3F Starter Town prototype behind a route flag, still calling Phase 1 care APIs — proves exploration pillar without multiplayer cost.

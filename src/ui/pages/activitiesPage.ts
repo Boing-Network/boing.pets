@@ -2,6 +2,31 @@ import { api, app, $, notice } from "../appRuntime";
 import { assertWallet, run } from "../careActions";
 import { refreshEconomy } from "./progressPage";
 
+function rewardExtrasNotice(
+  bonus:
+    | {
+        percent: number;
+        amount: number;
+        together: boolean;
+        partySize: number;
+      }
+    | null
+    | undefined,
+  varietyAwarded?: number | null,
+) {
+  const parts: string[] = [];
+  if (bonus && bonus.amount) {
+    const pct = Math.round(bonus.percent * 100);
+    parts.push(
+      `Party bonus +${pct}% (+${bonus.amount}ℬ${bonus.together ? ", together" : ""})`,
+    );
+  }
+  if (varietyAwarded && varietyAwarded > 0) {
+    parts.push(`Variety day +${varietyAwarded}ℬ`);
+  }
+  return parts.length ? ` ${parts.join(" · ")}.` : "";
+}
+
 let miningTimer = 0;
 let miningChallenge: {
   id: string;
@@ -32,7 +57,7 @@ export async function refreshRacing() {
     remaining: number;
     heatsToday: number;
     dailyCap: number;
-  }>("/api/racing/status" + (app.owner ? `?app.owner=${app.owner}` : ""));
+  }>("/api/racing/status" + (app.owner ? `?owner=${app.owner}` : ""));
   $("#racing-summary").textContent = app.owner
     ? `${data.heatsToday}/${data.dailyCap} heats today · ${data.remaining} left`
     : "Connect Express and hatch a buddy to line up at the race track.";
@@ -104,6 +129,13 @@ export async function finishRace() {
     place?: number;
     ribbon?: { name: string; rewardBoinglets: number };
     track?: { name: string };
+    party_bonus?: {
+      percent: number;
+      amount: number;
+      together: boolean;
+      partySize: number;
+    } | null;
+    variety_awarded?: number;
   }>("/api/racing/confirm", {
     id: racingChallenge.id,
     signature,
@@ -118,7 +150,9 @@ export async function finishRace() {
   } else {
     $("#racing-prompt").textContent =
       `${result.track?.name}: ${result.place}${result.place === 1 ? "st" : result.place === 2 ? "nd" : "rd"} · ${result.ribbon?.name} (+${result.ribbon?.rewardBoinglets}ℬ)`;
-    notice(`Placed ${result.place} — ${result.ribbon?.name}.`);
+    notice(
+      `Placed ${result.place} — ${result.ribbon?.name}.${rewardExtrasNotice(result.party_bonus, result.variety_awarded)}`,
+    );
   }
   await refreshEconomy().catch(() => undefined);
   await refreshRacing();
@@ -148,7 +182,7 @@ export async function refreshFishing() {
     remaining: number;
     catchesToday: number;
     dailyCap: number;
-  }>("/api/fishing/status" + (app.owner ? `?app.owner=${app.owner}` : ""));
+  }>("/api/fishing/status" + (app.owner ? `?owner=${app.owner}` : ""));
   $("#fishing-summary").textContent = app.owner
     ? `${data.catchesToday}/${data.dailyCap} catches today · ${data.remaining} left`
     : "Connect Express and hatch a buddy to cast at the pond pier.";
@@ -218,6 +252,13 @@ export async function reelIn() {
     result: string;
     message?: string;
     fish?: { name: string; rewardBoinglets: number; rarity: string };
+    party_bonus?: {
+      percent: number;
+      amount: number;
+      together: boolean;
+      partySize: number;
+    } | null;
+    variety_awarded?: number;
   }>("/api/fishing/confirm", {
     id: fishingChallenge.id,
     signature,
@@ -232,7 +273,9 @@ export async function reelIn() {
   } else {
     $("#fishing-prompt").textContent =
       `Caught ${result.fish?.name}! +${result.fish?.rewardBoinglets} Boinglets.`;
-    notice(`Caught ${result.fish?.name} (${result.fish?.rarity}).`);
+    notice(
+      `Caught ${result.fish?.name} (${result.fish?.rarity}).${rewardExtrasNotice(result.party_bonus, result.variety_awarded)}`,
+    );
   }
   await refreshEconomy().catch(() => undefined);
   await refreshFishing();
@@ -258,16 +301,16 @@ export async function refreshMining() {
     staminaMax: number;
     staminaSpent: number;
     pickaxeTier: number;
-  }>("/api/mining/status" + (app.owner ? `?app.owner=${app.owner}` : ""));
+  }>("/api/mining/status" + (app.owner ? `?owner=${app.owner}` : ""));
   $("#mining-summary").textContent = app.owner
     ? `Stamina ${data.staminaLeft}/${data.staminaMax} · pickaxe tier ${data.pickaxeTier}`
     : "Connect Express and hatch a buddy to swing at crystal veins.";
-  const swingBtn = $("#app.mine-swing") as HTMLButtonElement;
+  const swingBtn = $("#mine-swing") as HTMLButtonElement;
   swingBtn.hidden = !app.owner;
   swingBtn.disabled = app.busy || data.staminaLeft <= 0 || !!miningChallenge;
   swingBtn.textContent =
     data.staminaLeft <= 0 ? "Out of stamina ✓" : "Swing · sign";
-  $("#app.mine-log").replaceChildren(
+  $("#mine-log").replaceChildren(
     ...data.ores.map((o) => {
       const el = document.createElement("article");
       el.className = "market-card";
@@ -287,8 +330,8 @@ export async function swingPick() {
     window_ms: number;
   }>("/api/mining/challenge", { owner: app.owner });
   miningChallenge = challenge;
-  const strikeBtn = $("#app.mine-strike") as HTMLButtonElement;
-  const swingBtn = $("#app.mine-swing") as HTMLButtonElement;
+  const strikeBtn = $("#mine-strike") as HTMLButtonElement;
+  const swingBtn = $("#mine-swing") as HTMLButtonElement;
   strikeBtn.hidden = false;
   strikeBtn.disabled = true;
   swingBtn.disabled = true;
@@ -317,7 +360,7 @@ export async function strikeVein() {
   if (!miningChallenge) throw new Error("Swing first");
   await assertWallet();
   clearMiningTimer();
-  ($("#app.mine-strike") as HTMLButtonElement).disabled = true;
+  ($("#mine-strike") as HTMLButtonElement).disabled = true;
   notice("Signing your strike…");
   const signature = await app.provider!.request({
     method: "boing_signMessage",
@@ -328,12 +371,19 @@ export async function strikeVein() {
     result: string;
     message?: string;
     ore?: { name: string; rewardBoinglets: number; rarity: string };
+    party_bonus?: {
+      percent: number;
+      amount: number;
+      together: boolean;
+      partySize: number;
+    } | null;
+    variety_awarded?: number;
   }>("/api/mining/confirm", {
     id: miningChallenge.id,
     signature,
   });
   miningChallenge = null;
-  $("#app.mine-strike").hidden = true;
+  $("#mine-strike").hidden = true;
   $("#mining-needle").className = "";
   if (!result.ok) {
     $("#mining-prompt").textContent =
@@ -342,7 +392,9 @@ export async function strikeVein() {
   } else {
     $("#mining-prompt").textContent =
       `Mined ${result.ore?.name}! +${result.ore?.rewardBoinglets} Boinglets.`;
-    notice(`Mined ${result.ore?.name} (${result.ore?.rarity}).`);
+    notice(
+      `Mined ${result.ore?.name} (${result.ore?.rarity}).${rewardExtrasNotice(result.party_bonus, result.variety_awarded)}`,
+    );
   }
   await refreshEconomy().catch(() => undefined);
   await refreshMining();
@@ -360,7 +412,7 @@ export async function refreshTreasure() {
     digsToday: number;
     dailyCap: number;
     grid: number;
-  }>("/api/treasure/status" + (app.owner ? `?app.owner=${app.owner}` : ""));
+  }>("/api/treasure/status" + (app.owner ? `?owner=${app.owner}` : ""));
   $("#treasure-summary").textContent = app.owner
     ? `${data.digsToday}/${data.dailyCap} digs today · ${data.remaining} left`
     : "Connect Express and hatch a buddy to dig for pasture treasure.";
@@ -424,6 +476,13 @@ export async function digTreasureTile(guess: number) {
     spot?: number;
     message?: string;
     treasure?: { name: string; rewardBoinglets: number; rarity: string };
+    party_bonus?: {
+      percent: number;
+      amount: number;
+      together: boolean;
+      partySize: number;
+    } | null;
+    variety_awarded?: number;
   }>("/api/treasure/confirm", {
     id: treasureChallenge.id,
     signature,
@@ -439,7 +498,9 @@ export async function digTreasureTile(guess: number) {
   } else {
     $("#treasure-clue").textContent =
       `Found ${result.treasure?.name}! +${result.treasure?.rewardBoinglets} Boinglets.`;
-    notice(`Found ${result.treasure?.name} (${result.treasure?.rarity}).`);
+    notice(
+      `Found ${result.treasure?.name} (${result.treasure?.rarity}).${rewardExtrasNotice(result.party_bonus, result.variety_awarded)}`,
+    );
   }
   await refreshEconomy().catch(() => undefined);
   await refreshTreasure();

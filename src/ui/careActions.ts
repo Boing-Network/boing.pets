@@ -98,15 +98,21 @@ export async function act(action: Action) {
       method: "boing_signMessage",
       params: [c.message, app.owner],
     });
-    await api("/api/confirm", { id: c.id, signature });
+    const confirmed = await api<{
+      ok?: boolean;
+      streak_milestone?: { streak: number; sparkles: number } | null;
+    }>("/api/confirm", { id: c.id, signature });
     await refresh();
-    notice(
+    let msg =
       action === "checkin"
         ? "Hello sent. A little love goes a long way."
         : action === "play"
           ? "Playtime logged. Energy up!"
-          : "All fresh. Hygiene restored.",
-    );
+          : "All fresh. Hygiene restored.";
+    if (confirmed.streak_milestone?.sparkles) {
+      msg += ` Streak day ${confirmed.streak_milestone.streak}: +${confirmed.streak_milestone.sparkles} Sparkles!`;
+    }
+    notice(msg);
     return;
   }
   notice(

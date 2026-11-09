@@ -14,6 +14,7 @@ import {
 } from "../src/content/racing";
 import { hex32 } from "../src/core";
 import { ledgerCreditPair } from "./ledger";
+import { resolvePartyBonus } from "./partyBonus";
 
 class HttpError extends Error {
   constructor(
@@ -186,6 +187,13 @@ export async function racingPost(
       throw new HttpError(409, "Daily race limit reached");
 
     const ribbon = ribbonByPlace(place);
+    const party = await resolvePartyBonus(
+      env,
+      c.owner,
+      "racing",
+      ribbon.rewardBoinglets,
+      now,
+    );
     try {
       await env.DB.batch([
         env.DB.prepare(
@@ -208,6 +216,7 @@ export async function racingPost(
         env.DB.prepare(
           "INSERT OR IGNORE INTO collection_unlocks(owner,entry_id,unlocked_at) VALUES(?,?,?)",
         ).bind(c.owner, `discovery:ribbon:${ribbon.id}`, now),
+        ...party.statements,
       ]);
     } catch {
       throw new HttpError(409, "Heat already recorded or ledger busy");
@@ -224,6 +233,8 @@ export async function racingPost(
         rewardBoinglets: ribbon.rewardBoinglets,
       },
       reaction_ms: delta,
+      party_bonus: party.bonus.eligible ? party.bonus : null,
+      variety_awarded: party.varietyAwarded || 0,
     });
   }
 
