@@ -6,6 +6,7 @@ import {
   type ServerPresenceMessage,
 } from "../lib/presenceProtocol";
 import type { LivePose } from "../scene/Player";
+import { plazaErrorMessage } from "../lib/plazaJoinGate";
 
 export function usePlazaPresence(
   zoneId: string,
@@ -35,13 +36,17 @@ export function usePlazaPresence(
     let closed = false;
     let socket: WebSocket | null = null;
     let timer = 0;
+    /** Server has accepted our hello (welcome received). Moves before this race the async token check. */
+    let joined = false;
     setStatus("connecting");
     setError(null);
     setWalletBound(false);
 
     const tearDown = (code = 1000, reason = "leave") => {
       closed = true;
+      joined = false;
       window.clearInterval(timer);
+      timer = 0;
       if (socket) {
         try {
           socket.close(code, reason);
@@ -69,7 +74,15 @@ export function usePlazaPresence(
       let lastSent = 0;
 
       const sendMove = () => {
-        if (!socket || socket.readyState !== WebSocket.OPEN || closed) return;
+        // Do not send moves until the server has welcomed us — wallet hello
+        // validates the presence token in D1 and can lose a race with the interval.
+        if (
+          !joined ||
+          !socket ||
+          socket.readyState !== WebSocket.OPEN ||
+          closed
+        )
+          return;
         const now = performance.now();
         if (now - lastSent < PRESENCE_MOVE_MIN_MS) return;
         lastSent = now;
@@ -82,6 +95,11 @@ export function usePlazaPresence(
             z: pose.z,
           }),
         );
+      };
+
+      const startMoveLoop = () => {
+        if (timer || closed) return;
+        timer = window.setInterval(sendMove, PRESENCE_MOVE_MIN_MS);
       };
 
       socket.addEventListener("open", () => {
@@ -99,7 +117,7 @@ export function usePlazaPresence(
             ...(identity.token ? { token: identity.token } : {}),
           }),
         );
-        setStatus("live");
+        // Stay on "connecting" until welcome — avoids false "live" during handshake.
       });
 
       socket.addEventListener("message", (event) => {
@@ -111,7 +129,11 @@ export function usePlazaPresence(
           return;
         }
         if (message.type === "welcome") {
+          joined = true;
           setPlayers(message.players.filter((p) => p.id !== selfId.current));
+          setStatus("live");
+          setError(null);
+          startMoveLoop();
           return;
         }
         if (message.type === "join") {
@@ -138,7 +160,9 @@ export function usePlazaPresence(
           return;
         }
         if (message.type === "error") {
-          setError(message.message);
+          // Ignore stale handshake races if we somehow still get one.
+          if (!joined && message.message === "Send hello first") return;
+          setError(plazaErrorMessage(message.message));
           setStatus("error");
         }
       });
@@ -150,8 +174,6 @@ export function usePlazaPresence(
         setError("Presence socket error");
         setStatus("error");
       });
-
-      timer = window.setInterval(sendMove, PRESENCE_MOVE_MIN_MS);
     })();
 
     return () => {

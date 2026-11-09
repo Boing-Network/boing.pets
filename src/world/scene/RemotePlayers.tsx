@@ -1,4 +1,4 @@
-import { Text } from "@react-three/drei";
+import { WorldText } from "./WorldText";
 import type { PresencePlayer } from "../lib/presenceProtocol";
 import { usePetLook } from "../hooks/usePetLook";
 import { PetFollower } from "./PetFollower";
@@ -15,7 +15,7 @@ function RemoteAvatar({ player }: { player: PresencePlayer }) {
         <sphereGeometry args={[0.24, 10, 10]} />
         <meshStandardMaterial color="#f7f2ea" />
       </mesh>
-      <Text
+      <WorldText
         position={[0, 1.75, 0]}
         fontSize={0.28}
         color="#123055"
@@ -25,7 +25,7 @@ function RemoteAvatar({ player }: { player: PresencePlayer }) {
         outlineColor="#ffffff"
       >
         {player.name}
-      </Text>
+      </WorldText>
       {look ? <PetFollower look={look} /> : null}
     </group>
   );

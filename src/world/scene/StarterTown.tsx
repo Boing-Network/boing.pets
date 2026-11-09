@@ -1,4 +1,5 @@
-import { Float, Text } from "@react-three/drei";
+import { Float } from "@react-three/drei";
+import { WorldText } from "./WorldText";
 import type { WorldLandmark, WorldZoneConfig } from "../config/zones";
 
 function Landmark({ item }: { item: WorldLandmark }) {
@@ -15,7 +16,7 @@ function Landmark({ item }: { item: WorldLandmark }) {
         />
         <meshStandardMaterial color="#5d7eb8" roughness={0.7} />
       </mesh>
-      <Text
+      <WorldText
         position={[0, item.height + 1.8, 0]}
         fontSize={0.45}
         color="#123055"
@@ -25,7 +26,7 @@ function Landmark({ item }: { item: WorldLandmark }) {
         outlineColor="#ffffff"
       >
         {item.label}
-      </Text>
+      </WorldText>
     </group>
   );
 }

@@ -17,7 +17,10 @@ import { loadPresenceToken } from "./lib/presenceTokenCache";
 import { Player, type LivePose } from "./scene/Player";
 import { RemotePlayers } from "./scene/RemotePlayers";
 import { StarterTown } from "./scene/StarterTown";
+import { ensureWorldFontConfig } from "./lib/configureWorldFonts";
 import "./world.css";
+
+ensureWorldFontConfig();
 
 export function WorldApp() {
   const controls = usePlayerControls();
