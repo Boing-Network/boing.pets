@@ -113,7 +113,7 @@ export async function fishingPost(
     const delay = biteDelayMs(id);
     const biteAt = now + delay;
     const expires = now + 10 * 60_000;
-    const message = `Boing Pets fishing v1\nOrigin: ${env.APP_ORIGIN}\nChain: 6913\nOwner: ${owner}\nDay: ${dayKey}\nFish: ${fish.id}\nBite: ${biteAt}\nWindow: ${FISHING_REEL_WINDOW_MS}\nNonce: ${id}\nExpires: ${expires}`;
+    const message = `Boing Pets fishing v1\nOrigin: ${env.APP_ORIGIN}\nChain: 6913\nOwner: ${owner}\nDay: ${dayKey}\nBite: ${biteAt}\nWindow: ${FISHING_REEL_WINDOW_MS}\nNonce: ${id}\nExpires: ${expires}`;
     await env.DB.prepare(
       "INSERT INTO fishing_challenges(id,owner,day_key,fish_id,bite_at,window_ms,message,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?)",
     )
@@ -133,10 +133,6 @@ export async function fishingPost(
       id,
       owner,
       day_key: dayKey,
-      fish_id: fish.id,
-      fish_name: fish.name,
-      rarity: fish.rarity,
-      reward: fish.rewardBoinglets,
       bite_at: biteAt,
       window_ms: FISHING_REEL_WINDOW_MS,
       message,

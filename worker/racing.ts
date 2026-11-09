@@ -115,7 +115,7 @@ export async function racingPost(
     const delay = goDelayMs(id);
     const goAt = now + delay;
     const expires = now + 10 * 60_000;
-    const message = `Boing Pets racing v1\nOrigin: ${env.APP_ORIGIN}\nChain: 6913\nOwner: ${owner}\nDay: ${dayKey}\nTrack: ${track.id}\nGo: ${goAt}\nWindow: ${RACE_FINISH_WINDOW_MS}\nNonce: ${id}\nExpires: ${expires}`;
+    const message = `Boing Pets racing v1\nOrigin: ${env.APP_ORIGIN}\nChain: 6913\nOwner: ${owner}\nDay: ${dayKey}\nGo: ${goAt}\nWindow: ${RACE_FINISH_WINDOW_MS}\nNonce: ${id}\nExpires: ${expires}`;
     await env.DB.prepare(
       "INSERT INTO race_challenges(id,owner,day_key,track_id,go_at,window_ms,message,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?)",
     )
@@ -135,8 +135,6 @@ export async function racingPost(
       id,
       owner,
       day_key: dayKey,
-      track_id: track.id,
-      track_name: track.name,
       go_at: goAt,
       window_ms: RACE_FINISH_WINDOW_MS,
       message,

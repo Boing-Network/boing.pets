@@ -135,7 +135,7 @@ export async function miningPost(
     const delay = strikeDelayMs(id);
     const strikeAt = now + delay;
     const expires = now + 10 * 60_000;
-    const message = `Boing Pets mining v1\nOrigin: ${env.APP_ORIGIN}\nChain: 6913\nOwner: ${owner}\nDay: ${dayKey}\nOre: ${ore.id}\nStrike: ${strikeAt}\nWindow: ${MINING_STRIKE_WINDOW_MS}\nStamina: ${ore.staminaCost}\nTier: ${tier}\nNonce: ${id}\nExpires: ${expires}`;
+    const message = `Boing Pets mining v1\nOrigin: ${env.APP_ORIGIN}\nChain: 6913\nOwner: ${owner}\nDay: ${dayKey}\nStrike: ${strikeAt}\nWindow: ${MINING_STRIKE_WINDOW_MS}\nTier: ${tier}\nNonce: ${id}\nExpires: ${expires}`;
     await env.DB.prepare(
       "INSERT INTO mining_challenges(id,owner,day_key,ore_id,strike_at,window_ms,stamina_cost,pickaxe_tier,message,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
     )
@@ -157,11 +157,6 @@ export async function miningPost(
       id,
       owner,
       day_key: dayKey,
-      ore_id: ore.id,
-      ore_name: ore.name,
-      rarity: ore.rarity,
-      reward: ore.rewardBoinglets,
-      stamina_cost: ore.staminaCost,
       pickaxe_tier: tier,
       strike_at: strikeAt,
       window_ms: MINING_STRIKE_WINDOW_MS,

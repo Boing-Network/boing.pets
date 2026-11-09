@@ -863,8 +863,12 @@ describe("Pets API", () => {
     const body = (await start.json()) as {
       id: string;
       message: string;
-      track_id: string;
+      track_id?: string;
+      track_name?: string;
     };
+    expect(body.track_id).toBeUndefined();
+    expect(body.track_name).toBeUndefined();
+    expect(body.message).not.toMatch(/Track:/i);
     db.prepare("UPDATE race_challenges SET go_at=? WHERE id=?").run(
       Date.now() - 100,
       body.id,
@@ -899,8 +903,15 @@ describe("Pets API", () => {
       message: string;
       strike_at: number;
       window_ms: number;
-      ore_id: string;
+      ore_id?: string;
+      ore_name?: string;
     };
+    expect(body.ore_id).toBeUndefined();
+    expect(body.ore_name).toBeUndefined();
+    expect(body.message).not.toMatch(/Ore:/i);
+    const committedOre = db
+      .prepare("SELECT ore_id FROM mining_challenges WHERE id=?")
+      .get(body.id) as { ore_id: string };
     db.prepare(
       "UPDATE mining_challenges SET strike_at=? WHERE id=?",
     ).run(Date.now() - 50, body.id);
@@ -914,13 +925,13 @@ describe("Pets API", () => {
       ore?: { id: string };
     };
     expect(result.ok).toBe(true);
-    expect(result.ore?.id).toBe(body.ore_id);
+    expect(result.ore?.id).toBe(committedOre.ore_id);
     expect(
       db
         .prepare(
           "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
         )
-        .get(owner, body.ore_id)?.qty,
+        .get(owner, committedOre.ore_id)?.qty,
     ).toBe(1);
     expect(
       db
@@ -1140,8 +1151,15 @@ describe("Pets API", () => {
       message: string;
       bite_at: number;
       window_ms: number;
-      fish_id: string;
+      fish_id?: string;
+      fish_name?: string;
     };
+    expect(body.fish_id).toBeUndefined();
+    expect(body.fish_name).toBeUndefined();
+    expect(body.message).not.toMatch(/Fish:/i);
+    const committedFish = db
+      .prepare("SELECT fish_id FROM fishing_challenges WHERE id=?")
+      .get(body.id) as { fish_id: string };
     // Too early should fail.
     expect(
       (
@@ -1163,14 +1181,14 @@ describe("Pets API", () => {
     expect(await caught.json()).toMatchObject({
       ok: true,
       result: "caught",
-      fish: { id: body.fish_id },
+      fish: { id: committedFish.fish_id },
     });
     expect(
       db
         .prepare(
           "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
         )
-        .get(owner, body.fish_id)?.qty,
+        .get(owner, committedFish.fish_id)?.qty,
     ).toBe(1);
     expect(
       db

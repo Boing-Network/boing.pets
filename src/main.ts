@@ -411,7 +411,6 @@ let miningChallenge: {
   message: string;
   strike_at: number;
   window_ms: number;
-  ore_name: string;
 } | null = null;
 function clearMiningTimer() {
   if (miningTimer) window.clearTimeout(miningTimer);
@@ -424,7 +423,6 @@ let racingChallenge: {
   message: string;
   go_at: number;
   window_ms: number;
-  track_name: string;
 } | null = null;
 function clearRacingTimer() {
   if (racingTimer) window.clearTimeout(racingTimer);
@@ -464,7 +462,6 @@ async function startRace() {
     message: string;
     go_at: number;
     window_ms: number;
-    track_name: string;
   }>("/api/racing/challenge", { owner });
   racingChallenge = challenge;
   const finishBtn = $("#race-finish") as HTMLButtonElement;
@@ -472,13 +469,13 @@ async function startRace() {
   finishBtn.hidden = false;
   finishBtn.disabled = true;
   startBtn.disabled = true;
-  $("#racing-prompt").textContent = `${challenge.track_name}: on your marks…`;
+  $("#racing-prompt").textContent = `On your marks…`;
   $("#racing-needle").className = "waiting";
   const wait = Math.max(0, challenge.go_at - Date.now());
   clearRacingTimer();
   racingTimer = window.setTimeout(() => {
     $("#racing-prompt").textContent =
-      `Go! Finish ${challenge.track_name} — ${Math.round(challenge.window_ms / 100) / 10}s window.`;
+      `Go! Finish now — ${Math.round(challenge.window_ms / 100) / 10}s window.`;
     $("#racing-needle").className = "bite";
     finishBtn.disabled = false;
     racingTimer = window.setTimeout(() => {
@@ -535,7 +532,6 @@ let fishingChallenge: {
   message: string;
   bite_at: number;
   window_ms: number;
-  fish_name: string;
 } | null = null;
 
 function clearFishingTimer() {
@@ -581,7 +577,6 @@ async function castLine() {
     message: string;
     bite_at: number;
     window_ms: number;
-    fish_name: string;
   }>("/api/fishing/challenge", { owner });
   fishingChallenge = challenge;
   const reelBtn = $("#fish-reel") as HTMLButtonElement;
@@ -595,7 +590,7 @@ async function castLine() {
   clearFishingTimer();
   fishingTimer = window.setTimeout(() => {
     $("#fishing-prompt").textContent =
-      `Nibble! Reel ${challenge.fish_name} — ${Math.round(challenge.window_ms / 100) / 10}s window.`;
+      `Nibble! Reel now — ${Math.round(challenge.window_ms / 100) / 10}s window.`;
     $("#fishing-needle").className = "bite";
     reelBtn.disabled = false;
     fishingTimer = window.setTimeout(() => {
@@ -690,7 +685,6 @@ async function swingPick() {
     message: string;
     strike_at: number;
     window_ms: number;
-    ore_name: string;
   }>("/api/mining/challenge", { owner });
   miningChallenge = challenge;
   const strikeBtn = $("#mine-strike") as HTMLButtonElement;
@@ -704,7 +698,7 @@ async function swingPick() {
   clearMiningTimer();
   miningTimer = window.setTimeout(() => {
     $("#mining-prompt").textContent =
-      `Weak spot! Strike ${challenge.ore_name} — ${Math.round(challenge.window_ms / 100) / 10}s window.`;
+      `Weak spot! Strike now — ${Math.round(challenge.window_ms / 100) / 10}s window.`;
     $("#mining-needle").className = "bite";
     strikeBtn.disabled = false;
     miningTimer = window.setTimeout(() => {
