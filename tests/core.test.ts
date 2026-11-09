@@ -10,6 +10,10 @@ import {
   PERSONALITIES,
   growthStage,
   unlockedAchievements,
+  unlockedAchievementsFromRollup,
+  rollupFromEvents,
+  stateFromRollup,
+  applyCareToRollup,
   CARE_REWARDS,
 } from "../src/core";
 import { verifyProof } from "../worker/proof";
@@ -204,5 +208,52 @@ describe("server-side transaction proof (never trust a hash alone)", () => {
     expect(() =>
       verifyProof(tx, c, receipt, { ...block, header: { height: 99 } }),
     ).toThrow();
+  });
+});
+
+describe("care rollup parity", () => {
+  it("matches state() and achievements for mixed histories", () => {
+    const now = created + 10 * DAY;
+    const events = [
+      { action: "hatch" as const, created_at: created },
+      { action: "feed" as const, created_at: created + DAY },
+      { action: "checkin" as const, created_at: created + DAY },
+      { action: "play" as const, created_at: created + DAY },
+      { action: "groom" as const, created_at: created + DAY },
+      { action: "feed" as const, created_at: created + 2 * DAY },
+      { action: "checkin" as const, created_at: now },
+    ];
+    const rollup = rollupFromEvents(pet, events, now);
+    expect(stateFromRollup(pet, rollup, now)).toEqual(state(pet, events, now));
+    expect(unlockedAchievementsFromRollup(pet, rollup, now)).toEqual(
+      unlockedAchievements(pet, events, now),
+    );
+    expect(rollup.hadBalancedDay).toBe(true);
+  });
+
+  it("applyCareToRollup matches rebuild from events", () => {
+    const t0 = created;
+    const base = rollupFromEvents(pet, [{ action: "hatch", created_at: t0 }], t0);
+    const nextAt = created + DAY;
+    const applied = applyCareToRollup(base, "feed", nextAt, pet.created_at);
+    const rebuilt = rollupFromEvents(
+      pet,
+      [
+        { action: "hatch", created_at: t0 },
+        { action: "feed", created_at: nextAt },
+      ],
+      nextAt,
+    );
+    expect(applied).toEqual(rebuilt);
+    expect(stateFromRollup(pet, applied, nextAt)).toEqual(
+      state(
+        pet,
+        [
+          { action: "hatch", created_at: t0 },
+          { action: "feed", created_at: nextAt },
+        ],
+        nextAt,
+      ),
+    );
   });
 });

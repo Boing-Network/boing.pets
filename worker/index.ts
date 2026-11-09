@@ -9,19 +9,20 @@ import {
   isAction,
   isSignatureAction,
   markerAmount,
-  state,
+  stateFromRollup,
   traits,
-  unlockedAchievements,
+  unlockedAchievementsFromRollup,
   type AchievementCode,
   type Action,
-  type CareEvent,
+  type CareRollup,
   type Pet,
 } from "../src/core";
 import {
-  buildPetMind,
+  buildPetMindFromRollup,
   episodePayload,
   type PetMemoryRow,
 } from "../src/memory";
+import { bumpRollupAfterCare, loadOrBuildRollup } from "./careRollup";
 import { WORLD_CONFIG } from "../src/world/config/zones";
 import {
   contentError,
@@ -152,13 +153,13 @@ async function checkNetwork(env: Env) {
   if (info.chain_id !== 6913)
     throw new HttpError(503, "Pets only supports Boing testnet 6913");
 }
-async function persistAchievements(
+async function persistAchievementsFromRollup(
   env: Env,
   pet: Pet,
-  events: CareEvent[],
+  rollup: CareRollup,
   now: number,
 ) {
-  const codes = unlockedAchievements(pet, events, now);
+  const codes = unlockedAchievementsFromRollup(pet, rollup, now);
   for (const code of codes) {
     await env.DB.prepare(
       "INSERT OR IGNORE INTO achievements(owner,code,unlocked_at) VALUES(?,?,?)",
@@ -192,11 +193,7 @@ async function recordEpisode(
 }
 
 async function enrich(env: Env, pet: Pet, now: number) {
-  const events = await env.DB.prepare(
-    "SELECT action,created_at FROM events WHERE owner=? ORDER BY created_at",
-  )
-    .bind(pet.owner)
-    .all<CareEvent>();
+  const rollup = await loadOrBuildRollup(env, pet, now);
   const stored = await env.DB.prepare(
     "SELECT code,unlocked_at FROM achievements WHERE owner=? ORDER BY unlocked_at",
   )
@@ -208,7 +205,7 @@ async function enrich(env: Env, pet: Pet, now: number) {
     .bind(pet.owner)
     .all<PetMemoryRow>();
   // Derive on read so legacy pets gain badges without a backfill job.
-  const derived = unlockedAchievements(pet, events.results, now);
+  const derived = unlockedAchievementsFromRollup(pet, rollup, now);
   const byCode = new Map(
     stored.results.map((row) => [row.code, row.unlocked_at]),
   );
@@ -225,7 +222,7 @@ async function enrich(env: Env, pet: Pet, now: number) {
     .bind(pet.owner, dayOf(now))
     .all<{ food_id: string }>();
   const vitals = applyFoodBoosts(
-    state(pet, events.results, now),
+    stateFromRollup(pet, rollup, now),
     snacks.results,
   );
   return {
@@ -233,7 +230,7 @@ async function enrich(env: Env, pet: Pet, now: number) {
     traits: t,
     state: vitals,
     achievements,
-    mind: buildPetMind(pet, events.results, t.personality, now),
+    mind: buildPetMindFromRollup(pet, rollup, t.personality, now),
     memories: memories.results,
   };
 }
@@ -797,12 +794,8 @@ async function api(req: Request, env: Env): Promise<Response> {
             .bind(c.owner)
             .first<Pet>();
     if (petRow) {
-      const events = await env.DB.prepare(
-        "SELECT action,created_at FROM events WHERE owner=? ORDER BY created_at",
-      )
-        .bind(c.owner)
-        .all<CareEvent>();
-      await persistAchievements(env, petRow, events.results, now);
+      const rollup = await bumpRollupAfterCare(env, petRow, c.action, now);
+      await persistAchievementsFromRollup(env, petRow, rollup, now);
       await recordEpisode(env, c.owner, c.action, now);
     }
     return json({ ok: true });

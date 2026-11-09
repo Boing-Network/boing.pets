@@ -3,6 +3,7 @@ import {
   DAY,
   type Action,
   type CareEvent,
+  type CareRollup,
   type Pet,
   type Personality,
 } from "./core";
@@ -169,4 +170,57 @@ export function episodePayload(action: Action, at: number): string {
     at,
     note: `Remembered ${ACTIVITY_LABEL[action]}`,
   });
+}
+
+/** Same mind cues as buildPetMind, driven by a care rollup. */
+export function buildPetMindFromRollup(
+  pet: Pet,
+  rollup: CareRollup,
+  personality: Personality,
+  now: number,
+): PetMind {
+  const counts = { ...rollup.actionCounts };
+  const favorite = favoriteActivity(counts);
+  const lastCare = Math.max(pet.created_at, rollup.lastCare);
+  const lastFed = Math.max(pet.created_at, rollup.lastFed);
+  const daysSinceCare = Math.max(0, Math.floor((now - lastCare) / DAY));
+  const daysSinceFeed = Math.max(0, Math.floor((now - lastFed) / DAY));
+
+  let mood: PetMind["mood"] = "content";
+  if (daysSinceCare >= 3) mood = "lonely";
+  else if (counts.play >= counts.feed && counts.play > 0) mood = "playful";
+  else if (personality === "Curious" || personality === "Adventurous")
+    mood = "curious";
+  else if (counts.play === 0 && dayOf(now) - dayOf(pet.created_at) >= 2)
+    mood = "tired";
+
+  const cues: string[] = [];
+  if (daysSinceFeed >= 2)
+    cues.push("Belly rumbles — a feed would mean the world.");
+  if (daysSinceCare >= 1 && daysSinceCare < 3)
+    cues.push("Missed yesterday's bounce a little.");
+  if (favorite !== "none")
+    cues.push(`Favorite ritual lately: ${ACTIVITY_LABEL[favorite]}.`);
+  cues.push(personalityCue(personality, favorite));
+
+  let suggestion = "A short hello keeps the bond warm.";
+  if (daysSinceFeed >= 2) suggestion = "Please feed me before we explore.";
+  else if (favorite === "play" || mood === "playful")
+    suggestion = "Can we play, then visit the lake pads in Starter Town?";
+  else if (favorite === "groom")
+    suggestion = "A groom would make me parade-ready for the plaza.";
+  else if (mood === "curious")
+    suggestion = "Let's peek at the Marketplace board together.";
+  else if (mood === "lonely")
+    suggestion = "Just checking in would help me feel found again.";
+
+  return {
+    mood,
+    favoriteActivity: favorite,
+    activityCounts: counts,
+    daysSinceCare,
+    daysSinceFeed,
+    cues: cues.slice(0, 4),
+    suggestion,
+  };
 }

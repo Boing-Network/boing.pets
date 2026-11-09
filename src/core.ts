@@ -311,3 +311,211 @@ export function petSvg(t: ReturnType<typeof traits>, sad = false): string {
   ];
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 190" role="img" aria-label="${sad ? "Scruffy" : "Happy"} ${t.species}"><ellipse cx="100" cy="166" rx="55" ry="10" fill="#0003"/><g stroke="#142044" stroke-width="4" stroke-linejoin="round" fill="${accent}">${ears[t.shape]}<ellipse cx="100" cy="114" rx="54" ry="48" fill="${color}"/><ellipse cx="69" cy="155" rx="18" ry="9"/><ellipse cx="131" cy="155" rx="18" ry="9"/></g>${Array.from({ length: t.spots }, (_, i) => `<circle cx="${70 + i * 23}" cy="130" r="7" fill="${accent}" opacity=".6"/>`).join("")}<g fill="#142044"><circle cx="80" cy="104" r="5"/><circle cx="120" cy="104" r="5"/></g><path d="${sad ? "M88 127Q100 113 112 127" : "M88 119Q100 134 112 119"}" fill="none" stroke="#142044" stroke-width="4" stroke-linecap="round"/>${t.antenna === 1 ? `<circle cx="100" cy="82" r="5" fill="${accent}"/>` : ""}${sad ? '<path d="M53 144L40 153M147 144L160 153" stroke="#9aa9bd" stroke-width="3"/>' : ""}</svg>`;
 }
+
+export interface CareRollup {
+  lastCare: number;
+  lastFed: number;
+  lastPlay: number;
+  lastGroom: number;
+  careDays: number[];
+  actionCounts: Record<Action, number>;
+  todayDay: number;
+  todayActions: Action[];
+  hadBalancedDay: boolean;
+}
+
+export function emptyActionCounts(): Record<Action, number> {
+  return { hatch: 0, feed: 0, checkin: 0, play: 0, groom: 0 };
+}
+
+function isBalancedDay(actions: Iterable<Action>): boolean {
+  const set = actions instanceof Set ? actions : new Set(actions);
+  return (
+    set.has("feed") &&
+    set.has("checkin") &&
+    set.has("play") &&
+    set.has("groom")
+  );
+}
+
+/** Build a rollup from the same event stream `state()` uses. */
+export function rollupFromEvents(
+  pet: Pet,
+  events: CareEvent[],
+  now: number,
+): CareRollup {
+  const valid = events.filter(
+    (e) => e.created_at <= now && e.created_at >= pet.created_at,
+  );
+  const counts = emptyActionCounts();
+  for (const e of valid) counts[e.action] += 1;
+  const days = new Set<number>([
+    dayOf(pet.created_at),
+    ...valid.map((e) => dayOf(e.created_at)),
+  ]);
+  const today = dayOf(now);
+  const todayActions = [
+    ...new Set(
+      valid.filter((e) => dayOf(e.created_at) === today).map((e) => e.action),
+    ),
+  ];
+  const byDay = new Map<number, Set<Action>>();
+  for (const e of valid) {
+    const d = dayOf(e.created_at);
+    const set = byDay.get(d) ?? new Set<Action>();
+    set.add(e.action);
+    byDay.set(d, set);
+  }
+  const hadBalancedDay = [...byDay.values()].some((set) => isBalancedDay(set));
+  const careTimes = valid.map((e) => e.created_at);
+  return {
+    lastCare: Math.max(pet.created_at, ...careTimes),
+    lastFed: lastOf(pet, valid, (e) => e.action === "feed"),
+    lastPlay: lastOf(
+      pet,
+      valid,
+      (e) => e.action === "play" || e.action === "hatch",
+    ),
+    lastGroom: lastOf(
+      pet,
+      valid,
+      (e) => e.action === "groom" || e.action === "hatch",
+    ),
+    careDays: [...days].sort((a, b) => a - b),
+    actionCounts: counts,
+    todayDay: today,
+    todayActions,
+    hadBalancedDay,
+  };
+}
+
+/** Apply one newly confirmed care action onto an existing rollup. */
+export function applyCareToRollup(
+  rollup: CareRollup,
+  action: Action,
+  at: number,
+  petCreatedAt: number,
+): CareRollup {
+  const day = dayOf(at);
+  const counts = { ...rollup.actionCounts, [action]: (rollup.actionCounts[action] || 0) + 1 };
+  const careDays = rollup.careDays.includes(day)
+    ? rollup.careDays
+    : [...rollup.careDays, day].sort((a, b) => a - b);
+  const todayActions =
+    rollup.todayDay === day
+      ? rollup.todayActions.includes(action)
+        ? rollup.todayActions
+        : [...rollup.todayActions, action]
+      : [action];
+  const dayActions = new Set(todayActions);
+  return {
+    lastCare: Math.max(rollup.lastCare, at, petCreatedAt),
+    lastFed: action === "feed" ? Math.max(rollup.lastFed, at) : rollup.lastFed,
+    lastPlay:
+      action === "play" || action === "hatch"
+        ? Math.max(rollup.lastPlay, at)
+        : rollup.lastPlay,
+    lastGroom:
+      action === "groom" || action === "hatch"
+        ? Math.max(rollup.lastGroom, at)
+        : rollup.lastGroom,
+    careDays,
+    actionCounts: counts,
+    todayDay: day,
+    todayActions,
+    hadBalancedDay: rollup.hadBalancedDay || isBalancedDay(dayActions),
+  };
+}
+
+/** Reconstruct `state()` from a rollup without loading events. */
+export function stateFromRollup(pet: Pet, rollup: CareRollup, now: number) {
+  const today = dayOf(now);
+  const todayActions = new Set(
+    rollup.todayDay === today ? rollup.todayActions : [],
+  );
+  const days = new Set(rollup.careDays);
+  days.add(dayOf(pet.created_at));
+  let cursor = today;
+  if (!days.has(cursor)) cursor--;
+  let streak = 0;
+  while (days.has(cursor)) {
+    streak++;
+    cursor--;
+  }
+  const hunger = decay(rollup.lastFed, now, 25);
+  const happiness = decay(rollup.lastCare, now, 20);
+  const energy = decay(rollup.lastPlay, now, 15);
+  const hygiene = decay(rollup.lastGroom, now, 18);
+  const health = Math.round(
+    hunger * 0.3 + happiness * 0.25 + energy * 0.2 + hygiene * 0.25,
+  );
+  const status =
+    now - rollup.lastFed >= 4 * DAY
+      ? "stray"
+      : now - rollup.lastFed >= 2 * DAY
+        ? "scruffy"
+        : hunger < 75
+          ? "peckish"
+          : "bouncy";
+  let boinglets = 0;
+  let xp = 0;
+  for (const action of ACTIONS) {
+    const n = rollup.actionCounts[action] || 0;
+    boinglets += CARE_REWARDS[action].boinglets * n;
+    xp += CARE_REWARDS[action].xp * n;
+  }
+  const scores = {
+    Explorer: (rollup.actionCounts.hatch || 0) * 2,
+    Athlete: (rollup.actionCounts.play || 0) * 2,
+    Scholar: (rollup.actionCounts.checkin || 0) * 1,
+    Performer: (rollup.actionCounts.groom || 0) * 1,
+    Collector: (rollup.actionCounts.feed || 0) * 1,
+  };
+  const top = (
+    Object.entries(scores) as [keyof typeof scores, number][]
+  ).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
+  return {
+    hunger,
+    happiness,
+    energy,
+    hygiene,
+    health,
+    streak,
+    status,
+    stage: growthStage(pet, days.size, now),
+    careDays: days.size,
+    lastCare: rollup.lastCare,
+    lastFed: rollup.lastFed,
+    checkedIn: todayActions.has("checkin"),
+    fedToday: todayActions.has("feed"),
+    playedToday: todayActions.has("play"),
+    groomedToday: todayActions.has("groom"),
+    boinglets: boinglets + streak * 2,
+    xp,
+    skills: { scores, focus: top[1] > 0 ? top[0] : ("Explorer" as const) },
+  };
+}
+
+/** Achievements from rollup — same codes as unlockedAchievements(events). */
+export function unlockedAchievementsFromRollup(
+  pet: Pet,
+  rollup: CareRollup,
+  now: number,
+): AchievementCode[] {
+  const { streak } = stateFromRollup(pet, rollup, now);
+  const actions = new Set(
+    (Object.entries(rollup.actionCounts) as [Action, number][])
+      .filter(([, n]) => n > 0)
+      .map(([a]) => a),
+  );
+  const out: AchievementCode[] = [];
+  out.push("first_bounce");
+  if (actions.has("checkin")) out.push("kind_hello");
+  if (actions.has("feed")) out.push("full_bowl");
+  if (actions.has("play")) out.push("playtime");
+  if (actions.has("groom")) out.push("fresh_coat");
+  if (streak >= 3) out.push("streak_3");
+  if (streak >= 7) out.push("streak_7");
+  if (rollup.hadBalancedDay) out.push("balanced_day");
+  return out;
+}
