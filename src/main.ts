@@ -25,6 +25,11 @@ import {
   tryRestoreWalletSession,
   type BoingProvider,
 } from "./wallet/session";
+import {
+  clearSocialSession,
+  loadSocialSession,
+  saveSocialSession,
+} from "./social/sessionCache";
 type Provider = BoingProvider;
 type ViewPet = Pet & {
   traits: ReturnType<typeof traits>;
@@ -97,8 +102,56 @@ function notice(text: string, error = false) {
   el.textContent = text;
   el.classList.toggle("error", error);
 }
-async function api<T>(path: string, body?: unknown): Promise<T> {
-  return apiFetch<T>(path, body);
+async function api<T>(
+  path: string,
+  body?: unknown,
+  init?: { headers?: Record<string, string> },
+): Promise<T> {
+  return apiFetch<T>(path, body, init);
+}
+
+/** One signed social-read session (15m), cached like plaza presence tokens. */
+async function ensureSocialSession(): Promise<string> {
+  await assertWallet();
+  const cached = loadSocialSession(owner);
+  if (cached) return cached.token;
+  notice("Approve a social session signature in Express (read access)…");
+  const challenge = await api<{ id: string; message: string }>(
+    "/api/social/session/challenge",
+    { owner },
+  );
+  const signature = await provider!.request({
+    method: "boing_signMessage",
+    params: [challenge.message, owner],
+  });
+  const confirmed = await api<{
+    token: string;
+    owner: string;
+    expires_at: number;
+  }>("/api/social/session/confirm", { id: challenge.id, signature });
+  saveSocialSession({
+    token: confirmed.token,
+    owner: confirmed.owner,
+    expires_at: confirmed.expires_at,
+  });
+  return confirmed.token;
+}
+
+async function socialApi<T>(path: string): Promise<T> {
+  const token = await ensureSocialSession();
+  try {
+    return await api<T>(path, undefined, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "";
+    if (!/session|401|Sign in again|Social read session/i.test(msg)) throw e;
+    clearSocialSession(owner);
+    const token2 = await ensureSocialSession();
+    return api<T>(path, undefined, {
+      headers: { Authorization: `Bearer ${token2}` },
+    });
+  }
 }
 function pending(): Pending | null {
   try {
@@ -148,7 +201,7 @@ async function openDm(friendOwner: string, label: string) {
   dmTarget = friendOwner;
   $("#dm-panel").hidden = false;
   $("#dm-with").textContent = label;
-  const data = await api<{
+  const data = await socialApi<{
     messages: Array<{
       from_owner: string;
       body: string;
@@ -194,7 +247,7 @@ async function refreshSocial() {
   $("#social-summary").textContent = profile.profile
     ? `Signed in as ${profile.profile.display_name}`
     : "Pick a display name (2–24 chars), then add friends by their 0x wallet.";
-  const requests = await api<{
+  const requests = await socialApi<{
     incoming: Array<{
       id: string;
       from_owner: string;
@@ -229,10 +282,10 @@ async function refreshSocial() {
       }),
     );
   }
-  const friends = await api<{
+  const friends = await socialApi<{
     friends: Array<{ owner: string; display_name: string | null }>;
   }>("/api/social/friends?owner=" + owner);
-  const party = await api<{
+  const party = await socialApi<{
     party: {
       id: string;
       leader: string;
@@ -244,7 +297,7 @@ async function refreshSocial() {
     } | null;
     maxSize: number;
   }>("/api/social/party?owner=" + owner);
-  const partyInvites = await api<{
+  const partyInvites = await socialApi<{
     incoming: Array<{
       id: string;
       party_id: string;
@@ -1529,6 +1582,7 @@ function disconnect() {
   provider?.removeListener?.("accountsChanged", disconnect);
   provider?.removeListener?.("chainChanged", disconnect);
   clearWalletSession(provider);
+  clearSocialSession(owner || undefined);
   owner = "";
   mine = null;
   provider = null;

@@ -35,7 +35,8 @@ Open **http://localhost:5177** (use this exact origin, not 127.0.0.1). Starter T
 4. **Daily hello** signs a server-generated, origin/account/chain/action/nonce/expiry-bound message. The server verifies Ed25519 over BLAKE3(UTF-8 message), matching current Express. No transaction fee.
 5. **Feed** approves another tiny self-transfer and restores the belly. Feeding is capped at once per UTC day to prevent accidental repeat fees. Each action type is once/day; any care action counts for the streak, never twice on the same day.
 6. **Play** and **Groom** are free daily signatures (like hello) that restore energy and hygiene.
-7. The public pasture shows buddies, streaks, vitals, stage, personality, XP, Boinglets, and status. Yours is highlighted. Browse without connecting. Use Refresh to recompute time-dependent state.
+7. **Friends / DMs / party** pages request one short social-session signature (cached ~15 minutes) before loading private lists or messages.
+8. The public pasture shows buddies, streaks, vitals, stage, personality, XP, Boinglets, and status. Yours is highlighted. Browse without connecting. Use Refresh to recompute time-dependent state.
 
 Belly loses 25 points/day since hatch or last feed; joy loses 20/day since any care; energy loses 15/day since play/hatch; hygiene loses 18/day since groom/hatch; health is a weighted composite. After two days without feeding, a buddy is scruffy; after four, a stray. A hello cheers up a stray but only a feed restores its belly. No permanent death or deletion. Streaks count consecutive UTC calendar days; yesterday's streak remains visible until today is missed. This is a calendar-day ritual, not a rolling 24-hour timer. Pets also gain a seeded personality, growth stage, event-sourced XP/Boinglets, and achievements.
 
@@ -47,26 +48,28 @@ Belly loses 25 points/day since hatch or last feed; joy loses 20/day since any c
 - **Verification:** Worker checks the RPC's chain id, successful receipt, post-challenge block height, exact block receipt/id/index, transaction sender, self-recipient, and exact challenge amount. It does not trust a browser-supplied success flag or arbitrary transaction hash. Failed/unknown transactions never grant care. Pending ids are saved locally so users can retry confirmation without resending. Challenges expire after one hour; confirm within that window. If a transaction failed or its challenge expired, Forget pending record clears only the local recovery record (it does not cancel or refund any transaction).
 - **Public state:** one small Worker + D1 with unique wallet, transaction, challenge, and `(owner, action, UTC day)` constraints. D1 batches atomically write hatch and its event. Event-sourced state avoids lost-update races between feed/check-in. Repeated confirmation is idempotent; a hash cannot hatch/feed twice.
 - **No cron:** status/decay/streaks derive lazily from timestamps on reads. No added Cloudflare trigger. Unconfirmed expired challenges are cleaned on challenge issuance. Confirmed challenge records remain as an audit trail. Gallery is paginated (24 pets/page).
-- **Trust model:** Pets is a centralized off-chain care/index service backed by genuine testnet transactions, **not** a fully on-chain pet contract or transferable NFT. The pasture consists of submitted, verified claims; it is not an autonomous chain-wide scanner. No API means no pasture/care writes. The RPC is trusted for canonical inclusion; a malicious RPC or database operator is outside the v1 trust boundary. Event history is local until an operator provisions a shared D1 deployment. No anti-Sybil guarantee; per-wallet challenge throttling is not a substitute for public edge rate limiting.
+- **Trust model:** Pets is a centralized off-chain care/index service backed by genuine testnet transactions, **not** a fully on-chain pet contract or transferable NFT. The pasture consists of submitted, verified claims; it is not an autonomous chain-wide scanner. No API means no pasture/care writes. The RPC is trusted for canonical inclusion; a malicious RPC or database operator is outside the v1 trust boundary. Event history is local until an operator provisions a shared D1 deployment. No anti-Sybil guarantee. Per-wallet challenge throttling plus D1-backed per-IP soft limits (stricter on `/api/pasture`) reduce casual abuse; Cloudflare WAF / Rate Limiting Rules are still recommended for public edge hardening.
 
 ## API
 
-- `GET /api/pasture?offset=0` → up to 24 pets, next offset, server time.
+- `GET /api/pasture?offset=0` → up to 24 pets, next offset, server time (IP rate-limited more strictly).
 - `GET /api/pet?owner=0x...` → one pet or null.
 - `POST /api/challenge` `{owner,action}` → one-hour challenge, exact signature message or native transaction request.
-- `POST /api/confirm` `{id,signature}` for check-in, or `{id,tx_hash}` for hatch/feed.
+- `POST /api/confirm` `{id,signature}` for check-in / play / groom, or `{id,tx_hash}` for hatch/feed.
+- Social private reads (`/api/social/friends`, `/requests`, `/messages`, `/party`, `/party/invites`) require a short-lived **social session**: `POST /api/social/session/challenge` + `confirm` (Express signature), then `Authorization: Bearer <token>`. Public `GET /api/social/profile` stays open.
+- Soft currency spends update `account_balances` atomically with the ledger so concurrent buys cannot overdraw.
 
-Writes require the configured `APP_ORIGIN` and JSON bodies (4 KiB maximum), signatures or chain proofs. No private keys, sessions, cookies, client secrets, or wallet seed imports. Challenges are not authentication by themselves. Before public deployment, add edge/IP abuse controls (including for reads and wallet-rotation attacks), audit economics/security, test retention/backfill behavior, and monitor D1 read usage.
+Writes require the configured `APP_ORIGIN` and JSON bodies (4 KiB maximum), signatures or chain proofs. Keys never enter Pets. Prefer Cloudflare dashboard WAF / Rate Limiting Rules in front of workers.dev for production-grade IP abuse controls; the Worker also enforces D1 soft limits without a Rate Limiting binding.
 
 ## Vercel Git previews are frontend-only
 
 Vercel builds the Vite static site for PR/main previews. It does **not** run the Cloudflare Worker or D1 database, so `/api/*` returns a host 404 (“The page could not be found”). Connect/care will fail there until a Worker is approved and deployed. For a working pasture, use local `npm run dev:api` + `npm run dev` (http://localhost:5177).
 
-## Deployment is deliberately not set up
+## Shared testnet preview (deployed)
 
-`wrangler.jsonc` is a local-first, unused-until-approved Worker + static assets configuration, with a **placeholder D1 id**, no routes, `workers_dev: false`, preview URLs disabled, and **no cron**. CI only bundles with `--dry-run`; it does not deploy or require secrets. Never deploy the placeholder config.
+Live Worker + UI: **https://boing-pets.nico-chikuji.workers.dev** (see `docs/DEPLOY-WORKERS.md`).
 
-When Nico approves a shared preview: create a dedicated D1 database, put its non-secret id in the config, set `APP_ORIGIN` to that preview's exact origin, run migrations on that database, configure static assets and appropriate limits, then separately approve deployment. Production/custom domain/mainnet are not configured. Only change `RPC_URL` to a trusted **testnet 6913** endpoint; the API rejects another chain.
+`wrangler.jsonc` targets that preview (`workers_dev: true`, D1 database **`boing-pets`**, Durable Object `PlazaRoom`, `APP_ORIGIN` matching the workers.dev URL). CI still only dry-runs deploy; shipping a new build requires an explicit `npx wrangler deploy` after `npm run build`. Apply new D1 migrations with `npx wrangler d1 migrations apply boing-pets --remote` (and `--local` for local dev). Production/custom domain/mainnet are not configured. Only use a trusted **testnet 6913** `RPC_URL`; the API rejects another chain.
 
 ## Planned Passport quests (documentation only)
 
@@ -77,12 +80,12 @@ No changes to boing.network Passport or airdrop eligibility are made here. A fut
 
 ## Deferred
 
-DEX-swap forage on boing.finance; live finance-indexer integration; Passport wiring; mainnet; naming/trading/transferring pets; NFTs or a dedicated pet VM program; permanent chain-wide indexing/backfill; production hardening/rate limiting; custom domain and deployment. Pet naming is intentionally not user-generated yet, avoiding moderation and HTML injection concerns.
+DEX-swap forage on boing.finance; live finance-indexer integration; Passport wiring; mainnet; naming/trading/transferring pets; NFTs or a dedicated pet VM program; permanent chain-wide indexing/backfill; stronger edge WAF policies; custom domain; mainnet. Pet naming is intentionally not user-generated yet, avoiding moderation and HTML injection concerns.
 
 Next projects: [boing.wall](https://github.com/Boing-Network/boing.wall), [boing.kudos](https://github.com/Boing-Network/boing.kudos), [boing.names](https://github.com/Boing-Network/boing.names). Their implementations follow Pets.
 
 ## Verification notes
 
-Local lint, separate browser/Worker typechecks, build, 24 deterministic tests, local D1 migration and Worker dry-run are included. API tests use real SQLite transactions and a mocked testnet RPC; they never send chain transactions. The live RPC probe from the Windows machine failed with a TLS connection error during initial setup, so a real Express hatch/feed round trip still needs Nico's testnet-wallet approval and a reachable testnet RPC. Nothing was sent from a wallet by the implementation process.
+Local lint, separate browser/Worker typechecks, build, deterministic vitest suite, local D1 migration and Worker dry-run are included. API tests use real SQLite transactions and a mocked testnet RPC; they never send chain transactions. The live RPC probe from the Windows machine failed with a TLS connection error during initial setup, so a real Express hatch/feed round trip still needs Nico's testnet-wallet approval and a reachable testnet RPC. Nothing was sent from a wallet by the implementation process.
 
 Worker binding types are generated from config: run `npm run types:generate` after config changes. Observability is configured for a future approved deployment; production hardening remains deferred.

@@ -75,6 +75,7 @@ import {
 } from "./racing";
 import { applyFoodBoosts } from "../src/content/cooking";
 import { verifyProof, type Receipt, type RpcBlock } from "./proof";
+import { enforceIpRateLimit, rateLimitError } from "./rateLimit";
 export { PlazaRoom } from "./plaza";
 interface Challenge {
   id: string;
@@ -828,8 +829,11 @@ export default {
     }
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(req);
     try {
+      await enforceIpRateLimit(req, env, url.pathname, Date.now());
       return await api(req, env);
     } catch (e) {
+      const limited = rateLimitError(e);
+      if (limited) return limited;
       return json(
         {
           error:

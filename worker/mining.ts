@@ -13,6 +13,7 @@ import {
   strikeDelayMs,
 } from "../src/content/mining";
 import { hex32 } from "../src/core";
+import { ledgerCreditPair } from "./ledger";
 
 class HttpError extends Error {
   constructor(
@@ -235,9 +236,8 @@ export async function miningPost(
         env.DB.prepare(
           "INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,1) ON CONFLICT(owner,item_id) DO UPDATE SET qty=qty+1",
         ).bind(c.owner, ore.id),
-        env.DB.prepare(
-          "INSERT INTO ledger(id,owner,currency,delta,reason,ref,created_at) VALUES(?,?,?,?,?,?,?)",
-        ).bind(
+        ...ledgerCreditPair(
+          env,
           c.id,
           c.owner,
           "boinglets",

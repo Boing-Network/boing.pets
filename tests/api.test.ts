@@ -42,15 +42,27 @@ let owner = "";
 let chainId = 6913,
   receiptSuccess = true,
   pending = false;
-async function request(path: string, body?: unknown, from = origin) {
+async function request(
+  path: string,
+  body?: unknown,
+  from = origin,
+  extraHeaders: Record<string, string> = {},
+) {
+  const headers: Record<string, string> = { ...extraHeaders };
+  if (body !== undefined) {
+    headers.origin = from;
+    headers["content-type"] = "application/json";
+  }
   return app.fetch(
     new Request(
       origin + path,
       body === undefined
-        ? undefined
+        ? Object.keys(headers).length
+          ? { headers }
+          : undefined
         : {
             method: "POST",
-            headers: { origin: from, "content-type": "application/json" },
+            headers,
             body: JSON.stringify(body),
           },
     ),
@@ -94,6 +106,7 @@ beforeEach(async () => {
     "../migrations/0014_cooking.sql",
     "../migrations/0015_mining.sql",
     "../migrations/0016_racing.sql",
+    "../migrations/0017_security_hardening.sql",
   ]) {
     db.exec(readFileSync(new NodeURL(file, import.meta.url), "utf8"));
   }
@@ -434,6 +447,27 @@ describe("Pets API", () => {
       )
     );
   }
+  async function socialSession(
+    who: string = owner,
+    key: Uint8Array = fixtureKey,
+  ) {
+    const challenge = await request("/api/social/session/challenge", {
+      owner: who,
+    });
+    expect(challenge.status).toBe(200);
+    const c = (await challenge.json()) as { id: string; message: string };
+    const conf = await request("/api/social/session/confirm", {
+      id: c.id,
+      signature: await signConfirm(c.message, key),
+    });
+    expect(conf.status).toBe(200);
+    return ((await conf.json()) as { token: string }).token;
+  }
+  async function authedSocialGet(path: string, token: string) {
+    return request(path, undefined, origin, {
+      Authorization: `Bearer ${token}`,
+    });
+  }
   it("creates a party, invites a friend, and accepts", async () => {
     await hatch();
     const ownerB =
@@ -463,8 +497,9 @@ describe("Pets API", () => {
       id: reqBody.id,
       signature: await signConfirm(reqBody.message),
     });
+    const tokenB = await socialSession(ownerB, fixtureKeyB);
     const inbox = (await (
-      await request("/api/social/requests?owner=" + ownerB)
+      await authedSocialGet("/api/social/requests?owner=" + ownerB, tokenB)
     ).json()) as { incoming: Array<{ id: string }> };
     const acceptFriend = await request("/api/social/challenge", {
       owner: ownerB,
@@ -504,7 +539,7 @@ describe("Pets API", () => {
       signature: await signConfirm(ib.message),
     });
     const invites = (await (
-      await request("/api/social/party/invites?owner=" + ownerB)
+      await authedSocialGet("/api/social/party/invites?owner=" + ownerB, tokenB)
     ).json()) as { incoming: Array<{ id: string }> };
     expect(invites.incoming[0]).toBeTruthy();
     const acceptParty = await request("/api/social/challenge", {
@@ -521,8 +556,9 @@ describe("Pets API", () => {
         })
       ).status,
     ).toBe(200);
+    const tokenA = await socialSession(owner);
     const party = (await (
-      await request("/api/social/party?owner=" + owner)
+      await authedSocialGet("/api/social/party?owner=" + owner, tokenA)
     ).json()) as { party: { members: Array<{ owner: string }> } };
     expect(party.party.members.map((m) => m.owner).sort()).toEqual(
       [owner, ownerB].sort(),
@@ -585,8 +621,9 @@ describe("Pets API", () => {
       ).status,
     ).toBe(200);
 
+    const tokenB = await socialSession(ownerB, fixtureKeyB);
     const inbox = await (
-      await request("/api/social/requests?owner=" + ownerB)
+      await authedSocialGet("/api/social/requests?owner=" + ownerB, tokenB)
     ).json();
     const incoming = (
       inbox as { incoming: Array<{ id: string }> }
@@ -608,8 +645,9 @@ describe("Pets API", () => {
       ).status,
     ).toBe(200);
 
+    const tokenA = await socialSession(owner);
     const friends = await (
-      await request("/api/social/friends?owner=" + owner)
+      await authedSocialGet("/api/social/friends?owner=" + owner, tokenA)
     ).json();
     expect(friends).toMatchObject({
       friends: [{ owner: ownerB, display_name: "BetaBuddy" }],
@@ -632,8 +670,9 @@ describe("Pets API", () => {
       ).status,
     ).toBe(200);
     const thread = await (
-      await request(
+      await authedSocialGet(
         `/api/social/messages?owner=${ownerB}&with=${owner}`,
+        tokenB,
       )
     ).json();
     expect(thread).toMatchObject({
@@ -1175,4 +1214,124 @@ describe("Pets API", () => {
       ).status,
     ).toBe(400);
   });
+
+  it("rejects social private GETs without a signed session", async () => {
+    await hatch();
+    expect(
+      (await request("/api/social/friends?owner=" + owner)).status,
+    ).toBe(401);
+    expect(
+      (await request("/api/social/requests?owner=" + owner)).status,
+    ).toBe(401);
+    expect(
+      (await request("/api/social/party/invites?owner=" + owner)).status,
+    ).toBe(401);
+    expect(
+      (
+        await request(
+          `/api/social/messages?owner=${owner}&with=${"0x" + "22".repeat(32)}`,
+        )
+      ).status,
+    ).toBe(401);
+    // Public profile remains readable.
+    expect(
+      (await request("/api/social/profile?owner=" + owner)).status,
+    ).toBe(200);
+  });
+
+  it("does not allow a session for wallet A to read wallet B social data", async () => {
+    await hatch();
+    const ownerB =
+      "0x" + bytesToHex(await ed.getPublicKeyAsync(fixtureKeyB));
+    const tokenA = await socialSession(owner);
+    expect(
+      (
+        await authedSocialGet(
+          "/api/social/friends?owner=" + ownerB,
+          tokenA,
+        )
+      ).status,
+    ).toBe(403);
+  });
+
+  it("rate-limits expensive pasture GETs per IP", async () => {
+    for (let i = 0; i < 30; i++) {
+      expect(
+        (
+          await request("/api/pasture", undefined, origin, {
+            "CF-Connecting-IP": "203.0.113.9",
+          })
+        ).status,
+      ).toBe(200);
+    }
+    expect(
+      (
+        await request("/api/pasture", undefined, origin, {
+          "CF-Connecting-IP": "203.0.113.9",
+        })
+      ).status,
+    ).toBe(429);
+    // A different IP still works.
+    expect(
+      (
+        await request("/api/pasture", undefined, origin, {
+          "CF-Connecting-IP": "203.0.113.10",
+        })
+      ).status,
+    ).toBe(200);
+  });
+
+  it("rejects concurrent catalog spends that would overdraw balances", async () => {
+    await hatch();
+    const claim = await request("/api/economy/challenge", {
+      owner,
+      kind: "claim",
+    });
+    const c = (await claim.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/economy/confirm", {
+          id: c.id,
+          signature: await signConfirm(c.message),
+        })
+      ).status,
+    ).toBe(200);
+    // Balance is 50 after hatch claim; hat-ribbon costs 40. Two concurrent buys must not both succeed.
+    const buy1 = await request("/api/economy/challenge", {
+      owner,
+      kind: "buy_catalog",
+      item_id: "hat-ribbon",
+    });
+    const buy2 = await request("/api/economy/challenge", {
+      owner,
+      kind: "buy_catalog",
+      item_id: "hat-ribbon",
+    });
+    expect(buy1.status).toBe(200);
+    expect(buy2.status).toBe(200);
+    const b1 = (await buy1.json()) as { id: string; message: string };
+    const b2 = (await buy2.json()) as { id: string; message: string };
+    const r1 = await request("/api/economy/confirm", {
+      id: b1.id,
+      signature: await signConfirm(b1.message),
+    });
+    const r2 = await request("/api/economy/confirm", {
+      id: b2.id,
+      signature: await signConfirm(b2.message),
+    });
+    const statuses = [r1.status, r2.status].sort();
+    expect(statuses).toEqual([200, 409]);
+    const bal = (await (
+      await request("/api/economy/balance?owner=" + owner)
+    ).json()) as { balances: { boinglets: number } };
+    expect(bal.balances.boinglets).toBeGreaterThanOrEqual(0);
+    expect(bal.balances.boinglets).toBeLessThanOrEqual(10);
+    const inv = await env.DB.prepare(
+      "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
+    )
+      .bind(owner, "hat-ribbon")
+      .first<{ qty: number }>();
+    expect(inv?.qty || 0).toBe(1);
+  });
+
 });

@@ -14,6 +14,12 @@ import {
   type CatalogItemId,
 } from "../src/economy";
 import { hex32, type CareEvent } from "../src/core";
+import {
+  balanceOf,
+  pushLedgerCredit,
+  pushLedgerDebit,
+  type Currency,
+} from "./ledger";
 
 class HttpError extends Error {
   constructor(
@@ -39,19 +45,6 @@ interface EconomyChallenge {
   payload: string;
   message: string;
   expires_at: number;
-}
-
-async function balanceOf(
-  env: Env,
-  owner: string,
-  currency: "boinglets" | "sparkles",
-): Promise<number> {
-  const row = await env.DB.prepare(
-    "SELECT COALESCE(SUM(delta),0) AS bal FROM ledger WHERE owner=? AND currency=?",
-  )
-    .bind(owner, currency)
-    .first<{ bal: number }>();
-  return Number(row?.bal || 0);
 }
 
 async function claimedCare(
@@ -384,18 +377,16 @@ export async function economyPost(
         .first();
       if (already)
         throw new HttpError(409, "Sparkles already claimed today (UTC)");
-      statements.push(
-        env.DB.prepare(
-          "INSERT INTO ledger(id,owner,currency,delta,reason,ref,created_at) VALUES(?,?,?,?,?,?,?)",
-        ).bind(
-          c.id,
-          c.owner,
-          "sparkles",
-          amount,
-          "sparkles_claim",
-          dayKey,
-          now,
-        ),
+      pushLedgerCredit(
+        statements,
+        env,
+        c.id,
+        c.owner,
+        "sparkles",
+        amount,
+        "sparkles_claim",
+        dayKey,
+        now,
       );
     }
 
@@ -410,10 +401,16 @@ export async function economyPost(
       const amount = Math.max(0, earned - claimed);
       if (amount <= 0 || amount !== Number(payload.amount))
         throw new HttpError(409, "Claim amount changed; start again");
-      statements.push(
-        env.DB.prepare(
-          "INSERT INTO ledger(id,owner,currency,delta,reason,ref,created_at) VALUES(?,?,?,?,?,?,?)",
-        ).bind(c.id, c.owner, "boinglets", amount, "care_claim", null, now),
+      pushLedgerCredit(
+        statements,
+        env,
+        c.id,
+        c.owner,
+        "boinglets",
+        amount,
+        "care_claim",
+        null,
+        now,
       );
     }
 
@@ -438,29 +435,29 @@ export async function economyPost(
             ? "Not enough Sparkles"
             : "Not enough Boinglets",
         );
+      pushLedgerDebit(
+        statements,
+        env,
+        c.id,
+        c.owner,
+        currency as Currency,
+        price,
+        "catalog_buy",
+        itemId,
+        now,
+      );
+      pushLedgerCredit(
+        statements,
+        env,
+        c.id + ":sink",
+        SINK_OWNER,
+        currency as Currency,
+        price,
+        "catalog_sink",
+        itemId,
+        now,
+      );
       statements.push(
-        env.DB.prepare(
-          "INSERT INTO ledger(id,owner,currency,delta,reason,ref,created_at) VALUES(?,?,?,?,?,?,?)",
-        ).bind(
-          c.id,
-          c.owner,
-          currency,
-          -price,
-          "catalog_buy",
-          itemId,
-          now,
-        ),
-        env.DB.prepare(
-          "INSERT INTO ledger(id,owner,currency,delta,reason,ref,created_at) VALUES(?,?,?,?,?,?,?)",
-        ).bind(
-          c.id + ":sink",
-          SINK_OWNER,
-          currency,
-          price,
-          "catalog_sink",
-          itemId,
-          now,
-        ),
         env.DB.prepare(
           "INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,1) ON CONFLICT(owner,item_id) DO UPDATE SET qty=qty+1",
         ).bind(c.owner, itemId),
@@ -508,39 +505,41 @@ export async function economyPost(
         env.DB.prepare(
           "UPDATE marketplace_listings SET status='sold', updated_at=? WHERE id=? AND status='open'",
         ).bind(now, listingId),
-        env.DB.prepare(
-          "INSERT INTO ledger(id,owner,currency,delta,reason,ref,created_at) VALUES(?,?,?,?,?,?,?)",
-        ).bind(
-          c.id + ":buy",
-          c.owner,
-          "boinglets",
-          -price,
-          "market_buy",
-          listingId,
-          now,
-        ),
-        env.DB.prepare(
-          "INSERT INTO ledger(id,owner,currency,delta,reason,ref,created_at) VALUES(?,?,?,?,?,?,?)",
-        ).bind(
-          c.id + ":sell",
-          listing.seller,
-          "boinglets",
-          proceeds,
-          "market_sell",
-          listingId,
-          now,
-        ),
-        env.DB.prepare(
-          "INSERT INTO ledger(id,owner,currency,delta,reason,ref,created_at) VALUES(?,?,?,?,?,?,?)",
-        ).bind(
-          c.id + ":fee",
-          SINK_OWNER,
-          "boinglets",
-          fee,
-          "market_fee",
-          listingId,
-          now,
-        ),
+      );
+      pushLedgerDebit(
+        statements,
+        env,
+        c.id + ":buy",
+        c.owner,
+        "boinglets",
+        price,
+        "market_buy",
+        listingId,
+        now,
+      );
+      pushLedgerCredit(
+        statements,
+        env,
+        c.id + ":sell",
+        listing.seller,
+        "boinglets",
+        proceeds,
+        "market_sell",
+        listingId,
+        now,
+      );
+      pushLedgerCredit(
+        statements,
+        env,
+        c.id + ":fee",
+        SINK_OWNER,
+        "boinglets",
+        fee,
+        "market_fee",
+        listingId,
+        now,
+      );
+      statements.push(
         env.DB.prepare(
           "INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,?) ON CONFLICT(owner,item_id) DO UPDATE SET qty=qty+excluded.qty",
         ).bind(c.owner, listing.item_id, listing.qty),

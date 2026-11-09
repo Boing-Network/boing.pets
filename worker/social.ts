@@ -81,6 +81,67 @@ async function areFriends(env: Env, a: string, b: string): Promise<boolean> {
   return !!row;
 }
 
+
+async function requireSocialSession(
+  req: Request,
+  env: Env,
+  owner: string,
+  now: number,
+) {
+  const header = req.headers.get("Authorization") || "";
+  const match = /^Bearer\s+([A-Za-z0-9_-]{8,128})$/i.exec(header);
+  const token =
+    match?.[1] ||
+    (typeof new URL(req.url).searchParams.get("session") === "string"
+      ? new URL(req.url).searchParams.get("session")
+      : null);
+  if (!token || token.length > 128)
+    throw new HttpError(
+      401,
+      "Social read session required. Sign a social session challenge first.",
+    );
+  await env.DB.prepare("DELETE FROM social_session_tokens WHERE expires_at<?")
+    .bind(now)
+    .run();
+  const row = await env.DB.prepare(
+    "SELECT owner,expires_at FROM social_session_tokens WHERE token=?",
+  )
+    .bind(token)
+    .first<{ owner: string; expires_at: number }>();
+  if (!row || row.expires_at < now)
+    throw new HttpError(401, "Social session expired. Sign in again.");
+  if (row.owner !== owner)
+    throw new HttpError(403, "Social session does not match this wallet");
+}
+
+async function issueSocialSession(
+  env: Env,
+  owner: string,
+  now: number,
+) {
+  const count = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM social_session_challenges WHERE owner=? AND created_at>?",
+  )
+    .bind(owner, now - 60_000)
+    .first<{ n: number }>();
+  if ((count?.n || 0) >= 8)
+    throw new HttpError(429, "Too many social session requests. Try again shortly.");
+  await env.DB.prepare(
+    "DELETE FROM social_session_challenges WHERE expires_at<?",
+  )
+    .bind(now)
+    .run();
+  const id = crypto.randomUUID();
+  const expires = now + 10 * 60_000;
+  const message = `Boing Pets social session v1\nOrigin: ${env.APP_ORIGIN}\nChain: 6913\nOwner: ${owner}\nNonce: ${id}\nExpires: ${expires}`;
+  await env.DB.prepare(
+    "INSERT INTO social_session_challenges(id,owner,message,created_at,expires_at) VALUES(?,?,?,?,?)",
+  )
+    .bind(id, owner, message, now, expires)
+    .run();
+  return { id, owner, message, expires_at: expires };
+}
+
 async function profileName(env: Env, owner: string): Promise<string | null> {
   const row = await env.DB.prepare(
     "SELECT display_name FROM profiles WHERE owner=?",
@@ -132,6 +193,7 @@ export async function socialGet(
 
   if (url.pathname === "/api/social/friends") {
     const owner = hex32(url.searchParams.get("owner"));
+    await requireSocialSession(req, env, owner, now);
     const rows = await env.DB.prepare(
       `SELECT owner_a,owner_b,created_at FROM friendships
        WHERE owner_a=? OR owner_b=? ORDER BY created_at DESC LIMIT 100`,
@@ -152,6 +214,7 @@ export async function socialGet(
 
   if (url.pathname === "/api/social/requests") {
     const owner = hex32(url.searchParams.get("owner"));
+    await requireSocialSession(req, env, owner, now);
     const incoming = await env.DB.prepare(
       `SELECT id,from_owner,to_owner,status,created_at FROM friend_requests
        WHERE to_owner=? AND status='pending' ORDER BY created_at DESC LIMIT 50`,
@@ -205,6 +268,7 @@ export async function socialGet(
 
   if (url.pathname === "/api/social/messages") {
     const owner = hex32(url.searchParams.get("owner"));
+    await requireSocialSession(req, env, owner, now);
     const withOwner = hex32(url.searchParams.get("with"));
     if (!(await areFriends(env, owner, withOwner)))
       throw new HttpError(403, "Messages are limited to friends");
@@ -224,6 +288,7 @@ export async function socialGet(
 
   if (url.pathname === "/api/social/party") {
     const owner = hex32(url.searchParams.get("owner"));
+    await requireSocialSession(req, env, owner, now);
     const membership = await membershipOf(env, owner);
     if (!membership) {
       return Response.json({
@@ -267,6 +332,7 @@ export async function socialGet(
 
   if (url.pathname === "/api/social/party/invites") {
     const owner = hex32(url.searchParams.get("owner"));
+    await requireSocialSession(req, env, owner, now);
     const incoming = await env.DB.prepare(
       `SELECT id,party_id,from_owner,to_owner,status,created_at FROM party_invites
        WHERE to_owner=? AND status='pending' ORDER BY created_at DESC LIMIT 50`,
@@ -301,6 +367,50 @@ export async function socialPost(
   body: Record<string, unknown>,
   now: number,
 ): Promise<Response | null> {
+  if (url.pathname === "/api/social/session/challenge") {
+    const owner = hex32(body.owner);
+    return Response.json(await issueSocialSession(env, owner, now));
+  }
+  if (url.pathname === "/api/social/session/confirm") {
+    if (typeof body.id !== "string" || body.id.length > 64)
+      throw new HttpError(400, "Invalid social session challenge");
+    const c = await env.DB.prepare(
+      "SELECT * FROM social_session_challenges WHERE id=?",
+    )
+      .bind(body.id)
+      .first<{
+        id: string;
+        owner: string;
+        message: string;
+        expires_at: number;
+      }>();
+    if (!c) throw new HttpError(404, "Social session challenge not found");
+    if (c.expires_at < now)
+      throw new HttpError(410, "Social session challenge expired");
+    await verifySignature(c.owner, c.message, body.signature);
+    await env.DB.prepare("DELETE FROM social_session_tokens WHERE expires_at<?")
+      .bind(now)
+      .run();
+    await env.DB.prepare("DELETE FROM social_session_tokens WHERE owner=?")
+      .bind(c.owner)
+      .run();
+    const token = crypto.randomUUID();
+    const tokenExpires = now + 15 * 60_000;
+    await env.DB.prepare(
+      "INSERT INTO social_session_tokens(token,owner,created_at,expires_at) VALUES(?,?,?,?)",
+    )
+      .bind(token, c.owner, now, tokenExpires)
+      .run();
+    await env.DB.prepare("DELETE FROM social_session_challenges WHERE id=?")
+      .bind(c.id)
+      .run();
+    return Response.json({
+      ok: true,
+      token,
+      owner: c.owner,
+      expires_at: tokenExpires,
+    });
+  }
   if (url.pathname === "/api/social/challenge") {
     const owner = hex32(body.owner);
     if (!isSocialKind(body.kind))

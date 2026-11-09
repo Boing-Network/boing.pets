@@ -1,3 +1,29 @@
+# Boing Pets — Codebase Audit
+
+## Status update (2026-11-09)
+
+This document originally audited the local-first MVP at `2975dd6`. `main` has since shipped Phases 1–6 (see `docs/ROADMAP.md`, `PHASE*.md`) and a shared Workers preview (`docs/DEPLOY-WORKERS.md`).
+
+### Security follow-ups landed on main
+
+| Finding | Resolution |
+|---------|------------|
+| Social GETs trusted `?owner=` alone (DM / friends / requests / invites leakage) | Signed **social session** tokens (`migrations/0017_security_hardening.sql`); private social GETs require `Authorization: Bearer` |
+| No IP rate limiting on public Worker | D1-backed per-IP soft limits in `worker/rateLimit.ts` (30/min pasture, 120/min other `/api/*`). **Still recommended:** Cloudflare WAF / Rate Limiting Rules in the dashboard (no Workers Rate Limiting binding required for the soft limiter) |
+| Soft-currency overdraft under concurrent buys | `account_balances` with guarded debit (`CASE … ELSE NULL`) + ledger audit trail (`worker/ledger.ts`) |
+| Docs claimed deploy was unset | README + this update reflect live workers.dev preview |
+
+### Still open / ops
+
+- Apply migration `0017` on remote D1, then redeploy the Worker (not done automatically).
+- Pasture N+1 enrich queries; deeper Sybil resistance; CSP / world art polish per ROADMAP.
+
+### Historical MVP audit
+
+The sections below preserve the 2026-11-08 MVP audit for context. Treat architecture tables there as **baseline**, not current inventory.
+
+---
+
 # Boing Pets — Codebase Audit (v0.1 MVP)
 
 Audit date: 2026-11-08. Scope: entire repository at `main` (`2975dd6`).

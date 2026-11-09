@@ -12,6 +12,7 @@ import {
   treasureDayKey,
 } from "../src/content/treasure";
 import { hex32 } from "../src/core";
+import { ledgerCreditPair } from "./ledger";
 
 class HttpError extends Error {
   constructor(
@@ -178,17 +179,16 @@ export async function treasurePost(
               env.DB.prepare(
                 "INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,1) ON CONFLICT(owner,item_id) DO UPDATE SET qty=qty+1",
               ).bind(c.owner, loot.id),
-              env.DB.prepare(
-                "INSERT INTO ledger(id,owner,currency,delta,reason,ref,created_at) VALUES(?,?,?,?,?,?,?)",
-              ).bind(
-                c.id,
-                c.owner,
-                "boinglets",
-                loot.rewardBoinglets,
-                "treasure_reward",
-                loot.id,
-                now,
-              ),
+              ...ledgerCreditPair(
+          env,
+          c.id,
+          c.owner,
+          "boinglets",
+          loot.rewardBoinglets,
+          "treasure_reward",
+          loot.id,
+          now,
+        ),
               env.DB.prepare(
                 "INSERT OR IGNORE INTO collection_unlocks(owner,entry_id,unlocked_at) VALUES(?,?,?)",
               ).bind(c.owner, `discovery:treasure:${loot.id}`, now),

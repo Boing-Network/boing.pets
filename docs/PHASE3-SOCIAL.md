@@ -33,3 +33,14 @@ Pasture `#social` panel: profile name, requests, friends list, DM thread.
 - Parties / invites
 - Wallet-bound presence tokens
 - Read receipts UX
+
+## Auth for private reads (2026-11-09)
+
+Private GETs require a signed social session (same pattern as plaza presence tokens):
+
+1. `POST /api/social/session/challenge` `{ owner }`
+2. Wallet signs `Boing Pets social session v1…`
+3. `POST /api/social/session/confirm` → `{ token, expires_at }` (~15 min; cached in `sessionStorage`)
+4. Send `Authorization: Bearer <token>` on `/api/social/friends`, `/requests`, `/messages`, `/party`, `/party/invites`
+
+`GET /api/social/profile` remains public. Migration: `0017_security_hardening.sql`.

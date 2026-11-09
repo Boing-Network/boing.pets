@@ -13,6 +13,7 @@ import {
 } from "../src/content/quests";
 import { activeEvents } from "../src/content/seasons";
 import { hex32, traits, type CareEvent, type Pet } from "../src/core";
+import { ledgerCreditPair } from "./ledger";
 
 class HttpError extends Error {
   constructor(
@@ -266,9 +267,8 @@ export async function contentPost(
         env.DB.prepare(
           "INSERT INTO quest_claims(owner,quest_id,period_key,claimed_at) VALUES(?,?,?,?)",
         ).bind(c.owner, payload.quest_id, payload.period, now),
-        env.DB.prepare(
-          "INSERT INTO ledger(id,owner,currency,delta,reason,ref,created_at) VALUES(?,?,?,?,?,?,?)",
-        ).bind(
+        ...ledgerCreditPair(
+          env,
           c.id,
           c.owner,
           "boinglets",
