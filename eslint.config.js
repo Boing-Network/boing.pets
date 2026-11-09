@@ -18,7 +18,16 @@ export default ts.config(
         process: "readonly",
         fetch: "readonly",
         AbortSignal: "readonly",
+        URL: "readonly",
+        setTimeout: "readonly",
       },
+    },
+    rules: {
+      "@typescript-eslint/ban-ts-comment": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
     },
   },
 );
