@@ -262,7 +262,9 @@ async function refreshSocial() {
         const row = document.createElement("div");
         row.className = "social-row";
         const label = r.from_name || `${r.from_owner.slice(0, 10)}…`;
-        row.innerHTML = `<span>${label}</span>`;
+        const nameEl = document.createElement("span");
+        nameEl.textContent = label;
+        row.append(nameEl);
         const accept = document.createElement("button");
         accept.className = "secondary";
         accept.textContent = "Accept";
@@ -317,7 +319,9 @@ async function refreshSocial() {
         const row = document.createElement("div");
         row.className = "social-row";
         const label = f.display_name || `${f.owner.slice(0, 10)}…`;
-        row.innerHTML = `<span>${label}</span>`;
+        const nameEl = document.createElement("span");
+        nameEl.textContent = label;
+        row.append(nameEl);
         const msg = document.createElement("button");
         msg.className = "secondary";
         msg.textContent = "Message";
@@ -359,7 +363,9 @@ async function refreshSocial() {
         const row = document.createElement("div");
         row.className = "social-row";
         const label = m.display_name || `${m.owner.slice(0, 10)}…`;
-        row.innerHTML = `<span>${label}${m.role === "leader" ? " ★" : ""}</span>`;
+        const nameEl = document.createElement("span");
+        nameEl.textContent = label + (m.role === "leader" ? " ★" : "");
+        row.append(nameEl);
         return row;
       }),
     );
@@ -375,7 +381,9 @@ async function refreshSocial() {
         const row = document.createElement("div");
         row.className = "social-row";
         const label = r.from_name || `${r.from_owner.slice(0, 10)}…`;
-        row.innerHTML = `<span>${label}</span>`;
+        const nameEl = document.createElement("span");
+        nameEl.textContent = label;
+        row.append(nameEl);
         const accept = document.createElement("button");
         accept.className = "secondary";
         accept.textContent = "Accept";

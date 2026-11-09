@@ -17,11 +17,16 @@ describe("social helpers", () => {
 
   it("sanitizes display names and messages", () => {
     expect(sanitizeDisplayName("  Pasture Pal ")).toBe("Pasture Pal");
+    expect(sanitizeDisplayName("Cafe\u0301")).toBe("Caf\u00e9");
     expect(() => sanitizeDisplayName("<>")).toThrow();
     expect(() => sanitizeDisplayName("x")).toThrow();
+    expect(() => sanitizeDisplayName("bad<script>")).toThrow();
+    expect(() => sanitizeDisplayName("hi\u200bthere")).toThrow();
+    expect(() => sanitizeDisplayName("a\u202Eb")).toThrow();
     expect(sanitizeMessage("hello there")).toBe("hello there");
     expect(() => sanitizeMessage("")).toThrow();
     expect(() => sanitizeMessage("x".repeat(300))).toThrow();
+    expect(() => sanitizeMessage("hello\u0000")).toThrow();
   });
 
   it("includes party kinds and caps party size", () => {
