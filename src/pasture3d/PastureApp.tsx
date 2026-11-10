@@ -554,6 +554,7 @@ function PastureWorld({
         accent: (h >>> 8) % 360,
         antenna: h % 2,
         spots: h % 3,
+        shape: 0,
       },
     };
   };

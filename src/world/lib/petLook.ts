@@ -7,6 +7,7 @@ export interface PetLook {
   accent: number;
   antenna: number;
   spots: number;
+  shape: number;
 }
 
 const cache = new Map<string, PetLook | null>();
@@ -23,9 +24,17 @@ export async function fetchPetLook(owner: string): Promise<PetLook | null> {
   if (pending) return pending;
   const task = (async () => {
     try {
-      const data = await apiFetch<{ pet?: { traits?: PetLook } | null }>(
-        "/api/pet?owner=" + encodeURIComponent(owner),
-      );
+      const data = await apiFetch<{
+        pet?: {
+          traits?: Partial<PetLook> & {
+            species: string;
+            hue: number;
+            accent: number;
+            antenna: number;
+            spots: number;
+          };
+        } | null;
+      }>("/api/pet?owner=" + encodeURIComponent(owner));
       const look = data.pet?.traits
         ? {
             species: data.pet.traits.species,
@@ -33,6 +42,7 @@ export async function fetchPetLook(owner: string): Promise<PetLook | null> {
             accent: data.pet.traits.accent,
             antenna: data.pet.traits.antenna,
             spots: data.pet.traits.spots,
+            shape: data.pet.traits.shape ?? -1,
           }
         : null;
       cache.set(owner, look);

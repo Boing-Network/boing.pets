@@ -1,19 +1,21 @@
 import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useRef, type MutableRefObject, type ReactNode } from "react";
+import { useMemo, useRef, type MutableRefObject, type ReactNode } from "react";
 import type { Group } from "three";
 import type { EquippedCosmetics } from "../../content/cosmetics";
 import { pasturePetLabel } from "../../pasture3d/labels";
 import { worldSafeText } from "../lib/worldFont";
+import {
+  UNIT_SPHERE,
+  UNIT_SPHERE_LO,
+  petModelParams,
+  smileTubeGeometry,
+  type PetModelLook,
+} from "../lib/petModel";
 import { CosmeticAttachments } from "./CosmeticAttachments";
+import { PetFeatureMesh } from "./PetFeatureMesh";
 
-export type PetMeshLook = {
-  species?: string;
-  hue: number;
-  accent: number;
-  antenna?: number;
-  spots?: number;
-};
+export type PetMeshLook = PetModelLook;
 
 export function PetMesh({
   look,
@@ -43,8 +45,7 @@ export function PetMesh({
   children?: ReactNode;
 }) {
   const hop = useRef<Group>(null);
-  const body = `hsl(${look.hue} 75% 72%)`;
-  const accent = `hsl(${look.accent} 80% 70%)`;
+  const model = useMemo(() => petModelParams(look), [look]);
 
   useFrame(({ clock }) => {
     if (!hop.current || reducedMotion) return;
@@ -68,38 +69,91 @@ export function PetMesh({
       }}
     >
       <group ref={hop}>
-        <mesh position={[0, 0.42, 0]} castShadow={false}>
-          <sphereGeometry args={[0.42, 16, 16]} />
-          <meshStandardMaterial color={body} roughness={0.45} />
+        <mesh
+          geometry={UNIT_SPHERE}
+          position={[model.body.cx, model.body.cy, model.body.cz]}
+          scale={[model.body.x, model.body.y, model.body.z]}
+          castShadow={false}
+        >
+          <meshStandardMaterial
+            color={model.bodyColor}
+            roughness={0.5}
+            metalness={0}
+          />
         </mesh>
-        <mesh position={[-0.16, 0.28, 0.3]}>
-          <sphereGeometry args={[0.09, 8, 8]} />
-          <meshStandardMaterial color={accent} roughness={0.5} />
-        </mesh>
-        <mesh position={[0.16, 0.28, 0.3]}>
-          <sphereGeometry args={[0.09, 8, 8]} />
-          <meshStandardMaterial color={accent} roughness={0.5} />
-        </mesh>
-        {(look.antenna || 0) > 0 && !cosmetics?.hat ? (
-          <mesh position={[0, 0.82, 0]}>
-            <sphereGeometry args={[0.07, 8, 8]} />
+        {model.feet.map((foot, i) => (
+          <mesh
+            key={"foot-" + i}
+            geometry={UNIT_SPHERE_LO}
+            position={[foot.x, foot.y, foot.z]}
+            scale={[foot.cx, foot.cy, foot.cz]}
+          >
             <meshStandardMaterial
-              color={accent}
-              emissive={accent}
+              color={model.accentColor}
+              roughness={0.52}
+              metalness={0}
+            />
+          </mesh>
+        ))}
+        <PetFeatureMesh model={model} accent={model.accentColor} />
+        {model.spots.map((spot, i) => (
+          <mesh
+            key={"spot-" + i}
+            geometry={UNIT_SPHERE_LO}
+            position={[spot.x, spot.y, spot.z]}
+            scale={spot.r}
+          >
+            <meshStandardMaterial
+              color={model.accentColor}
+              transparent
+              opacity={0.6}
+              roughness={0.55}
+              metalness={0}
+            />
+          </mesh>
+        ))}
+        {model.eyes.map((eye, i) => (
+          <mesh
+            key={"eye-" + i}
+            geometry={UNIT_SPHERE_LO}
+            position={[eye.x, eye.y, eye.z]}
+            scale={eye.r}
+          >
+            <meshStandardMaterial
+              color={model.faceColor}
+              roughness={0.4}
+              metalness={0}
+            />
+          </mesh>
+        ))}
+        <mesh geometry={smileTubeGeometry()} position={[0, model.body.cy, 0]}>
+          <meshStandardMaterial
+            color={model.faceColor}
+            roughness={0.4}
+            metalness={0}
+          />
+        </mesh>
+        {model.showAntenna && !cosmetics?.hat ? (
+          <mesh
+            geometry={UNIT_SPHERE_LO}
+            position={[model.antenna.x, model.antenna.y, model.antenna.z]}
+            scale={model.antenna.r}
+          >
+            <meshStandardMaterial
+              color={model.accentColor}
+              emissive={model.accentColor}
               emissiveIntensity={0.2}
+              roughness={0.45}
             />
           </mesh>
         ) : null}
-        {Array.from({ length: Math.min(look.spots || 0, 3) }, (_, i) => (
-          <mesh key={i} position={[-0.14 + i * 0.14, 0.38, 0.3]}>
-            <sphereGeometry args={[0.045, 6, 6]} />
-            <meshStandardMaterial color={accent} transparent opacity={0.7} />
-          </mesh>
-        ))}
         <CosmeticAttachments
           cosmetics={cosmetics}
           moving={moving}
           movingRef={movingRef}
+          hatY={model.hatAnchorY}
+          accessoryY={model.accessoryY}
+          accessoryRadius={model.accessoryRadius}
         />
         {children}
       </group>
@@ -112,7 +166,7 @@ export function PetMesh({
         />
       </mesh>
       <Html
-        position={[0, 1.45, 0]}
+        position={[0, model.labelY, 0]}
         center
         sprite
         style={{ pointerEvents: "none" }}
@@ -129,6 +183,8 @@ export function PetMesh({
               (selected ? " is-selected" : "")
             }
             data-owner-label={label}
+            data-species={model.species}
+            data-feature={model.featureKind}
             style={{ pointerEvents: "auto" }}
             onClick={(event) => {
               event.stopPropagation();

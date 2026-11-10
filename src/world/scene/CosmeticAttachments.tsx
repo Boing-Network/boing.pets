@@ -9,17 +9,29 @@ export function CosmeticAttachments({
   moving = false,
   movingRef,
   scale = 1,
+  hatY,
+  accessoryY,
+  accessoryRadius,
 }: {
   cosmetics?: EquippedCosmetics;
   moving?: boolean;
   movingRef?: MutableRefObject<boolean>;
   scale?: number;
+  hatY?: number;
+  accessoryY?: number;
+  accessoryRadius?: number;
 }) {
   if (!cosmetics) return null;
   return (
     <group scale={scale}>
-      {cosmetics.hat ? <Hat id={cosmetics.hat} /> : null}
-      {cosmetics.accessory ? <Accessory id={cosmetics.accessory} /> : null}
+      {cosmetics.hat ? <Hat id={cosmetics.hat} hatY={hatY} /> : null}
+      {cosmetics.accessory ? (
+        <Accessory
+          id={cosmetics.accessory}
+          y={accessoryY}
+          radius={accessoryRadius}
+        />
+      ) : null}
       {cosmetics.trail ? (
         <Trail id={cosmetics.trail} moving={moving} movingRef={movingRef} />
       ) : null}
@@ -27,10 +39,10 @@ export function CosmeticAttachments({
   );
 }
 
-function Hat({ id }: { id: string }) {
+function Hat({ id, hatY }: { id: string; hatY?: number }) {
   if (id === "hat-antenna") {
     return (
-      <group position={[0, 0.62, 0]}>
+      <group position={[0, hatY ?? 0.62, 0]}>
         <mesh>
           <cylinderGeometry args={[0.02, 0.02, 0.28, 6]} />
           <meshStandardMaterial
@@ -52,7 +64,7 @@ function Hat({ id }: { id: string }) {
   }
   if (id === "hat-stardust") {
     return (
-      <group position={[0, 0.58, 0]}>
+      <group position={[0, hatY ?? 0.58, 0]}>
         <mesh rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[0.22, 0.03, 8, 20]} />
           <meshStandardMaterial
@@ -75,7 +87,7 @@ function Hat({ id }: { id: string }) {
   }
   // hat-ribbon and unknown hats
   return (
-    <group position={[0, 0.5, 0]}>
+    <group position={[0, hatY ?? 0.5, 0]}>
       <mesh>
         <cylinderGeometry args={[0.22, 0.24, 0.12, 12]} />
         <meshStandardMaterial color="#c45b7a" roughness={0.55} />
@@ -88,11 +100,19 @@ function Hat({ id }: { id: string }) {
   );
 }
 
-function Accessory({ id }: { id: string }) {
+function Accessory({
+  id,
+  y,
+  radius,
+}: {
+  id: string;
+  y?: number;
+  radius?: number;
+}) {
   const aurora = id === "frame-aurora";
   return (
-    <mesh position={[0, 0.32, 0]} rotation={[Math.PI / 2, 0, 0]}>
-      <torusGeometry args={[0.52, 0.035, 8, 24]} />
+    <mesh position={[0, y ?? 0.32, 0]} rotation={[Math.PI / 2, 0, 0]}>
+      <torusGeometry args={[radius ?? 0.52, 0.035, 8, 24]} />
       <meshStandardMaterial
         color={aurora ? "#8ce0ff" : "#e8c27a"}
         emissive={aurora ? "#66b8ff" : "#a67c2a"}

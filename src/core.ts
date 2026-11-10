@@ -291,22 +291,134 @@ export function markerAmount(id: string, action: Action): string {
   return (1_000_000_000_000_000n + n).toString();
 }
 
+export const PET_BODY_HSL = { s: 75, l: 72 } as const;
+export const PET_ACCENT_HSL = { s: 80, l: 70 } as const;
+export const PET_FACE_COLOR = "#142044";
+
+/** Card-art layout in the 200x190 SVG viewBox. 3D pets scale from the same numbers. */
+export const PET_CARD_ART = {
+  viewBox: { w: 200, h: 190 },
+  body: { cx: 100, cy: 114, rx: 54, ry: 48 },
+  shadow: { cx: 100, cy: 166, rx: 55, ry: 10 },
+  feet: [
+    { cx: 69, cy: 155, rx: 18, ry: 9 },
+    { cx: 131, cy: 155, rx: 18, ry: 9 },
+  ],
+  eyes: [
+    { cx: 80, cy: 104, r: 5 },
+    { cx: 120, cy: 104, r: 5 },
+  ],
+  smile: { x1: 88, y1: 119, cx: 100, cy: 134, x2: 112, y2: 119 },
+  frown: { x1: 88, y1: 127, cx: 100, cy: 113, x2: 112, y2: 127 },
+  spots: { cx0: 70, cy: 130, r: 7, gap: 23 },
+  antenna: { cx: 100, cy: 82, r: 5 },
+} as const;
+
+export type SpeciesFeatureSpec =
+  | {
+      kind: "ellipses";
+      parts: readonly { cx: number; cy: number; rx: number; ry: number }[];
+    }
+  | {
+      kind: "circles";
+      parts: readonly { cx: number; cy: number; r: number }[];
+    }
+  | { kind: "path"; d: string };
+
+/** One unique head feature per SPECIES index; must stay aligned with speciesEarSvg. */
+export const SPECIES_FEATURE_KIND = [
+  "blob-ears",
+  "sprout-leaves",
+  "cat-ears",
+  "cloud-puffs",
+  "bunny-ears",
+  "axolotl-gills",
+  "stone-cap",
+  "star-crest",
+  "mushroom-cap",
+  "tuft-crown",
+] as const;
+
+export type SpeciesFeatureKind = (typeof SPECIES_FEATURE_KIND)[number];
+
+export const SPECIES_FEATURES: readonly SpeciesFeatureSpec[] = [
+  {
+    kind: "ellipses",
+    parts: [
+      { cx: 65, cy: 71, rx: 15, ry: 18 },
+      { cx: 135, cy: 71, rx: 15, ry: 18 },
+    ],
+  },
+  {
+    kind: "path",
+    d: "M99 69Q56 29 78 24Q112 21 102 69M101 64Q103 17 128 23Q150 35 101 64",
+  },
+  { kind: "path", d: "M56 88L53 39L86 70M113 70L148 39L145 89" },
+  {
+    kind: "circles",
+    parts: [
+      { cx: 65, cy: 84, r: 25 },
+      { cx: 133, cy: 84, r: 25 },
+    ],
+  },
+  {
+    kind: "ellipses",
+    parts: [
+      { cx: 74, cy: 51, rx: 12, ry: 35 },
+      { cx: 126, cy: 51, rx: 12, ry: 35 },
+    ],
+  },
+  {
+    kind: "path",
+    d: "M58 93L27 68L37 107L25 123L61 129M143 93L173 68L164 107L177 123L141 129",
+  },
+  { kind: "path", d: "M56 103L65 55L105 40L142 65L152 110Z" },
+  {
+    kind: "path",
+    d: "M100 22L112 57L149 57L120 79L130 116L100 94L69 116L79 79L50 57L88 57Z",
+  },
+  { kind: "path", d: "M41 87Q52 22 100 26Q147 22 160 87Z" },
+  { kind: "path", d: "M70 70L56 45L86 59L100 29L116 59L144 45L132 80Z" },
+];
+
+export function petBodyColor(hue: number): string {
+  return `hsl(${hue} ${PET_BODY_HSL.s}% ${PET_BODY_HSL.l}%)`;
+}
+
+export function petAccentColor(accent: number): string {
+  return `hsl(${accent} ${PET_ACCENT_HSL.s}% ${PET_ACCENT_HSL.l}%)`;
+}
+
+export function speciesEarSvg(shape: number): string {
+  const feature = SPECIES_FEATURES[shape] ?? SPECIES_FEATURES[0]!;
+  if (feature.kind === "ellipses") {
+    return feature.parts
+      .map(
+        (part) =>
+          `<ellipse cx="${part.cx}" cy="${part.cy}" rx="${part.rx}" ry="${part.ry}"/>`,
+      )
+      .join("");
+  }
+  if (feature.kind === "circles") {
+    return feature.parts
+      .map((part) => `<circle cx="${part.cx}" cy="${part.cy}" r="${part.r}"/>`)
+      .join("");
+  }
+  return `<path d="${feature.d}"/>`;
+}
+
+export function speciesFeatureKind(shape: number): SpeciesFeatureKind {
+  return SPECIES_FEATURE_KIND[shape] ?? SPECIES_FEATURE_KIND[0]!;
+}
+
 export function petSvg(t: ReturnType<typeof traits>, sad = false): string {
-  const color = `hsl(${t.hue} 75% 72%)`,
-    accent = `hsl(${t.accent} 80% 70%)`;
-  const ears = [
-    '<ellipse cx="65" cy="71" rx="15" ry="18"/><ellipse cx="135" cy="71" rx="15" ry="18"/>',
-    '<path d="M99 69Q56 29 78 24Q112 21 102 69M101 64Q103 17 128 23Q150 35 101 64"/>',
-    '<path d="M56 88L53 39L86 70M113 70L148 39L145 89"/>',
-    '<circle cx="65" cy="84" r="25"/><circle cx="133" cy="84" r="25"/>',
-    '<ellipse cx="74" cy="51" rx="12" ry="35"/><ellipse cx="126" cy="51" rx="12" ry="35"/>',
-    '<path d="M58 93L27 68L37 107L25 123L61 129M143 93L173 68L164 107L177 123L141 129"/>',
-    '<path d="M56 103L65 55L105 40L142 65L152 110Z"/>',
-    '<path d="M100 22L112 57L149 57L120 79L130 116L100 94L69 116L79 79L50 57L88 57Z"/>',
-    '<path d="M41 87Q52 22 100 26Q147 22 160 87Z"/>',
-    '<path d="M70 70L56 45L86 59L100 29L116 59L144 45L132 80Z"/>',
-  ];
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 190" role="img" aria-label="${sad ? "Scruffy" : "Happy"} ${t.species}"><ellipse cx="100" cy="166" rx="55" ry="10" fill="#0003"/><g stroke="#142044" stroke-width="4" stroke-linejoin="round" fill="${accent}">${ears[t.shape]}<ellipse cx="100" cy="114" rx="54" ry="48" fill="${color}"/><ellipse cx="69" cy="155" rx="18" ry="9"/><ellipse cx="131" cy="155" rx="18" ry="9"/></g>${Array.from({ length: t.spots }, (_, i) => `<circle cx="${70 + i * 23}" cy="130" r="7" fill="${accent}" opacity=".6"/>`).join("")}<g fill="#142044"><circle cx="80" cy="104" r="5"/><circle cx="120" cy="104" r="5"/></g><path d="${sad ? "M88 127Q100 113 112 127" : "M88 119Q100 134 112 119"}" fill="none" stroke="#142044" stroke-width="4" stroke-linecap="round"/>${t.antenna === 1 ? `<circle cx="100" cy="82" r="5" fill="${accent}"/>` : ""}${sad ? '<path d="M53 144L40 153M147 144L160 153" stroke="#9aa9bd" stroke-width="3"/>' : ""}</svg>`;
+  const color = petBodyColor(t.hue);
+  const accent = petAccentColor(t.accent);
+  const mouth = sad
+    ? `M${PET_CARD_ART.frown.x1} ${PET_CARD_ART.frown.y1}Q${PET_CARD_ART.frown.cx} ${PET_CARD_ART.frown.cy} ${PET_CARD_ART.frown.x2} ${PET_CARD_ART.frown.y2}`
+    : `M${PET_CARD_ART.smile.x1} ${PET_CARD_ART.smile.y1}Q${PET_CARD_ART.smile.cx} ${PET_CARD_ART.smile.cy} ${PET_CARD_ART.smile.x2} ${PET_CARD_ART.smile.y2}`;
+  const { body, shadow, feet, eyes, spots, antenna } = PET_CARD_ART;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${PET_CARD_ART.viewBox.w} ${PET_CARD_ART.viewBox.h}" role="img" aria-label="${sad ? "Scruffy" : "Happy"} ${t.species}"><ellipse cx="${shadow.cx}" cy="${shadow.cy}" rx="${shadow.rx}" ry="${shadow.ry}" fill="#0003"/><g stroke="${PET_FACE_COLOR}" stroke-width="4" stroke-linejoin="round" fill="${accent}">${speciesEarSvg(t.shape)}<ellipse cx="${body.cx}" cy="${body.cy}" rx="${body.rx}" ry="${body.ry}" fill="${color}"/><ellipse cx="${feet[0]!.cx}" cy="${feet[0]!.cy}" rx="${feet[0]!.rx}" ry="${feet[0]!.ry}"/><ellipse cx="${feet[1]!.cx}" cy="${feet[1]!.cy}" rx="${feet[1]!.rx}" ry="${feet[1]!.ry}"/></g>${Array.from({ length: t.spots }, (_, i) => `<circle cx="${spots.cx0 + i * spots.gap}" cy="${spots.cy}" r="${spots.r}" fill="${accent}" opacity=".6"/>`).join("")}<g fill="${PET_FACE_COLOR}"><circle cx="${eyes[0]!.cx}" cy="${eyes[0]!.cy}" r="${eyes[0]!.r}"/><circle cx="${eyes[1]!.cx}" cy="${eyes[1]!.cy}" r="${eyes[1]!.r}"/></g><path d="${mouth}" fill="none" stroke="${PET_FACE_COLOR}" stroke-width="4" stroke-linecap="round"/>${t.antenna === 1 ? `<circle cx="${antenna.cx}" cy="${antenna.cy}" r="${antenna.r}" fill="${accent}"/>` : ""}${sad ? '<path d="M53 144L40 153M147 144L160 153" stroke="#9aa9bd" stroke-width="3"/>' : ""}</svg>`;
 }
 
 export interface CareRollup {
