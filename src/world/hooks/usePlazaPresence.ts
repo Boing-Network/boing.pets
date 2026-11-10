@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type MutableRefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from "react";
+import type { EquippedCosmetics } from "../../content/cosmetics";
 import { resolvePlazaIdentity } from "../lib/presenceApi";
 import {
   PRESENCE_MOVE_MIN_MS,
@@ -8,6 +15,19 @@ import {
 import type { LivePose } from "../scene/Player";
 import { plazaErrorMessage } from "../lib/plazaJoinGate";
 
+export type PresenceChat = {
+  id: string;
+  name: string;
+  text: string;
+  at: number;
+};
+
+export type PlazaPresenceOptions = {
+  allowSocialSession?: boolean;
+  cosmetics?: EquippedCosmetics;
+  presenceUrl?: string;
+};
+
 export function usePlazaPresence(
   zoneId: string,
   livePose: MutableRefObject<LivePose>,
@@ -16,19 +36,28 @@ export function usePlazaPresence(
   allowPrompt = false,
   /** Bump to force a clean reconnect (e.g. retry wallet promote). */
   joinNonce = 0,
+  options: PlazaPresenceOptions = {},
 ) {
   const [players, setPlayers] = useState<PresencePlayer[]>([]);
+  const [chats, setChats] = useState<PresenceChat[]>([]);
   const [status, setStatus] = useState<"off" | "connecting" | "live" | "error">(
     "off",
   );
   const [error, setError] = useState<string | null>(null);
   const [walletBound, setWalletBound] = useState(false);
   const selfId = useRef("");
+  const socketRef = useRef<WebSocket | null>(null);
+  const joinedRef = useRef(false);
+  const cosmeticsRef = useRef(options.cosmetics);
+  cosmeticsRef.current = options.cosmetics;
+  const allowSocialSession = options.allowSocialSession ?? false;
+  const presenceUrl = options.presenceUrl;
 
   useEffect(() => {
     if (!enabled) {
       setStatus("off");
       setPlayers([]);
+      setChats([]);
       setWalletBound(false);
       return;
     }
@@ -38,6 +67,7 @@ export function usePlazaPresence(
     let timer = 0;
     /** Server has accepted our hello (welcome received). Moves before this race the async token check. */
     let joined = false;
+    joinedRef.current = false;
     setStatus("connecting");
     setError(null);
     setWalletBound(false);
@@ -45,6 +75,7 @@ export function usePlazaPresence(
     const tearDown = (code = 1000, reason = "leave") => {
       closed = true;
       joined = false;
+      joinedRef.current = false;
       window.clearInterval(timer);
       timer = 0;
       if (socket) {
@@ -55,6 +86,7 @@ export function usePlazaPresence(
         }
         socket = null;
       }
+      socketRef.current = null;
     };
 
     const onPageHide = () => tearDown(1000, "pagehide");
@@ -62,15 +94,25 @@ export function usePlazaPresence(
     window.addEventListener("beforeunload", onPageHide);
 
     void (async () => {
-      const identity = await resolvePlazaIdentity(zoneId, { allowPrompt });
+      const identity = await resolvePlazaIdentity(zoneId, {
+        allowPrompt,
+        allowSocialSession,
+      });
       if (closed) return;
       selfId.current = identity.id;
       setWalletBound(!!identity.wallet);
 
       const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+      const override =
+        presenceUrl ||
+        (typeof window !== "undefined"
+          ? window.__PASTURE_PRESENCE_URL__
+          : undefined);
       socket = new WebSocket(
-        `${protocol}//${location.host}/api/world/presence?zone=${encodeURIComponent(zoneId)}`,
+        override ||
+          `${protocol}//${location.host}/api/world/presence?zone=${encodeURIComponent(zoneId)}`,
       );
+      socketRef.current = socket;
       let lastSent = 0;
 
       const sendMove = () => {
@@ -105,6 +147,7 @@ export function usePlazaPresence(
       socket.addEventListener("open", () => {
         if (closed) return;
         const pose = livePose.current;
+        const cosmetics = cosmeticsRef.current;
         socket?.send(
           JSON.stringify({
             type: "hello",
@@ -115,6 +158,8 @@ export function usePlazaPresence(
             y: pose.y,
             z: pose.z,
             ...(identity.token ? { token: identity.token } : {}),
+            ...(identity.session ? { session: identity.session } : {}),
+            ...(cosmetics ? { cosmetics } : {}),
           }),
         );
         // Stay on "connecting" until welcome — avoids false "live" during handshake.
@@ -130,6 +175,7 @@ export function usePlazaPresence(
         }
         if (message.type === "welcome") {
           joined = true;
+          joinedRef.current = true;
           setPlayers(message.players.filter((p) => p.id !== selfId.current));
           setStatus("live");
           setError(null);
@@ -153,6 +199,19 @@ export function usePlazaPresence(
                 : p,
             ),
           );
+          return;
+        }
+        if (message.type === "cosmetics") {
+          if (message.id === selfId.current) return;
+          setPlayers((prev) =>
+            prev.map((p) =>
+              p.id === message.id ? { ...p, cosmetics: message.cosmetics } : p,
+            ),
+          );
+          return;
+        }
+        if (message.type === "chat") {
+          setChats((prev) => [...prev, message].slice(-40));
           return;
         }
         if (message.type === "leave") {
@@ -181,16 +240,50 @@ export function usePlazaPresence(
       window.removeEventListener("beforeunload", onPageHide);
       tearDown(1000, "leave");
       setPlayers([]);
+      setChats([]);
       setStatus("off");
       setWalletBound(false);
     };
-  }, [zoneId, enabled, livePose, allowPrompt, joinNonce]);
+  }, [
+    zoneId,
+    enabled,
+    livePose,
+    allowPrompt,
+    joinNonce,
+    allowSocialSession,
+    presenceUrl,
+  ]);
+
+  const sendChat = useCallback((text: string) => {
+    const socket = socketRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN || !joinedRef.current)
+      return false;
+    socket.send(JSON.stringify({ type: "chat", text }));
+    return true;
+  }, []);
+
+  const sendCosmetics = useCallback((cosmetics?: EquippedCosmetics) => {
+    cosmeticsRef.current = cosmetics;
+    const socket = socketRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN || !joinedRef.current)
+      return;
+    socket.send(JSON.stringify({ type: "cosmetics", cosmetics }));
+  }, []);
 
   return {
     players,
+    chats,
     status,
     error,
     walletBound,
     selfId: selfId.current,
+    sendChat,
+    sendCosmetics,
   };
+}
+
+declare global {
+  interface Window {
+    __PASTURE_PRESENCE_URL__?: string;
+  }
 }

@@ -26,7 +26,7 @@ function RemoteAvatar({ player }: { player: PresencePlayer }) {
       >
         {player.name}
       </WorldText>
-      {look ? <PetFollower look={look} /> : null}
+      {look ? <PetFollower look={look} cosmetics={player.cosmetics} /> : null}
     </group>
   );
 }

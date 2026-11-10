@@ -1,10 +1,16 @@
-/** Shared presence wire protocol for Starter Town plaza (Phase 3). */
+/** Shared presence wire protocol for Starter Town plaza and the public pasture. */
+
+import {
+  sanitizeEquipped,
+  type EquippedCosmetics,
+} from "../../content/cosmetics";
 
 export const PRESENCE_MAX_PLAYERS = 32;
 export const PRESENCE_MOVE_MIN_MS = 80;
 /** Wallet ids are `0x` + 64 hex (=66); guests use UUIDs. */
 export const PRESENCE_ID_MAX = 80;
 export const WALLET_ID_RE = /^0x[a-f0-9]{64}$/i;
+export const PRESENCE_SESSION_RE = /^[A-Za-z0-9_-]{8,128}$/;
 
 export interface PresencePlayer {
   id: string;
@@ -13,6 +19,7 @@ export interface PresencePlayer {
   x: number;
   y: number;
   z: number;
+  cosmetics?: EquippedCosmetics;
 }
 
 export type ClientPresenceMessage =
@@ -26,18 +33,44 @@ export type ClientPresenceMessage =
       z: number;
       /** Short-lived wallet presence token from /api/world/presence/confirm */
       token?: string;
+      /** Social read session — pasture join/chat without a second wallet sign. */
+      session?: string;
+      cosmetics?: EquippedCosmetics;
     }
-  | { type: "move"; x: number; y: number; z: number };
+  | { type: "move"; x: number; y: number; z: number }
+  | { type: "chat"; text: string }
+  | { type: "cosmetics"; cosmetics?: EquippedCosmetics };
 
 export type ServerPresenceMessage =
   | { type: "welcome"; you: string; players: PresencePlayer[] }
   | { type: "join"; player: PresencePlayer }
   | { type: "move"; id: string; x: number; y: number; z: number }
   | { type: "leave"; id: string }
+  | {
+      type: "chat";
+      id: string;
+      name: string;
+      text: string;
+      at: number;
+    }
+  | { type: "cosmetics"; id: string; cosmetics?: EquippedCosmetics }
   | { type: "error"; message: string };
 
 export function isFinitePos(n: unknown): n is number {
   return typeof n === "number" && Number.isFinite(n) && Math.abs(n) <= 10_000;
+}
+
+export function presencePlayerPayload(player: PresencePlayer): PresencePlayer {
+  const cosmetics = sanitizeEquipped(player.cosmetics);
+  return {
+    id: player.id,
+    name: player.name,
+    color: player.color,
+    x: player.x,
+    y: player.y,
+    z: player.z,
+    ...(cosmetics ? { cosmetics } : {}),
+  };
 }
 
 export function parseClientPresenceMessage(
@@ -64,6 +97,12 @@ export function parseClientPresenceMessage(
         typeof data.token === "string" && data.token.length <= 64
           ? data.token
           : undefined;
+      const session =
+        typeof data.session === "string" &&
+        PRESENCE_SESSION_RE.test(data.session)
+          ? data.session
+          : undefined;
+      const cosmetics = sanitizeEquipped(data.cosmetics);
       return {
         type: "hello",
         id: data.id,
@@ -73,12 +112,21 @@ export function parseClientPresenceMessage(
         y: data.y,
         z: data.z,
         ...(token ? { token } : {}),
+        ...(session ? { session } : {}),
+        ...(cosmetics ? { cosmetics } : {}),
       };
     }
     if (data.type === "move") {
       if (!isFinitePos(data.x) || !isFinitePos(data.y) || !isFinitePos(data.z))
         return null;
       return { type: "move", x: data.x, y: data.y, z: data.z };
+    }
+    if (data.type === "chat") {
+      if (typeof data.text !== "string" || data.text.length > 200) return null;
+      return { type: "chat", text: data.text };
+    }
+    if (data.type === "cosmetics") {
+      return { type: "cosmetics", cosmetics: sanitizeEquipped(data.cosmetics) };
     }
     return null;
   } catch {

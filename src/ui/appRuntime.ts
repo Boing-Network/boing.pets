@@ -5,6 +5,7 @@ import {
   type Action,
   type Pet,
 } from "../core";
+import type { EquippedCosmetics } from "../content/cosmetics";
 import { apiFetch } from "./apiClient";
 import {
   clearSocialSession,
@@ -29,6 +30,7 @@ export type ViewPet = Pet & {
     suggestion: string;
     cues: string[];
   };
+  cosmetics?: EquippedCosmetics;
 };
 
 export interface Challenge {

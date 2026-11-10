@@ -47,6 +47,12 @@ import {
   activityAttemptsPost,
 } from "./activityAttempts";
 import { applyFoodBoosts } from "../src/content/cooking";
+import {
+  attachCosmetics,
+  cosmeticsError,
+  cosmeticsGet,
+  cosmeticsPost,
+} from "./cosmetics";
 import { verifyProof, type Receipt, type RpcBlock } from "./proof";
 import { enforceIpRateLimit, rateLimitError } from "./rateLimit";
 export { PlazaRoom } from "./plaza";
@@ -290,6 +296,14 @@ async function api(req: Request, env: Env): Promise<Response> {
     }
     const economy = await economyGet(req, env, now);
     if (economy) return economy;
+    try {
+      const cosmetics = await cosmeticsGet(req, env, now);
+      if (cosmetics) return cosmetics;
+    } catch (error) {
+      const mapped = cosmeticsError(error);
+      if (mapped) return mapped;
+      throw error;
+    }
   }
   if (req.method === "GET" && url.pathname === "/api/world/config") {
     return json({
@@ -315,10 +329,11 @@ async function api(req: Request, env: Env): Promise<Response> {
     )
       .bind(offset)
       .all<Pet>();
+    const enriched = await Promise.all(
+      pets.results.slice(0, 24).map((p) => enrich(env, p, now)),
+    );
     return json({
-      pets: await Promise.all(
-        pets.results.slice(0, 24).map((p) => enrich(env, p, now)),
-      ),
+      pets: await attachCosmetics(env, enriched),
       next: pets.results.length > 24 ? offset + 24 : null,
       now,
     });
@@ -328,7 +343,10 @@ async function api(req: Request, env: Env): Promise<Response> {
     const pet = await env.DB.prepare("SELECT * FROM pets WHERE owner=?")
       .bind(owner)
       .first<Pet>();
-    return json({ pet: pet ? await enrich(env, pet, now) : null, now });
+    if (!pet) return json({ pet: null, now });
+    const enrichedPet = await enrich(env, pet, now);
+    const [withCosmetics] = await attachCosmetics(env, [enrichedPet]);
+    return json({ pet: withCosmetics, now });
   }
   if (req.method !== "POST") throw new HttpError(404, "Not found");
   if (req.headers.get("origin") !== env.APP_ORIGIN)
@@ -449,6 +467,14 @@ async function api(req: Request, env: Env): Promise<Response> {
     if (economy) return economy;
   } catch (error) {
     const mapped = economyError(error);
+    if (mapped) return mapped;
+    throw error;
+  }
+  try {
+    const cosmetics = await cosmeticsPost(req, url, env, body, now);
+    if (cosmetics) return cosmetics;
+  } catch (error) {
+    const mapped = cosmeticsError(error);
     if (mapped) return mapped;
     throw error;
   }

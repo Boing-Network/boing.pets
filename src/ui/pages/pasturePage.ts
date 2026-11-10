@@ -1,6 +1,17 @@
 import { ACHIEVEMENTS, petSvg } from "../../core";
-import { api, app, $maybe, pending, type ViewPet } from "../appRuntime";
+import {
+  COSMETIC_SLOT_LABELS,
+  COSMETIC_SLOTS,
+  type CosmeticSlot,
+  type EquippedCosmetics,
+} from "../../content/cosmetics";
+import { catalogItem } from "../../economy";
+import { api, app, $maybe, notice, pending, type ViewPet } from "../appRuntime";
+import { sessionApi } from "../socialSession";
 import { formatWalletLabel } from "../../wallet/session";
+import type { PastureMount } from "../../pasture3d/mountPasture3d";
+import type { PasturePet } from "../../pasture3d/types";
+import type { PresenceChat } from "../../world/hooks/usePlazaPresence";
 
 export function controls() {
   for (const id of [
@@ -113,8 +124,11 @@ export async function refreshBuddyCard() {
   const slot = $maybe("#my-pet");
   if (!slot) return;
   slot.replaceChildren();
-  if (app.mine) slot.append(card(app.mine));
-  else
+  if (app.mine) {
+    const el = card(app.mine);
+    slot.append(el);
+    void attachEquipPanel(el, app.mine);
+  } else
     slot.textContent = app.owner
       ? "Your egg is waiting. Ready to meet the tiny oddball inside?"
       : "Connect Boing Express to hatch your first buddy. You can browse the pasture without a wallet.";
@@ -139,90 +153,187 @@ export async function refreshPastureGallery() {
   if (nextBtn) nextBtn.hidden = app.next === null;
 }
 
-function hash32(text: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i);
-    h = Math.imul(h, 16777619);
+let pastureMount: PastureMount | null = null;
+let pastureChatHooked = false;
+let pastureEscapeHooked = false;
+
+export async function unmountPasture3d() {
+  pastureMount?.unmount();
+  pastureMount = null;
+}
+
+function renderChatLog(chats: PresenceChat[]) {
+  const log = $maybe("#pasture-chat-log");
+  if (!log) return;
+  log.replaceChildren();
+  for (const chat of chats.slice(-8)) {
+    const row = document.createElement("p");
+    row.className = "pasture-chat-line";
+    row.textContent = `${chat.name}: ${chat.text}`;
+    log.append(row);
   }
-  return h >>> 0;
 }
 
-function spritePose(owner: string, index: number) {
-  const h = hash32(owner + ":" + index);
-  const x = 8 + ((h % 8000) / 8000) * 76;
-  const y = 30 + (((h >>> 8) % 6000) / 6000) * 52;
-  const scale = 0.72 + (y / 100) * 0.55;
-  return { x, y, scale, zIndex: Math.round(y * 10) };
+function hookPastureChat() {
+  const form = $maybe<HTMLFormElement>("#pasture-chat-form");
+  const input = $maybe<HTMLInputElement>("#pasture-chat-input");
+  if (!form || !input) return;
+  form.hidden = false;
+  if (pastureChatHooked) return;
+  pastureChatHooked = true;
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    const sent = window.__pasture3d?.sendChat(text);
+    if (sent) input.value = "";
+    else
+      notice(
+        app.owner
+          ? "Join the pasture as your wallet to chat (social session required)."
+          : "Connect to chat in the pasture.",
+        true,
+      );
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      if (document.activeElement === input) {
+        input.blur();
+        event.preventDefault();
+        return;
+      }
+      closeInspect();
+      return;
+    }
+    if (event.key !== "Enter") return;
+    const target = event.target as HTMLElement | null;
+    const tag = target?.tagName;
+    if (
+      tag === "INPUT" ||
+      tag === "TEXTAREA" ||
+      tag === "SELECT" ||
+      tag === "BUTTON"
+    )
+      return;
+    event.preventDefault();
+    input.focus();
+  });
 }
 
-function paintPastureGround(canvas: HTMLCanvasElement) {
-  const parent = canvas.parentElement;
-  if (!parent) return;
-  const width = Math.max(1, parent.clientWidth);
-  const height = Math.max(1, parent.clientHeight);
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = Math.round(width * dpr);
-  canvas.height = Math.round(height * dpr);
-  canvas.style.width = width + "px";
-  canvas.style.height = height + "px";
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const sky = ctx.createLinearGradient(0, 0, 0, height);
-  sky.addColorStop(0, "#16345f");
-  sky.addColorStop(0.45, "#1b4a5c");
-  sky.addColorStop(1, "#1f6a4a");
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, width, height);
-  // Distant hills
-  ctx.fillStyle = "#1a4d3c";
-  ctx.beginPath();
-  ctx.moveTo(0, height * 0.48);
-  ctx.quadraticCurveTo(width * 0.25, height * 0.34, width * 0.5, height * 0.46);
-  ctx.quadraticCurveTo(width * 0.75, height * 0.58, width, height * 0.42);
-  ctx.lineTo(width, height);
-  ctx.lineTo(0, height);
-  ctx.closePath();
-  ctx.fill();
-  const grass = ctx.createLinearGradient(0, height * 0.5, 0, height);
-  grass.addColorStop(0, "#2f7a52");
-  grass.addColorStop(1, "#1d5a3c");
-  ctx.fillStyle = grass;
-  ctx.beginPath();
-  ctx.ellipse(
-    width * 0.5,
-    height * 1.05,
-    width * 0.75,
-    height * 0.62,
-    0,
-    0,
-    Math.PI * 2,
+type CosmeticsPayload = {
+  equipped: EquippedCosmetics;
+  owned: Array<{ id: string; slot: CosmeticSlot | null; name: string }>;
+};
+
+const cosmeticsCache = new Map<string, CosmeticsPayload>();
+
+async function loadOwnedCosmetics(owner: string): Promise<CosmeticsPayload> {
+  const cached = cosmeticsCache.get(owner);
+  if (cached) return cached;
+  const data = await api<CosmeticsPayload>(
+    "/api/pet/cosmetics?owner=" + encodeURIComponent(owner),
   );
-  ctx.fill();
-  // Soft flower dots
-  for (let i = 0; i < 28; i++) {
-    const h = hash32("flower:" + i);
-    const fx = ((h % 1000) / 1000) * width;
-    const fy = height * 0.55 + (((h >>> 10) % 1000) / 1000) * height * 0.4;
-    ctx.fillStyle =
-      i % 3 === 0 ? "#f4d38a" : i % 3 === 1 ? "#ef9bb8" : "#c9e7ff";
-    ctx.beginPath();
-    ctx.arc(fx, fy, 2.2, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  const payload = {
+    equipped: data.equipped || {},
+    owned: data.owned || [],
+  };
+  cosmeticsCache.set(owner, payload);
+  return payload;
 }
 
-let pastureGroundHooked = false;
-function ensurePastureGround() {
-  const canvas = $maybe<HTMLCanvasElement>("#pasture-ground");
-  if (!canvas) return;
-  paintPastureGround(canvas);
-  if (pastureGroundHooked) return;
-  pastureGroundHooked = true;
-  const ro = new ResizeObserver(() => paintPastureGround(canvas));
-  if (canvas.parentElement) ro.observe(canvas.parentElement);
-  window.addEventListener("resize", () => paintPastureGround(canvas));
+async function attachEquipPanel(host: HTMLElement, pet: ViewPet) {
+  if (pet.owner !== app.owner) return;
+  const existing = host.querySelector(".pasture-equip");
+  existing?.remove();
+  const box = document.createElement("div");
+  box.className = "pasture-equip";
+  const title = document.createElement("p");
+  title.className = "eyebrow";
+  title.textContent = "EQUIPPED COSMETICS";
+  box.append(title);
+  let data: CosmeticsPayload;
+  try {
+    data = await loadOwnedCosmetics(pet.owner);
+  } catch {
+    const hint = document.createElement("p");
+    hint.className = "small";
+    hint.textContent = "Could not load cosmetics yet.";
+    box.append(hint);
+    host.append(box);
+    return;
+  }
+  if (pet.cosmetics) data = { ...data, equipped: pet.cosmetics };
+  if (!data.owned.length) {
+    const hint = document.createElement("p");
+    hint.className = "small";
+    hint.textContent =
+      "Unlock cosmetics in the collection log, then equip them here.";
+    box.append(hint);
+    host.append(box);
+    return;
+  }
+  for (const slot of COSMETIC_SLOTS) {
+    const row = document.createElement("label");
+    row.className = "pasture-equip-row";
+    row.append(`${COSMETIC_SLOT_LABELS[slot]} `);
+    const select = document.createElement("select");
+    select.dataset.slot = slot;
+    const none = document.createElement("option");
+    none.value = "";
+    none.textContent = "Unequipped";
+    select.append(none);
+    const items = data.owned.filter((item) => item.slot === slot);
+    for (const item of items) {
+      const opt = document.createElement("option");
+      opt.value = item.id;
+      opt.textContent = item.name || catalogItem(item.id)?.name || item.id;
+      if (data.equipped?.[slot] === item.id) opt.selected = true;
+      select.append(opt);
+    }
+    select.addEventListener("change", () => {
+      void equipSlot(pet, slot, select.value || null, select);
+    });
+    row.append(select);
+    box.append(row);
+  }
+  host.append(box);
+}
+
+async function equipSlot(
+  pet: ViewPet,
+  slot: CosmeticSlot,
+  itemId: string | null,
+  select: HTMLSelectElement,
+) {
+  select.disabled = true;
+  try {
+    const result = await sessionApi<{
+      ok: boolean;
+      equipped: EquippedCosmetics;
+    }>("/api/pet/cosmetics/equip", {
+      owner: pet.owner,
+      slot,
+      item_id: itemId,
+    });
+    const equipped = result.equipped || {};
+    cosmeticsCache.set(pet.owner, {
+      equipped,
+      owned: cosmeticsCache.get(pet.owner)?.owned || [],
+    });
+    pet.cosmetics = equipped;
+    if (app.mine?.owner === pet.owner) app.mine.cosmetics = equipped;
+    pastureMount?.setEquipped(pet.owner, equipped);
+    window.__pasture3d?.sendCosmetics(equipped);
+  } catch (error) {
+    notice(
+      error instanceof Error ? error.message : "Could not equip that cosmetic",
+      true,
+    );
+    const current = pet.cosmetics?.[slot] || "";
+    select.value = current;
+  } finally {
+    select.disabled = false;
+  }
 }
 
 function closeInspect() {
@@ -230,8 +341,6 @@ function closeInspect() {
   if (!inspect) return;
   inspect.hidden = true;
   inspect.replaceChildren();
-  for (const el of document.querySelectorAll(".pasture-sprite.is-selected"))
-    el.classList.remove("is-selected");
 }
 
 function openInspect(pet: ViewPet) {
@@ -250,56 +359,51 @@ function openInspect(pet: ViewPet) {
   close.textContent = "Close";
   close.addEventListener("click", closeInspect);
   head.append(title, close);
-  inspect.append(head, card(pet));
+  const petCard = card(pet);
+  inspect.append(head, petCard);
+  void attachEquipPanel(petCard, pet);
   inspect.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
-function renderPastureWorld(pets: ViewPet[]) {
-  const root = $maybe("#pasture-canvas");
+function renderA11yList(pets: ViewPet[]) {
   const layer = $maybe("#pasture-sprites");
-  const empty = $maybe("#pasture-empty");
-  if (!root || !layer) return;
-  ensurePastureGround();
+  if (!layer) return;
   layer.replaceChildren();
-  if (empty) empty.hidden = pets.length > 0;
-  for (const [index, pet] of pets.entries()) {
-    const pose = spritePose(pet.owner, index);
+  for (const pet of pets) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className =
       "pasture-sprite" + (pet.owner === app.owner ? " yours" : "");
-    btn.style.left = pose.x + "%";
-    btn.style.top = pose.y + "%";
-    btn.style.zIndex = String(pose.zIndex);
-    btn.style.setProperty("--sprite-scale", String(pose.scale));
     btn.dataset.owner = pet.owner;
-    btn.setAttribute(
-      "aria-label",
-      `${pet.traits.species} · ${pet.state.status} · open pet card`,
-    );
-    const picture = document.createElement("div");
-    picture.className = "pasture-sprite-art";
-    picture.innerHTML = petSvg(
-      pet.traits,
-      ["scruffy", "stray"].includes(pet.state.status),
-    );
-    const label = document.createElement("span");
-    label.className = "pasture-sprite-label";
-    label.textContent = pet.traits.species;
-    btn.append(picture, label);
-    btn.addEventListener("click", () => {
-      for (const el of layer.querySelectorAll(".pasture-sprite.is-selected"))
-        el.classList.remove("is-selected");
-      btn.classList.add("is-selected");
-      openInspect(pet);
-    });
+    btn.textContent = `${pet.traits.species} · open pet card`;
+    btn.addEventListener("click", () => openInspect(pet));
     layer.append(btn);
   }
-  if (!pastureEscapeHooked) {
-    pastureEscapeHooked = true;
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") closeInspect();
-    });
-  }
 }
-let pastureEscapeHooked = false;
+
+async function mountOrUpdatePasture(pets: ViewPet[]) {
+  const root = $maybe("#pasture-3d");
+  const empty = $maybe("#pasture-empty");
+  if (empty) empty.hidden = pets.length > 0;
+  renderA11yList(pets);
+  if (!root) return;
+  const { mountPasture3d } = await import("../../pasture3d/mountPasture3d");
+  const props = {
+    pets,
+    owner: app.owner || null,
+    onInspect: (pet: PasturePet) => openInspect(pet as ViewPet),
+    onChats: renderChatLog,
+    onStatus: (text: string) => {
+      const status = $maybe("#pasture-presence-status");
+      if (status) status.textContent = text;
+    },
+  };
+  if (!pastureMount) pastureMount = mountPasture3d(root, props);
+  else pastureMount.update(props);
+  hookPastureChat();
+  if (!pastureEscapeHooked) pastureEscapeHooked = true;
+}
+
+function renderPastureWorld(pets: ViewPet[]) {
+  void mountOrUpdatePasture(pets);
+}

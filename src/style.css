@@ -1020,6 +1020,119 @@ a:hover {
   }
 }
 
+#pasture-3d,
+.pasture-3d-root {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+#pasture-3d canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  touch-action: none;
+}
+.pasture-chat-log {
+  position: absolute;
+  left: 12px;
+  bottom: 56px;
+  max-width: min(320px, 70%);
+  max-height: 140px;
+  overflow: auto;
+  padding: 6px 8px;
+  border-radius: 12px;
+  background: #0c1c1488;
+  color: #eef8ff;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  z-index: 4;
+  pointer-events: none;
+}
+.pasture-chat-line {
+  margin: 0 0 4px;
+}
+.pasture-chat-form {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 5;
+}
+.pasture-chat-form input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #2a5a46;
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: #0c1c14ee;
+  color: #eef8ff;
+}
+.pasture-chat-form button {
+  padding: 8px 12px;
+}
+.pasture-presence-status {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  margin: 0;
+  padding: 4px 8px;
+  border-radius: 10px;
+  background: #0c1c1488;
+  color: #e8f6ee;
+  font-size: 0.68rem;
+  z-index: 4;
+  pointer-events: none;
+}
+.pasture-equip {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #2a3a55;
+}
+.pasture-equip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 0.82rem;
+}
+.pasture-equip-row select {
+  flex: 1;
+  min-width: 0;
+  border-radius: 10px;
+  padding: 4px 6px;
+}
+.pasture-pet-hit {
+  border: 0;
+  background: #0c1c14cc;
+  color: #eef8ff;
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.2px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pasture-pet-hit.yours,
+.pasture-pet-hit.is-selected {
+  color: #fff4b8;
+  background: #1d3a20ee;
+}
+.pasture-bubble {
+  max-width: 160px;
+  padding: 6px 8px;
+  border-radius: 12px 12px 12px 4px;
+  background: #fffaf0ee;
+  color: #123055;
+  font-size: 12px;
+  line-height: 1.3;
+  box-shadow: 0 4px 12px #0004;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

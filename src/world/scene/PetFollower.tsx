@@ -1,14 +1,18 @@
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import type { Group } from "three";
+import type { EquippedCosmetics } from "../../content/cosmetics";
 import type { PetLook } from "../lib/petLook";
+import { CosmeticAttachments } from "./CosmeticAttachments";
 
 export function PetFollower({
   look,
   offset = [-0.78, 0, 0.2] as [number, number, number],
+  cosmetics,
 }: {
   look: PetLook;
   offset?: [number, number, number];
+  cosmetics?: EquippedCosmetics;
 }) {
   const group = useRef<Group>(null);
   const body = `hsl(${look.hue} 75% 72%)`;
@@ -50,6 +54,7 @@ export function PetFollower({
           <meshStandardMaterial color={accent} transparent opacity={0.7} />
         </mesh>
       ))}
+      <CosmeticAttachments cosmetics={cosmetics} scale={0.7} />
     </group>
   );
 }

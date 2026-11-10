@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { STARTER_TOWN, WORLD_CONFIG } from "../src/world/config/zones";
+import {
+  PASTURE_ZONE,
+  STARTER_TOWN,
+  WORLD_CONFIG,
+} from "../src/world/config/zones";
 
 describe("Starter Town world config", () => {
   it("exposes a coherent default zone for the API and client", () => {
@@ -13,6 +17,7 @@ describe("Starter Town world config", () => {
         "mountains",
         "city",
         "academy",
+        "pasture",
       ]),
     );
   });
@@ -55,5 +60,18 @@ describe("Starter Town world config", () => {
         "station-hatch",
       ]),
     );
+  });
+});
+
+describe("Public pasture zone", () => {
+  it("is a known presence zone with walkable landmarks", () => {
+    expect(PASTURE_ZONE.id).toBe("pasture");
+    const { bounds } = PASTURE_ZONE;
+    for (const item of [...PASTURE_ZONE.landmarks, ...PASTURE_ZONE.stations]) {
+      expect(item.position.x).toBeGreaterThanOrEqual(bounds.minX);
+      expect(item.position.x).toBeLessThanOrEqual(bounds.maxX);
+      expect(item.position.z).toBeGreaterThanOrEqual(bounds.minZ);
+      expect(item.position.z).toBeLessThanOrEqual(bounds.maxZ);
+    }
   });
 });

@@ -10,6 +10,7 @@ import {
 import { tryRestoreWalletSession } from "../wallet/session";
 import { STARTER_TOWN, type WorldStation } from "./config/zones";
 import { usePlayerControls } from "./hooks/usePlayerControls";
+import { useEquippedCosmetics } from "./hooks/useEquippedCosmetics";
 import { usePlazaPresence } from "./hooks/usePlazaPresence";
 import { WorldHud } from "./hud/WorldHud";
 import { loadWorldPosition } from "./lib/storage";
@@ -70,6 +71,7 @@ export function WorldApp() {
   const onStation = useCallback((next: WorldStation | null) => {
     setStation(next);
   }, []);
+  const localCosmetics = useEquippedCosmetics(localOwner);
   const presence = usePlazaPresence(
     STARTER_TOWN.id,
     livePose,
@@ -152,6 +154,7 @@ export function WorldApp() {
             onStation={onStation}
             onNavigateAway={navigateAway}
             owner={localOwner}
+            cosmetics={localCosmetics}
           />
           <RemotePlayers players={presence.players} />
         </Suspense>

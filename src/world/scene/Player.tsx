@@ -5,6 +5,7 @@ import type { WorldStation, WorldZoneConfig } from "../config/zones";
 import type { ControlState } from "../hooks/usePlayerControls";
 import { usePetLook } from "../hooks/usePetLook";
 import { saveWorldPosition } from "../lib/storage";
+import type { EquippedCosmetics } from "../../content/cosmetics";
 import { PetFollower } from "./PetFollower";
 
 const SPEED = 6.5;
@@ -25,6 +26,7 @@ export function Player({
   onStation,
   onNavigateAway,
   owner = null,
+  cosmetics,
 }: {
   zone: WorldZoneConfig;
   controls: MutableRefObject<ControlState>;
@@ -34,6 +36,7 @@ export function Player({
   /** Leave plaza / flush presence before multipage navigation. */
   onNavigateAway?: (href: string) => void;
   owner?: string | null;
+  cosmetics?: EquippedCosmetics;
 }) {
   const body = useRef<THREE.Group>(null);
   const look = usePetLook(owner);
@@ -137,7 +140,7 @@ export function Player({
         <circleGeometry args={[0.55, 16]} />
         <meshBasicMaterial color="#142044" transparent opacity={0.25} />
       </mesh>
-      {look ? <PetFollower look={look} /> : null}
+      {look ? <PetFollower look={look} cosmetics={cosmetics} /> : null}
     </group>
   );
 }

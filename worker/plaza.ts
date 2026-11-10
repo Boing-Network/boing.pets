@@ -1,7 +1,15 @@
 import { DurableObject } from "cloudflare:workers";
 import { shortWallet } from "../src/social";
 import {
+  canSendChat,
+  chatWindowOk,
+  sanitizePastureChat,
+} from "../src/content/pastureChat";
+import type { EquippedCosmetics } from "../src/content/cosmetics";
+import { loadEquipped } from "./cosmetics";
+import {
   parseClientPresenceMessage,
+  presencePlayerPayload,
   PRESENCE_MAX_PLAYERS,
   PRESENCE_MOVE_MIN_MS,
   WALLET_ID_RE,
@@ -9,7 +17,11 @@ import {
   type ServerPresenceMessage,
 } from "../src/world/lib/presenceProtocol";
 
-type Attachment = PresencePlayer & { lastMoveAt: number };
+type Attachment = PresencePlayer & {
+  lastMoveAt: number;
+  lastChatAt: number;
+  chatSentAt: number[];
+};
 
 function send(ws: WebSocket, message: ServerPresenceMessage) {
   try {
@@ -21,6 +33,20 @@ function send(ws: WebSocket, message: ServerPresenceMessage) {
 
 function readAttachment(ws: WebSocket): Attachment | null {
   return (ws.deserializeAttachment() as Attachment | null) ?? null;
+}
+
+async function cosmeticsForWallet(
+  env: Env,
+  id: string,
+  looksWallet: boolean,
+): Promise<EquippedCosmetics | undefined> {
+  if (!looksWallet) return undefined;
+  try {
+    const equipped = await loadEquipped(env, id);
+    return Object.keys(equipped).length ? equipped : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export class PlazaRoom extends DurableObject<Env> {
@@ -64,6 +90,7 @@ export class PlazaRoom extends DurableObject<Env> {
       let name = parsed.name;
       const color = parsed.color;
       const looksWallet = WALLET_ID_RE.test(id);
+      let boundWallet = false;
 
       if (parsed.token) {
         const now = Date.now();
@@ -86,6 +113,43 @@ export class PlazaRoom extends DurableObject<Env> {
           return;
         }
         id = row.owner;
+        boundWallet = true;
+        const profile = await this.env.DB.prepare(
+          "SELECT display_name FROM profiles WHERE owner=?",
+        )
+          .bind(id)
+          .first<{ display_name: string }>();
+        name = profile?.display_name || shortWallet(id);
+      } else if (parsed.session) {
+        const now = Date.now();
+        await this.env.DB.prepare(
+          "DELETE FROM social_session_tokens WHERE expires_at<?",
+        )
+          .bind(now)
+          .run();
+        const row = await this.env.DB.prepare(
+          "SELECT owner,expires_at FROM social_session_tokens WHERE token=?",
+        )
+          .bind(parsed.session)
+          .first<{ owner: string; expires_at: number }>();
+        if (!row || row.expires_at < now) {
+          send(ws, {
+            type: "error",
+            message: "Social session invalid or expired",
+          });
+          ws.close(1008, "Bad social session");
+          return;
+        }
+        if (looksWallet && row.owner !== id) {
+          send(ws, {
+            type: "error",
+            message: "Social session does not match this wallet",
+          });
+          ws.close(1008, "Session mismatch");
+          return;
+        }
+        id = row.owner;
+        boundWallet = true;
         const profile = await this.env.DB.prepare(
           "SELECT display_name FROM profiles WHERE owner=?",
         )
@@ -93,7 +157,7 @@ export class PlazaRoom extends DurableObject<Env> {
           .first<{ display_name: string }>();
         name = profile?.display_name || shortWallet(id);
       } else if (looksWallet) {
-        // Guests cannot claim wallet-shaped ids without a signed token.
+        // Guests cannot claim wallet-shaped ids without a signed token or session.
         send(ws, {
           type: "error",
           message: "Wallet presence requires a signed token",
@@ -119,17 +183,23 @@ export class PlazaRoom extends DurableObject<Env> {
           this.broadcast(other, { type: "leave", id });
         }
       }
-      const player: PresencePlayer = {
+      const cosmetics = boundWallet
+        ? await cosmeticsForWallet(this.env, id, true)
+        : undefined;
+      const player: PresencePlayer = presencePlayerPayload({
         id,
         name,
         color,
         x: parsed.x,
         y: parsed.y,
         z: parsed.z,
-      };
+        ...(cosmetics ? { cosmetics } : {}),
+      });
       ws.serializeAttachment({
         ...player,
         lastMoveAt: Date.now(),
+        lastChatAt: 0,
+        chatSentAt: [],
       } satisfies Attachment);
       const players = this.listPlayers();
       send(ws, { type: "welcome", you: player.id, players });
@@ -142,6 +212,67 @@ export class PlazaRoom extends DurableObject<Env> {
       send(ws, { type: "error", message: "Send hello first" });
       return;
     }
+
+    if (parsed.type === "chat") {
+      if (!WALLET_ID_RE.test(self.id)) {
+        send(ws, {
+          type: "error",
+          message: "Chat requires a signed-in wallet",
+        });
+        return;
+      }
+      const now = Date.now();
+      if (
+        !canSendChat(self.lastChatAt, now) ||
+        !chatWindowOk(self.chatSentAt, now)
+      ) {
+        send(ws, {
+          type: "error",
+          message: "Chat is cooling down. Please wait.",
+        });
+        return;
+      }
+      let text = "";
+      try {
+        text = sanitizePastureChat(parsed.text);
+      } catch (error) {
+        send(ws, {
+          type: "error",
+          message: error instanceof Error ? error.message : "Invalid chat",
+        });
+        return;
+      }
+      self.lastChatAt = now;
+      self.chatSentAt = [...self.chatSentAt, now].slice(-8);
+      ws.serializeAttachment(self);
+      const payload: ServerPresenceMessage = {
+        type: "chat",
+        id: self.id,
+        name: self.name,
+        text,
+        at: now,
+      };
+      send(ws, payload);
+      this.broadcast(ws, payload);
+      return;
+    }
+
+    if (parsed.type === "cosmetics") {
+      if (!WALLET_ID_RE.test(self.id)) return;
+      const cosmetics = await cosmeticsForWallet(this.env, self.id, true);
+      self.cosmetics = cosmetics;
+      ws.serializeAttachment(self);
+      const payload: ServerPresenceMessage = {
+        type: "cosmetics",
+        id: self.id,
+        ...(cosmetics ? { cosmetics } : {}),
+      };
+      send(ws, payload);
+      this.broadcast(ws, payload);
+      return;
+    }
+
+    if (parsed.type !== "move") return;
     const now = Date.now();
     if (now - self.lastMoveAt < PRESENCE_MOVE_MIN_MS) return;
     self.x = parsed.x;
@@ -172,15 +303,7 @@ export class PlazaRoom extends DurableObject<Env> {
     const players: PresencePlayer[] = [];
     for (const ws of this.ctx.getWebSockets()) {
       const att = readAttachment(ws);
-      if (att)
-        players.push({
-          id: att.id,
-          name: att.name,
-          color: att.color,
-          x: att.x,
-          y: att.y,
-          z: att.z,
-        });
+      if (att) players.push(presencePlayerPayload(att));
     }
     return players;
   }

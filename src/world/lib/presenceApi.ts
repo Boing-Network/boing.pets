@@ -8,6 +8,7 @@ import {
   type BoingProvider,
 } from "../../wallet/session";
 import { colorFromSeed, guestPresenceIdentity } from "./presenceProtocol";
+import { loadSocialSession } from "../../social/sessionCache";
 import {
   clearPresenceToken,
   loadPresenceToken,
@@ -19,6 +20,8 @@ export interface PlazaIdentity {
   name: string;
   color: string;
   token?: string;
+  /** Social read session used by the public pasture to skip a second sign. */
+  session?: string;
   wallet?: boolean;
 }
 
@@ -74,7 +77,7 @@ async function mintPresenceToken(
  */
 export async function resolvePlazaIdentity(
   zoneId: string,
-  opts: { allowPrompt?: boolean } = {},
+  opts: { allowPrompt?: boolean; allowSocialSession?: boolean } = {},
 ): Promise<PlazaIdentity> {
   const allowPrompt = opts.allowPrompt ?? false;
   const resolved = await resolveBoingProvider({
@@ -103,6 +106,19 @@ export async function resolvePlazaIdentity(
         token: cached.token,
         wallet: true,
       };
+    }
+
+    if (opts.allowSocialSession) {
+      const social = loadSocialSession(owner);
+      if (social?.token) {
+        return {
+          id: owner,
+          name: await profileName(owner),
+          color: colorFromSeed(owner),
+          session: social.token,
+          wallet: true,
+        };
+      }
     }
 
     if (!allowPrompt) {
