@@ -35,6 +35,11 @@ import { treasureError, treasureGet, treasurePost } from "./treasure";
 import { gardeningError, gardeningGet, gardeningPost } from "./gardening";
 import { cookingError, cookingGet, cookingPost } from "./cooking";
 import { miningError, miningGet, miningPost } from "./mining";
+import {
+  onchainItemsError,
+  onchainItemsGet,
+  onchainItemsPost,
+} from "./onchainItems";
 import { racingError, racingGet, racingPost } from "./racing";
 import {
   activityAttemptsError,
@@ -268,6 +273,14 @@ async function api(req: Request, env: Env): Promise<Response> {
       throw error;
     }
     try {
+      const onchain = await onchainItemsGet(req, env, now);
+      if (onchain) return onchain;
+    } catch (error) {
+      const mapped = onchainItemsError(error);
+      if (mapped) return mapped;
+      throw error;
+    }
+    try {
       const racing = await racingGet(req, env, now);
       if (racing) return racing;
     } catch (error) {
@@ -412,6 +425,14 @@ async function api(req: Request, env: Env): Promise<Response> {
     if (mining) return mining;
   } catch (error) {
     const mapped = miningError(error);
+    if (mapped) return mapped;
+    throw error;
+  }
+  try {
+    const onchain = await onchainItemsPost(url, env, body, now);
+    if (onchain) return onchain;
+  } catch (error) {
+    const mapped = onchainItemsError(error);
     if (mapped) return mapped;
     throw error;
   }

@@ -4,7 +4,7 @@
 
 Universe redesign docs live in `docs/` (AUDIT, ROADMAP, DESIGN, PHASE2–6, PHASE3-SOCIAL, PHASE3-PRESENCE-AUTH). Incremental stack through Phase 6 framework: Workers + D1 + pasture SPA + Starter Town + wallet plaza presence + friends/DMs + cosmetics market + pet mind + config-driven quests/seasons/collections.
 
-Testnet only (6913). This is an MVP, not an NFT marketplace, financial product, or airdrop promise. No contracts, consensus changes, custody keys, or scheduled jobs. Nothing is deployed automatically.
+Testnet only (6913). This is an MVP, not an NFT marketplace, financial product, or airdrop promise. No consensus changes, player custody keys, or scheduled jobs. Nothing is deployed automatically. The only contract integration is the **optional** on-chain items withdrawal (mined ore → Boing reference multi-token game items, off unless an operator configures it; see `docs/ONCHAIN-ITEMS.md`).
 
 ## Run locally
 
@@ -58,6 +58,7 @@ Belly loses 25 points/day since hatch or last feed; joy loses 20/day since any c
 - `POST /api/confirm` `{id,signature}` for check-in / play / groom, or `{id,tx_hash}` for hatch/feed.
 - Social private reads (`/api/social/friends`, `/requests`, `/messages`, `/party`, `/party/invites`) require a short-lived **social session**: `POST /api/social/session/challenge` + `confirm` (Express signature), then `Authorization: Bearer <token>`. Public `GET /api/social/profile` stays open.
 - Soft currency spends update `account_balances` atomically with the ledger so concurrent buys cannot overdraw.
+- Optional on-chain items (`docs/ONCHAIN-ITEMS.md`): `GET /api/items/onchain?owner=` (mapping, in-game vs in-wallet quantities, recent withdrawals; `{enabled:false}` when unconfigured), `POST /api/items/withdraw/challenge` `{owner,game_item_id,qty}` + `POST /api/items/withdraw/confirm` `{id,signature}` mint ore as shared item types to the player's wallet.
 
 Writes require the configured `APP_ORIGIN` and JSON bodies (4 KiB maximum), signatures or chain proofs. Keys never enter Pets. Prefer Cloudflare dashboard WAF / Rate Limiting Rules in front of workers.dev for production-grade IP abuse controls; the Worker also enforces D1 soft limits without a Rate Limiting binding.
 
@@ -80,7 +81,7 @@ No changes to boing.network Passport or airdrop eligibility are made here. A fut
 
 ## Deferred
 
-DEX-swap forage on boing.finance; live finance-indexer integration; Passport wiring; mainnet; naming/trading/transferring pets; NFTs or a dedicated pet VM program; permanent chain-wide indexing/backfill; stronger edge WAF policies; custom domain; mainnet. Pet naming is intentionally not user-generated yet, avoiding moderation and HTML injection concerns.
+DEX-swap forage on boing.finance; live finance-indexer integration; Passport wiring; mainnet; naming/trading/transferring pets; pet NFTs or a dedicated pet VM program (mined ore can already be withdrawn as on-chain game items); depositing on-chain items back into the game; permanent chain-wide indexing/backfill; stronger edge WAF policies; custom domain; mainnet. Pet naming is intentionally not user-generated yet, avoiding moderation and HTML injection concerns.
 
 Next projects: [boing.wall](https://github.com/Boing-Network/boing.wall), [boing.kudos](https://github.com/Boing-Network/boing.kudos), [boing.names](https://github.com/Boing-Network/boing.names). Their implementations follow Pets.
 

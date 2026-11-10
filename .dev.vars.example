@@ -1,2 +1,5 @@
 APP_ORIGIN=http://localhost:5177
 RPC_URL=https://testnet-rpc.boing.network
+# Optional on-chain items (docs/ONCHAIN-ITEMS.md). Leave unset to keep the feature off.
+# MULTI_TOKEN_CONTRACT=0x<reference multi-token v1 contract id>
+# MULTI_TOKEN_ADMIN_SECRET_KEY=<32-byte Ed25519 seed hex of the contract admin; testnet only>

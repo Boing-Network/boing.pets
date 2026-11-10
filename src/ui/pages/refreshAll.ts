@@ -18,6 +18,7 @@ import {
   refreshBuddyCard,
   refreshPastureGallery,
 } from "./pasturePage";
+import { refreshOnchainItems } from "../onchainItemsPanel";
 
 export async function refresh(page: PageId) {
   if (page === "pasture") {
@@ -66,10 +67,14 @@ export async function refresh(page: PageId) {
     await refreshKitchen().catch(() => {
       /* cooking tables may be missing until migration 0014 */
     });
-  if (page === "mining")
+  if (page === "mining") {
     await refreshMining().catch(() => {
       /* mining tables may be missing until migration 0015 */
     });
+    await refreshOnchainItems().catch(() => {
+      /* on-chain items are optional (migration 0022 + operator config) */
+    });
+  }
   if (page === "racing")
     await refreshRacing().catch(() => {
       /* racing tables may be missing until migration 0016 */

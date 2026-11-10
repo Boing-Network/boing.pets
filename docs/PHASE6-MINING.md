@@ -27,6 +27,10 @@ Fifth activity loop: spend daily stamina to strike ore veins on a timing window;
 
 `migrations/0015_mining.sql`
 
+## On-chain items
+
+Optional: mined ore can be withdrawn to the player's wallet as Boing reference multi-token items (`ore-pebble` #1, `ore-spark` #2, `ore-crystal` #3). See `docs/ONCHAIN-ITEMS.md`.
+
 ## World hook
 
 Starter Town `station-mine` → `/mining.html`
