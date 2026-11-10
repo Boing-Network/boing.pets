@@ -6,9 +6,33 @@ export interface CachedSocialSession {
   expires_at: number;
 }
 
+function migrateFromSessionStorage() {
+  try {
+    const legacy = sessionStorage.getItem(STORAGE_KEY);
+    if (!legacy) return;
+    if (!localStorage.getItem(STORAGE_KEY)) {
+      localStorage.setItem(STORAGE_KEY, legacy);
+    }
+    sessionStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function storage(): Storage | null {
+  try {
+    migrateFromSessionStorage();
+    return localStorage;
+  } catch {
+    return null;
+  }
+}
+
 function readAll(): CachedSocialSession[] {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const store = storage();
+    if (!store) return [];
+    const raw = store.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as CachedSocialSession[];
     if (!Array.isArray(parsed)) return [];
@@ -27,7 +51,7 @@ function readAll(): CachedSocialSession[] {
 
 function writeAll(rows: CachedSocialSession[]) {
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+    storage()?.setItem(STORAGE_KEY, JSON.stringify(rows));
   } catch {
     /* private mode / quota */
   }
@@ -49,7 +73,7 @@ export function saveSocialSession(row: CachedSocialSession) {
 export function clearSocialSession(owner?: string) {
   if (!owner) {
     try {
-      sessionStorage.removeItem(STORAGE_KEY);
+      storage()?.removeItem(STORAGE_KEY);
     } catch {
       /* ignore */
     }

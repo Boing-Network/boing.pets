@@ -21,6 +21,10 @@ export default ts.config(
         URL: "readonly",
         setTimeout: "readonly",
         TextEncoder: "readonly",
+        // Browser globals used inside Playwright page.addInitScript / waitForFunction.
+        window: "readonly",
+        document: "readonly",
+        localStorage: "readonly",
       },
     },
     rules: {

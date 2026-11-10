@@ -66,10 +66,19 @@ export function controls() {
   const disconnectBtn = $maybe("#disconnect");
   if (disconnectBtn) disconnectBtn.hidden = !app.owner;
   const connect = $maybe("#connect");
-  if (connect)
-    connect.textContent = app.owner
-      ? `${app.owner.slice(0, 8)}…${app.owner.slice(-4)}`
-      : "Connect Express";
+  if (connect) {
+    if (!app.owner) {
+      connect.textContent = "Connect Express";
+      connect.title = "Connect Boing Express";
+    } else if (app.walletKind === "cached") {
+      connect.textContent = `${app.owner.slice(0, 8)}…${app.owner.slice(-4)} · reconnecting`;
+      connect.title =
+        "Express address restored. A signature may ask you to approve once.";
+    } else {
+      connect.textContent = `${app.owner.slice(0, 8)}…${app.owner.slice(-4)}`;
+      connect.title = "Connected with Boing Express";
+    }
+  }
 }
 export function meter(label: string, value: number) {
   return `<label>${label} <meter min="0" max="100" value="${value}"></meter> ${value}%</label>`;

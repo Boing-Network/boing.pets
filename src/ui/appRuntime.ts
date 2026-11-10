@@ -48,6 +48,8 @@ export interface Pending {
 export const app = {
   provider: null as Provider | null,
   owner: "",
+  /** live = silent provider accounts; cached = localStorage-only pending re-auth */
+  walletKind: null as "live" | "cached" | null,
   busy: false,
   mine: null as ViewPet | null,
   offset: 0,

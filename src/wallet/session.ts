@@ -10,10 +10,61 @@ export interface BoingProvider {
 }
 
 const CHAIN_HEX = "0x1b01";
+const WALLET_CACHE_KEY = "boing-pets-wallet-v1";
+
+export interface CachedWalletSession {
+  owner: string;
+  connected_at: number;
+}
+
+export function loadCachedWalletOwner(): string | null {
+  try {
+    const raw = browserLocalStorage()?.getItem(WALLET_CACHE_KEY) ?? null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CachedWalletSession;
+    if (!parsed?.owner || typeof parsed.owner !== "string") return null;
+    return hex32(parsed.owner);
+  } catch {
+    return null;
+  }
+}
+
+export function saveCachedWalletOwner(owner: string) {
+  try {
+    const row: CachedWalletSession = {
+      owner: hex32(owner),
+      connected_at: Date.now(),
+    };
+    browserLocalStorage()?.setItem(WALLET_CACHE_KEY, JSON.stringify(row));
+  } catch {
+    /* private mode / quota */
+  }
+}
+
+export function clearCachedWalletOwner() {
+  try {
+    browserLocalStorage()?.removeItem(WALLET_CACHE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function browserLocalStorage(): Storage | null {
+  try {
+    const g = globalThis as typeof globalThis & { localStorage?: Storage };
+    return g.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /** Prefer injected Express; otherwise the web-wallet popup provider. */
 export function getBoingProvider(): BoingProvider {
-  const injected = (window as Window & { boing?: BoingProvider }).boing;
+  const g = globalThis as typeof globalThis & {
+    boing?: BoingProvider;
+    window?: { boing?: BoingProvider };
+  };
+  const injected = g.boing || g.window?.boing;
   if (injected) return injected;
   return createBoingWebWalletProvider({
     chainId: CHAIN_HEX,
@@ -36,28 +87,46 @@ export async function readBoingAccounts(
   }
 }
 
+export type RestoreKind = "live" | "cached";
+
 /**
  * Restore a previously authorized Express session without prompting.
- * Returns the canonical owner hex, or null if the user still needs Connect.
+ * 1) Prefer silent boing_accounts from the provider.
+ * 2) If empty, fall back to the localStorage owner so the header stays
+ *    connected across full page navigations; signing re-auths lazily.
  */
 export async function tryRestoreWalletSession(
   provider: BoingProvider = getBoingProvider(),
-): Promise<{ provider: BoingProvider; owner: string } | null> {
+): Promise<{
+  provider: BoingProvider;
+  owner: string;
+  kind: RestoreKind;
+} | null> {
+  const cached = loadCachedWalletOwner();
   const accounts = await readBoingAccounts(provider);
-  if (!accounts[0]) return null;
-  const owner = hex32(accounts[0]);
-  if (!provider.isBoingWeb) {
-    try {
-      const chain = await provider.request({
-        method: "boing_chainId",
-        params: [],
-      });
-      if (Number(chain) !== 6913) return null;
-    } catch {
-      return null;
+  const live = accounts[0] ? hex32(accounts[0]) : null;
+
+  if (live) {
+    if (!provider.isBoingWeb) {
+      try {
+        const chain = await provider.request({
+          method: "boing_chainId",
+          params: [],
+        });
+        if (Number(chain) !== 6913) return null;
+      } catch {
+        return null;
+      }
     }
+    saveCachedWalletOwner(live);
+    return { provider, owner: live, kind: "live" };
   }
-  return { provider, owner };
+
+  if (cached) {
+    // Optimistic restore: UI stays connected; signatures may prompt once.
+    return { provider, owner: cached, kind: "cached" };
+  }
+  return null;
 }
 
 /** Interactive connect (may open Express). Call from a click handler. */
@@ -81,10 +150,34 @@ export async function requestWalletSession(
     if (!again[0] || hex32(again[0]) !== owner)
       throw new Error("Wallet account changed. Disconnect and reconnect.");
   }
+  saveCachedWalletOwner(owner);
   return { provider, owner };
 }
 
+/**
+ * Ensure the provider still authorizes app.owner before a signature/tx.
+ * Uses silent accounts first; only prompts if the session was cache-only.
+ */
+export async function ensureLiveWalletSession(
+  provider: BoingProvider,
+  expectedOwner: string,
+): Promise<{ provider: BoingProvider; owner: string }> {
+  const want = hex32(expectedOwner);
+  const accounts = await readBoingAccounts(provider);
+  if (accounts[0] && hex32(accounts[0]) === want) {
+    saveCachedWalletOwner(want);
+    return { provider, owner: want };
+  }
+  const fresh = await requestWalletSession(provider);
+  if (fresh.owner !== want) {
+    // User picked a different account — treat as the new session.
+    saveCachedWalletOwner(fresh.owner);
+  }
+  return fresh;
+}
+
 export function clearWalletSession(provider: BoingProvider | null) {
+  clearCachedWalletOwner();
   try {
     provider?.disconnect?.();
   } catch {

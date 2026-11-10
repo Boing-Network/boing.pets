@@ -8,7 +8,12 @@ import {
   type Challenge,
   type Provider,
 } from "./appRuntime";
-import { clearWalletSession, tryRestoreWalletSession } from "../wallet/session";
+import {
+  clearWalletSession,
+  ensureLiveWalletSession,
+  tryRestoreWalletSession,
+  type RestoreKind,
+} from "../wallet/session";
 
 type RefreshFn = () => Promise<void>;
 type ControlsFn = () => void;
@@ -50,6 +55,14 @@ export async function run(task: () => Promise<void>) {
 export async function assertWallet() {
   if (!app.provider || !app.owner)
     throw new Error("Connect Boing Express first");
+  // Cache-only restores (and stale provider sessions) re-auth lazily here —
+  // never force Connect on every page load.
+  const live = await ensureLiveWalletSession(app.provider, app.owner);
+  if (live.owner !== app.owner || live.provider !== app.provider) {
+    bindWallet(live, "live");
+  } else {
+    app.walletKind = "live";
+  }
   if (!app.provider.isBoingWeb) {
     const chain = await app.provider.request({
       method: "boing_chainId",
@@ -134,11 +147,15 @@ export async function act(action: Action) {
   );
   await confirmPending();
 }
-export function bindWallet(session: { provider: Provider; owner: string }) {
+export function bindWallet(
+  session: { provider: Provider; owner: string },
+  kind: RestoreKind | "live" = "live",
+) {
   app.provider?.removeListener?.("accountsChanged", disconnect);
   app.provider?.removeListener?.("chainChanged", disconnect);
   app.provider = session.provider;
   app.owner = session.owner;
+  app.walletKind = kind === "cached" ? "cached" : "live";
   app.provider.on?.("accountsChanged", disconnect);
   app.provider.on?.("chainChanged", disconnect);
 }
@@ -148,6 +165,7 @@ export function disconnect() {
   clearWalletSession(app.provider);
   clearSocialSession(app.owner || undefined);
   app.owner = "";
+  app.walletKind = null;
   app.mine = null;
   app.provider = null;
   controls();
@@ -156,14 +174,22 @@ export function disconnect() {
 export async function attachRestoredSession() {
   const session = await tryRestoreWalletSession();
   if (!session) return false;
-  bindWallet(session);
-  try {
-    await assertWallet();
-  } catch {
-    clearWalletSession(app.provider);
-    app.owner = "";
-    app.provider = null;
-    return false;
+  bindWallet(session, session.kind);
+  if (session.kind === "live") {
+    try {
+      // Soft check only — do not clear a good live restore on transient RPC blips.
+      if (!session.provider.isBoingWeb) {
+        const chain = await session.provider.request({
+          method: "boing_chainId",
+          params: [],
+        });
+        if (Number(chain) !== 6913) throw new Error("wrong chain");
+      }
+    } catch {
+      // Keep cached owner so the header still shows connected; signing will re-auth.
+      app.walletKind = "cached";
+    }
   }
+  controls();
   return true;
 }

@@ -130,10 +130,12 @@ nav a.nav-active {
 .nav-drop-menu {
   display: none;
   position: absolute;
-  top: calc(100% + 10px);
+  /* Flush under the trigger; top padding is the hover-safe visual gap. */
+  top: 100%;
   left: 0;
   min-width: 160px;
-  padding: 8px;
+  padding: 14px 8px 8px;
+  margin-top: 0;
   border-radius: 14px;
   background: #0c1630;
   border: 1px solid #ffffff18;
@@ -141,10 +143,15 @@ nav a.nav-active {
   z-index: 40;
 }
 .nav-dropdown.is-open .nav-drop-menu,
-.nav-dropdown:hover .nav-drop-menu,
 .nav-dropdown:focus-within .nav-drop-menu {
   display: grid;
   gap: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .nav-dropdown:hover .nav-drop-menu {
+    display: grid;
+    gap: 2px;
+  }
 }
 .nav-drop-menu a {
   display: block;

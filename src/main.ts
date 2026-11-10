@@ -212,7 +212,9 @@ void (async () => {
     await refresh(page);
     notice(
       restored
-        ? "Express session restored. Activities are ready."
+        ? app.walletKind === "cached"
+          ? "Express address restored. Approve once when you sign."
+          : "Express session restored. Activities are ready."
         : page === "pasture"
           ? "Testnet pasture ready. Make yourself at home."
           : `${PAGE_META[page].title} ready.`,
