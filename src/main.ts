@@ -244,9 +244,13 @@ on(
 );
 controls();
 void (async () => {
-  const restored = await attachRestoredSession().catch(() => false);
+  // Load the public pasture immediately. Do not block the world on a
+  // 2s extension-injection wait — restore runs in parallel and refreshes again.
+  const restoreTask = attachRestoredSession().catch(() => false);
   try {
     await refresh(page);
+    const restored = await restoreTask;
+    if (restored) await refresh(page);
     notice(
       restored || app.owner
         ? "Express session restored. Activities are ready."

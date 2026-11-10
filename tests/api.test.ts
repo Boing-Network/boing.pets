@@ -213,6 +213,22 @@ describe("Pets API", () => {
     expect(r.status).toBe(200);
     expect(await r.json()).toMatchObject({ pets: [], next: null });
   });
+  it("returns pets from multiple owners on the public pasture", async () => {
+    await hatch();
+    const ownerA = owner;
+    owner = "0x" + bytesToHex(await ed.getPublicKeyAsync(fixtureKeyB));
+    const c = await challenge("hatch");
+    const txB = "0x" + "ef".repeat(32);
+    rpcHash = txB;
+    expect(
+      (await request("/api/confirm", { id: c.id, tx_hash: txB })).status,
+    ).toBe(200);
+    const r = await request("/api/pasture");
+    expect(r.status).toBe(200);
+    const body = (await r.json()) as { pets: Array<{ owner: string }> };
+    const owners = body.pets.map((pet) => pet.owner).sort();
+    expect(owners).toEqual([ownerA, owner].sort());
+  });
   it("serves world config for the 3D Starter Town island", async () => {
     const r = await request("/api/world/config");
     expect(r.status).toBe(200);

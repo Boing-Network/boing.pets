@@ -223,7 +223,10 @@ export function hydrateAppWallet(): boolean {
 }
 
 export async function attachRestoredSession() {
-  const session = await tryRestoreWalletSession();
+  const session = await tryRestoreWalletSession(undefined, {
+    // Only wait for late injection when this device last used the extension.
+    waitMs: loadCachedProviderKind() === "extension" ? undefined : 0,
+  });
   if (!session) {
     // Extension was used but has not injected; keep the cached address visible.
     if (app.owner) {
