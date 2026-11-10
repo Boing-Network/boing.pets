@@ -5,7 +5,17 @@
  * Off-chain inventory stays the source of truth for play. A withdrawal moves a stack out of
  * the D1 inventory and the Pets operator key mints the same quantity of the mapped item id
  * to the player's wallet. On-chain item ids are permanent: never renumber or reuse one.
+ *
+ * Calldata, storage keys, and storage-word parsing come from `@boing-network/boing-sdk`.
  */
+
+import {
+  REF_MT_ADMIN_KEY_HEX,
+  SELECTOR_MT_MINT,
+  encodeMultiTokenMintCalldata,
+  multiTokenAmountFromStorageWord,
+  multiTokenBalanceStorageKey,
+} from "@boing-network/boing-sdk";
 
 export interface OnchainItemDef {
   /** Off-chain inventory id (`inventory.item_id`). */
@@ -36,22 +46,8 @@ export function hex64(h: string): string {
   return s;
 }
 
-function tag32(ascii: string): Uint8Array {
-  const out = new Uint8Array(32);
-  for (let i = 0; i < ascii.length && i < 32; i++) out[i] = ascii.charCodeAt(i);
-  return out;
-}
-
-const BAL_TAG = tag32("BOING_REFMT_BAL_V1");
-export const MT_ADMIN_STORAGE_KEY = "0x" + "00".repeat(31) + "e0";
-export const MT_SELECTOR_MINT = 0x22;
-
-function hexToBytes(h: string): Uint8Array {
-  const out = new Uint8Array(h.length / 2);
-  for (let i = 0; i < out.length; i++)
-    out[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16);
-  return out;
-}
+export const MT_ADMIN_STORAGE_KEY = REF_MT_ADMIN_KEY_HEX;
+export const MT_SELECTOR_MINT = SELECTOR_MT_MINT;
 
 export function bytesToHex(b: Uint8Array): string {
   let s = "";
@@ -59,23 +55,9 @@ export function bytesToHex(b: Uint8Array): string {
   return s;
 }
 
-function word(n: bigint): Uint8Array {
-  const out = new Uint8Array(32);
-  let x = n;
-  for (let i = 31; i >= 0 && x > BigInt(0); i--) {
-    out[i] = Number(x & BigInt(255));
-    x >>= BigInt(8);
-  }
-  return out;
-}
-
 /** `balance_of` storage key: `(account[0..24] || itemId_be8) ^ "BOING_REFMT_BAL_V1"`. */
 export function mtBalanceStorageKey(account: string, itemId: number): string {
-  const raw = new Uint8Array(32);
-  raw.set(hexToBytes(hex64(account)).subarray(0, 24), 0);
-  raw.set(word(BigInt(itemId)).subarray(24), 24);
-  for (let i = 0; i < 32; i++) raw[i] = raw[i]! ^ BAL_TAG[i]!;
-  return "0x" + bytesToHex(raw);
+  return multiTokenBalanceStorageKey(account, itemId);
 }
 
 /** 128-byte `mint(to, itemId, amount)` calldata (admin only). */
@@ -88,12 +70,7 @@ export function mtMintCalldata(
     throw new Error("Invalid item id");
   if (!Number.isSafeInteger(amount) || amount <= 0)
     throw new Error("Invalid amount");
-  const out = new Uint8Array(128);
-  out.set(word(BigInt(MT_SELECTOR_MINT)), 0);
-  out.set(hexToBytes(hex64(to)), 32);
-  out.set(word(BigInt(itemId)), 64);
-  out.set(word(BigInt(amount)), 96);
-  return out;
+  return encodeMultiTokenMintCalldata(to, itemId, amount);
 }
 
 /** Parse a `boing_getContractStorage` result (`{ value }` or bare hex) as a word. */
@@ -108,7 +85,7 @@ export function storageWordHex(result: unknown): string {
 
 /** Storage word as a JS number quantity (saturates at MAX_SAFE_INTEGER). */
 export function storageWordQty(result: unknown): number {
-  const n = BigInt("0x" + storageWordHex(result));
+  const n = multiTokenAmountFromStorageWord(result);
   return n > BigInt(Number.MAX_SAFE_INTEGER)
     ? Number.MAX_SAFE_INTEGER
     : Number(n);

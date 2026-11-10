@@ -14,7 +14,7 @@ Express (wallet **Items** section) and on Boing Observer (`/items/<contract>/<it
 | `ore-spark`   | 2                | Spark Ore      |
 | `ore-crystal` | 3                | Boing Crystal  |
 
-Source of truth: `src/content/onchainItems.ts`. To add a resource, append a new row with the
+Source of truth: `src/content/onchainItems.ts`. Calldata, storage keys, and storage-word parsing use the published Boing SDK. To add a resource, append a new row with the
 next unused id.
 
 ## Flow
