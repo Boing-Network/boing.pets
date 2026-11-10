@@ -246,6 +246,17 @@ export async function refreshEconomy() {
       price_boinglets: number | null;
       expires_at: number | null;
     }>;
+    payouts?: Array<{
+      id: string;
+      listing_id: string;
+      kind: string;
+      amount_boing: string;
+      status: string;
+      payout_tx: string | null;
+      tx_url: string | null;
+      last_error: string | null;
+      updated_at: number;
+    }>;
     rules?: {
       feeBps: number;
       minPriceBoing: string;
@@ -255,7 +266,7 @@ export async function refreshEconomy() {
       provisional?: boolean;
       settlement?: string;
     };
-  }>("/api/marketplace");
+  }>("/api/marketplace" + (app.owner ? `?owner=${app.owner}` : ""));
   let summary =
     "Connect to claim care rewards and daily testnet Sparkles, then browse cosmetics or list items in testnet BOING.";
   const claimBtn = $("#claim") as HTMLButtonElement;
@@ -387,6 +398,35 @@ export async function refreshEconomy() {
         return el;
       }),
     );
+  }
+
+  const payoutsEl = $maybe("#market-payouts");
+  if (payoutsEl) {
+    const payouts = (market.payouts || []).filter(
+      (row) => row.kind === "seller",
+    );
+    if (!app.owner) {
+      payoutsEl.textContent = "Connect to see payouts from your sales.";
+    } else if (!payouts.length) {
+      payoutsEl.textContent =
+        "No seller payouts yet. When a listing sells, 95% of the testnet BOING is sent to you automatically.";
+    } else {
+      payoutsEl.replaceChildren(
+        ...payouts.map((row) => {
+          const el = document.createElement("article");
+          el.className = "market-card";
+          const amount = formatMarketPriceBoing(row.amount_boing);
+          const status = row.status;
+          const err = row.last_error ? ` · ${row.last_error}` : "";
+          const link =
+            row.tx_url && row.payout_tx
+              ? `<p class="small"><a href="${row.tx_url}" target="_blank" rel="noreferrer">Payout tx ${row.payout_tx.slice(0, 10)}…</a></p>`
+              : `<p class="small">No transaction yet${err}</p>`;
+          el.innerHTML = `<h3>${amount} testnet BOING</h3><p class="subtle">${status}${err}</p>${link}`;
+          return el;
+        }),
+      );
+    }
   }
 
   const rulesEl = $maybe("#market-rules");

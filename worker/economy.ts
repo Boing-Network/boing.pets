@@ -16,6 +16,8 @@ import {
   listingExpiresAt,
   listingFeeBaseUnits,
   MARKET_ESCROW_ADDRESS,
+  MARKET_SINK_ADDRESS,
+  marketPayoutId,
   MARKET_MAX_FILLS_PER_UTC_DAY,
   MARKET_MAX_LIST_OPENS_PER_UTC_DAY,
   MARKET_MAX_OPEN_LISTINGS,
@@ -30,6 +32,11 @@ import {
 } from "../src/market";
 import { hex32, type CareEvent } from "../src/core";
 import { assertEscrowPayment, loadIncludedTransfer } from "./marketPay";
+import {
+  loadSellerPayouts,
+  scheduleMarketPayouts,
+  type WaitUntilFn,
+} from "./marketPayouts";
 import {
   balanceOf,
   pushLedgerCredit,
@@ -239,6 +246,7 @@ export async function economyGet(
   req: Request,
   env: Env,
   now: number,
+  waitUntil?: WaitUntilFn,
 ): Promise<Response | null> {
   const url = new URL(req.url);
   if (url.pathname === "/api/economy/catalog") {
@@ -285,11 +293,15 @@ export async function economyGet(
   }
   if (url.pathname === "/api/marketplace") {
     await expireOpenListings(env, now);
+    scheduleMarketPayouts(waitUntil, env, { now });
     const listings = await env.DB.prepare(
       "SELECT id,seller,item_id,qty,price_boinglets,price_boing,status,expires_at,created_at,updated_at FROM marketplace_listings WHERE status='open' ORDER BY created_at DESC LIMIT 48",
     ).all();
+    const ownerParam = url.searchParams.get("owner");
+    const payouts = ownerParam ? await loadSellerPayouts(env, ownerParam) : [];
     return Response.json({
       listings: listings.results,
+      payouts,
       rules: publicMarketRules(),
       now,
     });
@@ -302,6 +314,7 @@ export async function economyPost(
   env: Env,
   body: Record<string, unknown>,
   now: number,
+  waitUntil?: WaitUntilFn,
 ): Promise<Response | null> {
   if (url.pathname === "/api/economy/challenge") {
     const owner = hex32(body.owner);
@@ -729,7 +742,7 @@ export async function economyPost(
         env.DB.prepare(
           "INSERT INTO market_payouts(id,payment_tx,listing_id,kind,recipient,amount_boing,status,payout_tx,created_at,updated_at) VALUES(?,?,?,?,?,?,'pending',NULL,?,?)",
         ).bind(
-          c.id + ":seller",
+          marketPayoutId(txHash, "seller"),
           txHash,
           listingId,
           "seller",
@@ -741,11 +754,11 @@ export async function economyPost(
         env.DB.prepare(
           "INSERT INTO market_payouts(id,payment_tx,listing_id,kind,recipient,amount_boing,status,payout_tx,created_at,updated_at) VALUES(?,?,?,?,?,?,'pending',NULL,?,?)",
         ).bind(
-          c.id + ":sink",
+          marketPayoutId(txHash, "sink"),
           txHash,
           listingId,
           "sink",
-          SINK_OWNER,
+          MARKET_SINK_ADDRESS,
           fee.toString(),
           now,
           now,
@@ -796,6 +809,10 @@ export async function economyPost(
     await env.DB.prepare("DELETE FROM economy_challenges WHERE id=?")
       .bind(c.id)
       .run();
+    if (c.kind === "buy_listing") {
+      const paid = hex32(body.tx_hash);
+      scheduleMarketPayouts(waitUntil, env, { now, paymentTx: paid });
+    }
     return Response.json({ ok: true });
   }
 

@@ -83,13 +83,41 @@ export function formatMarketPriceBoing(baseUnits: bigint | string): string {
   return formatBoing(baseUnits);
 }
 
+/** Floor the 5% fee; any integer remainder stays with the seller. */
 export function listingFeeBaseUnits(price: bigint): bigint {
-  const fee = (price * BigInt(LISTING_FEE_BPS)) / 10_000n;
-  return fee < 1n ? 1n : fee;
+  if (price <= 0n) throw new Error("Price must be positive");
+  return (price * BigInt(LISTING_FEE_BPS)) / 10_000n;
 }
 
 export function sellerProceedsBaseUnits(price: bigint): bigint {
   return price - listingFeeBaseUnits(price);
+}
+
+/** Exact 95/5 split in base units. fee + seller === price. */
+export function payoutSplit(price: bigint): { fee: bigint; seller: bigint } {
+  const fee = listingFeeBaseUnits(price);
+  const seller = price - fee;
+  return { fee, seller };
+}
+
+/** On-chain pasture treasury that receives the 5% native BOING fee. */
+export const MARKET_SINK_ADDRESS =
+  "0x67714f1d05f3f50b2676d57616036b871b3238bc1d5a5259d0607bf147cc4122";
+
+export const MARKET_EXPLORER_TX_BASE = "https://boing.observer/tx/";
+
+export function marketPayoutId(
+  paymentTx: string,
+  kind: "seller" | "sink",
+): string {
+  return `${paymentTx}:${kind}`;
+}
+
+export function marketPayoutTxUrl(
+  txHash: string | null | undefined,
+): string | null {
+  if (!txHash) return null;
+  return MARKET_EXPLORER_TX_BASE + txHash;
 }
 
 export function utcDayStart(ms: number): number {
@@ -145,7 +173,8 @@ export function publicMarketRules() {
     maxListOpensPerUtcDay: MARKET_MAX_LIST_OPENS_PER_UTC_DAY,
     maxFillsPerUtcDay: MARKET_MAX_FILLS_PER_UTC_DAY,
     provisional: true,
+    sink: MARKET_SINK_ADDRESS,
     settlement:
-      "escrow-to-operator: buyer pays the full testnet BOING price to the Pets operator in one native transfer; the worker verifies the receipt, then releases the item and records 95% seller / 5% sink payouts",
+      "escrow-to-operator: buyer pays the full testnet BOING price to the Pets operator in one native transfer; the worker verifies the receipt, releases the item, and the operator pays 95% to the seller and 5% to the pasture treasury as native BOING transfers",
   };
 }

@@ -29,6 +29,11 @@ import { WORLD_CONFIG } from "../src/world/config/zones";
 import { contentError, contentGet, contentPost } from "./content";
 import { economyError, economyGet, economyPost } from "./economy";
 import { dropsGet, maybeGrantCareDrop } from "./drops";
+import {
+  marketPayoutsError,
+  marketPayoutsGet,
+  marketPayoutsPost,
+} from "./marketPayouts";
 import { socialError, socialGet, socialPost } from "./social";
 import { fishingError, fishingGet, fishingPost } from "./fishing";
 import { housingError, housingGet, housingPost } from "./housing";
@@ -213,9 +218,16 @@ async function enrich(env: Env, pet: Pet, now: number) {
     memories: memories.results,
   };
 }
-async function api(req: Request, env: Env): Promise<Response> {
+async function api(
+  req: Request,
+  env: Env,
+  ctx?: ExecutionContext,
+): Promise<Response> {
   const url = new URL(req.url),
     now = Date.now();
+  const waitUntil = ctx
+    ? (promise: Promise<unknown>) => ctx.waitUntil(promise)
+    : undefined;
   if (req.method === "GET") {
     try {
       const social = await socialGet(req, env, now);
@@ -295,10 +307,18 @@ async function api(req: Request, env: Env): Promise<Response> {
       if (mapped) return mapped;
       throw error;
     }
-    const economy = await economyGet(req, env, now);
+    const economy = await economyGet(req, env, now, waitUntil);
     if (economy) return economy;
     const drops = await dropsGet(req, env, now);
     if (drops) return drops;
+    try {
+      const payouts = await marketPayoutsGet(req, env, now, waitUntil);
+      if (payouts) return payouts;
+    } catch (error) {
+      const mapped = marketPayoutsError(error);
+      if (mapped) return mapped;
+      throw error;
+    }
     try {
       const cosmetics = await cosmeticsGet(req, env, now);
       if (cosmetics) return cosmetics;
@@ -466,10 +486,12 @@ async function api(req: Request, env: Env): Promise<Response> {
     throw error;
   }
   try {
-    const economy = await economyPost(url, env, body, now);
+    const payouts = await marketPayoutsPost(url, env, body, now, waitUntil);
+    if (payouts) return payouts;
+    const economy = await economyPost(url, env, body, now, waitUntil);
     if (economy) return economy;
   } catch (error) {
-    const mapped = economyError(error);
+    const mapped = marketPayoutsError(error) || economyError(error);
     if (mapped) return mapped;
     throw error;
   }
@@ -862,7 +884,11 @@ async function api(req: Request, env: Env): Promise<Response> {
   throw new HttpError(404, "Not found");
 }
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(
+    req: Request,
+    env: Env,
+    ctx?: ExecutionContext,
+  ): Promise<Response> {
     const url = new URL(req.url);
     if (url.pathname === "/api/world/presence") {
       const origin = req.headers.get("Origin");
@@ -882,7 +908,7 @@ export default {
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(req);
     try {
       await enforceIpRateLimit(req, env, url.pathname, Date.now());
-      return await api(req, env);
+      return await api(req, env, ctx);
     } catch (e) {
       const limited = rateLimitError(e);
       if (limited) return limited;
@@ -903,4 +929,4 @@ export default {
       );
     }
   },
-} satisfies ExportedHandler<Env>;
+};

@@ -42,9 +42,13 @@ How a fill works:
   and 95% seller / 5% sink payouts are recorded as `pending` in
   `market_payouts`. Amounts are stored as TEXT bigint strings so they are
   not limited to 2^53.
-- There is **no new cron**. Operator-signed follow-up payouts from escrow
-  are a later step. A payment whose challenge expires before confirm sits
-  in escrow for a manual refund; do not invent a retry job here.
+- After a verified fill, the operator automatically sends 95% to the seller
+  and 5% to the pasture treasury (`MARKET_SINK_ADDRESS`, the on-chain
+  identity of `boing-pets-sink`) as native BOING transfers. Payouts are
+  triggered inline with `ctx.waitUntil`, retried on later market requests,
+  and can be force-retried by an operator-signed admin endpoint. There is
+  **no new cron**. A payment whose challenge expires before confirm sits
+  in escrow for a manual refund.
 
 The official catalog, care-claim Boinglets, and the Sparkles faucet are
 unchanged. `LISTING_FEE_BPS` stays **500 (5%)** and still sinks to
@@ -242,8 +246,9 @@ playtest retune:
 7. **Exact wash thresholds.** 1 UTC day hold, 2-hour sell-back, 8 open
    listings, 10 opens and 10 fills per UTC day, and the 0.01-100,000 BOING
    price band. Retune after playtest.
-8. **Escrow payouts.** Stay `pending` until a later operator-signed
-   follow-up. No new cron.
+8. **Escrow payouts.** Sent automatically after a fill. Status is
+   pending, sent, confirmed, or failed. No new cron. The 5% treasury
+   address is `MARKET_SINK_ADDRESS`.
 
 Nothing in this document should be taken as permission to apply a remote
 migration, change `MULTI_TOKEN_CONTRACT`, or deploy.
