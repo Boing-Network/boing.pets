@@ -15,6 +15,7 @@
     "RPC_URL": "https://testnet-rpc.boing.network",
     // Must match the browser origin exactly (care POSTs are origin-gated).
     "APP_ORIGIN": "https://boing-pets.nico-chikuji.workers.dev",
+    "MULTI_TOKEN_CONTRACT": "0x616c23d0c04015f72c3a3f63dcac1c734ce2151320a75a4fa99f318dd76b4451",
   },
   "d1_databases": [
     {
