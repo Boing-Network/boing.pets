@@ -11,6 +11,9 @@ import {
 import {
   clearWalletSession,
   ensureLiveWalletSession,
+  getBoingProvider,
+  hydrateCachedWallet,
+  readBoingAccounts,
   tryRestoreWalletSession,
   type RestoreKind,
 } from "../wallet/session";
@@ -53,29 +56,27 @@ export async function run(task: () => Promise<void>) {
   }
 }
 export async function assertWallet() {
-  if (!app.provider || !app.owner)
-    throw new Error("Connect Boing Express first");
-  // Cache-only restores (and stale provider sessions) re-auth lazily here —
-  // never force Connect on every page load.
+  if (!app.owner) throw new Error("Connect Boing Express first");
+  if (!app.provider) app.provider = getBoingProvider();
+  // Silent only — a closed or empty Express probe must not popup or disconnect.
   const live = await ensureLiveWalletSession(app.provider, app.owner);
   if (live.owner !== app.owner || live.provider !== app.provider) {
     bindWallet(live, "live");
-  } else {
-    app.walletKind = "live";
   }
   if (!app.provider.isBoingWeb) {
-    const chain = await app.provider.request({
-      method: "boing_chainId",
-      params: [],
-    });
-    if (Number(chain) !== 6913)
-      throw new Error("Switch Express to Boing testnet 6913 before continuing");
-    const accounts = (await app.provider.request({
-      method: "boing_accounts",
-      params: [],
-    })) as string[];
-    if (!accounts?.[0] || hex32(accounts[0]) !== app.owner)
-      throw new Error("Wallet account changed. Disconnect and reconnect.");
+    try {
+      const chain = await app.provider.request({
+        method: "boing_chainId",
+        params: [],
+      });
+      if (Number(chain) !== 6913)
+        throw new Error(
+          "Switch Express to Boing testnet 6913 before continuing",
+        );
+    } catch (e) {
+      if (e instanceof Error && /6913/.test(e.message)) throw e;
+      // Transient probe failure: keep the cached session.
+    }
   }
 }
 export async function confirmPending() {
@@ -147,21 +148,44 @@ export async function act(action: Action) {
   );
   await confirmPending();
 }
+function onAccountsChanged() {
+  // Re-read silently. An empty/failed probe is not a disconnect.
+  void (async () => {
+    if (!app.provider) return;
+    const accounts = await readBoingAccounts(app.provider);
+    if (!accounts[0]) {
+      app.walletKind = app.owner ? "cached" : null;
+      controls();
+      return;
+    }
+    const next = hex32(accounts[0]);
+    if (next !== app.owner)
+      bindWallet({ provider: app.provider, owner: next }, "live");
+    else app.walletKind = "live";
+    controls();
+  })();
+}
+
+function onChainChanged() {
+  // Don't treat a chain flip as a logout.
+  controls();
+}
+
 export function bindWallet(
   session: { provider: Provider; owner: string },
   kind: RestoreKind | "live" = "live",
 ) {
-  app.provider?.removeListener?.("accountsChanged", disconnect);
-  app.provider?.removeListener?.("chainChanged", disconnect);
+  app.provider?.removeListener?.("accountsChanged", onAccountsChanged);
+  app.provider?.removeListener?.("chainChanged", onChainChanged);
   app.provider = session.provider;
   app.owner = session.owner;
   app.walletKind = kind === "cached" ? "cached" : "live";
-  app.provider.on?.("accountsChanged", disconnect);
-  app.provider.on?.("chainChanged", disconnect);
+  app.provider.on?.("accountsChanged", onAccountsChanged);
+  app.provider.on?.("chainChanged", onChainChanged);
 }
 export function disconnect() {
-  app.provider?.removeListener?.("accountsChanged", disconnect);
-  app.provider?.removeListener?.("chainChanged", disconnect);
+  app.provider?.removeListener?.("accountsChanged", onAccountsChanged);
+  app.provider?.removeListener?.("chainChanged", onChainChanged);
   clearWalletSession(app.provider);
   clearSocialSession(app.owner || undefined);
   app.owner = "";
@@ -171,6 +195,15 @@ export function disconnect() {
   controls();
   void refresh().catch(() => notice("Pasture unavailable", true));
 }
+/** Apply the cached owner synchronously so the header never flashes Connect. */
+export function hydrateAppWallet(): boolean {
+  const owner = hydrateCachedWallet();
+  if (!owner) return false;
+  if (app.owner === owner && app.provider) return true;
+  bindWallet({ provider: getBoingProvider(), owner }, "cached");
+  return true;
+}
+
 export async function attachRestoredSession() {
   const session = await tryRestoreWalletSession();
   if (!session) return false;

@@ -585,7 +585,7 @@ export function wireActivityButton(opts: {
         );
         return;
       }
-      await assertWallet();
+      if (!app.owner) throw new Error("Connect Boing Express first");
       inProgress = true;
       refreshLabel();
       try {

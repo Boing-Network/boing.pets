@@ -11,6 +11,8 @@ export interface BoingProvider {
 
 const CHAIN_HEX = "0x1b01";
 const WALLET_CACHE_KEY = "boing-pets-wallet-v1";
+/** Must match @boing-network/boing-sdk createBoingWebWalletProvider. */
+export const BOING_WEB_ACCOUNTS_KEY = "boing_web_accounts";
 
 export interface CachedWalletSession {
   owner: string;
@@ -47,6 +49,11 @@ export function clearCachedWalletOwner() {
   } catch {
     /* ignore */
   }
+  try {
+    browserSessionStorage()?.removeItem(BOING_WEB_ACCOUNTS_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 function browserLocalStorage(): Storage | null {
@@ -56,6 +63,52 @@ function browserLocalStorage(): Storage | null {
   } catch {
     return null;
   }
+}
+
+export function formatWalletLabel(owner: string): string {
+  const hex = owner.startsWith("0x") ? owner : "0x" + owner;
+  return `${hex.slice(0, 8)}…${hex.slice(-4)}`;
+}
+
+function browserSessionStorage(): Storage | null {
+  try {
+    const g = globalThis as typeof globalThis & { sessionStorage?: Storage };
+    return g.sessionStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Seed the web-wallet provider's sessionStorage so silent `boing_accounts`
+ * works after a full navigation (the SDK only persists accounts per tab
+ * session, not in localStorage).
+ */
+export function seedWebWalletAccounts(owner: string) {
+  try {
+    const store = browserSessionStorage();
+    if (!store) return;
+    const want = hex32(owner);
+    let current: unknown;
+    try {
+      current = JSON.parse(store.getItem(BOING_WEB_ACCOUNTS_KEY) || "[]");
+    } catch {
+      current = [];
+    }
+    const list = Array.isArray(current) ? current : [];
+    if (list[0] && hex32(String(list[0])) === want) return;
+    store.setItem(BOING_WEB_ACCOUNTS_KEY, JSON.stringify([want]));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Synchronously restore the cached owner before the first header paint. */
+export function hydrateCachedWallet(): string | null {
+  const owner = loadCachedWalletOwner();
+  if (!owner) return null;
+  seedWebWalletAccounts(owner);
+  return owner;
 }
 
 /** Prefer injected Express; otherwise the web-wallet popup provider. */
@@ -113,12 +166,18 @@ export async function tryRestoreWalletSession(
           method: "boing_chainId",
           params: [],
         });
-        if (Number(chain) !== 6913) return null;
+        if (Number(chain) !== 6913) {
+          // Wrong network: keep the cached address visible; do not popup.
+          if (cached) return { provider, owner: cached, kind: "cached" };
+          return null;
+        }
       } catch {
+        if (cached) return { provider, owner: cached, kind: "cached" };
         return null;
       }
     }
     saveCachedWalletOwner(live);
+    seedWebWalletAccounts(live);
     return { provider, owner: live, kind: "live" };
   }
 
@@ -151,6 +210,7 @@ export async function requestWalletSession(
       throw new Error("Wallet account changed. Disconnect and reconnect.");
   }
   saveCachedWalletOwner(owner);
+  seedWebWalletAccounts(owner);
   return { provider, owner };
 }
 
@@ -166,14 +226,23 @@ export async function ensureLiveWalletSession(
   const accounts = await readBoingAccounts(provider);
   if (accounts[0] && hex32(accounts[0]) === want) {
     saveCachedWalletOwner(want);
+    seedWebWalletAccounts(want);
     return { provider, owner: want };
   }
-  const fresh = await requestWalletSession(provider);
-  if (fresh.owner !== want) {
-    // User picked a different account — treat as the new session.
-    saveCachedWalletOwner(fresh.owner);
+  if (accounts[0]) {
+    const other = hex32(accounts[0]);
+    saveCachedWalletOwner(other);
+    seedWebWalletAccounts(other);
+    return { provider, owner: other };
   }
-  return fresh;
+  // Silent probe empty: keep the cached owner. Never open Express here.
+  // Signatures (claim / session / txs) open the wallet themselves.
+  const cached = loadCachedWalletOwner();
+  if (cached) {
+    seedWebWalletAccounts(cached);
+    return { provider, owner: cached };
+  }
+  throw new Error("Connect Boing Express first");
 }
 
 export function clearWalletSession(provider: BoingProvider | null) {

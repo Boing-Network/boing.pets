@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  BOING_WEB_ACCOUNTS_KEY,
   clearCachedWalletOwner,
   clearWalletSession,
+  ensureLiveWalletSession,
+  formatWalletLabel,
+  hydrateCachedWallet,
   loadCachedWalletOwner,
   readBoingAccounts,
   requestWalletSession,
@@ -16,34 +20,35 @@ import {
 } from "../src/social/sessionCache";
 
 const store = new Map<string, string>();
+const sessionStore = new Map<string, string>();
+
+function memoryStorage(map: Map<string, string>): Storage {
+  return {
+    get length() {
+      return map.size;
+    },
+    clear: () => map.clear(),
+    getItem: (key: string) => map.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      map.set(key, value);
+    },
+    removeItem: (key: string) => {
+      map.delete(key);
+    },
+    key: (index: number) => [...map.keys()][index] ?? null,
+  };
+}
 
 beforeEach(() => {
   store.clear();
-  const mock: Storage = {
-    get length() {
-      return store.size;
-    },
-    clear: () => store.clear(),
-    getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => {
-      store.set(key, value);
-    },
-    removeItem: (key: string) => {
-      store.delete(key);
-    },
-    key: (index: number) => [...store.keys()][index] ?? null,
-  };
+  sessionStore.clear();
   Object.defineProperty(globalThis, "localStorage", {
     configurable: true,
-    value: mock,
+    value: memoryStorage(store),
   });
   Object.defineProperty(globalThis, "sessionStorage", {
     configurable: true,
-    value: {
-      getItem: () => null,
-      setItem: () => undefined,
-      removeItem: () => undefined,
-    },
+    value: memoryStorage(sessionStore),
   });
 });
 
@@ -127,5 +132,53 @@ describe("social session localStorage", () => {
     });
     expect(loadSocialSession(owner)?.token).toBe("tok-abc");
     expect(store.has("boing-pets-social-session-v1")).toBe(true);
+  });
+});
+
+describe("hydrate and silent restore", () => {
+  it("formats a compact address without a reconnecting suffix", () => {
+    const owner = "0x" + "e8".repeat(32);
+    expect(formatWalletLabel(owner)).toBe("0xe8e8e8…e8e8");
+    expect(formatWalletLabel(owner)).not.toMatch(/reconnecting/i);
+  });
+
+  it("hydrates the cached owner and seeds web-wallet sessionStorage", () => {
+    const owner = "0x" + "ab".repeat(32);
+    saveCachedWalletOwner(owner);
+    expect(hydrateCachedWallet()).toBe(owner);
+    expect(
+      JSON.parse(sessionStore.get(BOING_WEB_ACCOUNTS_KEY) || "[]"),
+    ).toEqual([owner]);
+  });
+
+  it("does not call requestAccounts during restore or ensureLive", async () => {
+    const owner = "0x" + "cd".repeat(32);
+    saveCachedWalletOwner(owner);
+    const provider = mockProvider([]);
+    const restored = await tryRestoreWalletSession(provider);
+    expect(restored).toEqual({ provider, owner, kind: "cached" });
+    const ensured = await ensureLiveWalletSession(provider, owner);
+    expect(ensured.owner).toBe(owner);
+    const methods = (
+      provider.request as ReturnType<typeof vi.fn>
+    ).mock.calls.map((c) => c[0].method);
+    expect(methods).not.toContain("boing_requestAccounts");
+  });
+
+  it("keeps the cached owner when a silent probe fails", async () => {
+    const owner = "0x" + "11".repeat(32);
+    saveCachedWalletOwner(owner);
+    const provider = mockProvider([]);
+    (provider.request as ReturnType<typeof vi.fn>).mockImplementation(
+      async ({ method }: { method: string }) => {
+        if (method === "boing_accounts")
+          throw new Error("Boing Express window was closed.");
+        throw new Error("unexpected " + method);
+      },
+    );
+    const restored = await tryRestoreWalletSession(provider);
+    expect(restored?.owner).toBe(owner);
+    expect(restored?.kind).toBe("cached");
+    expect(loadCachedWalletOwner()).toBe(owner);
   });
 });

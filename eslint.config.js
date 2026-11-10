@@ -25,6 +25,7 @@ export default ts.config(
         window: "readonly",
         document: "readonly",
         localStorage: "readonly",
+        Event: "readonly",
       },
     },
     rules: {

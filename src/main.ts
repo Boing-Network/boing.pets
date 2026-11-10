@@ -16,6 +16,7 @@ import {
   bindWallet,
   confirmPending,
   disconnect,
+  hydrateAppWallet,
   run,
   setCareHooks,
 } from "./ui/careActions";
@@ -66,10 +67,12 @@ setCareHooks({
 applyLegacyHashRedirect();
 const page: PageId = readPageId();
 document.title = PAGE_META[page].docTitle;
+hydrateAppWallet();
 const body = PAGE_BODIES[page] || PAGE_BODIES.pasture;
 $("#app").innerHTML =
   `${renderHeader(page)}<main class="page page-${page}">${body}</main>${FOOTER_HTML}`;
 wireNavDropdowns();
+wireWalletMenu();
 showOnboardingTip();
 if (page === "pasture") {
   const demoOwner = "0x" + "11".repeat(32);
@@ -84,30 +87,60 @@ if (page === "pasture") {
   }
 }
 
-on(
-  "#connect",
-  "click",
-  () =>
+function wireWalletMenu() {
+  const connect = document.getElementById("connect");
+  const menu = document.getElementById("wallet-menu");
+  const closeMenu = () => {
+    if (!menu) return;
+    menu.hidden = true;
+    connect?.setAttribute("aria-expanded", "false");
+  };
+  const toggleMenu = () => {
+    if (!menu || !app.owner) return;
+    const next = menu.hidden;
+    menu.hidden = !next;
+    connect?.setAttribute("aria-expanded", next ? "true" : "false");
+  };
+  connect?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (app.owner) {
+      toggleMenu();
+      return;
+    }
+    closeMenu();
     void run(async () => {
-      if (app.owner) {
-        notice("Already connected. Use Disconnect to change wallets.");
-        return;
-      }
       const session = await requestWalletSession();
-      bindWallet(session);
+      bindWallet(session, "live");
       try {
         await assertWallet();
       } catch (e) {
-        clearWalletSession(app.provider);
-        app.owner = "";
-        app.provider = null;
+        // Keep a newly cached owner if the follow-up probe fails.
+        if (!app.owner) {
+          clearWalletSession(app.provider);
+          app.owner = "";
+          app.provider = null;
+          app.walletKind = null;
+        }
         throw e;
       }
       await refresh(page);
       notice("Connected on Boing testnet. Your pasture awaits.");
-    }),
-);
-on("#disconnect", "click", () => disconnect());
+    });
+  });
+  document.getElementById("disconnect")?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    closeMenu();
+    disconnect();
+  });
+  document.addEventListener("click", (event) => {
+    const target = event.target as Node | null;
+    if (target && (target as Element).closest?.(".wallet-ctl")) return;
+    closeMenu();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeMenu();
+  });
+}
 for (const action of ["hatch", "feed", "checkin", "play", "groom"] as Action[])
   on("#" + action, "click", () => void run(() => act(action)));
 on("#retry", "click", () => void run(confirmPending));
@@ -211,10 +244,8 @@ void (async () => {
   try {
     await refresh(page);
     notice(
-      restored
-        ? app.walletKind === "cached"
-          ? "Express address restored. Approve once when you sign."
-          : "Express session restored. Activities are ready."
+      restored || app.owner
+        ? "Express session restored. Activities are ready."
         : page === "pasture"
           ? "Testnet pasture ready. Make yourself at home."
           : `${PAGE_META[page].title} ready.`,

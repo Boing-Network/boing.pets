@@ -1,5 +1,6 @@
 import { ACHIEVEMENTS, petSvg } from "../../core";
 import { api, app, $maybe, pending, type ViewPet } from "../appRuntime";
+import { formatWalletLabel } from "../../wallet/session";
 
 export function controls() {
   for (const id of [
@@ -70,13 +71,10 @@ export function controls() {
     if (!app.owner) {
       connect.textContent = "Connect Express";
       connect.title = "Connect Boing Express";
-    } else if (app.walletKind === "cached") {
-      connect.textContent = `${app.owner.slice(0, 8)}…${app.owner.slice(-4)} · reconnecting`;
-      connect.title =
-        "Express address restored. A signature may ask you to approve once.";
+      connect.setAttribute("aria-expanded", "false");
     } else {
-      connect.textContent = `${app.owner.slice(0, 8)}…${app.owner.slice(-4)}`;
-      connect.title = "Connected with Boing Express";
+      connect.textContent = formatWalletLabel(app.owner);
+      connect.title = "Wallet connected — open menu to disconnect";
     }
   }
 }
