@@ -315,7 +315,9 @@ export const PASTURE_ZONE: WorldZoneConfig = {
   name: "Public Pasture",
   tagline: "Every hatched buddy lives here.",
   spawn: { x: 0, y: 0, z: 6 },
-  bounds: { minX: -22, maxX: 22, minZ: -22, maxZ: 22 },
+  // Old public pasture was 44 x 44 (bounds +/-22). Enlarged so more
+  // wanderers can spread out without stacking on the central path.
+  bounds: { minX: -44, maxX: 44, minZ: -44, maxZ: 44 },
   fogColor: "#8eb8c8",
   groundColor: "#5fa86a",
   accentColor: "#f4d38a",
@@ -323,7 +325,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "old-oak",
       label: "Old Oak",
-      position: { x: -8, y: 0, z: -7 },
+      position: { x: -18, y: 0, z: -20 },
       color: "#6b4a2a",
       height: 4.6,
       width: 1.8,
@@ -332,7 +334,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "snack-barn",
       label: "Snack Barn",
-      position: { x: -12, y: 0, z: 9 },
+      position: { x: -24, y: 0, z: 18 },
       color: "#d9896b",
       height: 3.2,
       width: 5,
@@ -341,20 +343,20 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "lily-pond",
       label: "Lily Pond",
-      position: { x: 9, y: 0, z: -5 },
+      position: { x: 22, y: 0, z: -16 },
       color: "#4a8fb5",
       height: 0.35,
-      width: 5,
-      depth: 4,
+      width: 7,
+      depth: 5.5,
     },
     {
       id: "wildflowers",
       label: "Wildflowers",
-      position: { x: 7, y: 0, z: 10 },
+      position: { x: 18, y: 0, z: 22 },
       color: "#ef9bb8",
       height: 0.55,
-      width: 3,
-      depth: 3,
+      width: 3.6,
+      depth: 3.6,
     },
   ],
   stations: [
@@ -369,12 +371,12 @@ export const PASTURE_ZONE: WorldZoneConfig = {
   ],
   paths: [
     [
-      { x: 0, y: 0.02, z: 14 },
-      { x: 0, y: 0.02, z: -14 },
+      { x: 0, y: 0.02, z: 36 },
+      { x: 0, y: 0.02, z: -36 },
     ],
     [
-      { x: -14, y: 0.02, z: 0 },
-      { x: 14, y: 0.02, z: 0 },
+      { x: -36, y: 0.02, z: 0 },
+      { x: 36, y: 0.02, z: 0 },
     ],
   ],
 };

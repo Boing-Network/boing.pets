@@ -1,9 +1,13 @@
 import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef, type MutableRefObject, type ReactNode } from "react";
-import type { Group } from "three";
+import { Vector3, type Group } from "three";
 import type { EquippedCosmetics } from "../../content/cosmetics";
-import { pasturePetLabel } from "../../pasture3d/labels";
+import {
+  pastureBubbleVisible,
+  pastureNameplateVisible,
+  pasturePetLabel,
+} from "../../pasture3d/labels";
 import { worldSafeText } from "../lib/worldFont";
 import {
   UNIT_SPHERE,
@@ -14,6 +18,8 @@ import {
 } from "../lib/petModel";
 import { CosmeticAttachments } from "./CosmeticAttachments";
 import { PetFeatureMesh } from "./PetFeatureMesh";
+
+const _worldPos = new Vector3();
 
 export type PetMeshLook = PetModelLook;
 
@@ -45,9 +51,26 @@ export function PetMesh({
   children?: ReactNode;
 }) {
   const hop = useRef<Group>(null);
+  const root = useRef<Group>(null);
+  const nameRef = useRef<HTMLButtonElement>(null);
+  const bubbleRef = useRef<HTMLDivElement>(null);
   const model = useMemo(() => petModelParams(look), [look]);
 
-  useFrame(({ clock }) => {
+  useFrame(({ camera, clock }) => {
+    if (root.current && (nameRef.current || bubbleRef.current)) {
+      root.current.getWorldPosition(_worldPos);
+      const dist = camera.position.distanceTo(_worldPos);
+      if (nameRef.current) {
+        nameRef.current.style.visibility = pastureNameplateVisible(dist)
+          ? "visible"
+          : "hidden";
+      }
+      if (bubbleRef.current) {
+        bubbleRef.current.style.visibility = pastureBubbleVisible(dist)
+          ? "visible"
+          : "hidden";
+      }
+    }
     if (!hop.current || reducedMotion) return;
     const isMoving = movingRef?.current ?? moving;
     hop.current.position.y =
@@ -62,6 +85,7 @@ export function PetMesh({
 
   return (
     <group
+      ref={root}
       scale={scale}
       onClick={(event) => {
         event.stopPropagation();
@@ -173,9 +197,12 @@ export function PetMesh({
       >
         <div className="pasture-label-stack">
           {bubble ? (
-            <div className="pasture-bubble">{worldSafeText(bubble)}</div>
+            <div ref={bubbleRef} className="pasture-bubble">
+              {worldSafeText(bubble)}
+            </div>
           ) : null}
           <button
+            ref={nameRef}
             type="button"
             className={
               "pasture-pet-hit" +

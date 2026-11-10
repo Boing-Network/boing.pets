@@ -118,4 +118,31 @@ describe("pasture pathing", () => {
     const town = clampPresencePosition(STARTER_TOWN.id, 200, 0, 200);
     expect(town.x).toBe(STARTER_TOWN.bounds.maxX);
   });
+
+  it("keeps positions that sat outside the old 22-unit fence when they are in the new bounds", () => {
+    const kept = clampPresencePosition("pasture", 30, 0, 0);
+    expect(kept.x).toBeCloseTo(30, 5);
+    expect(kept.z).toBeCloseTo(0, 5);
+    expect(blocked({ x: kept.x, z: kept.z }, obstacles)).toBeNull();
+    const edge = clampPresencePosition("pasture", 22, 0, 22);
+    expect(edge.x).toBeCloseTo(22, 5);
+    expect(edge.z).toBeCloseTo(22, 5);
+  });
+
+  it("spreads seeded poses across the enlarged pasture", () => {
+    const poses = Array.from({ length: 40 }, (_, i) =>
+      seedPose("0xseed" + i, i, PASTURE_ZONE, obstacles),
+    );
+    const xs = poses.map((p) => p.x);
+    const zs = poses.map((p) => p.z);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(40);
+    expect(Math.max(...zs) - Math.min(...zs)).toBeGreaterThan(40);
+    for (const pose of poses) {
+      expect(pose.x).toBeGreaterThanOrEqual(PASTURE_ZONE.bounds.minX);
+      expect(pose.x).toBeLessThanOrEqual(PASTURE_ZONE.bounds.maxX);
+      expect(pose.z).toBeGreaterThanOrEqual(PASTURE_ZONE.bounds.minZ);
+      expect(pose.z).toBeLessThanOrEqual(PASTURE_ZONE.bounds.maxZ);
+      expect(blocked(pose, obstacles)).toBeNull();
+    }
+  });
 });

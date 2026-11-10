@@ -5,7 +5,7 @@ import {
   type EquippedCosmetics,
 } from "../../content/cosmetics";
 
-export const PRESENCE_MAX_PLAYERS = 32;
+export const PRESENCE_MAX_PLAYERS = 64;
 export const PRESENCE_MOVE_MIN_MS = 80;
 /** Wallet ids are `0x` + 64 hex (=66); guests use UUIDs. */
 export const PRESENCE_ID_MAX = 80;

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  PASTURE_NAMEPLATE_CULL_DISTANCE,
+  pastureBubbleVisible,
   pastureNameplateLayers,
+  pastureNameplateVisible,
   pasturePetLabel,
 } from "../src/pasture3d/labels";
 
@@ -22,5 +25,17 @@ describe("pasture nameplates", () => {
     expect(
       layers.some((layer) => layer.text === "elgnioB" || layer.mirrored),
     ).toBe(false);
+  });
+
+  it("culls distant nameplates but keeps nearer chat bubbles", () => {
+    expect(pastureNameplateVisible(10)).toBe(true);
+    expect(pastureNameplateVisible(PASTURE_NAMEPLATE_CULL_DISTANCE)).toBe(true);
+    expect(pastureNameplateVisible(PASTURE_NAMEPLATE_CULL_DISTANCE + 1)).toBe(
+      false,
+    );
+    expect(pastureBubbleVisible(PASTURE_NAMEPLATE_CULL_DISTANCE + 1)).toBe(
+      true,
+    );
+    expect(pastureBubbleVisible(80)).toBe(false);
   });
 });

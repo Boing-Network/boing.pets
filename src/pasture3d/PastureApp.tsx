@@ -111,12 +111,14 @@ export function PastureApp({
   handleRef,
 }: PastureAppProps) {
   const { preferPerf, reducedMotion } = usePrefers();
-  const livePose = useRef<LivePose>({
-    zone: PASTURE_ZONE.id,
-    x: PASTURE_ZONE.spawn.x,
-    y: 0,
-    z: PASTURE_ZONE.spawn.z,
-  });
+  const livePose = useRef<LivePose>(
+    (() => {
+      const pose = owner
+        ? seedPose(owner, 0, PASTURE_ZONE)
+        : { x: PASTURE_ZONE.spawn.x, z: PASTURE_ZONE.spawn.z };
+      return { zone: PASTURE_ZONE.id, x: pose.x, y: 0, z: pose.z };
+    })(),
+  );
   const walkTarget = useRef<Vec2 | null>(null);
   const zoomRef = useRef(PASTURE_ZOOM_DEFAULT);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -418,7 +420,7 @@ export function PastureApp({
       <Canvas
         shadows={false}
         dpr={preferPerf ? [1, 1.25] : [1, 1.75]}
-        camera={{ position: [0, 11, 16], fov: 46, near: 0.1, far: 180 }}
+        camera={{ position: [0, 11, 16], fov: 46, near: 0.1, far: 280 }}
         gl={{
           antialias: !preferPerf,
           powerPreference: preferPerf ? "low-power" : "high-performance",
@@ -434,7 +436,7 @@ export function PastureApp({
       >
         <Suspense fallback={null}>
           <color attach="background" args={["#b9d7ef"]} />
-          <fog attach="fog" args={["#c9d9b8", 28, 78]} />
+          <fog attach="fog" args={["#c9d9b8", 40, 140]} />
           <ambientLight intensity={0.32} />
           <hemisphereLight args={["#cfe4ff", "#7a9a5c", 0.55]} />
           <directionalLight

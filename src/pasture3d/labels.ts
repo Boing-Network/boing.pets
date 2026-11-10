@@ -21,3 +21,15 @@ export function pastureNameplateLayers(text: string): Array<{
   const label = text.trim() || "Buddy";
   return [{ text: label, mirrored: false }];
 }
+
+/** Hide far nameplates so a busy pasture stays readable and cheap. */
+export const PASTURE_NAMEPLATE_CULL_DISTANCE = 38;
+export const PASTURE_BUBBLE_CULL_DISTANCE = 52;
+
+export function pastureNameplateVisible(distanceToCamera: number): boolean {
+  return distanceToCamera <= PASTURE_NAMEPLATE_CULL_DISTANCE;
+}
+
+export function pastureBubbleVisible(distanceToCamera: number): boolean {
+  return distanceToCamera <= PASTURE_BUBBLE_CULL_DISTANCE;
+}

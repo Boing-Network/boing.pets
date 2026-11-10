@@ -94,7 +94,7 @@ describe("plaza presence protocol", () => {
     expect(guest.id.length).toBeGreaterThanOrEqual(8);
     expect(guest.color).toMatch(/^#[0-9a-f]{6}$/);
     expect(colorFromSeed("same")).toBe(colorFromSeed("same"));
-    expect(PRESENCE_MAX_PLAYERS).toBe(32);
+    expect(PRESENCE_MAX_PLAYERS).toBe(64);
   });
   it("parses chat and cosmetics messages", () => {
     expect(

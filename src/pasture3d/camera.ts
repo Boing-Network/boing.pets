@@ -4,8 +4,8 @@ import { MEADOW_TREE_SPOTS } from "./meadowLayout";
 /** Pure camera helpers for pasture zoom, ground clearance, and landmark occlusion. */
 
 export const PASTURE_ZOOM_MIN = 6;
-export const PASTURE_ZOOM_MAX = 36;
-export const PASTURE_ZOOM_DEFAULT = 15.4;
+export const PASTURE_ZOOM_MAX = 58;
+export const PASTURE_ZOOM_DEFAULT = 18;
 export const PASTURE_CAM_CLEARANCE = 1.25;
 export const PASTURE_CAM_PITCH = 0.56;
 

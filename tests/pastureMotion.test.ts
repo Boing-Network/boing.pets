@@ -52,7 +52,7 @@ describe("pasture motion", () => {
 describe("meadow height", () => {
   it("is flat at reserved landmark spots and rolls elsewhere", () => {
     expect(Math.abs(meadowHeight(0, 0))).toBeLessThan(0.05);
-    expect(Math.abs(meadowHeight(-12, 9))).toBeLessThan(0.05);
+    expect(Math.abs(meadowHeight(-24, 18))).toBeLessThan(0.05);
     expect(Math.abs(meadowHeight(14, 14))).toBeGreaterThan(0.05);
     expect(PASTURE_FLATTEN.length).toBeGreaterThan(3);
   });

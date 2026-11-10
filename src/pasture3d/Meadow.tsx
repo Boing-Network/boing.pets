@@ -1,9 +1,8 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { PASTURE_ZONE } from "../world/config/zones";
 import { meadowHeight, PASTURE_FLATTEN } from "./meadowHeight";
-import { MEADOW_TREE_SPOTS } from "./meadowLayout";
-
-const GROUND_RADIUS = 36;
+import { MEADOW_TREE_SPOTS, PASTURE_GROUND_RADIUS } from "./meadowLayout";
 
 function mulberry(seed: number) {
   let t = (seed + 0x6d2b79f5) >>> 0;
@@ -17,7 +16,7 @@ function isDecorClear(x: number, z: number) {
   for (const spot of PASTURE_FLATTEN) {
     if (Math.hypot(x - spot.x, z - spot.z) < spot.radius * 0.72) return false;
   }
-  return Math.hypot(x, z) < GROUND_RADIUS - 3;
+  return Math.hypot(x, z) < PASTURE_GROUND_RADIUS - 3;
 }
 
 function makeGrassTexture() {
@@ -37,7 +36,7 @@ function makeGrassTexture() {
   }
   const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(8, 8);
+  tex.repeat.set(14, 14);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.needsUpdate = true;
   return tex;
@@ -65,7 +64,7 @@ function SkyDome() {
   }, []);
   return (
     <mesh rotation={[0, 0, 0]}>
-      <sphereGeometry args={[90, 24, 16]} />
+      <sphereGeometry args={[150, 24, 16]} />
       <meshBasicMaterial map={tex ?? undefined} side={THREE.BackSide} />
     </mesh>
   );
@@ -81,8 +80,8 @@ function Terrain({
   enabled: boolean;
 }) {
   const geom = useMemo(() => {
-    const segs = preferPerf ? 32 : 56;
-    const g = new THREE.CircleGeometry(GROUND_RADIUS, segs);
+    const segs = preferPerf ? 48 : 80;
+    const g = new THREE.CircleGeometry(PASTURE_GROUND_RADIUS, segs);
     g.rotateX(-Math.PI / 2);
     const pos = g.attributes.position;
     for (let i = 0; i < pos.count; i++) {
@@ -143,7 +142,7 @@ function InstancedDecor({
     while (placed < count && i < count * 8) {
       const u = mulberry(seedBase + i * 3);
       const v = mulberry(seedBase + i * 3 + 1);
-      const r = Math.sqrt(u) * (GROUND_RADIUS - 4);
+      const r = Math.sqrt(u) * (PASTURE_GROUND_RADIUS - 4);
       const a = v * Math.PI * 2;
       const x = Math.cos(a) * r;
       const z = Math.sin(a) * r;
@@ -197,10 +196,15 @@ function InstancedDecor({
 }
 
 function Pond() {
-  const y = meadowHeight(9, -5) + 0.08;
+  const pond = PASTURE_ZONE.landmarks.find((item) => item.id === "lily-pond");
+  if (!pond) return null;
+  const x = pond.position.x;
+  const z = pond.position.z;
+  const radius = Math.min(pond.width, pond.depth) / 2 - 0.35;
+  const y = meadowHeight(x, z) + 0.08;
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[9, y, -5]} renderOrder={1}>
-      <circleGeometry args={[2.15, 28]} />
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[x, y, z]} renderOrder={1}>
+      <circleGeometry args={[radius, 28]} />
       <meshStandardMaterial
         color="#5aa0c4"
         roughness={0.18}
@@ -215,9 +219,11 @@ function Pond() {
 function Clouds({ preferPerf }: { preferPerf: boolean }) {
   if (preferPerf) return null;
   const puffs = [
-    [10, 22, -18, 4.5],
-    [-16, 20, 8, 3.6],
-    [22, 24, 10, 5],
+    [18, 24, -28, 4.5],
+    [-26, 22, 14, 3.6],
+    [32, 26, 18, 5],
+    [-34, 23, -20, 4.2],
+    [8, 28, 36, 3.8],
   ] as const;
   return (
     <group>
@@ -236,22 +242,48 @@ function Clouds({ preferPerf }: { preferPerf: boolean }) {
   );
 }
 
-function MeadowTree({ x, z }: { x: number; z: number }) {
-  const y = meadowHeight(x, z);
+function MeadowTrees({ preferPerf }: { preferPerf: boolean }) {
+  const trunk = useRef<THREE.InstancedMesh>(null);
+  const canopy = useRef<THREE.InstancedMesh>(null);
+  const puff = useRef<THREE.InstancedMesh>(null);
+  const count = MEADOW_TREE_SPOTS.length;
+
+  useLayoutEffect(() => {
+    const dummy = new THREE.Object3D();
+    const write = (mesh: THREE.InstancedMesh | null, offset: THREE.Vector3) => {
+      if (!mesh) return;
+      MEADOW_TREE_SPOTS.forEach(([x, z], i) => {
+        const y = meadowHeight(x, z);
+        dummy.position.set(x + offset.x, y + offset.y, z + offset.z);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(i, dummy.matrix);
+      });
+      mesh.instanceMatrix.needsUpdate = true;
+    };
+    write(trunk.current, new THREE.Vector3(0, 0.75, 0));
+    write(canopy.current, new THREE.Vector3(0, 2.05, 0));
+    if (!preferPerf) write(puff.current, new THREE.Vector3(0.45, 1.7, 0.2));
+  }, [preferPerf]);
+
+  const sides = preferPerf ? 5 : 7;
   return (
-    <group position={[x, y, z]}>
-      <mesh position={[0, 0.75, 0]}>
-        <cylinderGeometry args={[0.16, 0.26, 1.5, 7]} />
+    <group>
+      <instancedMesh ref={trunk} args={[undefined, undefined, count]}>
+        <cylinderGeometry args={[0.16, 0.26, 1.5, sides]} />
         <meshStandardMaterial color="#6d4a32" roughness={0.9} />
-      </mesh>
-      <mesh position={[0, 2.05, 0]}>
+      </instancedMesh>
+      <instancedMesh ref={canopy} args={[undefined, undefined, count]}>
         <icosahedronGeometry args={[1.05, 0]} />
         <meshStandardMaterial color="#3f7d4a" roughness={0.85} flatShading />
-      </mesh>
-      <mesh position={[0.45, 1.7, 0.2]}>
-        <icosahedronGeometry args={[0.7, 0]} />
-        <meshStandardMaterial color="#4e8d55" roughness={0.85} flatShading />
-      </mesh>
+      </instancedMesh>
+      {preferPerf ? null : (
+        <instancedMesh ref={puff} args={[undefined, undefined, count]}>
+          <icosahedronGeometry args={[0.7, 0]} />
+          <meshStandardMaterial color="#4e8d55" roughness={0.85} flatShading />
+        </instancedMesh>
+      )}
     </group>
   );
 }
@@ -265,13 +297,13 @@ export function Meadow({
   onWalk: (x: number, z: number) => void;
   walkEnabled: boolean;
 }) {
-  const grass = preferPerf ? 160 : 420;
-  const flowers = preferPerf ? 40 : 90;
-  const rocks = preferPerf ? 10 : 22;
+  const grass = preferPerf ? 280 : 780;
+  const flowers = preferPerf ? 70 : 160;
+  const rocks = preferPerf ? 16 : 36;
   return (
     <group>
       <SkyDome />
-      <mesh position={[28, 34, -24]}>
+      <mesh position={[42, 36, -34]}>
         <sphereGeometry args={[3.2, 16, 16]} />
         <meshBasicMaterial color="#fff3c8" />
       </mesh>
@@ -281,9 +313,7 @@ export function Meadow({
       <InstancedDecor count={flowers} kind="flower" preferPerf={preferPerf} />
       <InstancedDecor count={rocks} kind="rock" preferPerf={preferPerf} />
       <Pond />
-      {MEADOW_TREE_SPOTS.map(([x, z], i) => (
-        <MeadowTree key={i} x={x} z={z} />
-      ))}
+      <MeadowTrees preferPerf={preferPerf} />
     </group>
   );
 }

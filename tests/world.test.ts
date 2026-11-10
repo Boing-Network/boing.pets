@@ -67,6 +67,8 @@ describe("Public pasture zone", () => {
   it("is a known presence zone with walkable landmarks", () => {
     expect(PASTURE_ZONE.id).toBe("pasture");
     const { bounds } = PASTURE_ZONE;
+    expect(bounds.maxX - bounds.minX).toBe(88);
+    expect(bounds.maxZ - bounds.minZ).toBe(88);
     for (const item of [...PASTURE_ZONE.landmarks, ...PASTURE_ZONE.stations]) {
       expect(item.position.x).toBeGreaterThanOrEqual(bounds.minX);
       expect(item.position.x).toBeLessThanOrEqual(bounds.maxX);

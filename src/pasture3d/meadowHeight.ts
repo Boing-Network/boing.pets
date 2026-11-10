@@ -6,9 +6,10 @@ export type FlattenSpot = { x: number; z: number; radius: number };
 export const PASTURE_FLATTEN: readonly FlattenSpot[] = [
   { x: 0, z: 0, radius: 3.2 },
   { x: 0, z: 6, radius: 2.6 },
-  { x: -12, z: 9, radius: 4.5 },
-  { x: -8, z: -7, radius: 2.8 },
-  { x: 9, z: -5, radius: 3.6 },
+  { x: -24, z: 18, radius: 4.5 },
+  { x: -18, z: -20, radius: 2.8 },
+  { x: 22, z: -16, radius: 4.2 },
+  { x: 18, z: 22, radius: 2.6 },
 ];
 
 export function meadowHeight(
