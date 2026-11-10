@@ -1,16 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  BOING_INITIALIZED_EVENT,
   BOING_WEB_ACCOUNTS_KEY,
   clearCachedWalletOwner,
   clearWalletSession,
   ensureLiveWalletSession,
   formatWalletLabel,
   hydrateCachedWallet,
+  loadCachedProviderKind,
   loadCachedWalletOwner,
   readBoingAccounts,
   requestWalletSession,
+  resolveBoingProvider,
   saveCachedWalletOwner,
   tryRestoreWalletSession,
+  waitForInjectedBoing,
   type BoingProvider,
 } from "../src/wallet/session";
 import {
@@ -142,13 +146,19 @@ describe("hydrate and silent restore", () => {
     expect(formatWalletLabel(owner)).not.toMatch(/reconnecting/i);
   });
 
-  it("hydrates the cached owner and seeds web-wallet sessionStorage", () => {
+  it("hydrates the cached owner without seeding the web-wallet session", () => {
     const owner = "0x" + "ab".repeat(32);
-    saveCachedWalletOwner(owner);
+    saveCachedWalletOwner(owner, "extension");
     expect(hydrateCachedWallet()).toBe(owner);
-    expect(
-      JSON.parse(sessionStore.get(BOING_WEB_ACCOUNTS_KEY) || "[]"),
-    ).toEqual([owner]);
+    expect(loadCachedProviderKind()).toBe("extension");
+    expect(sessionStore.get(BOING_WEB_ACCOUNTS_KEY)).toBeUndefined();
+  });
+
+  it("records the provider kind used to connect", async () => {
+    const owner = "0x" + "33".repeat(32);
+    const extension = mockProvider([owner], { isBoingWeb: false });
+    await requestWalletSession(extension);
+    expect(loadCachedProviderKind()).toBe("extension");
   });
 
   it("does not call requestAccounts during restore or ensureLive", async () => {
@@ -156,7 +166,12 @@ describe("hydrate and silent restore", () => {
     saveCachedWalletOwner(owner);
     const provider = mockProvider([]);
     const restored = await tryRestoreWalletSession(provider);
-    expect(restored).toEqual({ provider, owner, kind: "cached" });
+    expect(restored).toEqual({
+      provider,
+      owner,
+      kind: "cached",
+      providerKind: "web",
+    });
     const ensured = await ensureLiveWalletSession(provider, owner);
     expect(ensured.owner).toBe(owner);
     const methods = (
@@ -180,5 +195,91 @@ describe("hydrate and silent restore", () => {
     expect(restored?.owner).toBe(owner);
     expect(restored?.kind).toBe("cached");
     expect(loadCachedWalletOwner()).toBe(owner);
+  });
+});
+
+describe("extension provider selection", () => {
+  function makeHost() {
+    const listeners = new Map<
+      string,
+      Set<(event: { type?: string; detail?: unknown }) => void>
+    >();
+    const host: {
+      boing?: BoingProvider;
+      addEventListener: (
+        type: string,
+        fn: (event: { type?: string; detail?: unknown }) => void,
+      ) => void;
+      removeEventListener: (
+        type: string,
+        fn: (event: { type?: string; detail?: unknown }) => void,
+      ) => void;
+      dispatchEvent: (event: { type: string; detail?: unknown }) => boolean;
+    } = {
+      addEventListener(type, fn) {
+        if (!listeners.has(type)) listeners.set(type, new Set());
+        listeners.get(type)!.add(fn);
+      },
+      removeEventListener(type, fn) {
+        listeners.get(type)?.delete(fn);
+      },
+      dispatchEvent(event) {
+        listeners.get(event.type)?.forEach((fn) => fn(event));
+        return true;
+      },
+    };
+    return host;
+  }
+
+  it("resolves when window.boing appears during the wait", async () => {
+    const host = makeHost();
+    const extension = mockProvider(["0x" + "44".repeat(32)], {
+      isBoingWeb: false,
+    });
+    const pending = waitForInjectedBoing(400, host);
+    await new Promise((r) => setTimeout(r, 80));
+    host.boing = extension;
+    expect(await pending).toBe(extension);
+  });
+
+  it("resolves on the boing#initialized event", async () => {
+    const host = makeHost();
+    const extension = mockProvider(["0x" + "55".repeat(32)], {
+      isBoingWeb: false,
+    });
+    const pending = waitForInjectedBoing(400, host);
+    await new Promise((r) => setTimeout(r, 40));
+    host.boing = extension;
+    host.dispatchEvent({ type: BOING_INITIALIZED_EVENT });
+    expect(await pending).toBe(extension);
+  });
+
+  it("prefers a late-injecting extension and does not create a web wallet", async () => {
+    const host = makeHost();
+    const extension = mockProvider(["0x" + "66".repeat(32)], {
+      isBoingWeb: false,
+    });
+    const pending = resolveBoingProvider({
+      waitMs: 400,
+      allowWeb: true,
+      globalObj: host,
+    });
+    await new Promise((r) => setTimeout(r, 80));
+    host.boing = extension;
+    const resolved = await pending;
+    expect(resolved?.kind).toBe("extension");
+    expect(resolved?.provider).toBe(extension);
+    expect(resolved?.provider.isBoingWeb).toBeFalsy();
+  });
+
+  it("does not fall back to the web wallet when the cache says extension", async () => {
+    saveCachedWalletOwner("0x" + "77".repeat(32), "extension");
+    const host = makeHost();
+    const resolved = await resolveBoingProvider({
+      waitMs: 30,
+      allowWeb: true,
+      globalObj: host,
+    });
+    expect(resolved).toBeNull();
   });
 });

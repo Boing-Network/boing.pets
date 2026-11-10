@@ -1,4 +1,6 @@
 import { api, app, notice, clearSocialSession } from "./appRuntime";
+import { ensurePreferredProvider } from "../wallet/session";
+import { bindWallet } from "./careActions";
 import { loadSocialSession, saveSocialSession } from "../social/sessionCache";
 
 export async function ensureSocialSession(): Promise<string> {
@@ -6,11 +8,16 @@ export async function ensureSocialSession(): Promise<string> {
   const cached = loadSocialSession(app.owner);
   if (cached?.token) return cached.token;
   notice("Approve a short activity session signature in Express…");
+  const live = await ensurePreferredProvider({
+    interactive: true,
+    expectedOwner: app.owner,
+  });
+  bindWallet(live, "live");
   const challenge = await api<{ id: string; message: string }>(
     "/api/social/session/challenge",
     { owner: app.owner },
   );
-  const signature = await app.provider!.request({
+  const signature = await live.provider.request({
     method: "boing_signMessage",
     params: [challenge.message, app.owner],
   });

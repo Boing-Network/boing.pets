@@ -124,7 +124,11 @@ function wireWalletMenu() {
         throw e;
       }
       await refresh(page);
-      notice("Connected on Boing testnet. Your pasture awaits.");
+      notice(
+        session.providerKind === "web"
+          ? "Connected with the Boing Express web wallet. Install the extension for in-browser signing."
+          : "Connected on Boing testnet. Your pasture awaits.",
+      );
     });
   });
   document.getElementById("disconnect")?.addEventListener("click", (event) => {

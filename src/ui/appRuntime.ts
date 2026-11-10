@@ -11,7 +11,7 @@ import {
   loadSocialSession,
   saveSocialSession,
 } from "../social/sessionCache";
-import type { BoingProvider } from "../wallet/session";
+import type { BoingProvider, WalletProviderKind } from "../wallet/session";
 
 export type Provider = BoingProvider;
 export type ViewPet = Pet & {
@@ -50,6 +50,8 @@ export const app = {
   owner: "",
   /** live = silent provider accounts; cached = localStorage-only pending re-auth */
   walletKind: null as "live" | "cached" | null,
+  /** Which wallet backend the cached session should use. */
+  providerKind: null as WalletProviderKind | null,
   busy: false,
   mine: null as ViewPet | null,
   offset: 0,

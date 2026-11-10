@@ -2,8 +2,9 @@ import { hex32 } from "../../core";
 import { shortWallet } from "../../social";
 import { apiFetch } from "../../ui/apiClient";
 import {
-  getBoingProvider,
+  loadCachedProviderKind,
   readBoingAccounts,
+  resolveBoingProvider,
   type BoingProvider,
 } from "../../wallet/session";
 import { colorFromSeed, guestPresenceIdentity } from "./presenceProtocol";
@@ -76,12 +77,11 @@ export async function resolvePlazaIdentity(
   opts: { allowPrompt?: boolean } = {},
 ): Promise<PlazaIdentity> {
   const allowPrompt = opts.allowPrompt ?? false;
-  let provider: BoingProvider;
-  try {
-    provider = getBoingProvider();
-  } catch {
-    return guestPresenceIdentity();
-  }
+  const resolved = await resolveBoingProvider({
+    allowWeb: loadCachedProviderKind() !== "extension",
+  });
+  if (!resolved) return guestPresenceIdentity();
+  const provider: BoingProvider = resolved.provider;
 
   try {
     let accounts = await readBoingAccounts(provider);

@@ -10,9 +10,11 @@ import {
 } from "./appRuntime";
 import {
   clearWalletSession,
-  ensureLiveWalletSession,
-  getBoingProvider,
+  ensurePreferredProvider,
+  getInjectedBoingProvider,
   hydrateCachedWallet,
+  loadCachedProviderKind,
+  providerKindOf,
   readBoingAccounts,
   tryRestoreWalletSession,
   type RestoreKind,
@@ -57,25 +59,25 @@ export async function run(task: () => Promise<void>) {
 }
 export async function assertWallet() {
   if (!app.owner) throw new Error("Connect Boing Express first");
-  if (!app.provider) app.provider = getBoingProvider();
-  // Silent only — a closed or empty Express probe must not popup or disconnect.
-  const live = await ensureLiveWalletSession(app.provider, app.owner);
-  if (live.owner !== app.owner || live.provider !== app.provider) {
-    bindWallet(live, "live");
-  }
-  if (!app.provider.isBoingWeb) {
+  // Prefer the extension (wait for late inject). Interactive so an empty
+  // silent-accounts check prompts window.boing, never the web wallet tab.
+  const live = await ensurePreferredProvider({
+    interactive: true,
+    expectedOwner: app.owner,
+  });
+  bindWallet(live, "live");
+  if (live.providerKind === "extension") {
     try {
-      const chain = await app.provider.request({
+      const chain = await live.provider.request({
         method: "boing_chainId",
         params: [],
       });
-      if (Number(chain) !== 6913)
+      if (Number(chain) !== 6913 && Number(chain) !== 0x1b01)
         throw new Error(
           "Switch Express to Boing testnet 6913 before continuing",
         );
     } catch (e) {
       if (e instanceof Error && /6913/.test(e.message)) throw e;
-      // Transient probe failure: keep the cached session.
     }
   }
 }
@@ -172,7 +174,11 @@ function onChainChanged() {
 }
 
 export function bindWallet(
-  session: { provider: Provider; owner: string },
+  session: {
+    provider: Provider;
+    owner: string;
+    providerKind?: "extension" | "web";
+  },
   kind: RestoreKind | "live" = "live",
 ) {
   app.provider?.removeListener?.("accountsChanged", onAccountsChanged);
@@ -180,6 +186,10 @@ export function bindWallet(
   app.provider = session.provider;
   app.owner = session.owner;
   app.walletKind = kind === "cached" ? "cached" : "live";
+  app.providerKind =
+    "providerKind" in session && session.providerKind
+      ? session.providerKind
+      : providerKindOf(session.provider);
   app.provider.on?.("accountsChanged", onAccountsChanged);
   app.provider.on?.("chainChanged", onChainChanged);
 }
@@ -190,6 +200,7 @@ export function disconnect() {
   clearSocialSession(app.owner || undefined);
   app.owner = "";
   app.walletKind = null;
+  app.providerKind = null;
   app.mine = null;
   app.provider = null;
   controls();
@@ -199,27 +210,38 @@ export function disconnect() {
 export function hydrateAppWallet(): boolean {
   const owner = hydrateCachedWallet();
   if (!owner) return false;
-  if (app.owner === owner && app.provider) return true;
-  bindWallet({ provider: getBoingProvider(), owner }, "cached");
+  app.owner = owner;
+  app.walletKind = "cached";
+  app.providerKind = loadCachedProviderKind();
+  const injected = getInjectedBoingProvider();
+  if (injected)
+    bindWallet(
+      { provider: injected, owner, providerKind: "extension" },
+      "cached",
+    );
   return true;
 }
 
 export async function attachRestoredSession() {
   const session = await tryRestoreWalletSession();
-  if (!session) return false;
+  if (!session) {
+    // Extension was used but has not injected; keep the cached address visible.
+    if (app.owner) {
+      controls();
+      return true;
+    }
+    return false;
+  }
   bindWallet(session, session.kind);
-  if (session.kind === "live") {
+  if (session.kind === "live" && session.providerKind === "extension") {
     try {
-      // Soft check only — do not clear a good live restore on transient RPC blips.
-      if (!session.provider.isBoingWeb) {
-        const chain = await session.provider.request({
-          method: "boing_chainId",
-          params: [],
-        });
-        if (Number(chain) !== 6913) throw new Error("wrong chain");
-      }
+      const chain = await session.provider.request({
+        method: "boing_chainId",
+        params: [],
+      });
+      if (Number(chain) !== 6913 && Number(chain) !== 0x1b01)
+        throw new Error("wrong chain");
     } catch {
-      // Keep cached owner so the header still shows connected; signing will re-auth.
       app.walletKind = "cached";
     }
   }

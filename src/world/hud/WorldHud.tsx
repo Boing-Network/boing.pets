@@ -1,10 +1,6 @@
 import { useState, type MutableRefObject } from "react";
 import { hex32 } from "../../core";
-import {
-  getBoingProvider,
-  readBoingAccounts,
-  type BoingProvider,
-} from "../../wallet/session";
+import { ensurePreferredProvider } from "../../wallet/session";
 import type { WorldStation, WorldZoneConfig } from "../config/zones";
 import type { ControlState } from "../hooks/usePlayerControls";
 import { syncRemotePosition } from "../lib/positionApi";
@@ -58,25 +54,13 @@ export function WorldHud({
     if (busy) return;
     setBusy(true);
     try {
-      let provider: BoingProvider;
-      try {
-        provider = getBoingProvider();
-      } catch {
+      const session = await ensurePreferredProvider({ interactive: true });
+      if (!session) {
         onNotice("Install/open Boing Express, then cloud-save from here.");
         return;
       }
-      let accounts = await readBoingAccounts(provider);
-      if (!accounts[0]) {
-        accounts = (await provider.request({
-          method: "boing_requestAccounts",
-          params: [],
-        })) as string[];
-      }
-      if (!accounts?.[0]) {
-        onNotice("Connect Express before cloud-saving.");
-        return;
-      }
-      const owner = hex32(accounts[0]);
+      const provider = session.provider;
+      const owner = hex32(session.owner);
       const pose = livePose.current;
       await syncRemotePosition({
         owner,

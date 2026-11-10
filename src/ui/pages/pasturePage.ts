@@ -69,12 +69,20 @@ export function controls() {
   const connect = $maybe("#connect");
   if (connect) {
     if (!app.owner) {
-      connect.textContent = "Connect Express";
-      connect.title = "Connect Boing Express";
+      const web = app.providerKind === "web";
+      connect.textContent = web ? "Connect web wallet" : "Connect Express";
+      connect.title = web
+        ? "No Boing Express extension detected — connect with the web wallet"
+        : "Connect Boing Express";
       connect.setAttribute("aria-expanded", "false");
+    } else if (app.providerKind === "web") {
+      connect.textContent = `${formatWalletLabel(app.owner)} · web wallet`;
+      connect.title =
+        "Connected with the Boing Express web wallet — open menu to disconnect";
     } else {
       connect.textContent = formatWalletLabel(app.owner);
-      connect.title = "Wallet connected — open menu to disconnect";
+      connect.title =
+        "Connected with the Boing Express extension — open menu to disconnect";
     }
   }
 }
