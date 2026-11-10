@@ -6,14 +6,30 @@ import {
   catalogItem,
   catalogPrice,
   CATALOG,
-  listingFee,
-  netSellerProceeds,
   SINK_OWNER,
   SPARKLES_DAILY,
   sparklesDayKey,
   type CatalogItemId,
 } from "../src/economy";
+import {
+  isSellableItem,
+  listingExpiresAt,
+  listingFeeBaseUnits,
+  MARKET_ESCROW_ADDRESS,
+  MARKET_MAX_FILLS_PER_UTC_DAY,
+  MARKET_MAX_LIST_OPENS_PER_UTC_DAY,
+  MARKET_MAX_OPEN_LISTINGS,
+  formatMarketPriceBoing,
+  parseMarketPriceBoing,
+  publicMarketRules,
+  sellerProceedsBaseUnits,
+  stillInHold,
+  utcDayStart,
+  validateListQty,
+  isImmediateSellback,
+} from "../src/market";
 import { hex32, type CareEvent } from "../src/core";
+import { assertEscrowPayment, loadIncludedTransfer } from "./marketPay";
 import {
   balanceOf,
   pushLedgerCredit,
@@ -67,6 +83,104 @@ async function inventoryQty(
     .bind(owner, itemId)
     .first<{ qty: number }>();
   return Number(row?.qty || 0);
+}
+
+async function lastAcquisition(
+  env: Env,
+  owner: string,
+  itemId: string,
+): Promise<{ created_at: number; from_owner: string | null } | null> {
+  return env.DB.prepare(
+    "SELECT created_at, from_owner FROM inventory_acquisitions WHERE owner=? AND item_id=? ORDER BY created_at DESC LIMIT 1",
+  )
+    .bind(owner, itemId)
+    .first<{ created_at: number; from_owner: string | null }>();
+}
+
+async function recordAcquisition(
+  statements: D1PreparedStatement[],
+  env: Env,
+  id: string,
+  owner: string,
+  itemId: string,
+  qty: number,
+  source: string,
+  fromOwner: string | null,
+  now: number,
+) {
+  statements.push(
+    env.DB.prepare(
+      "INSERT INTO inventory_acquisitions(id,owner,item_id,qty,source,from_owner,created_at) VALUES(?,?,?,?,?,?,?)",
+    ).bind(id, owner, itemId, qty, source, fromOwner, now),
+  );
+}
+
+async function expireOpenListings(env: Env, now: number) {
+  const expired = await env.DB.prepare(
+    "SELECT id,seller,item_id,qty FROM marketplace_listings WHERE status='open' AND expires_at IS NOT NULL AND expires_at<=?",
+  )
+    .bind(now)
+    .all<{ id: string; seller: string; item_id: string; qty: number }>();
+  if (!expired.results.length) return;
+  const statements: D1PreparedStatement[] = [];
+  for (const row of expired.results) {
+    statements.push(
+      env.DB.prepare(
+        "UPDATE marketplace_listings SET status='expired', updated_at=? WHERE id=? AND status='open'",
+      ).bind(now, row.id),
+      env.DB.prepare(
+        "INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,?) ON CONFLICT(owner,item_id) DO UPDATE SET qty=qty+excluded.qty",
+      ).bind(row.seller, row.item_id, row.qty),
+    );
+  }
+  await env.DB.batch(statements);
+}
+
+async function assertListable(
+  env: Env,
+  owner: string,
+  itemId: string,
+  qty: number,
+  now: number,
+) {
+  if (!isSellableItem(itemId))
+    throw new HttpError(400, "This item cannot be listed");
+  if (!validateListQty(qty)) throw new HttpError(400, "Invalid quantity");
+  const equipped = await env.DB.prepare(
+    "SELECT slot FROM pet_cosmetics WHERE owner=? AND item_id=?",
+  )
+    .bind(owner, itemId)
+    .first();
+  if (equipped) throw new HttpError(409, "Unequip this item before listing it");
+  const placed = await env.DB.prepare(
+    "SELECT id FROM housing_placements WHERE owner=? AND item_id=?",
+  )
+    .bind(owner, itemId)
+    .first();
+  if (placed)
+    throw new HttpError(
+      409,
+      "Pick this item up from your home plot before listing it",
+    );
+  const open = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM marketplace_listings WHERE seller=? AND status='open'",
+  )
+    .bind(owner)
+    .first<{ n: number }>();
+  if (Number(open?.n || 0) >= MARKET_MAX_OPEN_LISTINGS)
+    throw new HttpError(409, "You already have 8 open listings");
+  const opensToday = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM marketplace_listings WHERE seller=? AND created_at>=?",
+  )
+    .bind(owner, utcDayStart(now))
+    .first<{ n: number }>();
+  if (Number(opensToday?.n || 0) >= MARKET_MAX_LIST_OPENS_PER_UTC_DAY)
+    throw new HttpError(429, "Listing velocity cap reached for today");
+  const acquired = await lastAcquisition(env, owner, itemId);
+  if (stillInHold(acquired?.created_at, now))
+    throw new HttpError(409, "This item is still in its listing hold period");
+  if ((await inventoryQty(env, owner, itemId)) < qty)
+    throw new HttpError(409, "You do not own enough of that item");
 }
 
 async function rateLimit(env: Env, owner: string, now: number) {
@@ -170,10 +284,15 @@ export async function economyGet(
     });
   }
   if (url.pathname === "/api/marketplace") {
+    await expireOpenListings(env, now);
     const listings = await env.DB.prepare(
-      "SELECT id,seller,item_id,qty,price_boinglets,status,created_at,updated_at FROM marketplace_listings WHERE status='open' ORDER BY created_at DESC LIMIT 48",
+      "SELECT id,seller,item_id,qty,price_boinglets,price_boing,status,expires_at,created_at,updated_at FROM marketplace_listings WHERE status='open' ORDER BY created_at DESC LIMIT 48",
     ).all();
-    return Response.json({ listings: listings.results, now });
+    return Response.json({
+      listings: listings.results,
+      rules: publicMarketRules(),
+      now,
+    });
   }
   return null;
 }
@@ -267,20 +386,33 @@ export async function economyPost(
     if (kind === "list") {
       const itemId = String(body.item_id || "");
       const qty = Number(body.qty || 1);
-      const price = Number(body.price_boinglets);
-      if (!catalogItem(itemId)) throw new HttpError(404, "Unknown item");
-      if (!Number.isSafeInteger(qty) || qty < 1 || qty > 20)
-        throw new HttpError(400, "Invalid quantity");
-      if (!Number.isSafeInteger(price) || price < 5 || price > 100_000)
-        throw new HttpError(400, "Invalid price");
-      if ((await inventoryQty(env, owner, itemId)) < qty)
-        throw new HttpError(409, "You do not own enough of that item");
+      let priceBoing: string;
+      try {
+        priceBoing = parseMarketPriceBoing(
+          String(body.price_boing ?? body.price ?? ""),
+        ).toString();
+      } catch (error) {
+        throw new HttpError(
+          400,
+          error instanceof Error ? error.message : "Invalid price",
+        );
+      }
+      await expireOpenListings(env, now);
+      await assertListable(env, owner, itemId, qty, now);
+      const price = BigInt(priceBoing);
       return Response.json(
         await issueChallenge(
           env,
           owner,
           kind,
-          { item_id: itemId, qty, price_boinglets: price },
+          {
+            item_id: itemId,
+            qty,
+            price_boing: priceBoing,
+            fee_boing: listingFeeBaseUnits(price).toString(),
+            proceeds_boing: sellerProceedsBaseUnits(price).toString(),
+            expires_at: listingExpiresAt(now),
+          },
           now,
         ),
       );
@@ -288,6 +420,7 @@ export async function economyPost(
 
     if (kind === "buy_listing") {
       const listingId = String(body.listing_id || "");
+      await expireOpenListings(env, now);
       const listing = await env.DB.prepare(
         "SELECT * FROM marketplace_listings WHERE id=? AND status='open'",
       )
@@ -297,29 +430,77 @@ export async function economyPost(
           seller: string;
           item_id: string;
           qty: number;
-          price_boinglets: number;
+          price_boing: string | null;
         }>();
       if (!listing) throw new HttpError(404, "Listing not found");
       if (listing.seller === owner)
         throw new HttpError(409, "Cannot buy your own listing");
-      const bal = await balanceOf(env, owner, "boinglets");
-      if (bal < listing.price_boinglets)
-        throw new HttpError(409, "Not enough Boinglets");
-      return Response.json(
-        await issueChallenge(
-          env,
-          owner,
-          kind,
-          {
-            listing_id: listing.id,
-            price_boinglets: listing.price_boinglets,
-            seller: listing.seller,
-            item_id: listing.item_id,
-            qty: listing.qty,
-          },
-          now,
-        ),
+      if (!listing.price_boing)
+        throw new HttpError(
+          409,
+          "This listing is priced in Boinglets and must be relisted in testnet BOING",
+        );
+      const fillsToday = await env.DB.prepare(
+        "SELECT COUNT(*) AS n FROM market_payments WHERE buyer=? AND created_at>=?",
+      )
+        .bind(owner, utcDayStart(now))
+        .first<{ n: number }>();
+      if (Number(fillsToday?.n || 0) >= MARKET_MAX_FILLS_PER_UTC_DAY)
+        throw new HttpError(429, "Purchase velocity cap reached for today");
+      const acquired = await lastAcquisition(
+        env,
+        listing.seller,
+        listing.item_id,
       );
+      if (
+        isImmediateSellback(
+          acquired?.from_owner,
+          owner,
+          acquired?.created_at,
+          now,
+        )
+      )
+        throw new HttpError(
+          409,
+          "This would be an immediate sell-back to the previous seller",
+        );
+      const price = BigInt(listing.price_boing);
+      const fee = listingFeeBaseUnits(price);
+      const proceeds = sellerProceedsBaseUnits(price);
+      const display = `Pay ${formatMarketPriceBoing(listing.price_boing)} testnet BOING to the Pets market escrow, then confirm this purchase.`;
+      const issued = await issueChallenge(
+        env,
+        owner,
+        kind,
+        {
+          listing_id: listing.id,
+          seller: listing.seller,
+          item_id: listing.item_id,
+          qty: listing.qty,
+          price_boing: listing.price_boing,
+          fee_boing: fee.toString(),
+          proceeds_boing: proceeds.toString(),
+          escrow: MARKET_ESCROW_ADDRESS,
+          payment: {
+            type: "transfer",
+            to: MARKET_ESCROW_ADDRESS,
+            amount: listing.price_boing,
+            display,
+          },
+        },
+        now,
+      );
+      return Response.json({
+        ...issued,
+        transaction: {
+          type: "transfer",
+          from: owner,
+          to: MARKET_ESCROW_ADDRESS,
+          amount: listing.price_boing,
+          priority_tip: "0",
+          display,
+        },
+      });
     }
 
     if (kind === "cancel_listing") {
@@ -450,21 +631,34 @@ export async function economyPost(
           "INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,1) ON CONFLICT(owner,item_id) DO UPDATE SET qty=qty+1",
         ).bind(c.owner, itemId),
       );
+      await recordAcquisition(
+        statements,
+        env,
+        c.id + ":acq",
+        c.owner,
+        itemId,
+        1,
+        "catalog",
+        null,
+        now,
+      );
     }
 
     if (c.kind === "list") {
       const itemId = String(payload.item_id);
       const qty = Number(payload.qty);
-      const price = Number(payload.price_boinglets);
-      if ((await inventoryQty(env, c.owner, itemId)) < qty)
-        throw new HttpError(409, "You do not own enough of that item");
+      const priceBoing = String(payload.price_boing || "");
+      if (!/^\d+$/.test(priceBoing) || BigInt(priceBoing) <= 0n)
+        throw new HttpError(400, "Invalid price");
+      await assertListable(env, c.owner, itemId, qty, now);
+      const expires = Number(payload.expires_at) || listingExpiresAt(now);
       statements.push(
         env.DB.prepare(
           "UPDATE inventory SET qty=qty-? WHERE owner=? AND item_id=? AND qty>=?",
         ).bind(qty, c.owner, itemId, qty),
         env.DB.prepare(
-          "INSERT INTO marketplace_listings(id,seller,item_id,qty,price_boinglets,status,created_at,updated_at) VALUES(?,?,?,?,?,'open',?,?)",
-        ).bind(c.id, c.owner, itemId, qty, price, now, now),
+          "INSERT INTO marketplace_listings(id,seller,item_id,qty,price_boinglets,price_boing,status,expires_at,created_at,updated_at) VALUES(?,?,?,?,?,?,'open',?,?,?)",
+        ).bind(c.id, c.owner, itemId, qty, null, priceBoing, expires, now, now),
       );
     }
 
@@ -479,58 +673,97 @@ export async function economyPost(
           seller: string;
           item_id: string;
           qty: number;
-          price_boinglets: number;
+          price_boing: string | null;
         }>();
       if (!listing) throw new HttpError(409, "Listing was not available");
       if (listing.seller === c.owner)
         throw new HttpError(409, "Cannot buy your own listing");
-      const price = listing.price_boinglets;
-      if ((await balanceOf(env, c.owner, "boinglets")) < price)
-        throw new HttpError(409, "Not enough Boinglets");
-      const fee = listingFee(price);
-      const proceeds = netSellerProceeds(price);
+      if (!listing.price_boing)
+        throw new HttpError(
+          409,
+          "This listing is priced in Boinglets and must be relisted in testnet BOING",
+        );
+      const txHash = hex32(body.tx_hash);
+      let transfer;
+      try {
+        const included = await loadIncludedTransfer(env, txHash);
+        transfer = included.transfer;
+        assertEscrowPayment({
+          transfer,
+          buyer: c.owner,
+          escrow: MARKET_ESCROW_ADDRESS,
+          priceBaseUnits: listing.price_boing,
+        });
+      } catch (error) {
+        throw new HttpError(
+          400,
+          error instanceof Error ? error.message : "Invalid payment",
+        );
+      }
+      const reused = await env.DB.prepare(
+        "SELECT listing_id FROM market_payments WHERE tx_hash=?",
+      )
+        .bind(txHash)
+        .first();
+      if (reused) throw new HttpError(409, "This payment was already used");
+      const price = BigInt(listing.price_boing);
+      const fee = listingFeeBaseUnits(price);
+      const proceeds = sellerProceedsBaseUnits(price);
       statements.push(
         env.DB.prepare(
           "UPDATE marketplace_listings SET status='sold', updated_at=? WHERE id=? AND status='open'",
         ).bind(now, listingId),
-      );
-      pushLedgerDebit(
-        statements,
-        env,
-        c.id + ":buy",
-        c.owner,
-        "boinglets",
-        price,
-        "market_buy",
-        listingId,
-        now,
-      );
-      pushLedgerCredit(
-        statements,
-        env,
-        c.id + ":sell",
-        listing.seller,
-        "boinglets",
-        proceeds,
-        "market_sell",
-        listingId,
-        now,
-      );
-      pushLedgerCredit(
-        statements,
-        env,
-        c.id + ":fee",
-        SINK_OWNER,
-        "boinglets",
-        fee,
-        "market_fee",
-        listingId,
-        now,
-      );
-      statements.push(
+        env.DB.prepare(
+          "INSERT INTO market_payments(tx_hash,listing_id,buyer,seller,price_boing,fee_boing,proceeds_boing,escrow,created_at) VALUES(?,?,?,?,?,?,?,?,?)",
+        ).bind(
+          txHash,
+          listingId,
+          c.owner,
+          listing.seller,
+          listing.price_boing,
+          fee.toString(),
+          proceeds.toString(),
+          MARKET_ESCROW_ADDRESS,
+          now,
+        ),
+        env.DB.prepare(
+          "INSERT INTO market_payouts(id,payment_tx,listing_id,kind,recipient,amount_boing,status,payout_tx,created_at,updated_at) VALUES(?,?,?,?,?,?,'pending',NULL,?,?)",
+        ).bind(
+          c.id + ":seller",
+          txHash,
+          listingId,
+          "seller",
+          listing.seller,
+          proceeds.toString(),
+          now,
+          now,
+        ),
+        env.DB.prepare(
+          "INSERT INTO market_payouts(id,payment_tx,listing_id,kind,recipient,amount_boing,status,payout_tx,created_at,updated_at) VALUES(?,?,?,?,?,?,'pending',NULL,?,?)",
+        ).bind(
+          c.id + ":sink",
+          txHash,
+          listingId,
+          "sink",
+          SINK_OWNER,
+          fee.toString(),
+          now,
+          now,
+        ),
         env.DB.prepare(
           "INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,?) ON CONFLICT(owner,item_id) DO UPDATE SET qty=qty+excluded.qty",
         ).bind(c.owner, listing.item_id, listing.qty),
+      );
+      await recordAcquisition(
+        statements,
+        env,
+        c.id + ":acq",
+        c.owner,
+        listing.item_id,
+        listing.qty,
+        "market",
+        listing.seller,
+        now,
       );
     }
 

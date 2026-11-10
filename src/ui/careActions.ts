@@ -86,10 +86,16 @@ export async function confirmPending() {
   if (!p || p.owner !== app.owner)
     throw new Error("No pending transaction for this wallet");
   notice("Checking transaction inclusion…");
-  await api("/api/confirm", { id: p.id, tx_hash: p.tx_hash });
+  const confirmed = await api<{
+    drop?: { name: string; tier: string } | null;
+  }>("/api/confirm", { id: p.id, tx_hash: p.tx_hash });
   localStorage.removeItem("boing-pets-pending");
   await refresh();
-  notice("Confirmed. Your buddy felt that little bounce!");
+  let msg = "Confirmed. Your buddy felt that little bounce!";
+  if (confirmed.drop?.name) {
+    msg += ` You found a ${confirmed.drop.tier} drop: ${confirmed.drop.name}!`;
+  }
+  notice(msg);
 }
 export async function act(action: Action) {
   await assertWallet();
@@ -117,6 +123,7 @@ export async function act(action: Action) {
     const confirmed = await api<{
       ok?: boolean;
       streak_milestone?: { streak: number; sparkles: number } | null;
+      drop?: { name: string; tier: string } | null;
     }>("/api/confirm", { id: c.id, signature });
     await refresh();
     let msg =
@@ -127,6 +134,9 @@ export async function act(action: Action) {
           : "All fresh. Hygiene restored.";
     if (confirmed.streak_milestone?.sparkles) {
       msg += ` Streak day ${confirmed.streak_milestone.streak}: +${confirmed.streak_milestone.sparkles} Sparkles!`;
+    }
+    if (confirmed.drop?.name) {
+      msg += ` You found a ${confirmed.drop.tier} drop: ${confirmed.drop.name}!`;
     }
     notice(msg);
     return;

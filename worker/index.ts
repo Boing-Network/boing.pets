@@ -28,6 +28,7 @@ import { STREAK_MILESTONE_SPARKLES } from "../src/partyBonus";
 import { WORLD_CONFIG } from "../src/world/config/zones";
 import { contentError, contentGet, contentPost } from "./content";
 import { economyError, economyGet, economyPost } from "./economy";
+import { dropsGet, maybeGrantCareDrop } from "./drops";
 import { socialError, socialGet, socialPost } from "./social";
 import { fishingError, fishingGet, fishingPost } from "./fishing";
 import { housingError, housingGet, housingPost } from "./housing";
@@ -296,6 +297,8 @@ async function api(req: Request, env: Env): Promise<Response> {
     }
     const economy = await economyGet(req, env, now);
     if (economy) return economy;
+    const drops = await dropsGet(req, env, now);
+    if (drops) return drops;
     try {
       const cosmetics = await cosmeticsGet(req, env, now);
       if (cosmetics) return cosmetics;
@@ -845,7 +848,16 @@ async function api(req: Request, env: Env): Promise<Response> {
         }
       }
     }
-    return json({ ok: true, streak_milestone: streakMilestone });
+    let drop = null;
+    if (petRow && c.action !== "hatch") {
+      try {
+        drop = await maybeGrantCareDrop(env, c.owner, c.action, now, c.id);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        if (!/no such table/i.test(msg)) throw error;
+      }
+    }
+    return json({ ok: true, streak_milestone: streakMilestone, drop });
   }
   throw new HttpError(404, "Not found");
 }

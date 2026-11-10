@@ -1,30 +1,107 @@
 import { CATALOG } from "../../economy";
+import { ONCHAIN_ITEMS } from "../../content/onchainItems";
+import { formatMarketPriceBoing, isSellableItem } from "../../market";
+import { hex32 } from "../../core";
 import {
   COLLECTION_CATEGORY_LABELS,
   COLLECTION_CATEGORY_ORDER,
   type CollectionCategory,
 } from "../../content/collections";
 import { collectionIconSvg } from "../itemIcons";
-import { api, app, $, notice } from "../appRuntime";
+import { api, app, $, $maybe, notice } from "../appRuntime";
 import { assertWallet, run } from "../careActions";
+
+function itemName(id: string): string {
+  return (
+    CATALOG.find((c) => c.id === id)?.name ||
+    ONCHAIN_ITEMS.find((c) => c.gameItemId === id)?.name ||
+    id
+  );
+}
 
 export async function economyAct(
   kind: string,
   extra: Record<string, unknown> = {},
 ) {
   await assertWallet();
-  notice("Approve the economy signature in Express…");
-  const challenge = await api<{ id: string; message: string }>(
-    "/api/economy/challenge",
-    { owner: app.owner, kind, ...extra },
-  );
+  const challenge = await api<{
+    id: string;
+    message: string;
+    transaction?: {
+      type: string;
+      from: string;
+      to: string;
+      amount: string;
+      priority_tip?: string;
+      display?: string;
+    } | null;
+    payload?: {
+      payment?: {
+        type: string;
+        to: string;
+        amount: string;
+        display?: string;
+      };
+    };
+  }>("/api/economy/challenge", { owner: app.owner, kind, ...extra });
+
+  let txHash: string | undefined;
+  const payment =
+    challenge.transaction ||
+    (challenge.payload?.payment
+      ? {
+          type: "transfer",
+          from: app.owner!,
+          to: challenge.payload.payment.to,
+          amount: challenge.payload.payment.amount,
+          priority_tip: "0",
+          display: challenge.payload.payment.display,
+        }
+      : null);
+
+  if (kind === "buy_listing" && payment) {
+    notice(
+      payment.display ||
+        "Approve the testnet BOING payment in Express, then the purchase signature.",
+    );
+    const result = (await app.provider!.request({
+      method: "boing_sendTransaction",
+      params: [payment],
+    })) as { tx_id?: string; tx_hash?: string } | string;
+    txHash = hex32(
+      typeof result === "string" ? result : result.tx_id || result.tx_hash,
+    );
+  } else {
+    notice("Approve the economy signature in Express…");
+  }
+
   const signature = await app.provider!.request({
     method: "boing_signMessage",
     params: [challenge.message, app.owner],
   });
-  await api("/api/economy/confirm", { id: challenge.id, signature });
-  await refreshEconomy();
-  notice("Economy action confirmed.");
+  const confirmBody: Record<string, unknown> = {
+    id: challenge.id,
+    signature,
+  };
+  if (txHash) confirmBody.tx_hash = txHash;
+
+  let lastError =
+    "Transaction is not included yet. Wait and retry confirmation.";
+  for (let i = 0; i < 8; i++) {
+    try {
+      await api("/api/economy/confirm", confirmBody);
+      await refreshEconomy();
+      notice("Economy action confirmed.");
+      return;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : lastError;
+      if (!txHash || !/not included yet|Wait and retry/i.test(lastError)) {
+        throw error;
+      }
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+  }
+  throw new Error(lastError);
 }
 
 export async function claimQuest(questId: string) {
@@ -165,13 +242,25 @@ export async function refreshEconomy() {
       seller: string;
       item_id: string;
       qty: number;
-      price_boinglets: number;
+      price_boing: string | null;
+      price_boinglets: number | null;
+      expires_at: number | null;
     }>;
+    rules?: {
+      feeBps: number;
+      minPriceBoing: string;
+      maxPriceBoing: string;
+      maxOpenListings: number;
+      expiryDays: number;
+      provisional?: boolean;
+      settlement?: string;
+    };
   }>("/api/marketplace");
   let summary =
-    "Connect to claim care rewards and daily testnet Sparkles, then browse cosmetics.";
+    "Connect to claim care rewards and daily testnet Sparkles, then browse cosmetics or list items in testnet BOING.";
   const claimBtn = $("#claim") as HTMLButtonElement;
   const sparklesBtn = $("#claim-sparkles") as HTMLButtonElement;
+  let inventory: Array<{ item_id: string; qty: number }> = [];
   if (app.owner) {
     const bal = await api<{
       balances: { boinglets: number; sparkles: number };
@@ -179,6 +268,7 @@ export async function refreshEconomy() {
       sparklesFaucet: { daily: number; claimable: number };
       inventory: Array<{ item_id: string; qty: number }>;
     }>("/api/economy/balance?owner=" + app.owner);
+    inventory = bal.inventory;
     summary = `${bal.balances.boinglets} Boinglets · ${bal.balances.sparkles} Sparkles · ${bal.care.claimable} care claimable · ${bal.inventory.length} inventory stacks`;
     claimBtn.hidden = false;
     claimBtn.disabled = app.busy || bal.care.claimable <= 0;
@@ -216,25 +306,163 @@ export async function refreshEconomy() {
       return el;
     }),
   );
+
+  const listItem = $maybe<HTMLSelectElement>("#list-item");
+  const listForm = $maybe<HTMLFormElement>("#list-form");
+  const listSubmit = $maybe<HTMLButtonElement>("#list-submit");
+  if (listItem) {
+    const sellable = inventory.filter((row) => isSellableItem(row.item_id));
+    listItem.replaceChildren(
+      ...sellable.map((row) => {
+        const opt = document.createElement("option");
+        opt.value = row.item_id;
+        opt.textContent = `${itemName(row.item_id)} × ${row.qty}`;
+        return opt;
+      }),
+    );
+    if (!sellable.length) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = app.owner
+        ? "No sellable items in inventory"
+        : "Connect to list an item";
+      listItem.append(opt);
+    }
+    if (listSubmit) {
+      listSubmit.disabled = app.busy || !app.owner || !sellable.length;
+    }
+  }
+  if (listForm && !listForm.dataset.bound) {
+    listForm.dataset.bound = "1";
+    listForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const itemId = $maybe<HTMLSelectElement>("#list-item")?.value;
+      const qty = Number($maybe<HTMLInputElement>("#list-qty")?.value || "1");
+      const price = $maybe<HTMLInputElement>("#list-price")?.value || "";
+      if (!itemId) return;
+      void run(() =>
+        economyAct("list", { item_id: itemId, qty, price_boing: price }),
+      );
+    });
+  }
+
   if (!market.listings.length) {
     $("#listings").textContent =
-      "No player listings yet. Buy from the catalog, then list from a future inventory panel.";
+      "No player listings yet. Buy from the catalog or earn a drop, then list it here in testnet BOING.";
   } else {
     $("#listings").replaceChildren(
       ...market.listings.map((listing) => {
-        const item = CATALOG.find((c) => c.id === listing.item_id);
+        const priceLabel = listing.price_boing
+          ? `${formatMarketPriceBoing(listing.price_boing)} testnet BOING`
+          : "Relist in testnet BOING";
+        const expiry = listing.expires_at
+          ? `Expires ${new Date(listing.expires_at).toLocaleDateString()}`
+          : "No expiry";
         const el = document.createElement("article");
         el.className = "market-card";
-        el.innerHTML = `<h3>${item?.name || listing.item_id}</h3><p class="subtle">${listing.qty}× · ${listing.price_boinglets} Boinglets</p><p class="small">${listing.seller.slice(0, 10)}…</p>`;
-        const btn = document.createElement("button");
-        btn.className = "secondary";
-        btn.textContent = "Buy listing · sign";
-        btn.disabled = app.busy || !app.owner || listing.seller === app.owner;
-        btn.onclick = () =>
-          void run(() => economyAct("buy_listing", { listing_id: listing.id }));
-        el.append(btn);
+        el.innerHTML = `<h3>${itemName(listing.item_id)}</h3><p class="subtle">${listing.qty}× · ${priceLabel}</p><p class="small">${listing.seller.slice(0, 10)}… · ${expiry}</p>`;
+        if (app.owner && listing.seller === app.owner) {
+          const btn = document.createElement("button");
+          btn.className = "secondary";
+          btn.textContent = "Cancel · sign";
+          btn.disabled = app.busy;
+          btn.onclick = () =>
+            void run(() =>
+              economyAct("cancel_listing", { listing_id: listing.id }),
+            );
+          el.append(btn);
+        } else {
+          const btn = document.createElement("button");
+          btn.className = "secondary";
+          btn.textContent = listing.price_boing
+            ? "Buy listing · pay BOING"
+            : "Relist required";
+          btn.disabled = app.busy || !app.owner || !listing.price_boing;
+          btn.onclick = () =>
+            void run(() =>
+              economyAct("buy_listing", { listing_id: listing.id }),
+            );
+          el.append(btn);
+        }
         return el;
       }),
     );
+  }
+
+  const rulesEl = $maybe("#market-rules");
+  if (rulesEl && market.rules) {
+    const provisional = market.rules.provisional
+      ? " Caps, expiry, and anti-wash holds are provisional."
+      : "";
+    rulesEl.textContent =
+      `${market.rules.feeBps / 100}% of each player-market sale sinks to the pasture treasury. ` +
+      `Up to ${market.rules.maxOpenListings} open listings, ${market.rules.expiryDays}-day expiry, ` +
+      `prices ${market.rules.minPriceBoing}–${market.rules.maxPriceBoing} testnet BOING.` +
+      provisional;
+  }
+
+  const dropTableEl = $maybe("#drop-table");
+  if (dropTableEl) {
+    const table = await api<{
+      version: string;
+      hitChanceBps: number;
+      entries: Array<{
+        itemId: number;
+        gameItemId: string;
+        name: string;
+        tier: string;
+        oddsPerMille: number;
+      }>;
+      pity: {
+        rareAfter: number;
+        premiumAfter: number;
+      };
+      caps: { maxDropsPerUtcDay: number; maxPremiumPerUtcWeek: number };
+      sources: string[];
+    }>("/api/drops/table");
+    dropTableEl.replaceChildren(
+      ...table.entries.map((entry) => {
+        const el = document.createElement("article");
+        el.className = "market-card";
+        el.innerHTML = `<h3>${entry.name}</h3><p class="subtle">${entry.tier} · ${entry.oddsPerMille / 10}% per hit</p><p class="small">Id ${entry.itemId} · ${entry.gameItemId}</p>`;
+        return el;
+      }),
+    );
+    const note = document.createElement("p");
+    note.className = "small";
+    note.textContent =
+      `${table.hitChanceBps / 100}% hit chance per daily ${table.sources.join(", ")}. ` +
+      `Pity: rare after ${table.pity.rareAfter}, premium after ${table.pity.premiumAfter}. ` +
+      `Caps: ${table.caps.maxDropsPerUtcDay} drops/UTC day, ${table.caps.maxPremiumPerUtcWeek} premium/UTC week. Table ${table.version}.`;
+    dropTableEl.append(note);
+  }
+
+  const historyEl = $maybe("#drop-history");
+  if (historyEl && app.owner) {
+    const history = await api<{
+      rolls: Array<{
+        source: string;
+        utc_day: string;
+        hit: number;
+        reason: string;
+        item_id: string | null;
+        digest_hex: string;
+      }>;
+    }>("/api/drops/history?owner=" + app.owner);
+    if (!history.rolls.length) {
+      historyEl.textContent = "No care-drop rolls for this wallet yet.";
+    } else {
+      historyEl.replaceChildren(
+        ...history.rolls.slice(0, 12).map((roll) => {
+          const el = document.createElement("article");
+          el.className = "market-card";
+          const grant = roll.hit ? itemName(roll.item_id || "") : "miss";
+          el.innerHTML = `<h3>${roll.utc_day} · ${roll.source}</h3><p class="subtle">${grant} · ${roll.reason}</p><p class="small">${roll.digest_hex.slice(0, 16)}…</p>`;
+          return el;
+        }),
+      );
+    }
+  } else if (historyEl) {
+    historyEl.textContent = "Connect to see your auditable drop history.";
   }
 }

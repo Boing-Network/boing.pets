@@ -109,6 +109,8 @@ beforeEach(async () => {
     "../migrations/0017_security_hardening.sql",
     "../migrations/0018_pet_care_rollup.sql",
     "../migrations/0019_party_bonuses.sql",
+    "../migrations/0023_pet_cosmetics.sql",
+    "../migrations/0025_market_boing_and_drops.sql",
   ]) {
     db.exec(readFileSync(new NodeURL(file, import.meta.url), "utf8"));
   }
@@ -1338,5 +1340,110 @@ describe("Pets API", () => {
       .bind(owner, "hat-ribbon")
       .first<{ qty: number }>();
     expect(inv?.qty || 0).toBe(1);
+  });
+
+  it("publishes the cosmetic drop table and testnet BOING market rules", async () => {
+    const tableRes = await request("/api/drops/table");
+    expect(tableRes.status).toBe(200);
+    const table = (await tableRes.json()) as {
+      version: string;
+      hitChanceBps: number;
+      entries: unknown[];
+    };
+    expect(table).toMatchObject({ version: "drop:v1", hitChanceBps: 1500 });
+    expect(table.entries).toHaveLength(7);
+
+    const marketRes = await request("/api/marketplace");
+    expect(marketRes.status).toBe(200);
+    const market = (await marketRes.json()) as {
+      listings: unknown[];
+      rules: {
+        currency: string;
+        feeBps: number;
+        provisional: boolean;
+        maxOpenListings: number;
+        expiryDays: number;
+      };
+    };
+    expect(market.listings).toEqual([]);
+    expect(market.rules).toMatchObject({
+      currency: "boing",
+      feeBps: 500,
+      provisional: true,
+      maxOpenListings: 8,
+      expiryDays: 7,
+    });
+  });
+
+  it("lists a held cosmetic only after the hold, priced in testnet BOING", async () => {
+    await hatch();
+    const claim = await request("/api/economy/challenge", {
+      owner,
+      kind: "claim",
+    });
+    const c = (await claim.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/economy/confirm", {
+          id: c.id,
+          signature: await signConfirm(c.message),
+        })
+      ).status,
+    ).toBe(200);
+    const buy = await request("/api/economy/challenge", {
+      owner,
+      kind: "buy_catalog",
+      item_id: "hat-ribbon",
+    });
+    const b = (await buy.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/economy/confirm", {
+          id: b.id,
+          signature: await signConfirm(b.message),
+        })
+      ).status,
+    ).toBe(200);
+
+    const held = await request("/api/economy/challenge", {
+      owner,
+      kind: "list",
+      item_id: "hat-ribbon",
+      qty: 1,
+      price_boing: "1",
+    });
+    expect(held.status).toBe(409);
+
+    db.prepare("UPDATE inventory_acquisitions SET created_at=0").run();
+    const list = await request("/api/economy/challenge", {
+      owner,
+      kind: "list",
+      item_id: "hat-ribbon",
+      qty: 1,
+      price_boing: "1",
+    });
+    expect(list.status).toBe(200);
+    const l = (await list.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/economy/confirm", {
+          id: l.id,
+          signature: await signConfirm(l.message),
+        })
+      ).status,
+    ).toBe(200);
+
+    const market = (await (await request("/api/marketplace")).json()) as {
+      listings: Array<{ item_id: string; price_boing: string; qty: number }>;
+    };
+    expect(market.listings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          item_id: "hat-ribbon",
+          qty: 1,
+          price_boing: "1000000000000000000",
+        }),
+      ]),
+    );
   });
 });
