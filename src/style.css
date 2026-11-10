@@ -1123,3 +1123,64 @@ a:hover {
     padding: 20px 16px 16px;
   }
 }
+
+#collections-list.market-grid,
+#collections-list {
+  display: grid;
+  gap: 36px;
+  grid-template-columns: 1fr;
+}
+.collection-group-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.collection-group-head h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.collection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+.collection-item {
+  background: #0f1930;
+  border: 1px solid #263552;
+  border-radius: 18px;
+  padding: 14px 12px 16px;
+  text-align: center;
+}
+.collection-item.is-collected {
+  border-color: #5ec4ff;
+  background: linear-gradient(160deg, #12263a, #16324f);
+}
+.collection-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 10px;
+}
+.collection-icon svg {
+  display: block;
+  width: 64px;
+  height: 64px;
+}
+.collection-item.is-locked .collection-icon {
+  filter: grayscale(1) brightness(0) invert(0.42);
+  opacity: 0.9;
+}
+.collection-item h4 {
+  margin: 0 0 6px;
+  font-size: 0.88rem;
+}
+.collection-item.is-locked h4,
+.collection-item.is-locked .small {
+  color: #7d8bab;
+}
+@media (max-width: 520px) {
+  .collection-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+}

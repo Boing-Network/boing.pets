@@ -9,11 +9,46 @@ import { isOreItem, ORES } from "./mining";
 import { isRibbonItem, RIBBONS } from "./racing";
 import { isTreasureItem, TREASURES } from "./treasure";
 
+export type CollectionCategory =
+  | "species"
+  | "fish"
+  | "treasure"
+  | "crops"
+  | "recipes"
+  | "ores"
+  | "ribbons"
+  | "discovery"
+  | "cosmetic";
+
+export const COLLECTION_CATEGORY_LABELS: Record<CollectionCategory, string> = {
+  species: "Species",
+  fish: "Fish",
+  treasure: "Treasure",
+  crops: "Crops",
+  recipes: "Recipes",
+  ores: "Ores",
+  ribbons: "Race ribbons",
+  discovery: "Discoveries",
+  cosmetic: "Cosmetics",
+};
+
+export const COLLECTION_CATEGORY_ORDER: CollectionCategory[] = [
+  "species",
+  "fish",
+  "treasure",
+  "crops",
+  "recipes",
+  "ores",
+  "ribbons",
+  "discovery",
+  "cosmetic",
+];
+
 export interface CollectionEntry {
   id: string;
   title: string;
   description: string;
-  category: "species" | "cosmetic" | "discovery";
+  category: CollectionCategory;
 }
 
 export const COLLECTION_DEFS: CollectionEntry[] = [
@@ -39,37 +74,37 @@ export const COLLECTION_DEFS: CollectionEntry[] = [
     id: `discovery:fish:${fish.id}`,
     title: fish.name,
     description: `Catch a ${fish.name} (${fish.rarity}).`,
-    category: "discovery" as const,
+    category: "fish" as const,
   })),
   ...TREASURES.map((loot) => ({
     id: `discovery:treasure:${loot.id}`,
     title: loot.name,
     description: `Dig up a ${loot.name} (${loot.rarity}).`,
-    category: "discovery" as const,
+    category: "treasure" as const,
   })),
   ...CROPS.map((crop) => ({
     id: `discovery:crop:${crop.id}`,
     title: crop.name,
     description: `Harvest a ${crop.name} from your garden.`,
-    category: "discovery" as const,
+    category: "crops" as const,
   })),
   ...RECIPES.map((recipe) => ({
     id: `discovery:recipe:${recipe.id}`,
     title: recipe.name,
     description: `Cook ${recipe.name} for the first time.`,
-    category: "discovery" as const,
+    category: "recipes" as const,
   })),
   ...ORES.map((ore) => ({
     id: `discovery:ore:${ore.id}`,
     title: ore.name,
     description: `Mine a ${ore.name} (${ore.rarity}).`,
-    category: "discovery" as const,
+    category: "ores" as const,
   })),
   ...RIBBONS.map((ribbon) => ({
     id: `discovery:ribbon:${ribbon.id}`,
     title: ribbon.name,
     description: `Place ${ribbon.place}${ribbon.place === 1 ? "st" : ribbon.place === 2 ? "nd" : "rd"} in a pet race.`,
-    category: "discovery" as const,
+    category: "ribbons" as const,
   })),
   ...CATALOG.map((item) => ({
     id: `cosmetic:${item.id}`,

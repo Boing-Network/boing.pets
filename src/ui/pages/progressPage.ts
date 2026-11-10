@@ -1,4 +1,10 @@
 import { CATALOG } from "../../economy";
+import {
+  COLLECTION_CATEGORY_LABELS,
+  COLLECTION_CATEGORY_ORDER,
+  type CollectionCategory,
+} from "../../content/collections";
+import { collectionIconSvg } from "../itemIcons";
 import { api, app, $, notice } from "../appRuntime";
 import { assertWallet, run } from "../careActions";
 
@@ -44,7 +50,7 @@ export async function refreshCollections() {
       id: string;
       title: string;
       description: string;
-      category: string;
+      category: CollectionCategory | string;
     }>;
     unlocked: Array<{ entry_id: string; unlocked_at: number }>;
   }>("/api/content/collections" + (app.owner ? `?owner=${app.owner}` : ""));
@@ -52,23 +58,53 @@ export async function refreshCollections() {
   const total = data.defs.length;
   const found = data.defs.filter((d) => unlocked.has(d.id)).length;
   $("#collections-summary").textContent = app.owner
-    ? `${found}/${total} unlocked · species, discoveries, and cosmetics`
+    ? `${found}/${total} unlocked across ${COLLECTION_CATEGORY_ORDER.length} categories`
     : `Browse ${total} collection entries — connect to track unlocks.`;
-  const order = ["species", "discovery", "cosmetic"];
-  const sorted = [...data.defs].sort((a, b) => {
-    const ca = order.indexOf(a.category);
-    const cb = order.indexOf(b.category);
-    if (ca !== cb) return ca - cb;
-    return a.title.localeCompare(b.title);
-  });
-  $("#collections-list").replaceChildren(
-    ...sorted.map((def) => {
-      const el = document.createElement("article");
+  const groups = new Map<string, typeof data.defs>();
+  for (const key of COLLECTION_CATEGORY_ORDER) groups.set(key, []);
+  for (const def of data.defs) {
+    const key = COLLECTION_CATEGORY_ORDER.includes(
+      def.category as CollectionCategory,
+    )
+      ? def.category
+      : "discovery";
+    (groups.get(key) ?? groups.get("discovery")!).push(def);
+  }
+  const sections: HTMLElement[] = [];
+  for (const key of COLLECTION_CATEGORY_ORDER) {
+    const items = (groups.get(key) || [])
+      .slice()
+      .sort((a, b) => a.title.localeCompare(b.title));
+    if (!items.length) continue;
+    const section = document.createElement("section");
+    section.className = "collection-group";
+    section.dataset.category = key;
+    const gotIn = items.filter((d) => unlocked.has(d.id)).length;
+    const heading = document.createElement("div");
+    heading.className = "collection-group-head";
+    heading.innerHTML = `<h3>${esc(COLLECTION_CATEGORY_LABELS[key as CollectionCategory] || key)}</h3><p class="subtle">${gotIn}/${items.length}</p>`;
+    const grid = document.createElement("div");
+    grid.className = "collection-grid";
+    for (const def of items) {
       const got = unlocked.has(def.id);
-      el.className = "market-card" + (got ? " collection-unlocked" : "");
-      el.innerHTML = `<h3>${def.title}${got ? " ✓" : ""}</h3><p class="subtle">${def.category}</p><p class="small">${def.description}</p>`;
-      return el;
-    }),
+      const el = document.createElement("article");
+      el.className = "collection-item" + (got ? " is-collected" : " is-locked");
+      el.innerHTML = `<div class="collection-icon" aria-hidden="true">${collectionIconSvg(def.id)}</div><h4>${esc(def.title)}${got ? " ✓" : ""}</h4><p class="small">${esc(def.description)}</p>`;
+      grid.append(el);
+    }
+    section.append(heading, grid);
+    sections.push(section);
+  }
+  $("#collections-list").replaceChildren(...sections);
+}
+
+function esc(value: string) {
+  return value.replace(
+    /[&<>"']/g,
+    (ch) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        ch
+      ]!,
   );
 }
 

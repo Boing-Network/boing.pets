@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { DAY } from "../src/core";
 import {
+  COLLECTION_CATEGORY_ORDER,
   COLLECTION_DEFS,
   collectionProgress,
   unlockedCollections,
 } from "../src/content/collections";
+import { collectionIconSvg } from "../src/ui/itemIcons";
 import { isQuestComplete, questPeriodKey, QUESTS } from "../src/content/quests";
 import { activeEvents } from "../src/content/seasons";
 
@@ -61,5 +63,19 @@ describe("content framework", () => {
     expect(progress.unlocked).toBe(2);
     expect(progress.byCategory.species?.unlocked).toBe(1);
     expect(progress.byCategory.cosmetic?.unlocked).toBe(1);
+    expect(progress.byCategory.fish?.total).toBeGreaterThan(0);
+    expect(progress.byCategory.ores?.total).toBeGreaterThan(0);
+    expect(progress.byCategory.discovery?.total).toBeGreaterThan(0);
+    for (const key of COLLECTION_CATEGORY_ORDER) {
+      expect(progress.byCategory[key]?.total).toBeGreaterThan(0);
+    }
+  });
+
+  it("provides a self-hosted icon for every collection entry", () => {
+    for (const def of COLLECTION_DEFS) {
+      const icon = collectionIconSvg(def.id);
+      expect(icon, def.id).toContain("<svg");
+      expect(icon, def.id).not.toContain("undefined");
+    }
   });
 });
