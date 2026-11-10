@@ -29,6 +29,7 @@ import {
 import { approachSpeed, desiredWalkSpeed, lerpAngle, retarget } from "./motion";
 import { meadowHeight } from "./meadowHeight";
 import { Meadow } from "./Meadow";
+import { PasturePaths } from "./PasturePaths";
 import { MeadowAtmosphere, pastureHourOverride } from "./MeadowAtmosphere";
 import type { PasturePet } from "./types";
 import type { EquippedCosmetics } from "../content/cosmetics";
@@ -452,10 +453,12 @@ export function PastureApp({
             onWalk={walkTo}
             walkEnabled={!!mine}
           />
+          <PasturePaths preferPerf={preferPerf} />
           <StarterTown
             zone={PASTURE_ZONE}
             hideGround
             hideTrees
+            hidePaths
             heightAt={meadowHeight}
           />
           <PastureWorld

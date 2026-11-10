@@ -5,12 +5,20 @@ import { PASTURE_ZONE } from "../world/config/zones";
 import { pastureDayLive } from "./MeadowAtmosphere";
 import { meadowHeight, PASTURE_FLATTEN } from "./meadowHeight";
 import {
+  MEADOW_APRON_TREE_SPOTS,
   MEADOW_BUSH_SPOTS,
+  MEADOW_EXTRA_BUSH_SPOTS,
   MEADOW_FENCES,
+  MEADOW_FLOWER_PATCHES,
+  MEADOW_ROCK_SPOTS,
+  MEADOW_TALL_GRASS_PATCHES,
   MEADOW_TREE_SPOTS,
   PASTURE_GROUND_RADIUS,
 } from "./meadowLayout";
 import { applyMeadowWind } from "./meadowWind";
+
+const ALL_TREE_SPOTS = [...MEADOW_TREE_SPOTS, ...MEADOW_APRON_TREE_SPOTS];
+const ALL_BUSH_SPOTS = [...MEADOW_BUSH_SPOTS, ...MEADOW_EXTRA_BUSH_SPOTS];
 
 function mulberry(seed: number) {
   let t = (seed + 0x6d2b79f5) >>> 0;
@@ -251,13 +259,13 @@ function MeadowTrees({ preferPerf }: { preferPerf: boolean }) {
   const puff = useRef<THREE.InstancedMesh>(null);
   const canopyMat = useRef<THREE.MeshStandardMaterial>(null);
   const puffMat = useRef<THREE.MeshStandardMaterial>(null);
-  const count = MEADOW_TREE_SPOTS.length;
+  const count = ALL_TREE_SPOTS.length;
 
   useLayoutEffect(() => {
     const dummy = new THREE.Object3D();
     const write = (mesh: THREE.InstancedMesh | null, offset: THREE.Vector3) => {
       if (!mesh) return;
-      MEADOW_TREE_SPOTS.forEach(([x, z], i) => {
+      ALL_TREE_SPOTS.forEach(([x, z], i) => {
         const y = meadowHeight(x, z);
         dummy.position.set(x + offset.x, y + offset.y, z + offset.z);
         dummy.rotation.set(0, 0, 0);
@@ -321,12 +329,12 @@ function MeadowTrees({ preferPerf }: { preferPerf: boolean }) {
 function MeadowBushes({ preferPerf }: { preferPerf: boolean }) {
   const mesh = useRef<THREE.InstancedMesh>(null);
   const mat = useRef<THREE.MeshStandardMaterial>(null);
-  const count = MEADOW_BUSH_SPOTS.length;
+  const count = ALL_BUSH_SPOTS.length;
   useLayoutEffect(() => {
     const inst = mesh.current;
     if (!inst) return;
     const dummy = new THREE.Object3D();
-    MEADOW_BUSH_SPOTS.forEach(([x, z], i) => {
+    ALL_BUSH_SPOTS.forEach(([x, z], i) => {
       const y = meadowHeight(x, z);
       dummy.position.set(x, y + 0.28, z);
       dummy.rotation.set(0, i * 0.7, 0);
@@ -483,6 +491,112 @@ function Birds({ count }: { count: number }) {
   );
 }
 
+function MeadowPatches({ preferPerf }: { preferPerf: boolean }) {
+  const flowerMesh = useRef<THREE.InstancedMesh>(null);
+  const grassMesh = useRef<THREE.InstancedMesh>(null);
+  const grassMat = useRef<THREE.MeshStandardMaterial>(null);
+  const rockMesh = useRef<THREE.InstancedMesh>(null);
+  const flowerCount = preferPerf ? 160 : 420;
+  const grassCount = preferPerf ? 220 : 640;
+
+  useLayoutEffect(() => {
+    const dummy = new THREE.Object3D();
+    const color = new THREE.Color();
+    const flowerColors = [
+      "#ef9bb8",
+      "#f2d38a",
+      "#c9a0e8",
+      "#f4a27a",
+      "#f7f0c8",
+    ];
+    const flower = flowerMesh.current;
+    if (flower) {
+      let placed = 0;
+      let i = 0;
+      while (placed < flowerCount && i < flowerCount * 6) {
+        const patch = MEADOW_FLOWER_PATCHES[i % MEADOW_FLOWER_PATCHES.length]!;
+        const ang = mulberry(i * 19 + 3) * Math.PI * 2;
+        const rad = Math.sqrt(mulberry(i * 23 + 5)) * 3.2;
+        const x = patch[0] + Math.cos(ang) * rad;
+        const z = patch[1] + Math.sin(ang) * rad;
+        i += 1;
+        dummy.position.set(x, meadowHeight(x, z) + 0.05, z);
+        dummy.scale.setScalar(0.7 + mulberry(i * 7) * 0.8);
+        dummy.rotation.set(0, mulberry(i) * Math.PI * 2, 0);
+        dummy.updateMatrix();
+        flower.setMatrixAt(placed, dummy.matrix);
+        color.set(flowerColors[placed % flowerColors.length]!);
+        flower.setColorAt(placed, color);
+        placed += 1;
+      }
+      flower.count = placed;
+      flower.instanceMatrix.needsUpdate = true;
+      if (flower.instanceColor) flower.instanceColor.needsUpdate = true;
+    }
+    const grass = grassMesh.current;
+    if (grass) {
+      let placed = 0;
+      let i = 0;
+      while (placed < grassCount && i < grassCount * 6) {
+        const patch =
+          MEADOW_TALL_GRASS_PATCHES[i % MEADOW_TALL_GRASS_PATCHES.length]!;
+        const ang = mulberry(i * 29 + 11) * Math.PI * 2;
+        const rad = Math.sqrt(mulberry(i * 31 + 2)) * 3.8;
+        const x = patch[0] + Math.cos(ang) * rad;
+        const z = patch[1] + Math.sin(ang) * rad;
+        i += 1;
+        dummy.position.set(x, meadowHeight(x, z), z);
+        dummy.scale.setScalar(0.9 + mulberry(i * 9) * 1.4);
+        dummy.rotation.set(0, mulberry(i * 3) * Math.PI * 2, 0);
+        dummy.updateMatrix();
+        grass.setMatrixAt(placed, dummy.matrix);
+        placed += 1;
+      }
+      grass.count = placed;
+      grass.instanceMatrix.needsUpdate = true;
+      if (grassMat.current && !preferPerf)
+        applyMeadowWind(grassMat.current, 0.2);
+    }
+    const rocks = rockMesh.current;
+    if (rocks) {
+      MEADOW_ROCK_SPOTS.forEach(([x, z], i) => {
+        const y = meadowHeight(x, z);
+        dummy.position.set(x, y + 0.05, z);
+        dummy.rotation.set(mulberry(i) * 0.4, i * 0.7, mulberry(i + 2) * 0.3);
+        dummy.scale.setScalar(0.8 + (i % 4) * 0.25);
+        dummy.updateMatrix();
+        rocks.setMatrixAt(i, dummy.matrix);
+      });
+      rocks.count = MEADOW_ROCK_SPOTS.length;
+      rocks.instanceMatrix.needsUpdate = true;
+    }
+  }, [preferPerf, flowerCount, grassCount]);
+
+  return (
+    <group>
+      <instancedMesh
+        ref={flowerMesh}
+        args={[undefined, undefined, flowerCount]}
+      >
+        <sphereGeometry args={[0.08, 6, 6]} />
+        <meshStandardMaterial roughness={0.6} />
+      </instancedMesh>
+      <instancedMesh ref={grassMesh} args={[undefined, undefined, grassCount]}>
+        <coneGeometry args={[0.07, 0.55, 5]} />
+        <meshStandardMaterial ref={grassMat} color="#4a8a46" roughness={0.95} />
+      </instancedMesh>
+      <instancedMesh
+        ref={rockMesh}
+        args={[undefined, undefined, MEADOW_ROCK_SPOTS.length]}
+        castShadow={!preferPerf}
+      >
+        <icosahedronGeometry args={[0.28, 0]} />
+        <meshStandardMaterial color="#8a8478" roughness={0.92} flatShading />
+      </instancedMesh>
+    </group>
+  );
+}
+
 export function Meadow({
   preferPerf,
   onWalk,
@@ -492,9 +606,9 @@ export function Meadow({
   onWalk: (x: number, z: number) => void;
   walkEnabled: boolean;
 }) {
-  const grass = preferPerf ? 280 : 780;
-  const flowers = preferPerf ? 70 : 160;
-  const rocks = preferPerf ? 16 : 36;
+  const grass = preferPerf ? 360 : 980;
+  const flowers = preferPerf ? 90 : 200;
+  const rocks = preferPerf ? 20 : 48;
   return (
     <group>
       <Clouds preferPerf={preferPerf} />
@@ -505,6 +619,7 @@ export function Meadow({
       <Pond />
       <MeadowTrees preferPerf={preferPerf} />
       <MeadowBushes preferPerf={preferPerf} />
+      <MeadowPatches preferPerf={preferPerf} />
       <MeadowFences preferPerf={preferPerf} />
       {preferPerf ? null : (
         <>

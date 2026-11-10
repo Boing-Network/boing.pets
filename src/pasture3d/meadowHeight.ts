@@ -16,16 +16,30 @@ export const PASTURE_FLATTEN: readonly FlattenSpot[] = [
 
 const PATH_FLATTEN_RADIUS = 1.7;
 
+export function meadowHeightCoarse(x: number, z: number): number {
+  return (
+    Math.sin(x * 0.055) * Math.cos(z * 0.048) * 0.88 +
+    Math.sin((x + z) * 0.07) * 0.1
+  );
+}
+
 export function meadowHeight(
   x: number,
   z: number,
   flatten: readonly FlattenSpot[] = PASTURE_FLATTEN,
 ): number {
+  const coarse = meadowHeightCoarse(x, z);
   const h =
-    Math.sin(x * 0.055) * Math.cos(z * 0.048) * 0.88 +
+    coarse +
     Math.sin(x * 0.11) * Math.cos(z * 0.09) * 0.42 +
-    Math.sin(x * 0.27 + 1.7) * Math.cos(z * 0.23) * 0.16 +
-    Math.sin((x + z) * 0.07) * 0.1;
+    Math.sin(x * 0.27 + 1.7) * Math.cos(z * 0.23) * 0.16;
+  let pathW = 0;
+  const pathDist = distanceToPasturePath(x, z);
+  if (pathDist < PATH_FLATTEN_RADIUS) {
+    const t = 1 - pathDist / PATH_FLATTEN_RADIUS;
+    pathW = t * t * (3 - 2 * t);
+  }
+  const y = h * (1 - pathW) + coarse * pathW;
   let wMax = 0;
   for (const spot of flatten) {
     const d = Math.hypot(x - spot.x, z - spot.z);
@@ -33,10 +47,5 @@ export function meadowHeight(
     const t = 1 - d / spot.radius;
     wMax = Math.max(wMax, t * t * (3 - 2 * t));
   }
-  const pathDist = distanceToPasturePath(x, z);
-  if (pathDist < PATH_FLATTEN_RADIUS) {
-    const t = 1 - pathDist / PATH_FLATTEN_RADIUS;
-    wMax = Math.max(wMax, t * t * (3 - 2 * t));
-  }
-  return h * (1 - wMax);
+  return y * (1 - wMax);
 }

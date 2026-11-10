@@ -89,11 +89,13 @@ export function StarterTown({
   zone,
   hideGround = false,
   hideTrees = false,
+  hidePaths = false,
   heightAt,
 }: {
   zone: WorldZoneConfig;
   hideGround?: boolean;
   hideTrees?: boolean;
+  hidePaths?: boolean;
   heightAt?: (x: number, z: number) => number;
 }) {
   const yAt = (x: number, z: number) => heightAt?.(x, z) ?? 0;
@@ -123,18 +125,21 @@ export function StarterTown({
         </>
       )}
 
-      {zone.paths.map((path, i) => (
-        <PathRibbon
-          key={i}
-          a={path[0]!}
-          b={path[1]!}
-          width={i < 2 ? 2.2 : 1.55}
-          y={
-            (yAt(path[0]!.x, path[0]!.z) + yAt(path[1]!.x, path[1]!.z)) / 2 +
-            0.03
-          }
-        />
-      ))}
+      {hidePaths
+        ? null
+        : zone.paths.map((path, i) => (
+            <PathRibbon
+              key={i}
+              a={path[0]!}
+              b={path[1]!}
+              width={i < 2 ? 2.2 : 1.55}
+              y={
+                (yAt(path[0]!.x, path[0]!.z) + yAt(path[1]!.x, path[1]!.z)) /
+                  2 +
+                0.03
+              }
+            />
+          ))}
 
       {zone.landmarks.map((item) => (
         <Landmark
