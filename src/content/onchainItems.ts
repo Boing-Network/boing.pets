@@ -3,10 +3,13 @@
  * contract (ERC-1155-style shared item types, see boing.network docs/BOING-REFERENCE-MULTI-TOKEN.md).
  *
  * Off-chain inventory stays the source of truth for play. A withdrawal moves a stack out of
- * the D1 inventory and the Pets operator key mints the same quantity of the mapped item id
- * to the player's wallet. A deposit is a player-signed transfer of those items back to the
- * Pets operator; the Worker verifies the receipt and credits inventory once per tx hash.
- * On-chain item ids are permanent: never renumber or reuse one.
+ * the D1 inventory and credits the player's wallet. If the operator already holds a balance
+ * of that item id (from earlier deposits), the operator transfers it; only the shortfall is
+ * minted, so a withdraw+deposit round trip does not inflate totalSupply. A deposit is a
+ * player-signed transfer of those items back to the Pets operator; the Worker verifies the
+ * receipt and credits inventory once per tx hash. On-chain item ids are permanent: never
+ * renumber or reuse one. Some ids are reserved and stay unmapped (see
+ * ONCHAIN_RESERVED_ITEM_IDS).
  *
  * Calldata, storage keys, and storage-word parsing come from `@boing-network/boing-sdk`.
  */
@@ -21,14 +24,7 @@ import {
 } from "@boing-network/boing-sdk";
 
 export type OnchainItemCategory =
-  | "ore"
-  | "fish"
-  | "treasure"
-  | "crop"
-  | "food"
-  | "ribbon"
-  | "material"
-  | "cosmetic";
+  "ore" | "fish" | "treasure" | "crop" | "food" | "material" | "cosmetic";
 
 export interface OnchainItemDef {
   /** Off-chain inventory id (`inventory.item_id`). */
@@ -44,8 +40,10 @@ export interface OnchainItemDef {
  * Gaps between bands are reserved for future items in that category.
  * Pets stay unique NFTs (not listed here). Species/discovery collection
  * entries and cook-book recipe defs are achievements or recipes, not inventory
- * stacks, and stay off-chain. Metadata for ids other than 1-3 has not been
- * set on-chain yet; do not mint those ids until the table is approved.
+ * stacks, and stay off-chain. Race ribbons (ids 50-52) stay off-chain so
+ * placements cannot be bought. The starter Wood Pick (id 60) stays off-chain
+ * because every player starts with one and withdrawing it would mint unlimited
+ * copies. Those ids are reserved and must never be reused.
  */
 export const ONCHAIN_ITEMS: readonly OnchainItemDef[] = [
   {
@@ -134,30 +132,6 @@ export const ONCHAIN_ITEMS: readonly OnchainItemDef[] = [
     category: "food",
   },
   {
-    gameItemId: "ribbon-gold",
-    itemId: 50,
-    name: "Gold Race Ribbon",
-    category: "ribbon",
-  },
-  {
-    gameItemId: "ribbon-silver",
-    itemId: 51,
-    name: "Silver Race Ribbon",
-    category: "ribbon",
-  },
-  {
-    gameItemId: "ribbon-bronze",
-    itemId: 52,
-    name: "Bronze Race Ribbon",
-    category: "ribbon",
-  },
-  {
-    gameItemId: "tool-pick-wood",
-    itemId: 60,
-    name: "Wood Pick",
-    category: "material",
-  },
-  {
     gameItemId: "tool-pick-iron",
     itemId: 61,
     name: "Iron Pick",
@@ -210,6 +184,38 @@ export const ONCHAIN_ITEMS: readonly OnchainItemDef[] = [
     itemId: 76,
     name: "Meadow Lamp",
     category: "cosmetic",
+  },
+];
+
+/** Ids that must stay unused so they are never reassigned to a new item. */
+export const ONCHAIN_RESERVED_ITEM_IDS: readonly {
+  itemId: number;
+  gameItemId: string;
+  reason: string;
+}[] = [
+  {
+    itemId: 50,
+    gameItemId: "ribbon-gold",
+    reason:
+      "Race ribbons stay off-chain achievements so placements cannot be bought.",
+  },
+  {
+    itemId: 51,
+    gameItemId: "ribbon-silver",
+    reason:
+      "Race ribbons stay off-chain achievements so placements cannot be bought.",
+  },
+  {
+    itemId: 52,
+    gameItemId: "ribbon-bronze",
+    reason:
+      "Race ribbons stay off-chain achievements so placements cannot be bought.",
+  },
+  {
+    itemId: 60,
+    gameItemId: "tool-pick-wood",
+    reason:
+      "Every player starts with a free Wood Pick, so withdrawing it would let anyone mint unlimited copies.",
   },
 ];
 

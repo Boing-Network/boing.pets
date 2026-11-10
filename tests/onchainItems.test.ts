@@ -19,10 +19,12 @@ import { PICKAXES } from "../src/content/mining";
 import {
   MT_ADMIN_STORAGE_KEY,
   ONCHAIN_ITEMS,
+  ONCHAIN_RESERVED_ITEM_IDS,
   mtBalanceStorageKey,
   mtMintCalldata,
   mtTransferCalldata,
   onchainItemByGameId,
+  onchainItemByItemId,
   storageWordQty,
 } from "../src/content/onchainItems";
 import { RIBBONS } from "../src/content/racing";
@@ -63,10 +65,37 @@ let rpcState: {
   simulate: { success: boolean; error?: string };
   submitError: { code: number; message: string } | null;
   receipt: Record<string, unknown> | null;
+  receiptsByHash: Record<string, Record<string, unknown> | null> | null;
   block: Record<string, unknown> | null;
   balance: number;
+  operatorBalance: number;
   calls: string[];
 };
+
+function withdrawalLegs(id?: string) {
+  const sql = id
+    ? "SELECT signed_tx, tx_hash, admin_nonce, qty, status, error FROM onchain_withdrawals WHERE id=?"
+    : "SELECT signed_tx, tx_hash, admin_nonce, qty, status, error FROM onchain_withdrawals";
+  const row = (id ? db.prepare(sql).get(id) : db.prepare(sql).get()) as {
+    signed_tx: string;
+    tx_hash: string;
+    admin_nonce: number;
+    qty: number;
+    status: string;
+    error: string | null;
+  };
+  const parsed = JSON.parse(row.signed_tx) as {
+    v: number;
+    legs: Array<{
+      kind: string;
+      qty: number;
+      nonce: number;
+      signed: string;
+      hash: string;
+    }>;
+  };
+  return { row, legs: parsed.legs };
+}
 
 async function post(path: string, body: unknown) {
   return app.fetch(
@@ -131,8 +160,10 @@ beforeEach(async () => {
     simulate: { success: true },
     submitError: null,
     receipt: null,
+    receiptsByHash: null,
     block: null,
     balance: 0,
+    operatorBalance: 0,
     calls: [],
   };
   env = {
@@ -170,6 +201,14 @@ beforeEach(async () => {
         const key = String(params[1]);
         if (key === MT_ADMIN_STORAGE_KEY)
           return ok({ value: rpcState.adminWord });
+        const operatorKeys = new Set(
+          ONCHAIN_ITEMS.map((item) => mtBalanceStorageKey(admin, item.itemId)),
+        );
+        if (operatorKeys.has(key))
+          return ok({
+            value:
+              "0x" + rpcState.operatorBalance.toString(16).padStart(64, "0"),
+          });
         return ok({
           value: "0x" + rpcState.balance.toString(16).padStart(64, "0"),
         });
@@ -186,7 +225,12 @@ beforeEach(async () => {
           });
         return ok({ tx_hash: "ok" });
       }
-      if (method === "boing_getTransactionReceipt") return ok(rpcState.receipt);
+      if (method === "boing_getTransactionReceipt") {
+        const hash = String(params[0] || "").toLowerCase();
+        if (rpcState.receiptsByHash && hash in rpcState.receiptsByHash)
+          return ok(rpcState.receiptsByHash[hash]);
+        return ok(rpcState.receipt);
+      }
       if (method === "boing_getBlockByHeight") return ok(rpcState.block);
       return ok(null);
     }),
@@ -350,6 +394,95 @@ describe("on-chain item withdrawals", () => {
     expect(res.status).toBe(403);
     expect(inventoryQty("ore-spark")).toBe(5);
   });
+
+  it("transfers from the operator when it already holds enough", async () => {
+    rpcState.operatorBalance = 5;
+    const res = await withdraw(3);
+    expect(res.status).toBe(200);
+    const { row, legs } = withdrawalLegs();
+    expect(legs).toHaveLength(1);
+    expect(legs[0]).toMatchObject({ kind: "transfer", qty: 3, nonce: 7 });
+    expect(row).toMatchObject({ admin_nonce: 7, status: "submitted", qty: 3 });
+    expect(inventoryQty("ore-spark")).toBe(2);
+    expect(
+      rpcState.calls.filter((m) => m === "boing_submitTransaction"),
+    ).toHaveLength(1);
+    expect(rpcState.calls).toContain("boing_simulateTransaction");
+
+    rpcState.receipt = { success: true };
+    rpcState.balance = 3;
+    const status = (await (
+      await get("/api/items/onchain?owner=" + owner)
+    ).json()) as { withdrawals: Array<{ status: string }> };
+    expect(status.withdrawals[0]!.status).toBe("minted");
+    expect(inventoryQty("ore-spark")).toBe(2);
+  });
+
+  it("splits a transfer of the operator balance and a mint of the remainder", async () => {
+    rpcState.operatorBalance = 2;
+    const res = await withdraw(5);
+    expect(res.status).toBe(200);
+    const { row, legs } = withdrawalLegs();
+    expect(
+      legs.map((leg) => ({ kind: leg.kind, qty: leg.qty, nonce: leg.nonce })),
+    ).toEqual([
+      { kind: "transfer", qty: 2, nonce: 7 },
+      { kind: "mint", qty: 3, nonce: 8 },
+    ]);
+    expect(row).toMatchObject({ admin_nonce: 8, status: "submitted", qty: 5 });
+    expect(inventoryQty("ore-spark")).toBe(0);
+    expect(
+      rpcState.calls.filter((m) => m === "boing_submitTransaction"),
+    ).toHaveLength(2);
+
+    rpcState.receiptsByHash = {
+      [legs[0]!.hash]: { success: true },
+      [legs[1]!.hash]: { success: true },
+    };
+    rpcState.balance = 5;
+    const status = (await (
+      await get("/api/items/onchain?owner=" + owner)
+    ).json()) as {
+      withdrawals: Array<{ status: string; tx_hashes?: string[] }>;
+    };
+    expect(status.withdrawals[0]!.status).toBe("minted");
+    expect(status.withdrawals[0]!.tx_hashes).toEqual([
+      legs[0]!.hash,
+      legs[1]!.hash,
+    ]);
+    expect(inventoryQty("ore-spark")).toBe(0);
+  });
+
+  it("refunds only the undelivered mint when a split transfer already landed", async () => {
+    rpcState.operatorBalance = 2;
+    expect((await withdraw(5)).status).toBe(200);
+    const { legs } = withdrawalLegs();
+    rpcState.receiptsByHash = {
+      [legs[0]!.hash]: { success: true },
+      [legs[1]!.hash]: { success: false, error: "mint failed" },
+    };
+    await get("/api/items/onchain?owner=" + owner);
+    await get("/api/items/onchain?owner=" + owner);
+    expect(inventoryQty("ore-spark")).toBe(3);
+    const row = db
+      .prepare("SELECT status, error FROM onchain_withdrawals")
+      .get() as { status: string; error: string };
+    expect(row.status).toBe("minted");
+    expect(row.error).toMatch(/mint of 3/);
+  });
+
+  it("refunds the full amount once when a transfer-only withdrawal is dropped", async () => {
+    rpcState.operatorBalance = 5;
+    expect((await withdraw(3)).status).toBe(200);
+    expect(inventoryQty("ore-spark")).toBe(2);
+    rpcState.nonce = 8;
+    await get("/api/items/onchain?owner=" + owner);
+    await get("/api/items/onchain?owner=" + owner);
+    expect(inventoryQty("ore-spark")).toBe(5);
+    expect(db.prepare("SELECT status FROM onchain_withdrawals").get()).toEqual({
+      status: "refunded",
+    });
+  });
 });
 
 const DEPOSIT_TX = "0x" + "ab".repeat(32);
@@ -503,7 +636,7 @@ describe("on-chain item deposits", () => {
 });
 
 describe("on-chain item id table", () => {
-  it("keeps ores at 1-3 and maps every stackable inventory item once", () => {
+  it("keeps ores at 1-3 and maps every approved stackable item once", () => {
     expect(onchainItemByGameId("ore-pebble")?.itemId).toBe(1);
     expect(onchainItemByGameId("ore-spark")?.itemId).toBe(2);
     expect(onchainItemByGameId("ore-crystal")?.itemId).toBe(3);
@@ -516,8 +649,7 @@ describe("on-chain item id table", () => {
       ...TREASURES.map((i) => i.id),
       ...CROPS.map((i) => i.id),
       ...RECIPES.map((i) => i.foodId),
-      ...RIBBONS.map((i) => i.id),
-      ...PICKAXES.map((i) => i.id),
+      ...PICKAXES.filter((i) => i.id !== "tool-pick-wood").map((i) => i.id),
       ...CATALOG.map((i) => i.id),
     ];
     for (const id of required) {
@@ -525,6 +657,37 @@ describe("on-chain item id table", () => {
     }
     expect(onchainItemByGameId("recipe-sprout-salad")).toBeUndefined();
     expect(onchainItemByGameId("species:boingle")).toBeUndefined();
+    expect(onchainItemByGameId("tool-pick-wood")).toBeUndefined();
+    for (const ribbon of RIBBONS) {
+      expect(onchainItemByGameId(ribbon.id), ribbon.id).toBeUndefined();
+    }
+    for (const reserved of ONCHAIN_RESERVED_ITEM_IDS) {
+      expect(ids).not.toContain(reserved.itemId);
+      expect(onchainItemByGameId(reserved.gameItemId)).toBeUndefined();
+      expect(onchainItemByItemId(reserved.itemId)).toBeUndefined();
+    }
+  });
+
+  it("rejects wood pick and race ribbons as unmapped", async () => {
+    for (const item of [
+      "tool-pick-wood",
+      "ribbon-gold",
+      "ribbon-silver",
+      "ribbon-bronze",
+    ]) {
+      db.prepare(
+        "INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,?) ON CONFLICT(owner,item_id) DO UPDATE SET qty=5",
+      ).run(owner, item, 5);
+      const res = await post("/api/items/withdraw/challenge", {
+        owner,
+        game_item_id: item,
+        qty: 1,
+      });
+      expect(res.status, item).toBe(400);
+      expect(await res.json()).toMatchObject({
+        error: "This item cannot be withdrawn on-chain",
+      });
+    }
   });
 });
 

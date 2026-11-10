@@ -4,10 +4,12 @@
  * MULTI_TOKEN_CONTRACT and the MULTI_TOKEN_ADMIN_SECRET_KEY secret are both configured.
  *
  * Withdraw flow: challenge (player signs the exact item + qty) -> confirm: the operator
- * key signs a `mint(player, item, qty)` tx, it is simulated, the inventory debit and the
- * signed tx are written atomically, then the tx is submitted. Pending mints are re-checked
- * on read: a failed receipt, or the operator nonce moving past the tx without a receipt,
- * refunds the stack exactly once.
+ * reuses its on-chain balance of that item when it can (a transfer to the player), and
+ * mints only the shortfall. The first leg is simulated when it is next in line, the
+ * inventory debit and the signed tx(s) are written atomically, then the tx(s) are
+ * submitted. Pending withdrawals are re-checked on read: a failed receipt, or the
+ * operator nonce moving past a leg without a receipt, refunds only the undelivered
+ * quantity exactly once.
  *
  * Deposit flow: the player signs `transfer(operator, item, qty)` in Express and submits
  * it themselves (v1 has no burn). `POST /api/items/deposit/confirm` verifies the included
@@ -39,7 +41,7 @@ import {
 import { hex32 } from "../src/core";
 
 const CHAIN_ID = 6913;
-/** Resubmit an unresolved signed mint at most this often. */
+/** Resubmit unresolved signed withdrawal txs at most this often. */
 const RESUBMIT_AFTER_MS = 60_000;
 
 class HttpError extends Error {
@@ -156,21 +158,67 @@ async function adminNonce(env: Env, admin: string): Promise<number> {
   return n;
 }
 
-async function signMint(
+type WithdrawLegKind = "transfer" | "mint";
+
+interface WithdrawLeg {
+  kind: WithdrawLegKind;
+  qty: number;
+  nonce: number;
+  signed: string;
+  hash: string;
+}
+
+interface WithdrawLegsPayload {
+  v: 1;
+  legs: WithdrawLeg[];
+}
+
+/** New rows store one or two signed legs as JSON. Legacy rows are a raw signed mint hex. */
+function parseLegs(w: WithdrawalRow): WithdrawLeg[] {
+  const raw = (w.signed_tx || "").trim();
+  if (raw.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(raw) as WithdrawLegsPayload;
+      if (
+        parsed?.v === 1 &&
+        Array.isArray(parsed.legs) &&
+        parsed.legs.length > 0
+      )
+        return parsed.legs;
+    } catch {
+      /* Fall through to the legacy single-mint encoding. */
+    }
+  }
+  return [
+    {
+      kind: "mint",
+      qty: w.qty,
+      nonce: w.admin_nonce,
+      signed: w.signed_tx,
+      hash: w.tx_hash,
+    },
+  ];
+}
+
+function encodeLegs(legs: WithdrawLeg[]): string {
+  const payload: WithdrawLegsPayload = { v: 1, legs };
+  return JSON.stringify(payload);
+}
+
+async function signOperatorCall(
   cfg: Config,
   nonce: number,
   to: string,
-  itemId: number,
-  qty: number,
+  calldata: Uint8Array,
 ) {
   const tx = buildContractCallTransaction({
     nonce: BigInt(nonce),
     senderHex: cfg.admin,
     contractHex: cfg.contract,
-    calldata: mtMintCalldata(to, itemId, qty),
+    calldata,
     accessList: {
-      read: [cfg.admin, cfg.contract],
-      write: [cfg.admin, cfg.contract],
+      read: [cfg.admin, cfg.contract, to],
+      write: [cfg.admin, cfg.contract, to],
     },
   });
   const signed = await signTransactionInput(tx, cfg.secret, {
@@ -180,6 +228,54 @@ async function signMint(
     signed,
     hash: transactionIdFromSignedTransactionHex(signed).toLowerCase(),
   };
+}
+
+async function signMint(
+  cfg: Config,
+  nonce: number,
+  to: string,
+  itemId: number,
+  qty: number,
+) {
+  return signOperatorCall(cfg, nonce, to, mtMintCalldata(to, itemId, qty));
+}
+
+async function signTransfer(
+  cfg: Config,
+  nonce: number,
+  to: string,
+  itemId: number,
+  qty: number,
+) {
+  return signOperatorCall(cfg, nonce, to, mtTransferCalldata(to, itemId, qty));
+}
+
+/** Transfer the operator's existing balance first; mint only the shortfall. */
+async function planWithdrawLegs(
+  env: Env,
+  cfg: Config,
+  startNonce: number,
+  to: string,
+  itemId: number,
+  qty: number,
+): Promise<WithdrawLeg[]> {
+  const operatorBal = await onchainBalance(env, cfg, cfg.admin, itemId);
+  const transferQty = Math.min(Math.max(0, operatorBal), qty);
+  const mintQty = qty - transferQty;
+  const legs: WithdrawLeg[] = [];
+  let nonce = startNonce;
+  if (transferQty > 0) {
+    const signed = await signTransfer(cfg, nonce, to, itemId, transferQty);
+    legs.push({ kind: "transfer", qty: transferQty, nonce, ...signed });
+    nonce += 1;
+  }
+  if (mintQty > 0) {
+    const signed = await signMint(cfg, nonce, to, itemId, mintQty);
+    legs.push({ kind: "mint", qty: mintQty, nonce, ...signed });
+  }
+  if (legs.length === 0)
+    throw new HttpError(500, "Withdrawal produced no transactions");
+  return legs;
 }
 
 function isAlreadyKnown(e: unknown) {
@@ -211,6 +307,8 @@ function refundStatements(
   w: WithdrawalRow,
   reason: string,
   now: number,
+  refundQty = w.qty,
+  status: "refunded" | "minted" = "refunded",
 ) {
   // Credit first, guarded on the row still being in flight, then close the row: exactly-once.
   return [
@@ -218,14 +316,16 @@ function refundStatements(
       `INSERT INTO inventory(owner,item_id,qty)
        SELECT ?,?,? WHERE EXISTS (SELECT 1 FROM onchain_withdrawals WHERE id=? AND status='submitted')
        ON CONFLICT(owner,item_id) DO UPDATE SET qty=qty+excluded.qty`,
-    ).bind(w.owner, w.game_item_id, w.qty, w.id),
+    ).bind(w.owner, w.game_item_id, refundQty, w.id),
     env.DB.prepare(
-      "UPDATE onchain_withdrawals SET status='refunded', error=?, updated_at=? WHERE id=? AND status='submitted'",
-    ).bind(reason.slice(0, 200), now, w.id),
+      "UPDATE onchain_withdrawals SET status=?, error=?, updated_at=? WHERE id=? AND status='submitted'",
+    ).bind(status, reason.slice(0, 200), now, w.id),
   ];
 }
 
-/** Resolve one in-flight mint against the chain. Never throws on RPC trouble. */
+type LegOutcome = "ok" | "fail" | "dropped" | "pending";
+
+/** Resolve one in-flight withdrawal against the chain. Never throws on RPC trouble. */
 async function settle(
   env: Env,
   cfg: Config,
@@ -234,57 +334,94 @@ async function settle(
 ): Promise<void> {
   if (w.status !== "submitted") return;
   try {
-    // Nonce before receipt: if the nonce has moved past us and there is still no receipt,
-    // the slot went to another tx and this mint can never land.
-    const nonce = await adminNonce(env, cfg.admin);
-    const receipt = await rpc<{ success?: boolean; error?: string } | null>(
-      env,
-      "boing_getTransactionReceipt",
-      [w.tx_hash],
-    );
-    if (receipt) {
-      if (receipt.success === true) {
-        await env.DB.prepare(
-          "UPDATE onchain_withdrawals SET status='minted', updated_at=? WHERE id=? AND status='submitted'",
-        )
-          .bind(now, w.id)
-          .run();
-      } else {
-        await env.DB.batch(
-          refundStatements(
-            env,
-            w,
-            receipt.error || "Mint transaction failed",
-            now,
-          ),
-        );
-      }
-      return;
-    }
-    if (nonce > w.admin_nonce) {
-      await env.DB.batch(
-        refundStatements(env, w, "Mint was dropped by the network", now),
-      );
-      return;
-    }
-    if (now - w.updated_at >= RESUBMIT_AFTER_MS) {
+    // Nonce before receipts: if the nonce has moved past a leg and there is still no
+    // receipt, that slot went to another tx and the leg can never land.
+    const operatorNonce = await adminNonce(env, cfg.admin);
+    const legs = parseLegs(w);
+    const outcomes: LegOutcome[] = [];
+    for (const leg of legs) {
+      let receipt: { success?: boolean; error?: string } | null;
       try {
-        await rpc(env, "boing_submitTransaction", [w.signed_tx]);
+        receipt = await rpc<{ success?: boolean; error?: string } | null>(
+          env,
+          "boing_getTransactionReceipt",
+          [leg.hash],
+        );
       } catch {
-        /* still pending or already known */
+        // Receipt RPC failed after the nonce read; do not guess at drops.
+        return;
       }
+      if (receipt) {
+        outcomes.push(receipt.success === true ? "ok" : "fail");
+      } else if (operatorNonce > leg.nonce) {
+        outcomes.push("dropped");
+      } else {
+        outcomes.push("pending");
+      }
+    }
+
+    if (outcomes.every((outcome) => outcome === "ok")) {
       await env.DB.prepare(
-        "UPDATE onchain_withdrawals SET updated_at=? WHERE id=?",
+        "UPDATE onchain_withdrawals SET status='minted', error=NULL, updated_at=? WHERE id=? AND status='submitted'",
       )
         .bind(now, w.id)
         .run();
+      return;
     }
+
+    if (outcomes.some((outcome) => outcome === "pending")) {
+      if (now - w.updated_at >= RESUBMIT_AFTER_MS) {
+        for (let i = 0; i < legs.length; i++) {
+          if (outcomes[i] !== "pending") continue;
+          try {
+            await rpc(env, "boing_submitTransaction", [legs[i]!.signed]);
+          } catch {
+            /* still pending or already known */
+          }
+        }
+        await env.DB.prepare(
+          "UPDATE onchain_withdrawals SET updated_at=? WHERE id=? AND status='submitted'",
+        )
+          .bind(now, w.id)
+          .run();
+      }
+      return;
+    }
+
+    const delivered = legs.reduce(
+      (sum, leg, i) => sum + (outcomes[i] === "ok" ? leg.qty : 0),
+      0,
+    );
+    const refundQty = Math.max(0, w.qty - delivered);
+    const failed = legs
+      .filter((_, i) => outcomes[i] !== "ok")
+      .map((leg) => `${leg.kind} of ${leg.qty}`)
+      .join(" and ");
+    if (refundQty <= 0) {
+      await env.DB.prepare(
+        "UPDATE onchain_withdrawals SET status='minted', error=NULL, updated_at=? WHERE id=? AND status='submitted'",
+      )
+        .bind(now, w.id)
+        .run();
+      return;
+    }
+    const status = delivered > 0 ? "minted" : "refunded";
+    const reason =
+      delivered > 0
+        ? `On-chain ${failed} did not land; ${refundQty} returned to inventory.`
+        : failed.includes("fail")
+          ? "The withdrawal did not land (transaction failed)"
+          : "The withdrawal did not land (dropped by the network)";
+    await env.DB.batch(
+      refundStatements(env, w, reason, now, refundQty, status),
+    );
   } catch {
     /* RPC unavailable: try again on the next read */
   }
 }
 
 function view(w: WithdrawalRow) {
+  const legs = parseLegs(w);
   return {
     id: w.id,
     game_item_id: w.game_item_id,
@@ -292,6 +429,7 @@ function view(w: WithdrawalRow) {
     qty: w.qty,
     status: w.status,
     tx_hash: w.tx_hash,
+    tx_hashes: legs.map((leg) => leg.hash),
     error: w.error,
     created_at: w.created_at,
   };
@@ -779,36 +917,57 @@ export async function onchainItemsPost(
   )
     .bind(cfg.contract)
     .first<{ n: number | null }>();
-  let nonce = Math.max(
+  let startNonce = Math.max(
     chainNonce,
     inflight?.n == null ? 0 : Number(inflight.n) + 1,
   );
   const id = c.id;
   let recorded = false;
-  let signed = "";
-  let hash = "";
-  for (let attempt = 0; attempt < 3 && !recorded; attempt++, nonce++) {
-    ({ signed, hash } = await signMint(cfg, nonce, c.owner, def.itemId, c.qty));
-    // Simulate only when this mint is next in line (a queued nonce cannot simulate).
-    if (attempt === 0 && nonce === chainNonce) {
+  let legs: WithdrawLeg[] = [];
+  for (let attempt = 0; attempt < 3 && !recorded; attempt++) {
+    if (attempt > 0) {
+      const again = await env.DB.prepare(
+        "SELECT MAX(admin_nonce) AS n FROM onchain_withdrawals WHERE contract=? AND status='submitted'",
+      )
+        .bind(cfg.contract)
+        .first<{ n: number | null }>();
+      startNonce = Math.max(
+        startNonce + 1,
+        chainNonce,
+        again?.n == null ? 0 : Number(again.n) + 1,
+      );
+    }
+    legs = await planWithdrawLegs(
+      env,
+      cfg,
+      startNonce,
+      c.owner,
+      def.itemId,
+      c.qty,
+    );
+    const first = legs[0]!;
+    const lastNonce = legs[legs.length - 1]!.nonce;
+    // Simulate only when the first leg is next in line (a queued nonce cannot simulate).
+    if (attempt === 0 && first.nonce === chainNonce) {
       let sim: { success?: boolean; error?: string };
       try {
-        sim = await rpc(env, "boing_simulateTransaction", [signed]);
+        sim = await rpc(env, "boing_simulateTransaction", [first.signed]);
       } catch (e) {
         if (e instanceof HttpError) throw e;
         throw new HttpError(
           502,
-          "The mint could not be simulated; nothing was withdrawn.",
+          "The withdrawal could not be simulated; nothing was withdrawn.",
         );
       }
       if (sim?.success !== true)
         throw new HttpError(
           502,
-          `The mint would fail (${sim?.error || "simulation failed"}); nothing was withdrawn.`,
+          `The withdrawal would fail (${sim?.error || "simulation failed"}); nothing was withdrawn.`,
         );
     }
     try {
       // Debit and record atomically; the insert only happens when the stack still covers qty.
+      // admin_nonce is the highest nonce used so a concurrent withdraw cannot steal a split leg.
       await env.DB.batch([
         env.DB.prepare(
           `INSERT INTO onchain_withdrawals(id,owner,game_item_id,item_id,qty,contract,admin_nonce,signed_tx,tx_hash,status,error,created_at,updated_at)
@@ -821,9 +980,9 @@ export async function onchainItemsPost(
           def.itemId,
           c.qty,
           cfg.contract,
-          nonce,
-          signed,
-          hash,
+          lastNonce,
+          encodeLegs(legs),
+          first.hash,
           now,
           now,
           c.owner,
@@ -843,7 +1002,7 @@ export async function onchainItemsPost(
         .first();
       if (exists)
         throw new HttpError(409, "This withdrawal was already confirmed");
-      // Nonce taken by a concurrent withdrawal: retry with the next one.
+      // Nonce taken by a concurrent withdrawal: retry with a later starting nonce.
     }
   }
   if (!recorded)
@@ -856,30 +1015,43 @@ export async function onchainItemsPost(
   if (!row)
     throw new HttpError(409, `Not enough ${def.name} in your inventory`);
 
-  try {
-    const res = await rpc<{ tx_hash?: string; tx_id?: string }>(
-      env,
-      "boing_submitTransaction",
-      [signed],
-    );
-    const nodeHash = (res?.tx_id ?? res?.tx_hash ?? "").toLowerCase();
-    if (/^0x[0-9a-f]{64}$/.test(nodeHash) && nodeHash !== hash) {
-      await env.DB.prepare(
-        "UPDATE onchain_withdrawals SET tx_hash=? WHERE id=?",
-      )
-        .bind(nodeHash, id)
-        .run();
-      row.tx_hash = nodeHash;
-    }
-  } catch (e) {
-    if (e instanceof RpcRejected && !isAlreadyKnown(e)) {
-      await env.DB.batch(refundStatements(env, row, e.message, now));
-      throw new HttpError(
-        502,
-        `The network rejected the mint (${e.message}). Your items were returned.`,
+  let submittedAny = false;
+  for (const leg of legs) {
+    try {
+      const res = await rpc<{ tx_hash?: string; tx_id?: string }>(
+        env,
+        "boing_submitTransaction",
+        [leg.signed],
       );
+      const nodeHash = (res?.tx_id ?? res?.tx_hash ?? "").toLowerCase();
+      if (/^0x[0-9a-f]{64}$/.test(nodeHash) && nodeHash !== leg.hash) {
+        leg.hash = nodeHash;
+      }
+      submittedAny = true;
+    } catch (e) {
+      if (e instanceof RpcRejected && !isAlreadyKnown(e)) {
+        if (!submittedAny) {
+          await env.DB.batch(refundStatements(env, row, e.message, now));
+          throw new HttpError(
+            502,
+            `The network rejected the withdrawal (${e.message}). Your items were returned.`,
+          );
+        }
+        // A later leg was rejected after an earlier one was submitted; settle on read.
+        break;
+      }
+      // Unavailable or already known: the signed tx is stored and will be settled on read.
     }
-    // Unavailable or already known: the signed tx is stored and will be settled on read.
+  }
+  const encoded = encodeLegs(legs);
+  if (encoded !== row.signed_tx || legs[0]!.hash !== row.tx_hash) {
+    await env.DB.prepare(
+      "UPDATE onchain_withdrawals SET signed_tx=?, tx_hash=? WHERE id=?",
+    )
+      .bind(encoded, legs[0]!.hash, id)
+      .run();
+    row.signed_tx = encoded;
+    row.tx_hash = legs[0]!.hash;
   }
   return Response.json({ ok: true, withdrawal: view(row) });
 }
