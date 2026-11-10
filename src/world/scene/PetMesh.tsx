@@ -1,6 +1,6 @@
 import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useRef, type ReactNode } from "react";
+import { useRef, type MutableRefObject, type ReactNode } from "react";
 import type { Group } from "three";
 import type { EquippedCosmetics } from "../../content/cosmetics";
 import { worldSafeText } from "../lib/worldFont";
@@ -20,6 +20,7 @@ export function PetMesh({
   name,
   cosmetics,
   moving = false,
+  movingRef,
   reducedMotion = false,
   selected = false,
   yours = false,
@@ -32,6 +33,7 @@ export function PetMesh({
   name?: string;
   cosmetics?: EquippedCosmetics;
   moving?: boolean;
+  movingRef?: MutableRefObject<boolean>;
   reducedMotion?: boolean;
   selected?: boolean;
   yours?: boolean;
@@ -46,8 +48,13 @@ export function PetMesh({
 
   useFrame(({ clock }) => {
     if (!hop.current || reducedMotion) return;
+    const isMoving = movingRef?.current ?? moving;
     hop.current.position.y =
-      Math.sin(clock.elapsedTime * (moving ? 8 : 3)) * (moving ? 0.08 : 0.05);
+      Math.sin(clock.elapsedTime * (isMoving ? 11 : 2.4)) *
+      (isMoving ? 0.1 : 0.04);
+    hop.current.rotation.z = isMoving
+      ? Math.sin(clock.elapsedTime * 11) * 0.06
+      : Math.sin(clock.elapsedTime * 2.4) * 0.02;
   });
 
   const label = name || look.species || "Buddy";
@@ -89,7 +96,11 @@ export function PetMesh({
             <meshStandardMaterial color={accent} transparent opacity={0.7} />
           </mesh>
         ))}
-        <CosmeticAttachments cosmetics={cosmetics} moving={moving} />
+        <CosmeticAttachments
+          cosmetics={cosmetics}
+          moving={moving}
+          movingRef={movingRef}
+        />
         {children}
       </group>
       <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>

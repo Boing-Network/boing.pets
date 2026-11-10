@@ -1,5 +1,5 @@
 import { useFrame } from "@react-three/fiber";
-import { useRef } from "react";
+import { useRef, type MutableRefObject } from "react";
 import type { Group } from "three";
 import type { EquippedCosmetics } from "../../content/cosmetics";
 
@@ -7,10 +7,12 @@ import type { EquippedCosmetics } from "../../content/cosmetics";
 export function CosmeticAttachments({
   cosmetics,
   moving = false,
+  movingRef,
   scale = 1,
 }: {
   cosmetics?: EquippedCosmetics;
   moving?: boolean;
+  movingRef?: MutableRefObject<boolean>;
   scale?: number;
 }) {
   if (!cosmetics) return null;
@@ -18,7 +20,9 @@ export function CosmeticAttachments({
     <group scale={scale}>
       {cosmetics.hat ? <Hat id={cosmetics.hat} /> : null}
       {cosmetics.accessory ? <Accessory id={cosmetics.accessory} /> : null}
-      {cosmetics.trail ? <Trail id={cosmetics.trail} moving={moving} /> : null}
+      {cosmetics.trail ? (
+        <Trail id={cosmetics.trail} moving={moving} movingRef={movingRef} />
+      ) : null}
     </group>
   );
 }
@@ -100,16 +104,25 @@ function Accessory({ id }: { id: string }) {
   );
 }
 
-function Trail({ id, moving }: { id: string; moving: boolean }) {
+function Trail({
+  id,
+  moving,
+  movingRef,
+}: {
+  id: string;
+  moving: boolean;
+  movingRef?: MutableRefObject<boolean>;
+}) {
   const group = useRef<Group>(null);
   const crystal = id === "tool-pick-crystal";
   useFrame(({ clock }) => {
     if (!group.current) return;
     const t = clock.elapsedTime;
+    const isMoving = movingRef?.current ?? moving;
     group.current.children.forEach((child, i) => {
-      child.position.y = 0.12 + Math.sin(t * 4 + i) * (moving ? 0.08 : 0.03);
+      child.position.y = 0.12 + Math.sin(t * 4 + i) * (isMoving ? 0.08 : 0.03);
       const mat = (child as { material?: { opacity: number } }).material;
-      if (mat) mat.opacity = moving ? 0.55 - i * 0.15 : 0.2;
+      if (mat) mat.opacity = isMoving ? 0.55 - i * 0.15 : 0.2;
     });
   });
   return (

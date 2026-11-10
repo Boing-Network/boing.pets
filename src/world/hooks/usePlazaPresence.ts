@@ -14,6 +14,7 @@ import {
 } from "../lib/presenceProtocol";
 import type { LivePose } from "../scene/Player";
 import { plazaErrorMessage } from "../lib/plazaJoinGate";
+import { isChatWalletRequiredMessage } from "../lib/plazaChatAuth";
 
 export type PresenceChat = {
   id: string;
@@ -221,6 +222,11 @@ export function usePlazaPresence(
         if (message.type === "error") {
           // Ignore stale handshake races if we somehow still get one.
           if (!joined && message.message === "Send hello first") return;
+          // A guest-chat reject is recoverable; do not tear the pasture down.
+          if (isChatWalletRequiredMessage(message.message)) {
+            setError(plazaErrorMessage(message.message));
+            return;
+          }
           setError(plazaErrorMessage(message.message));
           setStatus("error");
         }

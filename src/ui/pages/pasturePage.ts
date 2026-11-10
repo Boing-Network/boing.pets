@@ -190,7 +190,7 @@ function hookPastureChat() {
     else
       notice(
         app.owner
-          ? "Join the pasture as your wallet to chat (social session required)."
+          ? "Still joining the pasture as your wallet to chat. Try once more in a moment."
           : "Connect to chat in the pasture.",
         true,
       );

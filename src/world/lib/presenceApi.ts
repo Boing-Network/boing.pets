@@ -14,6 +14,7 @@ import {
   loadPresenceToken,
   savePresenceToken,
 } from "./presenceTokenCache";
+import { planPlazaBind } from "./plazaChatAuth";
 
 export interface PlazaIdentity {
   id: string;
@@ -98,7 +99,15 @@ export async function resolvePlazaIdentity(
 
     const owner = hex32(accounts[0]);
     const cached = loadPresenceToken(owner, zoneId);
-    if (cached) {
+    const social = opts.allowSocialSession ? loadSocialSession(owner) : null;
+    const plan = planPlazaBind({
+      hasAccounts: true,
+      hasPresenceToken: !!cached,
+      hasSocialSession: !!social?.token,
+      allowPrompt,
+      allowSocialSession: !!opts.allowSocialSession,
+    });
+    if (plan === "token" && cached) {
       return {
         id: cached.owner,
         name: await profileName(cached.owner),
@@ -107,22 +116,18 @@ export async function resolvePlazaIdentity(
         wallet: true,
       };
     }
-
-    if (opts.allowSocialSession) {
-      const social = loadSocialSession(owner);
-      if (social?.token) {
-        return {
-          id: owner,
-          name: await profileName(owner),
-          color: colorFromSeed(owner),
-          session: social.token,
-          wallet: true,
-        };
-      }
+    if (plan === "session" && social?.token) {
+      return {
+        id: owner,
+        name: await profileName(owner),
+        color: colorFromSeed(owner),
+        session: social.token,
+        wallet: true,
+      };
     }
-
-    if (!allowPrompt) {
-      // Avoid blocked popups on automatic page load — Join plaza to sign once.
+    if (plan !== "prompt") {
+      // Silent join: do not open a web-wallet or sign prompt on page load.
+      // The pasture will rejoin or promote when the user chats.
       return guestPresenceIdentity();
     }
 

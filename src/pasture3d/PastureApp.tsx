@@ -26,8 +26,15 @@ import {
   stepToward,
   type Vec2,
 } from "./pathing";
+import { approachSpeed, desiredWalkSpeed, lerpAngle, retarget } from "./motion";
+import { meadowHeight } from "./meadowHeight";
+import { Meadow } from "./Meadow";
 import type { PasturePet } from "./types";
 import type { EquippedCosmetics } from "../content/cosmetics";
+import {
+  shouldPromoteForChat,
+  shouldSilentRejoin,
+} from "../world/lib/plazaChatAuth";
 
 ensureWorldFontConfig();
 
@@ -87,12 +94,46 @@ export function PastureApp({
   });
   const walkTarget = useRef<Vec2 | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [joinNonce, setJoinNonce] = useState(0);
+  const [allowPrompt, setAllowPrompt] = useState(false);
+  const silentRejoin = useRef(false);
+  const pendingChat = useRef<string | null>(null);
   const mine = pets.find((pet) => pet.owner === owner) || null;
   const cosmetics = mine?.cosmetics;
-  const presence = usePlazaPresence(PASTURE_ZONE.id, livePose, true, false, 0, {
-    allowSocialSession: true,
-    cosmetics,
-  });
+  const presence = usePlazaPresence(
+    PASTURE_ZONE.id,
+    livePose,
+    true,
+    allowPrompt,
+    joinNonce,
+    {
+      allowSocialSession: true,
+      cosmetics,
+    },
+  );
+
+  useEffect(() => {
+    if (
+      !shouldSilentRejoin({
+        walletBound: presence.walletBound,
+        status: presence.status,
+        owner,
+        alreadyAttempted: silentRejoin.current,
+      })
+    )
+      return;
+    silentRejoin.current = true;
+    setAllowPrompt(false);
+    setJoinNonce((n) => n + 1);
+  }, [owner, presence.walletBound, presence.status]);
+
+  useEffect(() => {
+    if (!presence.walletBound || presence.status !== "live") return;
+    const queued = pendingChat.current;
+    if (!queued) return;
+    pendingChat.current = null;
+    presence.sendChat(queued);
+  }, [presence.walletBound, presence.status, presence.sendChat]);
 
   useEffect(() => {
     onChats?.(presence.chats);
@@ -130,8 +171,22 @@ export function PastureApp({
   );
 
   const walkTo = useCallback((x: number, z: number) => {
-    walkTarget.current = { x, z };
+    walkTarget.current = retarget(walkTarget.current, { x, z });
   }, []);
+
+  const sendChat = useCallback(
+    (text: string) => {
+      if (presence.walletBound) return presence.sendChat(text);
+      if (!shouldPromoteForChat({ walletBound: presence.walletBound, owner }))
+        return false;
+      pendingChat.current = text;
+      silentRejoin.current = true;
+      setAllowPrompt(true);
+      setJoinNonce((n) => n + 1);
+      return true;
+    },
+    [owner, presence.walletBound, presence.sendChat],
+  );
 
   useEffect(() => {
     const debug: PastureDebug = {
@@ -154,7 +209,7 @@ export function PastureApp({
           ? cosmetics
           : pets.find((item) => item.owner === id)?.cosmetics ||
             presence.players.find((p) => p.id === id)?.cosmetics,
-      sendChat: presence.sendChat,
+      sendChat,
       sendCosmetics: presence.sendCosmetics,
     };
     if (handleRef) handleRef.current = debug;
@@ -170,7 +225,7 @@ export function PastureApp({
     cosmetics,
     presence.players,
     presence.chats,
-    presence.sendChat,
+    sendChat,
     presence.sendCosmetics,
     inspect,
     walkTo,
@@ -181,7 +236,7 @@ export function PastureApp({
     <Canvas
       shadows={false}
       dpr={preferPerf ? [1, 1.25] : [1, 1.75]}
-      camera={{ position: [0, 11, 16], fov: 48, near: 0.1, far: 120 }}
+      camera={{ position: [0, 11, 16], fov: 46, near: 0.1, far: 180 }}
       gl={{
         antialias: !preferPerf,
         powerPreference: preferPerf ? "low-power" : "high-performance",
@@ -189,15 +244,32 @@ export function PastureApp({
       }}
       onCreated={({ gl }) => {
         gl.domElement.dataset.pastureCanvas = "1";
+        gl.toneMapping = THREE.ACESFilmicToneMapping;
+        gl.toneMappingExposure = 1.05;
       }}
     >
       <Suspense fallback={null}>
-        <color attach="background" args={[PASTURE_ZONE.fogColor]} />
-        <fog attach="fog" args={[PASTURE_ZONE.fogColor, 22, 60]} />
-        <ambientLight intensity={0.8} />
-        <directionalLight intensity={1.0} position={[12, 18, 8]} />
-        <hemisphereLight args={["#d7e9ff", "#6f8f5a", 0.45]} />
-        <StarterTown zone={PASTURE_ZONE} />
+        <color attach="background" args={["#b9d7ef"]} />
+        <fog attach="fog" args={["#c9d9b8", 28, 78]} />
+        <ambientLight intensity={0.32} />
+        <hemisphereLight args={["#cfe4ff", "#7a9a5c", 0.55]} />
+        <directionalLight
+          intensity={1.35}
+          color="#fff1d0"
+          position={[22, 28, 12]}
+        />
+        <directionalLight
+          intensity={0.22}
+          color="#9bb7ff"
+          position={[-18, 10, -12]}
+        />
+        <Meadow preferPerf={preferPerf} onWalk={walkTo} walkEnabled={!!mine} />
+        <StarterTown
+          zone={PASTURE_ZONE}
+          hideGround
+          hideTrees
+          heightAt={meadowHeight}
+        />
         <PastureWorld
           pets={pets}
           owner={owner}
@@ -211,7 +283,6 @@ export function PastureApp({
           reducedMotion={reducedMotion}
           followOwner={!!mine}
           onInspect={inspect}
-          onWalk={walkTo}
         />
       </Suspense>
     </Canvas>
@@ -231,7 +302,6 @@ function PastureWorld({
   reducedMotion,
   followOwner,
   onInspect,
-  onWalk,
 }: {
   pets: PasturePet[];
   owner: string | null;
@@ -253,7 +323,6 @@ function PastureWorld({
   reducedMotion: boolean;
   followOwner: boolean;
   onInspect: (pet: PasturePet) => void;
-  onWalk: (x: number, z: number) => void;
 }) {
   const obstacles = useMemo(() => obstaclesForZone(PASTURE_ZONE), []);
   const cap = preferPerf ? 16 : 24;
@@ -296,7 +365,6 @@ function PastureWorld({
 
   return (
     <group>
-      <ClickGround enabled={!!mine} onWalk={onWalk} />
       {followOwner ? (
         <FollowCamera livePose={livePose} reducedMotion={reducedMotion} />
       ) : (
@@ -324,27 +392,22 @@ function PastureWorld({
       {presencePlayers.map((player) => {
         if (mine && player.id === mine.owner) return null;
         const pet = lookFor(player.id, player.name);
-        const moving =
-          Math.hypot(player.x - (pet as unknown as Vec2).x, player.z) > -1;
         return (
-          <group key={player.id} position={[player.x, 0, player.z]}>
-            <PetMesh
-              look={pet.traits}
-              name={pet.traits.species || player.name}
-              cosmetics={player.cosmetics || pet.cosmetics}
-              reducedMotion={reducedMotion}
-              selected={selected === player.id}
-              yours={player.id === owner}
-              moving={moving}
-              bubble={bubbleById.get(player.id)}
-              onClick={() =>
-                onInspect({
-                  ...pet,
-                  cosmetics: player.cosmetics || pet.cosmetics,
-                })
-              }
-            />
-          </group>
+          <RemotePet
+            key={player.id}
+            pet={pet}
+            player={player}
+            owner={owner}
+            selected={selected === player.id}
+            reducedMotion={reducedMotion}
+            bubble={bubbleById.get(player.id)}
+            onInspect={() =>
+              onInspect({
+                ...pet,
+                cosmetics: player.cosmetics || pet.cosmetics,
+              })
+            }
+          />
         );
       })}
       {offline.map((pet, index) => (
@@ -364,37 +427,6 @@ function PastureWorld({
   );
 }
 
-function ClickGround({
-  enabled,
-  onWalk,
-}: {
-  enabled: boolean;
-  onWalk: (x: number, z: number) => void;
-}) {
-  const pointer = useRef<{ x: number; y: number } | null>(null);
-  return (
-    <mesh
-      rotation={[-Math.PI / 2, 0, 0]}
-      position={[0, 0.04, 0]}
-      onPointerDown={(event) => {
-        pointer.current = { x: event.clientX, y: event.clientY };
-      }}
-      onPointerUp={(event) => {
-        const start = pointer.current;
-        pointer.current = null;
-        if (!enabled || !start) return;
-        if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 8)
-          return;
-        const point = event.point;
-        onWalk(point.x, point.z);
-      }}
-    >
-      <circleGeometry args={[34, 48]} />
-      <meshBasicMaterial transparent opacity={0} />
-    </mesh>
-  );
-}
-
 function FollowCamera({
   livePose,
   reducedMotion,
@@ -406,10 +438,11 @@ function FollowCamera({
   const lookTarget = useMemo(() => new THREE.Vector3(), []);
   useFrame((state, delta) => {
     const pose = livePose.current;
-    camTarget.set(pose.x, pose.y + 8, pose.z + 12);
+    const ground = meadowHeight(pose.x, pose.z);
+    camTarget.set(pose.x, ground + pose.y + 8.2, pose.z + 13);
     if (reducedMotion) state.camera.position.copy(camTarget);
     else state.camera.position.lerp(camTarget, 1 - Math.pow(0.001, delta));
-    lookTarget.set(pose.x, 1.1, pose.z);
+    lookTarget.set(pose.x, ground + 1.15, pose.z);
     state.camera.lookAt(lookTarget);
   });
   return null;
@@ -437,32 +470,48 @@ function LocalPet({
   const group = useRef<THREE.Group>(null);
   const moving = useRef(false);
   const started = useRef(false);
+  const yaw = useRef(0);
+  const speed = useRef(0);
 
   useFrame((_, delta) => {
     const node = group.current;
     if (!node) return;
     if (!started.current) {
-      node.position.set(livePose.current.x, 0, livePose.current.z);
+      const y0 = meadowHeight(livePose.current.x, livePose.current.z);
+      node.position.set(livePose.current.x, y0, livePose.current.z);
       started.current = true;
     }
     const target = walkTarget.current;
     if (target) {
+      const here = { x: node.position.x, z: node.position.z };
+      const dist = Math.hypot(target.x - here.x, target.z - here.z);
+      const desired = desiredWalkSpeed(dist, WALK_SPEED);
+      speed.current = approachSpeed(speed.current, desired, delta);
       const stepped = stepToward(
-        { x: node.position.x, z: node.position.z },
+        here,
         target,
         delta,
-        WALK_SPEED,
+        Math.max(speed.current, dist < 0.08 ? 0 : 0.35),
         PASTURE_ZONE,
         obstacles,
       );
       node.position.x = stepped.pos.x;
       node.position.z = stepped.pos.z;
-      if (stepped.yaw !== null) node.rotation.y = stepped.yaw;
+      if (stepped.yaw !== null) {
+        const turn = reducedMotion ? 1 : 1 - Math.pow(0.0008, delta);
+        yaw.current = lerpAngle(yaw.current, stepped.yaw, turn);
+        node.rotation.y = yaw.current;
+      }
       moving.current = !stepped.arrived;
-      if (stepped.arrived) walkTarget.current = null;
+      if (stepped.arrived) {
+        walkTarget.current = null;
+        speed.current = 0;
+      }
     } else {
       moving.current = false;
+      speed.current = approachSpeed(speed.current, 0, delta);
     }
+    node.position.y = meadowHeight(node.position.x, node.position.z);
     livePose.current = {
       zone: PASTURE_ZONE.id,
       x: node.position.x,
@@ -474,7 +523,11 @@ function LocalPet({
   return (
     <group
       ref={group}
-      position={[livePose.current.x, 0, livePose.current.z]}
+      position={[
+        livePose.current.x,
+        meadowHeight(livePose.current.x, livePose.current.z),
+        livePose.current.z,
+      ]}
       userData={{ pasturePet: pet.owner }}
     >
       <PetMesh
@@ -484,7 +537,7 @@ function LocalPet({
         reducedMotion={reducedMotion}
         selected={selected}
         yours
-        moving={moving.current}
+        movingRef={moving}
         bubble={bubble}
         onClick={onInspect}
       />
@@ -544,19 +597,105 @@ function WanderingPet({
     );
     node.position.x = stepped.pos.x;
     node.position.z = stepped.pos.z;
-    if (stepped.yaw !== null) node.rotation.y = stepped.yaw;
+    node.position.y = meadowHeight(node.position.x, node.position.z);
+    if (stepped.yaw !== null) {
+      node.rotation.y = lerpAngle(
+        node.rotation.y,
+        stepped.yaw,
+        1 - Math.pow(0.002, delta),
+      );
+    }
     moving.current = !stepped.arrived;
   });
 
   return (
-    <group ref={group} position={[spawn.x, 0, spawn.z]}>
+    <group
+      ref={group}
+      position={[spawn.x, meadowHeight(spawn.x, spawn.z), spawn.z]}
+    >
       <PetMesh
         look={pet.traits}
         name={pet.traits.species}
         cosmetics={lod ? undefined : pet.cosmetics}
         reducedMotion={reducedMotion}
         selected={selected}
-        moving={moving.current}
+        movingRef={moving}
+        bubble={bubble}
+        onClick={onInspect}
+      />
+    </group>
+  );
+}
+
+function RemotePet({
+  pet,
+  player,
+  owner,
+  selected,
+  reducedMotion,
+  bubble,
+  onInspect,
+}: {
+  pet: PasturePet;
+  player: {
+    id: string;
+    name: string;
+    color: string;
+    x: number;
+    y: number;
+    z: number;
+    cosmetics?: EquippedCosmetics;
+  };
+  owner: string | null;
+  selected: boolean;
+  reducedMotion: boolean;
+  bubble?: string;
+  onInspect: () => void;
+}) {
+  const group = useRef<THREE.Group>(null);
+  const moving = useRef(false);
+  const started = useRef(false);
+  const yaw = useRef(0);
+
+  useFrame((_, delta) => {
+    const node = group.current;
+    if (!node) return;
+    if (!started.current) {
+      node.position.set(player.x, meadowHeight(player.x, player.z), player.z);
+      started.current = true;
+    }
+    const dx = player.x - node.position.x;
+    const dz = player.z - node.position.z;
+    const dist = Math.hypot(dx, dz);
+    const k = reducedMotion ? 1 : 1 - Math.pow(0.004, delta);
+    node.position.x += dx * k;
+    node.position.z += dz * k;
+    node.position.y = meadowHeight(node.position.x, node.position.z);
+    if (dist > 0.05) {
+      const targetYaw = Math.atan2(dx, dz);
+      yaw.current = lerpAngle(
+        yaw.current,
+        targetYaw,
+        1 - Math.pow(0.001, delta),
+      );
+      node.rotation.y = yaw.current;
+    }
+    moving.current = dist > 0.12;
+  });
+
+  return (
+    <group
+      ref={group}
+      position={[player.x, meadowHeight(player.x, player.z), player.z]}
+    >
+      <PetMesh
+        look={pet.traits}
+        name={pet.traits.species || player.name}
+        cosmetics={player.cosmetics || pet.cosmetics}
+        reducedMotion={reducedMotion}
+        selected={selected}
+        yours={player.id === owner}
+        movingRef={moving}
         bubble={bubble}
         onClick={onInspect}
       />
