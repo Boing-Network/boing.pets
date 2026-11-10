@@ -10,11 +10,15 @@ function Landmark({ item, y = 0 }: { item: WorldLandmark; y?: number }) {
     <group position={[item.position.x, item.position.y + y, item.position.z]}>
       {isBuilding ? (
         <>
-          <mesh position={[0, item.height / 2, 0]}>
+          <mesh position={[0, item.height / 2, 0]} castShadow receiveShadow>
             <boxGeometry args={[item.width, item.height, item.depth]} />
             <meshStandardMaterial color={item.color} roughness={0.85} />
           </mesh>
-          <mesh position={[0, roofY, 0]} rotation={[0, Math.PI / 4, 0]}>
+          <mesh
+            position={[0, roofY, 0]}
+            rotation={[0, Math.PI / 4, 0]}
+            castShadow
+          >
             <coneGeometry
               args={[Math.max(item.width, item.depth) * 0.72, 1.4, 4]}
             />
@@ -41,10 +45,12 @@ function PathRibbon({
   a,
   b,
   y = 0.03,
+  width = 2.2,
 }: {
   a: { x: number; z: number };
   b: { x: number; z: number };
   y?: number;
+  width?: number;
 }) {
   const midX = (a.x + b.x) / 2;
   const midZ = (a.z + b.z) / 2;
@@ -53,8 +59,12 @@ function PathRibbon({
   const length = Math.hypot(dx, dz);
   const angle = Math.atan2(dx, dz);
   return (
-    <mesh position={[midX, y, midZ]} rotation={[-Math.PI / 2, 0, -angle]}>
-      <planeGeometry args={[2.2, length]} />
+    <mesh
+      position={[midX, y, midZ]}
+      rotation={[-Math.PI / 2, 0, -angle]}
+      receiveShadow
+    >
+      <planeGeometry args={[width, length]} />
       <meshStandardMaterial color="#d8c3a0" roughness={1} />
     </mesh>
   );
@@ -116,9 +126,13 @@ export function StarterTown({
       {zone.paths.map((path, i) => (
         <PathRibbon
           key={i}
-          a={path[0]}
-          b={path[1]}
-          y={(yAt(path[0].x, path[0].z) + yAt(path[1].x, path[1].z)) / 2 + 0.03}
+          a={path[0]!}
+          b={path[1]!}
+          width={i < 2 ? 2.2 : 1.55}
+          y={
+            (yAt(path[0]!.x, path[0]!.z) + yAt(path[1]!.x, path[1]!.z)) / 2 +
+            0.03
+          }
         />
       ))}
 

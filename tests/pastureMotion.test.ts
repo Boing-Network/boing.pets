@@ -54,6 +54,8 @@ describe("meadow height", () => {
     expect(Math.abs(meadowHeight(0, 0))).toBeLessThan(0.05);
     expect(Math.abs(meadowHeight(-24, 18))).toBeLessThan(0.05);
     expect(Math.abs(meadowHeight(14, 14))).toBeGreaterThan(0.05);
+    expect(Math.abs(meadowHeight(0, 20))).toBeLessThan(0.08);
+    expect(Math.abs(meadowHeight(26, 26))).toBeGreaterThan(0.2);
     expect(PASTURE_FLATTEN.length).toBeGreaterThan(3);
   });
 });

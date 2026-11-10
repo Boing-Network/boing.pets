@@ -1,6 +1,10 @@
 import type { WorldLandmark, WorldZoneConfig } from "../world/config/zones";
 import { WORLD_CONFIG } from "../world/config/zones";
-import { MEADOW_TREE_SPOTS } from "./meadowLayout";
+import {
+  MEADOW_FENCE_HALF_THICK,
+  MEADOW_FENCES,
+  MEADOW_TREE_SPOTS,
+} from "./meadowLayout";
 
 export type Vec2 = { x: number; z: number };
 
@@ -50,6 +54,24 @@ export function obstaclesForZone(zone: WorldZoneConfig): Obstacle[] {
         halfW: 0.85,
         halfD: 0.85,
         shape: "circle",
+      });
+    }
+    for (const [i, rail] of MEADOW_FENCES.entries()) {
+      const midX = (rail.x1 + rail.x2) / 2;
+      const midZ = (rail.z1 + rail.z2) / 2;
+      const alongX = Math.abs(rail.x2 - rail.x1);
+      const alongZ = Math.abs(rail.z2 - rail.z1);
+      list.push({
+        id: "meadow-fence-" + i,
+        x: midX,
+        z: midZ,
+        halfW:
+          (alongX > alongZ ? alongX / 2 + 0.15 : MEADOW_FENCE_HALF_THICK) +
+          PET_RADIUS,
+        halfD:
+          (alongZ > alongX ? alongZ / 2 + 0.15 : MEADOW_FENCE_HALF_THICK) +
+          PET_RADIUS,
+        shape: "aabb",
       });
     }
   }

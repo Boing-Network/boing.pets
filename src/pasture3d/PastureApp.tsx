@@ -29,6 +29,7 @@ import {
 import { approachSpeed, desiredWalkSpeed, lerpAngle, retarget } from "./motion";
 import { meadowHeight } from "./meadowHeight";
 import { Meadow } from "./Meadow";
+import { MeadowAtmosphere, pastureHourOverride } from "./MeadowAtmosphere";
 import type { PasturePet } from "./types";
 import type { EquippedCosmetics } from "../content/cosmetics";
 import {
@@ -63,6 +64,8 @@ export type PastureDebug = {
   setZoom: (distance: number) => void;
   zoomBy: (steps: number) => void;
   resetCamera: () => void;
+  setTimeOfDay: (hours: number | null) => void;
+  getTimeOfDay: () => number | null;
 };
 
 export type PastureAppProps = {
@@ -351,6 +354,10 @@ export function PastureApp({
       setZoom: (distance) => applyZoom(distance),
       zoomBy: (steps) => applyZoom(zoomBySteps(zoomRef.current, steps)),
       resetCamera,
+      setTimeOfDay: (hours) => {
+        pastureHourOverride.current = hours;
+      },
+      getTimeOfDay: () => pastureHourOverride.current,
     };
     if (handleRef) handleRef.current = debug;
     if (typeof window !== "undefined") window.__pasture3d = debug;
@@ -418,7 +425,7 @@ export function PastureApp({
         </button>
       </div>
       <Canvas
-        shadows={false}
+        shadows={!preferPerf}
         dpr={preferPerf ? [1, 1.25] : [1, 1.75]}
         camera={{ position: [0, 11, 16], fov: 46, near: 0.1, far: 280 }}
         gl={{
@@ -435,19 +442,10 @@ export function PastureApp({
         onPointerDown={dismissHint}
       >
         <Suspense fallback={null}>
-          <color attach="background" args={["#b9d7ef"]} />
-          <fog attach="fog" args={["#c9d9b8", 40, 140]} />
-          <ambientLight intensity={0.32} />
-          <hemisphereLight args={["#cfe4ff", "#7a9a5c", 0.55]} />
-          <directionalLight
-            intensity={1.35}
-            color="#fff1d0"
-            position={[22, 28, 12]}
-          />
-          <directionalLight
-            intensity={0.22}
-            color="#9bb7ff"
-            position={[-18, 10, -12]}
+          <MeadowAtmosphere
+            preferPerf={preferPerf}
+            reducedMotion={reducedMotion}
+            followRef={livePose}
           />
           <Meadow
             preferPerf={preferPerf}

@@ -124,9 +124,9 @@ describe("pasture pathing", () => {
     expect(kept.x).toBeCloseTo(30, 5);
     expect(kept.z).toBeCloseTo(0, 5);
     expect(blocked({ x: kept.x, z: kept.z }, obstacles)).toBeNull();
-    const edge = clampPresencePosition("pasture", 22, 0, 22);
+    const edge = clampPresencePosition("pasture", 22, 0, 8);
     expect(edge.x).toBeCloseTo(22, 5);
-    expect(edge.z).toBeCloseTo(22, 5);
+    expect(edge.z).toBeCloseTo(8, 5);
   });
 
   it("spreads seeded poses across the enlarged pasture", () => {
@@ -144,5 +144,10 @@ describe("pasture pathing", () => {
       expect(pose.z).toBeLessThanOrEqual(PASTURE_ZONE.bounds.maxZ);
       expect(blocked(pose, obstacles)).toBeNull();
     }
+  });
+
+  it("keeps a click on the paddock fence outside the rail", () => {
+    const hit = resolveClickTarget({ x: -32, z: 18 }, PASTURE_ZONE, obstacles);
+    expect(Math.abs(hit.x + 32)).toBeGreaterThan(0.3);
   });
 });
