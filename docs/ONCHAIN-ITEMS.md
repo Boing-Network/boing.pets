@@ -1,21 +1,55 @@
-# On-chain items (mined ore → Boing game items)
+# On-chain items (inventory stacks as Boing game items)
 
-Optional, off by default. When enabled, a player can withdraw mined ore from the off-chain
-inventory into a **Boing reference multi-token v1** contract (ERC-1155-style shared item types,
-see boing.network `docs/BOING-REFERENCE-MULTI-TOKEN.md`). Every copy of an ore is the same item
-type, so a stack of 40 Spark Ore is one balance, not 40 NFTs. Withdrawn items show up in Boing
-Express (wallet **Items** section) and on Boing Observer (`/items/<contract>/<item id>`).
+Optional, off by default. When enabled, a player can withdraw a stackable inventory item
+from the off-chain inventory into a **Boing reference multi-token v1** contract (ERC-1155-style
+shared item types, see boing.network `docs/BOING-REFERENCE-MULTI-TOKEN.md`). Every copy of an
+item type is the same, so a stack of 40 Spark Ore is one balance, not 40 NFTs. Withdrawn items
+show up in Boing Express (wallet **Items** section) and on Boing Observer
+(`/items/<contract>/<item id>`). Pets stay unique NFTs and are not listed here. Species and
+discovery collection entries, and cookbook recipe defs, are achievements or recipes rather
+than tradable stacks and stay off-chain.
 
 ## Item ids (permanent: never renumber or reuse)
 
-| Inventory id  | On-chain item id | Name           |
-| ------------- | ---------------- | -------------- |
-| `ore-pebble`  | 1                | Pasture Pebble |
-| `ore-spark`   | 2                | Spark Ore      |
-| `ore-crystal` | 3                | Boing Crystal  |
+Source of truth: `src/content/onchainItems.ts` (calldata, storage keys, and storage-word
+parsing use `@boing-network/boing-sdk`). Gaps between bands are reserved for future items in
+that category. **Do not set metadata or mint ids other than 1-3 until this table is approved.**
 
-Source of truth: `src/content/onchainItems.ts`. Calldata, storage keys, and storage-word parsing use the published Boing SDK. To add a resource, append a new row with the
-next unused id.
+| Inventory id        | On-chain id | Category | Name               |
+| ------------------- | ----------- | -------- | ------------------ |
+| `ore-pebble`        | 1           | ore      | Pasture Pebble     |
+| `ore-spark`         | 2           | ore      | Spark Ore          |
+| `ore-crystal`       | 3           | ore      | Boing Crystal      |
+| `fish-ripple`       | 10          | fish     | Ripple Minnow      |
+| `fish-boingfin`     | 11          | fish     | Boingfin           |
+| `fish-moonkoi`      | 12          | fish     | Moon Koi           |
+| `loot-pebble`       | 20          | treasure | Lucky Pebble       |
+| `loot-map-scrap`    | 21          | treasure | Map Scrap          |
+| `loot-sun-shard`    | 22          | treasure | Sun Shard          |
+| `crop-sprout`       | 30          | crop     | Bounce Sprout      |
+| `crop-berry`        | 31          | crop     | Pasture Berry      |
+| `crop-moonbloom`    | 32          | crop     | Moonbloom          |
+| `food-sprout-salad` | 40          | food     | Sprout Salad       |
+| `food-berry-glaze`  | 41          | food     | Berry Glaze Fish   |
+| `food-moon-feast`   | 42          | food     | Moon Feast         |
+| `ribbon-gold`       | 50          | ribbon   | Gold Race Ribbon   |
+| `ribbon-silver`     | 51          | ribbon   | Silver Race Ribbon |
+| `ribbon-bronze`     | 52          | ribbon   | Bronze Race Ribbon |
+| `tool-pick-wood`    | 60          | material | Wood Pick          |
+| `tool-pick-iron`    | 61          | material | Iron Pick          |
+| `tool-pick-crystal` | 62          | material | Crystal Pick       |
+| `hat-ribbon`        | 70          | cosmetic | Pasture Ribbon     |
+| `hat-antenna`       | 71          | cosmetic | Glow Antenna       |
+| `hat-stardust`      | 72          | cosmetic | Stardust Halo      |
+| `frame-gold`        | 73          | cosmetic | Gold Card Frame    |
+| `frame-aurora`      | 74          | cosmetic | Aurora Frame       |
+| `furn-cushion`      | 75          | cosmetic | Bounce Cushion     |
+| `furn-lamp`         | 76          | cosmetic | Meadow Lamp        |
+
+Cooked dishes (`food-*`) are the tradable recipe outputs; `recipe-*` ids are cookbook defs
+only. `tool-pick-wood` is mapped for completeness (everyone starts at wood-tier even without
+a stack). Withdrawal of an equipped cosmetic or a furniture item sitting on a home plot is
+rejected until it is unequipped or picked up.
 
 ## Flow
 

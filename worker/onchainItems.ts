@@ -595,20 +595,21 @@ export async function onchainItemsGet(
     .bind(owner)
     .all<{ item_id: string; qty: number }>();
   const offchain = new Map(inv.results.map((r) => [r.item_id, Number(r.qty)]));
-  const items = [];
-  for (const def of ONCHAIN_ITEMS) {
-    let onchain: number | null = null;
-    try {
-      onchain = await onchainBalance(env, cfg, owner, def.itemId);
-    } catch {
-      onchain = null;
-    }
-    items.push({
-      ...def,
-      offchain_qty: offchain.get(def.gameItemId) || 0,
-      onchain_qty: onchain,
-    });
-  }
+  const items = await Promise.all(
+    ONCHAIN_ITEMS.map(async (def) => {
+      let onchain: number | null = null;
+      try {
+        onchain = await onchainBalance(env, cfg, owner, def.itemId);
+      } catch {
+        onchain = null;
+      }
+      return {
+        ...def,
+        offchain_qty: offchain.get(def.gameItemId) || 0,
+        onchain_qty: onchain,
+      };
+    }),
+  );
   const recent = await env.DB.prepare(
     "SELECT * FROM onchain_withdrawals WHERE owner=? ORDER BY created_at DESC LIMIT 10",
   )
@@ -626,6 +627,26 @@ export async function onchainItemsGet(
     withdrawals: recent.results.map(view),
     deposits: deposits.results.map(depositView),
   });
+}
+
+async function assertWithdrawable(env: Env, owner: string, gameItemId: string) {
+  const equipped = await env.DB.prepare(
+    "SELECT slot FROM pet_cosmetics WHERE owner=? AND item_id=?",
+  )
+    .bind(owner, gameItemId)
+    .first<{ slot: string }>();
+  if (equipped)
+    throw new HttpError(409, "Unequip this cosmetic before withdrawing it");
+  const placed = await env.DB.prepare(
+    "SELECT id FROM housing_placements WHERE owner=? AND item_id=?",
+  )
+    .bind(owner, gameItemId)
+    .first<{ id: string }>();
+  if (placed)
+    throw new HttpError(
+      409,
+      "Pick this item up from your home plot before withdrawing it",
+    );
 }
 
 export async function onchainItemsPost(
@@ -667,6 +688,7 @@ export async function onchainItemsPost(
         400,
         `Quantity must be 1..${ONCHAIN_WITHDRAW_MAX_QTY}`,
       );
+    await assertWithdrawable(env, owner, def.gameItemId);
     const have = await env.DB.prepare(
       "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
     )
@@ -728,6 +750,7 @@ export async function onchainItemsPost(
   const def = onchainItemByGameId(c.game_item_id);
   if (!def || def.itemId !== Number(c.item_id))
     throw new HttpError(409, "Item mapping changed; start again");
+  await assertWithdrawable(env, c.owner, def.gameItemId);
   await env.DB.prepare("DELETE FROM onchain_withdraw_challenges WHERE id=?")
     .bind(c.id)
     .run();

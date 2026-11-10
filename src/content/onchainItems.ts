@@ -20,18 +20,197 @@ import {
   multiTokenBalanceStorageKey,
 } from "@boing-network/boing-sdk";
 
+export type OnchainItemCategory =
+  | "ore"
+  | "fish"
+  | "treasure"
+  | "crop"
+  | "food"
+  | "ribbon"
+  | "material"
+  | "cosmetic";
+
 export interface OnchainItemDef {
   /** Off-chain inventory id (`inventory.item_id`). */
   gameItemId: string;
-  /** u64 item id inside the multi-token contract. */
+  /** u64 item id inside the multi-token contract. Permanent: never renumber or reuse. */
   itemId: number;
   name: string;
+  category: OnchainItemCategory;
 }
 
+/**
+ * Fixed item-id table for every stackable, tradable inventory item.
+ * Gaps between bands are reserved for future items in that category.
+ * Pets stay unique NFTs (not listed here). Species/discovery collection
+ * entries and cook-book recipe defs are achievements or recipes, not inventory
+ * stacks, and stay off-chain. Metadata for ids other than 1-3 has not been
+ * set on-chain yet; do not mint those ids until the table is approved.
+ */
 export const ONCHAIN_ITEMS: readonly OnchainItemDef[] = [
-  { gameItemId: "ore-pebble", itemId: 1, name: "Pasture Pebble" },
-  { gameItemId: "ore-spark", itemId: 2, name: "Spark Ore" },
-  { gameItemId: "ore-crystal", itemId: 3, name: "Boing Crystal" },
+  {
+    gameItemId: "ore-pebble",
+    itemId: 1,
+    name: "Pasture Pebble",
+    category: "ore",
+  },
+  { gameItemId: "ore-spark", itemId: 2, name: "Spark Ore", category: "ore" },
+  {
+    gameItemId: "ore-crystal",
+    itemId: 3,
+    name: "Boing Crystal",
+    category: "ore",
+  },
+  {
+    gameItemId: "fish-ripple",
+    itemId: 10,
+    name: "Ripple Minnow",
+    category: "fish",
+  },
+  {
+    gameItemId: "fish-boingfin",
+    itemId: 11,
+    name: "Boingfin",
+    category: "fish",
+  },
+  {
+    gameItemId: "fish-moonkoi",
+    itemId: 12,
+    name: "Moon Koi",
+    category: "fish",
+  },
+  {
+    gameItemId: "loot-pebble",
+    itemId: 20,
+    name: "Lucky Pebble",
+    category: "treasure",
+  },
+  {
+    gameItemId: "loot-map-scrap",
+    itemId: 21,
+    name: "Map Scrap",
+    category: "treasure",
+  },
+  {
+    gameItemId: "loot-sun-shard",
+    itemId: 22,
+    name: "Sun Shard",
+    category: "treasure",
+  },
+  {
+    gameItemId: "crop-sprout",
+    itemId: 30,
+    name: "Bounce Sprout",
+    category: "crop",
+  },
+  {
+    gameItemId: "crop-berry",
+    itemId: 31,
+    name: "Pasture Berry",
+    category: "crop",
+  },
+  {
+    gameItemId: "crop-moonbloom",
+    itemId: 32,
+    name: "Moonbloom",
+    category: "crop",
+  },
+  {
+    gameItemId: "food-sprout-salad",
+    itemId: 40,
+    name: "Sprout Salad",
+    category: "food",
+  },
+  {
+    gameItemId: "food-berry-glaze",
+    itemId: 41,
+    name: "Berry Glaze Fish",
+    category: "food",
+  },
+  {
+    gameItemId: "food-moon-feast",
+    itemId: 42,
+    name: "Moon Feast",
+    category: "food",
+  },
+  {
+    gameItemId: "ribbon-gold",
+    itemId: 50,
+    name: "Gold Race Ribbon",
+    category: "ribbon",
+  },
+  {
+    gameItemId: "ribbon-silver",
+    itemId: 51,
+    name: "Silver Race Ribbon",
+    category: "ribbon",
+  },
+  {
+    gameItemId: "ribbon-bronze",
+    itemId: 52,
+    name: "Bronze Race Ribbon",
+    category: "ribbon",
+  },
+  {
+    gameItemId: "tool-pick-wood",
+    itemId: 60,
+    name: "Wood Pick",
+    category: "material",
+  },
+  {
+    gameItemId: "tool-pick-iron",
+    itemId: 61,
+    name: "Iron Pick",
+    category: "material",
+  },
+  {
+    gameItemId: "tool-pick-crystal",
+    itemId: 62,
+    name: "Crystal Pick",
+    category: "material",
+  },
+  {
+    gameItemId: "hat-ribbon",
+    itemId: 70,
+    name: "Pasture Ribbon",
+    category: "cosmetic",
+  },
+  {
+    gameItemId: "hat-antenna",
+    itemId: 71,
+    name: "Glow Antenna",
+    category: "cosmetic",
+  },
+  {
+    gameItemId: "hat-stardust",
+    itemId: 72,
+    name: "Stardust Halo",
+    category: "cosmetic",
+  },
+  {
+    gameItemId: "frame-gold",
+    itemId: 73,
+    name: "Gold Card Frame",
+    category: "cosmetic",
+  },
+  {
+    gameItemId: "frame-aurora",
+    itemId: 74,
+    name: "Aurora Frame",
+    category: "cosmetic",
+  },
+  {
+    gameItemId: "furn-cushion",
+    itemId: 75,
+    name: "Bounce Cushion",
+    category: "cosmetic",
+  },
+  {
+    gameItemId: "furn-lamp",
+    itemId: 76,
+    name: "Meadow Lamp",
+    category: "cosmetic",
+  },
 ];
 
 /** Largest quantity one withdrawal can mint (keeps abuse and refunds small). */

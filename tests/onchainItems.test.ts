@@ -11,13 +11,22 @@ import {
   multiTokenAmountWord,
   multiTokenItemIdWord,
 } from "@boing-network/boing-sdk";
+import { CATALOG } from "../src/economy";
+import { RECIPES } from "../src/content/cooking";
+import { FISH } from "../src/content/fishing";
+import { CROPS } from "../src/content/gardening";
+import { PICKAXES } from "../src/content/mining";
 import {
   MT_ADMIN_STORAGE_KEY,
+  ONCHAIN_ITEMS,
   mtBalanceStorageKey,
   mtMintCalldata,
   mtTransferCalldata,
+  onchainItemByGameId,
   storageWordQty,
 } from "../src/content/onchainItems";
+import { RIBBONS } from "../src/content/racing";
+import { TREASURES } from "../src/content/treasure";
 
 class Statement {
   values: SQLInputValue[] = [];
@@ -490,5 +499,73 @@ describe("on-chain item deposits", () => {
     });
     expect(pending.status).toBe(425);
     expect(inventoryQty("ore-spark")).toBe(5);
+  });
+});
+
+describe("on-chain item id table", () => {
+  it("keeps ores at 1-3 and maps every stackable inventory item once", () => {
+    expect(onchainItemByGameId("ore-pebble")?.itemId).toBe(1);
+    expect(onchainItemByGameId("ore-spark")?.itemId).toBe(2);
+    expect(onchainItemByGameId("ore-crystal")?.itemId).toBe(3);
+    const ids = ONCHAIN_ITEMS.map((i) => i.itemId);
+    const games = ONCHAIN_ITEMS.map((i) => i.gameItemId);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(new Set(games).size).toBe(games.length);
+    const required = [
+      ...FISH.map((i) => i.id),
+      ...TREASURES.map((i) => i.id),
+      ...CROPS.map((i) => i.id),
+      ...RECIPES.map((i) => i.foodId),
+      ...RIBBONS.map((i) => i.id),
+      ...PICKAXES.map((i) => i.id),
+      ...CATALOG.map((i) => i.id),
+    ];
+    for (const id of required) {
+      expect(onchainItemByGameId(id), id).toBeDefined();
+    }
+    expect(onchainItemByGameId("recipe-sprout-salad")).toBeUndefined();
+    expect(onchainItemByGameId("species:boingle")).toBeUndefined();
+  });
+});
+
+describe("withdrawal guards", () => {
+  it("refuses to withdraw an equipped cosmetic", async () => {
+    db.prepare("INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,?)").run(
+      owner,
+      "hat-ribbon",
+      1,
+    );
+    db.prepare(
+      "INSERT INTO pet_cosmetics(owner,slot,item_id,updated_at) VALUES(?,?,?,?)",
+    ).run(owner, "hat", "hat-ribbon", 1);
+    const res = await post("/api/items/withdraw/challenge", {
+      owner,
+      game_item_id: "hat-ribbon",
+      qty: 1,
+    });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({
+      error: "Unequip this cosmetic before withdrawing it",
+    });
+  });
+
+  it("refuses to withdraw furniture sitting on a home plot", async () => {
+    db.prepare("INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,?)").run(
+      owner,
+      "furn-cushion",
+      1,
+    );
+    db.prepare(
+      "INSERT INTO housing_placements(id,owner,item_id,x,y,created_at) VALUES(?,?,?,?,?,?)",
+    ).run("place-1", owner, "furn-cushion", 0, 0, 1);
+    const res = await post("/api/items/withdraw/challenge", {
+      owner,
+      game_item_id: "furn-cushion",
+      qty: 1,
+    });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({
+      error: "Pick this item up from your home plot before withdrawing it",
+    });
   });
 });

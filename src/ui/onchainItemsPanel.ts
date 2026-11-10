@@ -144,12 +144,12 @@ export async function refreshOnchainItems() {
   const head = document.createElement("div");
   head.className = "section-title";
   head.innerHTML =
-    '<div><p class="eyebrow">ON-CHAIN ITEMS</p><h2>Move ore between the game and your wallet</h2></div>';
+    '<div><p class="eyebrow">ON-CHAIN ITEMS</p><h2>Move items between the game and your wallet</h2></div>';
   const intro = document.createElement("p");
   intro.className = "subtle";
   intro.textContent = app.owner
-    ? "Withdraw mined ore as Boing testnet game items, or transfer them back to the Pets operator to deposit them into your inventory. Withdrawn ore leaves your in-game stack; a deposit credits it once the transfer is included."
-    : "Connect Boing Express to withdraw mined ore as testnet game items, or deposit them back from your wallet.";
+    ? "Withdraw stackable items as Boing testnet game items, or transfer them back to the Pets operator to deposit them into your inventory. Withdrawn items leave your in-game stack; a deposit credits them once the transfer is included. Equipped cosmetics and furniture on your home plot must be taken off first."
+    : "Connect Boing Express to withdraw stackable items as testnet game items, or deposit them back from your wallet.";
   const grid = document.createElement("div");
   grid.className = "market-grid";
   for (const item of status.items) {
