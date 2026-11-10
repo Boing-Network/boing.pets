@@ -1,6 +1,45 @@
 import { api, app, $, notice } from "../appRuntime";
 import { assertWallet, run } from "../careActions";
 import { refreshEconomy } from "./progressPage";
+import {
+  loadAttemptStatus,
+  playCook,
+  playGarden,
+  wireActivityButton,
+} from "../minigames/playActivity";
+import type { ActivityId } from "../../content/attempts";
+
+const attemptStatus: Partial<
+  Record<ActivityId, Awaited<ReturnType<typeof loadAttemptStatus>>>
+> = {};
+const wiredLifestyle = new Set<string>();
+
+function ensureLifestylePlay(activity: "garden" | "cook") {
+  const buttonId = activity === "garden" ? "garden-play" : "cook-play";
+  const stageId = activity === "garden" ? "garden-minigame" : "cook-minigame";
+  if (wiredLifestyle.has(buttonId)) {
+    document
+      .getElementById(buttonId)
+      ?.dispatchEvent(new Event("boing-refresh-label"));
+    return;
+  }
+  const button = document.getElementById(buttonId) as HTMLButtonElement | null;
+  const stage = document.getElementById(stageId) as HTMLElement | null;
+  if (!button || !stage) return;
+  const refreshLabel = wireActivityButton({
+    button,
+    activity,
+    stage,
+    getStatus: () => attemptStatus[activity] || null,
+    setStatus: (s) => {
+      attemptStatus[activity] = s;
+    },
+    play: activity === "garden" ? playGarden : playCook,
+    labelReady: activity === "garden" ? "Tend · play" : "Cook · play",
+  });
+  button.addEventListener("boing-refresh-label", () => refreshLabel());
+  wiredLifestyle.add(buttonId);
+}
 
 function rewardExtrasNotice(
   bonus:
@@ -79,9 +118,23 @@ export async function refreshGarden() {
       (c) => new Option(`${c.name} · ${c.rewardBoinglets}ℬ`, c.id),
     ),
   );
-  $("#garden-summary").textContent = app.owner
-    ? `${data.plots.length}/${data.slots} plots planted`
-    : "Connect Express and hatch a buddy to tend three garden beds.";
+  try {
+    attemptStatus.garden = await loadAttemptStatus("garden");
+    const s = attemptStatus.garden;
+    const attemptLine = app.owner
+      ? !s.hatched
+        ? "Hatch a buddy to unlock the watering mini-game."
+        : `${s.attemptsUsed}/${s.dailyCap} play attempts today · ${s.remaining} left`
+      : "";
+    $("#garden-summary").textContent = app.owner
+      ? `${data.plots.length}/${data.slots} plots planted · ${attemptLine}`
+      : "Connect Express and hatch a buddy to tend three garden beds.";
+  } catch {
+    $("#garden-summary").textContent = app.owner
+      ? `${data.plots.length}/${data.slots} plots planted`
+      : "Connect Express and hatch a buddy to tend three garden beds.";
+  }
+  ensureLifestylePlay("garden");
   const bySlot = new Map(data.plots.map((p) => [p.slot, p]));
   const cells: HTMLElement[] = [];
   for (let slot = 0; slot < data.slots; slot++) {
@@ -182,9 +235,23 @@ export async function refreshKitchen() {
     pantry: Record<string, number>;
     dishes: Record<string, number>;
   }>("/api/cook/status" + (app.owner ? `?owner=${app.owner}` : ""));
-  $("#kitchen-summary").textContent = app.owner
-    ? `Cooked ${data.cookedToday}/${data.cookCap} · served ${data.servedToday}/${data.serveCap} today`
-    : "Connect Express, gather crops or fish, then cook and serve snacks.";
+  try {
+    attemptStatus.cook = await loadAttemptStatus("cook");
+    const s = attemptStatus.cook;
+    const attemptLine = app.owner
+      ? !s.hatched
+        ? "Hatch a buddy to unlock the recipe mini-game."
+        : `${s.attemptsUsed}/${s.dailyCap} play attempts today · ${s.remaining} left`
+      : "";
+    $("#kitchen-summary").textContent = app.owner
+      ? `Cooked ${data.cookedToday}/${data.cookCap} · served ${data.servedToday}/${data.serveCap} · ${attemptLine}`
+      : "Connect Express, gather crops or fish, then cook and serve snacks.";
+  } catch {
+    $("#kitchen-summary").textContent = app.owner
+      ? `Cooked ${data.cookedToday}/${data.cookCap} · served ${data.servedToday}/${data.serveCap} today`
+      : "Connect Express, gather crops or fish, then cook and serve snacks.";
+  }
+  ensureLifestylePlay("cook");
   $("#kitchen-recipes").replaceChildren(
     ...data.recipes.map((recipe) => {
       const el = document.createElement("article");

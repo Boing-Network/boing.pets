@@ -22,15 +22,6 @@ import {
 import { refresh } from "./ui/pages/refreshAll";
 import { controls } from "./ui/pages/pasturePage";
 import { economyAct } from "./ui/pages/progressPage";
-import {
-  castLine,
-  finishRace,
-  reelIn,
-  startRace,
-  startTreasureDig,
-  strikeVein,
-  swingPick,
-} from "./ui/pages/activitiesPage";
 import { housingAct } from "./ui/pages/lifestylePage";
 import { socialAct } from "./ui/pages/socialPage";
 
@@ -140,13 +131,6 @@ on(
   "click",
   () => void run(() => economyAct("sparkles_claim")),
 );
-on("#fish-cast", "click", () => void run(castLine));
-on("#mine-swing", "click", () => void run(swingPick));
-on("#mine-strike", "click", () => void run(strikeVein));
-on("#race-start", "click", () => void run(startRace));
-on("#race-finish", "click", () => void run(finishRace));
-on("#fish-reel", "click", () => void run(reelIn));
-on("#treasure-start", "click", () => void run(startTreasureDig));
 on(
   "#home-visibility",
   "click",

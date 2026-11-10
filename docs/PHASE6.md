@@ -56,3 +56,7 @@ Config-driven quests, seasons, collections, and expansion zone stubs so content 
 ## Doctrine
 
 Gameplay loops and data model first; art polish and LLM flavor later.
+
+## Interactive mini-games
+
+See [PHASE6-MINIGAMES.md](./PHASE6-MINIGAMES.md) for the shared attempt/claim loop, per-activity mechanics, and migration `0020_activity_attempts.sql`.

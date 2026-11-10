@@ -36,6 +36,11 @@ import { gardeningError, gardeningGet, gardeningPost } from "./gardening";
 import { cookingError, cookingGet, cookingPost } from "./cooking";
 import { miningError, miningGet, miningPost } from "./mining";
 import { racingError, racingGet, racingPost } from "./racing";
+import {
+  activityAttemptsError,
+  activityAttemptsGet,
+  activityAttemptsPost,
+} from "./activityAttempts";
 import { applyFoodBoosts } from "../src/content/cooking";
 import { verifyProof, type Receipt, type RpcBlock } from "./proof";
 import { enforceIpRateLimit, rateLimitError } from "./rateLimit";
@@ -211,9 +216,13 @@ async function api(req: Request, env: Env): Promise<Response> {
     const content = await contentGet(req, env, now);
     if (content) return content;
     try {
+      const attempts = await activityAttemptsGet(req, env, now);
+      if (attempts) return attempts;
       const fishing = await fishingGet(req, env, now);
       if (fishing) return fishing;
     } catch (error) {
+      const attemptMapped = activityAttemptsError(error);
+      if (attemptMapped) return attemptMapped;
       const mapped = fishingError(error);
       if (mapped) return mapped;
       throw error;
@@ -355,9 +364,13 @@ async function api(req: Request, env: Env): Promise<Response> {
     throw error;
   }
   try {
+    const attemptsPost = await activityAttemptsPost(req, url, env, body, now);
+    if (attemptsPost) return attemptsPost;
     const fishing = await fishingPost(url, env, body, now);
     if (fishing) return fishing;
   } catch (error) {
+    const attemptMapped = activityAttemptsError(error);
+    if (attemptMapped) return attemptMapped;
     const mapped = fishingError(error);
     if (mapped) return mapped;
     throw error;

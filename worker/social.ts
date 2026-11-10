@@ -12,7 +12,7 @@ import {
 } from "../src/social";
 import { partyBonusPercent } from "../src/partyBonus";
 
-class HttpError extends Error {
+export class HttpError extends Error {
   constructor(
     public status: number,
     message: string,
@@ -79,7 +79,7 @@ async function areFriends(env: Env, a: string, b: string): Promise<boolean> {
   return !!row;
 }
 
-async function requireSocialSession(
+export async function requireSocialSession(
   req: Request,
   env: Env,
   owner: string,

@@ -735,3 +735,106 @@ a:hover {
     width: 44%;
   }
 }
+
+.activity-tip {
+  position: absolute;
+  z-index: 80;
+  max-width: 260px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #0f1b33;
+  border: 1px solid #3d5a8a;
+  color: #e8f0ff;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+.minigame-stage {
+  margin: 12px 0;
+  padding: 14px;
+  border-radius: 14px;
+  background: #101c34;
+  border: 1px solid #2a3f66;
+}
+.minigame-bar {
+  position: relative;
+  height: 28px;
+  border-radius: 999px;
+  background: #1a2a48;
+  overflow: hidden;
+  margin: 10px 0;
+}
+.minigame-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(110, 220, 150, 0.35);
+  border-left: 1px solid #7ddea0;
+  border-right: 1px solid #7ddea0;
+}
+.minigame-needle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  margin-left: -2px;
+  background: #fff6c8;
+  box-shadow: 0 0 8px #ffe08a;
+}
+.minigame-keys {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+.minigame-keys kbd {
+  min-width: 2.2rem;
+  text-align: center;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #4a6799;
+  background: #182948;
+  font-size: 1rem;
+}
+.minigame-keys kbd.next {
+  border-color: #8fd4ff;
+  background: #243d6b;
+}
+.minigame-keys kbd.done {
+  opacity: 0.45;
+}
+.treasure-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-width: 220px;
+}
+.treasure-grid button {
+  aspect-ratio: 1;
+  border-radius: 10px;
+}
+.treasure-grid button.flash {
+  background: #e8c27a;
+  color: #1a1205;
+}
+.cook-ingredients {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .minigame-needle {
+    transition: none !important;
+  }
+}
+
+.minigame-touch-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+.minigame-touch-keys button {
+  min-width: 2.5rem;
+}
