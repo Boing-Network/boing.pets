@@ -579,11 +579,14 @@ export async function activityAttemptsPost(
     } catch {
       throw new HttpError(409, "Claim already processed or ledger busy");
     }
+    const used = await attemptsUsedToday(env, owner, activity, row.day_key);
     return Response.json({
       ok: true,
+      activity,
       reward,
       party_bonus: party.bonus.eligible ? party.bonus : null,
       variety_awarded: party.varietyAwarded || 0,
+      remaining: Math.max(0, ACTIVITY_ATTEMPT_DAILY_CAP - used),
     });
   }
 

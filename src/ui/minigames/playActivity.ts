@@ -5,6 +5,8 @@ import { bindDisablePopover, type DisableReason } from "../disableReason";
 import type { ActivityId } from "../../content/attempts";
 import { needleAt } from "../../minigames/fishingGame";
 import { refreshEconomy } from "../pages/progressPage";
+import { showRewardModal } from "../rewardModal";
+import type { ClaimRewardResult } from "../rewardBreakdown";
 
 interface AttemptStatus {
   activity: ActivityId;
@@ -63,33 +65,28 @@ export async function loadAttemptStatus(
   return api<AttemptStatus>(`/api/activity/attempts/status${q}`);
 }
 
-async function claimAttempt(id: string, claimMessage: string) {
+async function claimAttempt(
+  id: string,
+  claimMessage: string,
+  activity?: ActivityId,
+) {
   await assertWallet();
   notice("Approve to keep your reward…");
   const signature = await app.provider!.request({
     method: "boing_signMessage",
     params: [claimMessage, app.owner],
   });
-  const result = await sessionApi<{
-    ok: boolean;
-    reward: { name: string; rarity: string; rewardBoinglets: number };
-    party_bonus?: { percent: number; amount: number } | null;
-    variety_awarded?: number;
-  }>("/api/activity/attempt/claim", {
-    id,
-    owner: app.owner,
-    signature,
-  });
-  const extras = [];
-  if (result.party_bonus?.amount)
-    extras.push(
-      `Party +${Math.round(result.party_bonus.percent * 100)}% (+${result.party_bonus.amount}ℬ)`,
-    );
-  if (result.variety_awarded)
-    extras.push(`Variety +${result.variety_awarded}ℬ`);
-  notice(
-    `Claimed ${result.reward.name} (+${result.reward.rewardBoinglets}ℬ).${extras.length ? " " + extras.join(" · ") : ""}`,
+  const result = await sessionApi<ClaimRewardResult>(
+    "/api/activity/attempt/claim",
+    {
+      id,
+      owner: app.owner,
+      signature,
+    },
   );
+  result.activity = result.activity || activity;
+  showRewardModal(result);
+  notice(`Claimed ${result.reward.name}.`);
   await refreshEconomy().catch(() => undefined);
 }
 
@@ -169,7 +166,7 @@ export async function playFishing(root: HTMLElement, onDone: () => void) {
           notice(finish.message || "Success!");
           if (finish.claim_message) {
             try {
-              await claimAttempt(start.id, finish.claim_message);
+              await claimAttempt(start.id, finish.claim_message, "fishing");
             } catch (e) {
               notice(
                 e instanceof Error
@@ -236,7 +233,7 @@ export async function playMining(root: HTMLElement, onDone: () => void) {
             } else if (finish.claim_message) {
               notice(finish.message || "Vein cracked!");
               try {
-                await claimAttempt(start.id, finish.claim_message);
+                await claimAttempt(start.id, finish.claim_message, "mining");
               } catch (e) {
                 notice(e instanceof Error ? e.message : "Claim failed", true);
               }
@@ -320,7 +317,7 @@ export async function playRacing(root: HTMLElement, onDone: () => void) {
             else if (finish.claim_message) {
               notice(finish.message || "Photo finish!");
               try {
-                await claimAttempt(start.id, finish.claim_message);
+                await claimAttempt(start.id, finish.claim_message, "racing");
               } catch (e) {
                 notice(e instanceof Error ? e.message : "Claim failed", true);
               }
@@ -385,7 +382,7 @@ export async function playTreasure(root: HTMLElement, onDone: () => void) {
             else if (finish.claim_message) {
               notice(finish.message || "Something sparkled!");
               try {
-                await claimAttempt(start.id, finish.claim_message);
+                await claimAttempt(start.id, finish.claim_message, "treasure");
               } catch (e) {
                 notice(e instanceof Error ? e.message : "Claim failed", true);
               }
@@ -430,7 +427,7 @@ export async function playGarden(root: HTMLElement, onDone: () => void) {
           else if (finish.claim_message) {
             notice(finish.message || "Fresh greens!");
             try {
-              await claimAttempt(start.id, finish.claim_message);
+              await claimAttempt(start.id, finish.claim_message, "garden");
             } catch (e) {
               notice(e instanceof Error ? e.message : "Claim failed", true);
             }
@@ -497,7 +494,7 @@ export async function playCook(root: HTMLElement, onDone: () => void) {
               else if (finish.claim_message) {
                 notice(finish.message || "Dish ready!");
                 try {
-                  await claimAttempt(start.id, finish.claim_message);
+                  await claimAttempt(start.id, finish.claim_message, "cook");
                 } catch (e) {
                   notice(e instanceof Error ? e.message : "Claim failed", true);
                 }
@@ -572,6 +569,7 @@ export function wireActivityButton(opts: {
         await claimAttempt(
           status.pendingClaim.id,
           status.pendingClaim.claim_message,
+          opts.activity,
         );
         const next = await loadAttemptStatus(opts.activity);
         opts.setStatus(next);
