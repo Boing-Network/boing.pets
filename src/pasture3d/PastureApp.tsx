@@ -1,4 +1,3 @@
-import { OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
   Suspense,
@@ -22,6 +21,7 @@ import { StarterTown } from "../world/scene/StarterTown";
 import {
   obstaclesForZone,
   randomWanderTarget,
+  resolveClickTarget,
   seedPose,
   stepToward,
   type Vec2,
@@ -35,8 +35,19 @@ import {
   shouldPromoteForChat,
   shouldSilentRejoin,
 } from "../world/lib/plazaChatAuth";
+import {
+  PASTURE_ZOOM_DEFAULT,
+  cameraOccludersForZone,
+  clampZoom,
+  resolveFollowCamera,
+  zoomBySteps,
+  zoomFromWheel,
+} from "./camera";
+import { pasturePetLabel } from "./labels";
 
 ensureWorldFontConfig();
+
+const HINT_KEY = "boing-pets-pasture-hint-v1";
 
 export type PastureDebug = {
   getPetCount: () => number;
@@ -48,6 +59,10 @@ export type PastureDebug = {
   getEquipped: (owner: string) => EquippedCosmetics | undefined;
   sendChat: (text: string) => boolean;
   sendCosmetics: (cosmetics?: EquippedCosmetics) => void;
+  getZoom: () => number;
+  setZoom: (distance: number) => void;
+  zoomBy: (steps: number) => void;
+  resetCamera: () => void;
 };
 
 export type PastureAppProps = {
@@ -61,6 +76,7 @@ export type PastureAppProps = {
 
 const WALK_SPEED = 5.2;
 const WANDER_SPEED = 1.35;
+const PASTURE_OBSTACLES = obstaclesForZone(PASTURE_ZONE);
 
 function usePrefers() {
   return useMemo(() => {
@@ -75,6 +91,15 @@ function usePrefers() {
       window.matchMedia("(max-width: 900px)").matches;
     return { preferPerf, reducedMotion };
   }, []);
+}
+
+function readHintOpen() {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(HINT_KEY) !== "1";
+  } catch {
+    return true;
+  }
 }
 
 export function PastureApp({
@@ -93,6 +118,11 @@ export function PastureApp({
     z: PASTURE_ZONE.spawn.z,
   });
   const walkTarget = useRef<Vec2 | null>(null);
+  const zoomRef = useRef(PASTURE_ZOOM_DEFAULT);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState(PASTURE_ZOOM_DEFAULT);
+  const [ready, setReady] = useState(false);
+  const [hintOpen, setHintOpen] = useState(readHintOpen);
   const [selected, setSelected] = useState<string | null>(null);
   const [joinNonce, setJoinNonce] = useState(0);
   const [allowPrompt, setAllowPrompt] = useState(false);
@@ -111,6 +141,22 @@ export function PastureApp({
       cosmetics,
     },
   );
+
+  const applyZoom = useCallback((distance: number) => {
+    const next = clampZoom(distance);
+    zoomRef.current = next;
+    setZoom(next);
+    return next;
+  }, []);
+
+  const dismissHint = useCallback(() => {
+    setHintOpen(false);
+    try {
+      window.localStorage.setItem(HINT_KEY, "1");
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }, []);
 
   useEffect(() => {
     if (
@@ -171,7 +217,12 @@ export function PastureApp({
   );
 
   const walkTo = useCallback((x: number, z: number) => {
-    walkTarget.current = retarget(walkTarget.current, { x, z });
+    const target = resolveClickTarget(
+      { x, z },
+      PASTURE_ZONE,
+      PASTURE_OBSTACLES,
+    );
+    walkTarget.current = retarget(walkTarget.current, target);
   }, []);
 
   const sendChat = useCallback(
@@ -187,6 +238,89 @@ export function PastureApp({
     },
     [owner, presence.walletBound, presence.sendChat],
   );
+
+  const resetCamera = useCallback(() => {
+    applyZoom(PASTURE_ZOOM_DEFAULT);
+  }, [applyZoom]);
+
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      applyZoom(zoomFromWheel(zoomRef.current, event.deltaY, event.deltaMode));
+      dismissHint();
+    };
+    const pointers = new Map<number, { x: number; y: number }>();
+    let pinchStart = 0;
+    let zoomStart = PASTURE_ZOOM_DEFAULT;
+    const pinchDistance = () => {
+      const pts = [...pointers.values()];
+      if (pts.length < 2) return 0;
+      return Math.hypot(pts[0]!.x - pts[1]!.x, pts[0]!.y - pts[1]!.y);
+    };
+    const onDown = (event: PointerEvent) => {
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pointers.size === 2) {
+        pinchStart = pinchDistance();
+        zoomStart = zoomRef.current;
+      }
+    };
+    const onMove = (event: PointerEvent) => {
+      if (!pointers.has(event.pointerId)) return;
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pointers.size === 2 && pinchStart > 1) {
+        event.preventDefault();
+        applyZoom(zoomStart * (pinchStart / pinchDistance()));
+        dismissHint();
+      }
+    };
+    const onUp = (event: PointerEvent) => {
+      pointers.delete(event.pointerId);
+      if (pointers.size < 2) pinchStart = 0;
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+    el.addEventListener("pointercancel", onUp);
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      el.removeEventListener("pointercancel", onUp);
+    };
+  }, [applyZoom, dismissHint]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        target?.isContentEditable
+      )
+        return;
+      if (event.key === "+" || event.key === "=") {
+        event.preventDefault();
+        applyZoom(zoomBySteps(zoomRef.current, -1));
+        dismissHint();
+      } else if (event.key === "-" || event.key === "_") {
+        event.preventDefault();
+        applyZoom(zoomBySteps(zoomRef.current, 1));
+        dismissHint();
+      } else if (event.key === "0") {
+        event.preventDefault();
+        resetCamera();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [applyZoom, dismissHint, resetCamera]);
 
   useEffect(() => {
     const debug: PastureDebug = {
@@ -211,6 +345,10 @@ export function PastureApp({
             presence.players.find((p) => p.id === id)?.cosmetics,
       sendChat,
       sendCosmetics: presence.sendCosmetics,
+      getZoom: () => zoomRef.current,
+      setZoom: (distance) => applyZoom(distance),
+      zoomBy: (steps) => applyZoom(zoomBySteps(zoomRef.current, steps)),
+      resetCamera,
     };
     if (handleRef) handleRef.current = debug;
     if (typeof window !== "undefined") window.__pasture3d = debug;
@@ -230,62 +368,117 @@ export function PastureApp({
     inspect,
     walkTo,
     handleRef,
+    applyZoom,
+    resetCamera,
   ]);
 
   return (
-    <Canvas
-      shadows={false}
-      dpr={preferPerf ? [1, 1.25] : [1, 1.75]}
-      camera={{ position: [0, 11, 16], fov: 46, near: 0.1, far: 180 }}
-      gl={{
-        antialias: !preferPerf,
-        powerPreference: preferPerf ? "low-power" : "high-performance",
-        alpha: false,
-      }}
-      onCreated={({ gl }) => {
-        gl.domElement.dataset.pastureCanvas = "1";
-        gl.toneMapping = THREE.ACESFilmicToneMapping;
-        gl.toneMappingExposure = 1.05;
-      }}
-    >
-      <Suspense fallback={null}>
-        <color attach="background" args={["#b9d7ef"]} />
-        <fog attach="fog" args={["#c9d9b8", 28, 78]} />
-        <ambientLight intensity={0.32} />
-        <hemisphereLight args={["#cfe4ff", "#7a9a5c", 0.55]} />
-        <directionalLight
-          intensity={1.35}
-          color="#fff1d0"
-          position={[22, 28, 12]}
-        />
-        <directionalLight
-          intensity={0.22}
-          color="#9bb7ff"
-          position={[-18, 10, -12]}
-        />
-        <Meadow preferPerf={preferPerf} onWalk={walkTo} walkEnabled={!!mine} />
-        <StarterTown
-          zone={PASTURE_ZONE}
-          hideGround
-          hideTrees
-          heightAt={meadowHeight}
-        />
-        <PastureWorld
-          pets={pets}
-          owner={owner}
-          mine={mine}
-          selected={selected}
-          livePose={livePose}
-          walkTarget={walkTarget}
-          presencePlayers={presence.players}
-          chats={presence.chats}
-          preferPerf={preferPerf}
-          reducedMotion={reducedMotion}
-          followOwner={!!mine}
-          onInspect={inspect}
-        />
-      </Suspense>
-    </Canvas>
+    <div className="pasture-3d-stage" ref={stageRef}>
+      {!ready ? (
+        <div className="pasture-loading" role="status">
+          Growing the meadow…
+        </div>
+      ) : null}
+      {hintOpen ? (
+        <div className="pasture-hint" role="status">
+          <p>
+            Click the meadow to walk. Scroll or pinch to zoom. Press Enter to
+            chat. Use + / - or the buttons to zoom, and 0 to reset.
+          </p>
+          <button type="button" className="quiet" onClick={dismissHint}>
+            Got it
+          </button>
+        </div>
+      ) : null}
+      <div className="pasture-cam-controls" role="group" aria-label="Camera">
+        <button
+          type="button"
+          aria-label="Zoom in"
+          onClick={() => {
+            applyZoom(zoomBySteps(zoomRef.current, -1));
+            dismissHint();
+          }}
+        >
+          +
+        </button>
+        <button
+          type="button"
+          aria-label="Zoom out"
+          onClick={() => {
+            applyZoom(zoomBySteps(zoomRef.current, 1));
+            dismissHint();
+          }}
+        >
+          -
+        </button>
+        <button type="button" aria-label="Reset camera" onClick={resetCamera}>
+          Reset
+        </button>
+      </div>
+      <Canvas
+        shadows={false}
+        dpr={preferPerf ? [1, 1.25] : [1, 1.75]}
+        camera={{ position: [0, 11, 16], fov: 46, near: 0.1, far: 180 }}
+        gl={{
+          antialias: !preferPerf,
+          powerPreference: preferPerf ? "low-power" : "high-performance",
+          alpha: false,
+        }}
+        onCreated={({ gl }) => {
+          gl.domElement.dataset.pastureCanvas = "1";
+          gl.toneMapping = THREE.ACESFilmicToneMapping;
+          gl.toneMappingExposure = 1.05;
+          setReady(true);
+        }}
+        onPointerDown={dismissHint}
+      >
+        <Suspense fallback={null}>
+          <color attach="background" args={["#b9d7ef"]} />
+          <fog attach="fog" args={["#c9d9b8", 28, 78]} />
+          <ambientLight intensity={0.32} />
+          <hemisphereLight args={["#cfe4ff", "#7a9a5c", 0.55]} />
+          <directionalLight
+            intensity={1.35}
+            color="#fff1d0"
+            position={[22, 28, 12]}
+          />
+          <directionalLight
+            intensity={0.22}
+            color="#9bb7ff"
+            position={[-18, 10, -12]}
+          />
+          <Meadow
+            preferPerf={preferPerf}
+            onWalk={walkTo}
+            walkEnabled={!!mine}
+          />
+          <StarterTown
+            zone={PASTURE_ZONE}
+            hideGround
+            hideTrees
+            heightAt={meadowHeight}
+          />
+          <PastureWorld
+            pets={pets}
+            owner={owner}
+            mine={mine}
+            selected={selected}
+            livePose={livePose}
+            walkTarget={walkTarget}
+            zoomRef={zoomRef}
+            presencePlayers={presence.players}
+            chats={presence.chats}
+            preferPerf={preferPerf}
+            reducedMotion={reducedMotion}
+            followOwner={!!mine}
+            onInspect={inspect}
+          />
+        </Suspense>
+      </Canvas>
+      <span className="visually-hidden" aria-live="polite">
+        Zoom {zoom.toFixed(1)}
+      </span>
+    </div>
   );
 }
 
@@ -296,6 +489,7 @@ function PastureWorld({
   selected,
   livePose,
   walkTarget,
+  zoomRef,
   presencePlayers,
   chats,
   preferPerf,
@@ -309,6 +503,7 @@ function PastureWorld({
   selected: string | null;
   livePose: MutableRefObject<LivePose>;
   walkTarget: MutableRefObject<Vec2 | null>;
+  zoomRef: MutableRefObject<number>;
   presencePlayers: Array<{
     id: string;
     name: string;
@@ -324,7 +519,7 @@ function PastureWorld({
   followOwner: boolean;
   onInspect: (pet: PasturePet) => void;
 }) {
-  const obstacles = useMemo(() => obstaclesForZone(PASTURE_ZONE), []);
+  const obstacles = PASTURE_OBSTACLES;
   const cap = preferPerf ? 16 : 24;
   const liveIds = useMemo(() => {
     const ids = new Set(presencePlayers.map((p) => p.id));
@@ -365,18 +560,12 @@ function PastureWorld({
 
   return (
     <group>
-      {followOwner ? (
-        <FollowCamera livePose={livePose} reducedMotion={reducedMotion} />
-      ) : (
-        <OrbitControls
-          enableDamping={!reducedMotion}
-          enablePan
-          maxPolarAngle={Math.PI / 2.15}
-          minDistance={6}
-          maxDistance={36}
-          target={[0, 1, 0]}
-        />
-      )}
+      <FollowCamera
+        livePose={livePose}
+        zoomRef={zoomRef}
+        reducedMotion={reducedMotion}
+        followOwner={followOwner}
+      />
       {mine ? (
         <LocalPet
           pet={mine}
@@ -429,21 +618,40 @@ function PastureWorld({
 
 function FollowCamera({
   livePose,
+  zoomRef,
   reducedMotion,
+  followOwner,
 }: {
   livePose: MutableRefObject<LivePose>;
+  zoomRef: MutableRefObject<number>;
   reducedMotion: boolean;
+  followOwner: boolean;
 }) {
   const camTarget = useMemo(() => new THREE.Vector3(), []);
+  const lookSmooth = useMemo(() => new THREE.Vector3(), []);
   const lookTarget = useMemo(() => new THREE.Vector3(), []);
+  const boxes = useMemo(() => cameraOccludersForZone(PASTURE_ZONE), []);
+  const started = useRef(false);
+
   useFrame((state, delta) => {
-    const pose = livePose.current;
+    const pose = followOwner
+      ? livePose.current
+      : { x: PASTURE_ZONE.spawn.x, y: 0, z: PASTURE_ZONE.spawn.z };
     const ground = meadowHeight(pose.x, pose.z);
-    camTarget.set(pose.x, ground + pose.y + 8.2, pose.z + 13);
-    if (reducedMotion) state.camera.position.copy(camTarget);
-    else state.camera.position.lerp(camTarget, 1 - Math.pow(0.001, delta));
-    lookTarget.set(pose.x, ground + 1.15, pose.z);
-    state.camera.lookAt(lookTarget);
+    const look = { x: pose.x, y: ground + 1.15, z: pose.z };
+    const cam = resolveFollowCamera(look, zoomRef.current, meadowHeight, boxes);
+    camTarget.set(cam.x, cam.y, cam.z);
+    lookTarget.set(look.x, look.y, look.z);
+    if (!started.current || reducedMotion) {
+      state.camera.position.copy(camTarget);
+      lookSmooth.copy(lookTarget);
+      started.current = true;
+    } else {
+      const k = 1 - Math.pow(0.05, delta);
+      state.camera.position.lerp(camTarget, k);
+      lookSmooth.lerp(lookTarget, k);
+    }
+    state.camera.lookAt(lookSmooth);
   });
   return null;
 }
@@ -520,6 +728,8 @@ function LocalPet({
     };
   });
 
+  const label = pasturePetLabel({ species: pet.traits.species });
+
   return (
     <group
       ref={group}
@@ -532,7 +742,7 @@ function LocalPet({
     >
       <PetMesh
         look={pet.traits}
-        name={pet.traits.species}
+        name={label}
         cosmetics={pet.cosmetics}
         reducedMotion={reducedMotion}
         selected={selected}
@@ -565,8 +775,8 @@ function WanderingPet({
   onInspect: () => void;
 }) {
   const spawn = useMemo(
-    () => seedPose(pet.owner, index, PASTURE_ZONE),
-    [pet.owner, index],
+    () => seedPose(pet.owner, index, PASTURE_ZONE, obstacles),
+    [pet.owner, index, obstacles],
   );
   const group = useRef<THREE.Group>(null);
   const target = useRef<Vec2>(spawn);
@@ -615,7 +825,7 @@ function WanderingPet({
     >
       <PetMesh
         look={pet.traits}
-        name={pet.traits.species}
+        name={pasturePetLabel({ species: pet.traits.species })}
         cosmetics={lod ? undefined : pet.cosmetics}
         reducedMotion={reducedMotion}
         selected={selected}
@@ -690,7 +900,10 @@ function RemotePet({
     >
       <PetMesh
         look={pet.traits}
-        name={pet.traits.species || player.name}
+        name={pasturePetLabel({
+          species: pet.traits.species,
+          fallback: player.name,
+        })}
         cosmetics={player.cosmetics || pet.cosmetics}
         reducedMotion={reducedMotion}
         selected={selected}

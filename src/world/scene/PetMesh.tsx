@@ -3,9 +3,9 @@ import { useFrame } from "@react-three/fiber";
 import { useRef, type MutableRefObject, type ReactNode } from "react";
 import type { Group } from "three";
 import type { EquippedCosmetics } from "../../content/cosmetics";
+import { pasturePetLabel } from "../../pasture3d/labels";
 import { worldSafeText } from "../lib/worldFont";
 import { CosmeticAttachments } from "./CosmeticAttachments";
-import { WorldText } from "./WorldText";
 
 export type PetMeshLook = {
   species?: string;
@@ -57,7 +57,7 @@ export function PetMesh({
       : Math.sin(clock.elapsedTime * 2.4) * 0.02;
   });
 
-  const label = name || look.species || "Buddy";
+  const label = pasturePetLabel({ species: look.species, fallback: name });
 
   return (
     <group
@@ -111,49 +111,34 @@ export function PetMesh({
           opacity={selected || yours ? 0.45 : 0.22}
         />
       </mesh>
-      <WorldText
-        position={[0, 1.25, 0]}
-        fontSize={0.26}
-        color={yours ? "#fff4b8" : "#123055"}
-        anchorX="center"
-        anchorY="middle"
-        outlineWidth={0.015}
-        outlineColor="#ffffff"
-      >
-        {label}
-      </WorldText>
       <Html
-        position={[0, 1.05, 0]}
+        position={[0, 1.45, 0]}
         center
         sprite
-        style={{ pointerEvents: "auto", transform: "translateY(-8px)" }}
+        style={{ pointerEvents: "none" }}
       >
-        <button
-          type="button"
-          className={
-            "pasture-pet-hit" +
-            (yours ? " yours" : "") +
-            (selected ? " is-selected" : "")
-          }
-          data-owner-label={label}
-          onClick={(event) => {
-            event.stopPropagation();
-            onClick?.();
-          }}
-        >
-          {label}
-        </button>
+        <div className="pasture-label-stack">
+          {bubble ? (
+            <div className="pasture-bubble">{worldSafeText(bubble)}</div>
+          ) : null}
+          <button
+            type="button"
+            className={
+              "pasture-pet-hit" +
+              (yours ? " yours" : "") +
+              (selected ? " is-selected" : "")
+            }
+            data-owner-label={label}
+            style={{ pointerEvents: "auto" }}
+            onClick={(event) => {
+              event.stopPropagation();
+              onClick?.();
+            }}
+          >
+            {label}
+          </button>
+        </div>
       </Html>
-      {bubble ? (
-        <Html
-          position={[0, 1.7, 0]}
-          center
-          sprite
-          style={{ pointerEvents: "none" }}
-        >
-          <div className="pasture-bubble">{worldSafeText(bubble)}</div>
-        </Html>
-      ) : null}
     </group>
   );
 }

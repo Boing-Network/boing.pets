@@ -156,6 +156,7 @@ export async function refreshPastureGallery() {
 let pastureMount: PastureMount | null = null;
 let pastureChatHooked = false;
 let pastureEscapeHooked = false;
+let pastureViewportHooked = false;
 
 export async function unmountPasture3d() {
   pastureMount?.unmount();
@@ -171,6 +172,53 @@ function renderChatLog(chats: PresenceChat[]) {
     row.className = "pasture-chat-line";
     row.textContent = `${chat.name}: ${chat.text}`;
     log.append(row);
+  }
+}
+
+function scrollPastureIntoView() {
+  const canvas = $maybe("#pasture-canvas");
+  if (!canvas) return;
+  const reduce =
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const behavior: ScrollBehavior = reduce ? "auto" : "smooth";
+  const rect = canvas.getBoundingClientRect();
+  const topPad = 8;
+  const bottomPad = 8;
+  const room = window.innerHeight - topPad - bottomPad;
+  // Prefer keeping the chat bar (the canvas bottom) in view.
+  const targetTop =
+    rect.height >= room
+      ? window.scrollY + rect.bottom - (window.innerHeight - bottomPad)
+      : window.scrollY + rect.top - topPad;
+  if (Math.abs(targetTop - window.scrollY) > 1) {
+    window.scrollTo({ top: Math.max(0, targetTop), behavior });
+  }
+}
+
+function hookPastureViewport() {
+  if (pastureViewportHooked) {
+    if (location.hash === "#pasture" || location.hash === "#pasture-canvas") {
+      requestAnimationFrame(() => scrollPastureIntoView());
+    }
+    return;
+  }
+  pastureViewportHooked = true;
+  document.addEventListener("click", (event) => {
+    const target = event.target as HTMLElement | null;
+    const link = target?.closest?.(
+      'a[href="#pasture"], a[href="#pasture-canvas"]',
+    );
+    if (!link) return;
+    event.preventDefault();
+    const canvas = $maybe("#pasture-canvas");
+    if (canvas && "id" in canvas) {
+      history.replaceState(null, "", "#pasture-canvas");
+    }
+    scrollPastureIntoView();
+  });
+  if (location.hash === "#pasture" || location.hash === "#pasture-canvas") {
+    requestAnimationFrame(() => scrollPastureIntoView());
   }
 }
 
@@ -401,6 +449,7 @@ async function mountOrUpdatePasture(pets: ViewPet[]) {
   if (!pastureMount) pastureMount = mountPasture3d(root, props);
   else pastureMount.update(props);
   hookPastureChat();
+  hookPastureViewport();
   if (!pastureEscapeHooked) pastureEscapeHooked = true;
 }
 

@@ -3,22 +3,28 @@ import { WorldText } from "./WorldText";
 import type { WorldLandmark, WorldZoneConfig } from "../config/zones";
 
 function Landmark({ item, y = 0 }: { item: WorldLandmark; y?: number }) {
+  const isBuilding = item.height >= 1;
   const roofY = item.height + 0.35;
+  const labelY = isBuilding ? item.height + 1.8 : 1.15;
   return (
     <group position={[item.position.x, item.position.y + y, item.position.z]}>
-      <mesh position={[0, item.height / 2, 0]}>
-        <boxGeometry args={[item.width, item.height, item.depth]} />
-        <meshStandardMaterial color={item.color} roughness={0.85} />
-      </mesh>
-      <mesh position={[0, roofY, 0]} rotation={[0, Math.PI / 4, 0]}>
-        <coneGeometry
-          args={[Math.max(item.width, item.depth) * 0.72, 1.4, 4]}
-        />
-        <meshStandardMaterial color="#5d7eb8" roughness={0.7} />
-      </mesh>
+      {isBuilding ? (
+        <>
+          <mesh position={[0, item.height / 2, 0]}>
+            <boxGeometry args={[item.width, item.height, item.depth]} />
+            <meshStandardMaterial color={item.color} roughness={0.85} />
+          </mesh>
+          <mesh position={[0, roofY, 0]} rotation={[0, Math.PI / 4, 0]}>
+            <coneGeometry
+              args={[Math.max(item.width, item.depth) * 0.72, 1.4, 4]}
+            />
+            <meshStandardMaterial color="#5d7eb8" roughness={0.7} />
+          </mesh>
+        </>
+      ) : null}
       <WorldText
-        position={[0, item.height + 1.8, 0]}
-        fontSize={0.45}
+        position={[0, labelY, 0]}
+        fontSize={isBuilding ? 0.45 : 0.32}
         color="#123055"
         anchorX="center"
         anchorY="middle"

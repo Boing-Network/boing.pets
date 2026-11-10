@@ -16,6 +16,7 @@ import {
   type PresencePlayer,
   type ServerPresenceMessage,
 } from "../src/world/lib/presenceProtocol";
+import { clampPresencePosition } from "../src/pasture3d/pathing";
 
 type Attachment = PresencePlayer & {
   lastMoveAt: number;
@@ -50,6 +51,8 @@ async function cosmeticsForWallet(
 }
 
 export class PlazaRoom extends DurableObject<Env> {
+  private zoneId = "starter-town";
+
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.ctx.setWebSocketAutoResponse(
@@ -63,6 +66,12 @@ export class PlazaRoom extends DurableObject<Env> {
     }
     if (this.ctx.getWebSockets().length >= PRESENCE_MAX_PLAYERS) {
       return new Response("Plaza is full. Try again soon.", { status: 503 });
+    }
+    try {
+      const zone = new URL(request.url).searchParams.get("zone");
+      if (zone) this.zoneId = zone;
+    } catch {
+      /* keep the last known zone for this named stub */
     }
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
@@ -186,13 +195,19 @@ export class PlazaRoom extends DurableObject<Env> {
       const cosmetics = boundWallet
         ? await cosmeticsForWallet(this.env, id, true)
         : undefined;
+      const pos = clampPresencePosition(
+        this.zoneId,
+        parsed.x,
+        parsed.y,
+        parsed.z,
+      );
       const player: PresencePlayer = presencePlayerPayload({
         id,
         name,
         color,
-        x: parsed.x,
-        y: parsed.y,
-        z: parsed.z,
+        x: pos.x,
+        y: pos.y,
+        z: pos.z,
         ...(cosmetics ? { cosmetics } : {}),
       });
       ws.serializeAttachment({
@@ -275,9 +290,15 @@ export class PlazaRoom extends DurableObject<Env> {
     if (parsed.type !== "move") return;
     const now = Date.now();
     if (now - self.lastMoveAt < PRESENCE_MOVE_MIN_MS) return;
-    self.x = parsed.x;
-    self.y = parsed.y;
-    self.z = parsed.z;
+    const pos = clampPresencePosition(
+      this.zoneId,
+      parsed.x,
+      parsed.y,
+      parsed.z,
+    );
+    self.x = pos.x;
+    self.y = pos.y;
+    self.z = pos.z;
     self.lastMoveAt = now;
     ws.serializeAttachment(self);
     this.broadcast(ws, {

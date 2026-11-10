@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { meadowHeight, PASTURE_FLATTEN } from "./meadowHeight";
+import { MEADOW_TREE_SPOTS } from "./meadowLayout";
 
 const GROUND_RADIUS = 36;
 
@@ -255,19 +256,6 @@ function MeadowTree({ x, z }: { x: number; z: number }) {
   );
 }
 
-const TREE_SPOTS = [
-  [-20, -12],
-  [-18, 14],
-  [18, -14],
-  [20, 12],
-  [-22, 2],
-  [22, -2],
-  [-6, 18],
-  [8, 16],
-  [-14, -18],
-  [15, 18],
-] as const;
-
 export function Meadow({
   preferPerf,
   onWalk,
@@ -293,7 +281,7 @@ export function Meadow({
       <InstancedDecor count={flowers} kind="flower" preferPerf={preferPerf} />
       <InstancedDecor count={rocks} kind="rock" preferPerf={preferPerf} />
       <Pond />
-      {TREE_SPOTS.map(([x, z], i) => (
+      {MEADOW_TREE_SPOTS.map(([x, z], i) => (
         <MeadowTree key={i} x={x} z={z} />
       ))}
     </group>
