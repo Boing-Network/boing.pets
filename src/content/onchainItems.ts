@@ -4,7 +4,9 @@
  *
  * Off-chain inventory stays the source of truth for play. A withdrawal moves a stack out of
  * the D1 inventory and the Pets operator key mints the same quantity of the mapped item id
- * to the player's wallet. On-chain item ids are permanent: never renumber or reuse one.
+ * to the player's wallet. A deposit is a player-signed transfer of those items back to the
+ * Pets operator; the Worker verifies the receipt and credits inventory once per tx hash.
+ * On-chain item ids are permanent: never renumber or reuse one.
  *
  * Calldata, storage keys, and storage-word parsing come from `@boing-network/boing-sdk`.
  */
@@ -13,6 +15,7 @@ import {
   REF_MT_ADMIN_KEY_HEX,
   SELECTOR_MT_MINT,
   encodeMultiTokenMintCalldata,
+  encodeMultiTokenTransferCalldata,
   multiTokenAmountFromStorageWord,
   multiTokenBalanceStorageKey,
 } from "@boing-network/boing-sdk";
@@ -36,6 +39,10 @@ export const ONCHAIN_WITHDRAW_MAX_QTY = 100;
 
 export function onchainItemByGameId(id: string): OnchainItemDef | undefined {
   return ONCHAIN_ITEMS.find((i) => i.gameItemId === id);
+}
+
+export function onchainItemByItemId(id: number): OnchainItemDef | undefined {
+  return ONCHAIN_ITEMS.find((i) => i.itemId === id);
 }
 
 const strip = (h: string) => h.replace(/^0x/i, "").toLowerCase();
@@ -71,6 +78,19 @@ export function mtMintCalldata(
   if (!Number.isSafeInteger(amount) || amount <= 0)
     throw new Error("Invalid amount");
   return encodeMultiTokenMintCalldata(to, itemId, amount);
+}
+
+/** 128-byte `transfer(to, itemId, amount)` calldata (caller's own balance). */
+export function mtTransferCalldata(
+  to: string,
+  itemId: number,
+  amount: number,
+): Uint8Array {
+  if (!Number.isSafeInteger(itemId) || itemId < 0)
+    throw new Error("Invalid item id");
+  if (!Number.isSafeInteger(amount) || amount <= 0)
+    throw new Error("Invalid amount");
+  return encodeMultiTokenTransferCalldata(to, itemId, amount);
 }
 
 /** Parse a `boing_getContractStorage` result (`{ value }` or bare hex) as a word. */

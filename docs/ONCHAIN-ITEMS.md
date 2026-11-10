@@ -37,8 +37,26 @@ next unused id.
 A definitive RPC rejection at submit refunds immediately. Concurrent withdrawals take distinct
 nonces (unique index on in-flight `(contract, admin_nonce)`). No cron is used.
 
-Deposits (on-chain → in-game) are not implemented: once withdrawn, items are ordinary wallet
-assets the player can send with Express.
+## Deposits (wallet to in-game)
+
+v1 of the reference multi-token has no burn and no operator-approval, so a deposit is a
+player-signed ransfer of the item to the Pets operator account (the contract dmin).
+o == 0 faults. After Express includes the transfer:
+
+1. POST /api/items/deposit/prepare {owner, game_item_id, qty} (qty 1..100) returns an
+   Express contract_call object ( ransfer(operator, item_id, qty)). The player signs and
+   submits it with oing_sendTransaction.
+2. POST /api/items/deposit/confirm {owner, tx_hash}. The Worker:
+   - rate-limits to 5 confirms per wallet per minute;
+   - loads the receipt and the including block;
+   - checks the sender is owner, the call targets this deployment's contract, the tx
+     succeeded, and exactly one transfer log moves a mapped item from the owner to the
+     operator;
+   - credits the off-chain inventory and writes an audit row keyed by x_hash.
+
+A second confirm of the same tx hash returns 409 and does not credit again. Pending
+transactions return 425 so the client can retry. GET /api/items/onchain?owner=0x... also
+lists recent deposits. No cron is used.
 
 ## Enable it
 

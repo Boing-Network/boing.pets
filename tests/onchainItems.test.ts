@@ -7,9 +7,15 @@ import { blake3 } from "@noble/hashes/blake3";
 import { bytesToHex } from "@noble/hashes/utils";
 import app from "../worker/index";
 import {
+  REF_MT_TOPIC_TRANSFER_HEX,
+  multiTokenAmountWord,
+  multiTokenItemIdWord,
+} from "@boing-network/boing-sdk";
+import {
   MT_ADMIN_STORAGE_KEY,
   mtBalanceStorageKey,
   mtMintCalldata,
+  mtTransferCalldata,
   storageWordQty,
 } from "../src/content/onchainItems";
 
@@ -47,7 +53,8 @@ let rpcState: {
   nonce: number;
   simulate: { success: boolean; error?: string };
   submitError: { code: number; message: string } | null;
-  receipt: { success: boolean; error?: string } | null;
+  receipt: Record<string, unknown> | null;
+  block: Record<string, unknown> | null;
   balance: number;
   calls: string[];
 };
@@ -101,7 +108,7 @@ beforeEach(async () => {
   db = new DatabaseSync(":memory:");
   const dir = new NodeURL("../migrations/", import.meta.url);
   for (const f of readdirSync(dir)
-    .filter((n) => /^00(0\d|1\d|20|22)_.*\.sql$/.test(n))
+    .filter((n) => /^00(0\d|1\d|2[0-4])_.*\.sql$/.test(n))
     .sort())
     db.exec(readFileSync(new NodeURL(f, dir), "utf8"));
   db.prepare("INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,?)").run(
@@ -115,6 +122,7 @@ beforeEach(async () => {
     simulate: { success: true },
     submitError: null,
     receipt: null,
+    block: null,
     balance: 0,
     calls: [],
   };
@@ -170,6 +178,7 @@ beforeEach(async () => {
         return ok({ tx_hash: "ok" });
       }
       if (method === "boing_getTransactionReceipt") return ok(rpcState.receipt);
+      if (method === "boing_getBlockByHeight") return ok(rpcState.block);
       return ok(null);
     }),
   );
@@ -330,6 +339,156 @@ describe("on-chain item withdrawals", () => {
       signature: "0x" + "11".repeat(64),
     });
     expect(res.status).toBe(403);
+    expect(inventoryQty("ore-spark")).toBe(5);
+  });
+});
+
+const DEPOSIT_TX = "0x" + "ab".repeat(32);
+
+function transferLog(from: string, to: string, itemId: number, amount: number) {
+  return {
+    topics: [REF_MT_TOPIC_TRANSFER_HEX, from, to],
+    data:
+      "0x" +
+      multiTokenItemIdWord(itemId).slice(2) +
+      multiTokenAmountWord(amount).slice(2),
+  };
+}
+
+function mockIncludedTransfer(
+  from: string,
+  to: string,
+  itemId = 2,
+  amount = 2,
+) {
+  rpcState.receipt = {
+    success: true,
+    tx_id: DEPOSIT_TX,
+    block_height: 10,
+    tx_index: 0,
+    logs: [transferLog(from, to, itemId, amount)],
+  };
+  rpcState.block = {
+    header: { height: 10 },
+    transactions: [
+      {
+        sender: from,
+        payload: { ContractCall: { contract: CONTRACT } },
+      },
+    ],
+  };
+}
+
+describe("on-chain item deposits", () => {
+  it("encodes transfer calldata for a deposit to the operator", () => {
+    const cd = mtTransferCalldata("0x" + "cd".repeat(32), 2, 2);
+    expect(cd.length).toBe(128);
+    expect(cd[31]).toBe(0x21);
+    expect(cd[32]).toBe(0xcd);
+    expect(cd[95]).toBe(2);
+    expect(cd[127]).toBe(2);
+  });
+
+  it("is disabled without operator config", async () => {
+    (env as unknown as Record<string, unknown>).MULTI_TOKEN_ADMIN_SECRET_KEY =
+      undefined;
+    const res = await post("/api/items/deposit/prepare", {
+      owner,
+      game_item_id: "ore-spark",
+      qty: 1,
+    });
+    expect(res.status).toBe(503);
+  });
+
+  it("prepares an Express contract_call to the operator", async () => {
+    const res = await post("/api/items/deposit/prepare", {
+      owner,
+      game_item_id: "ore-spark",
+      qty: 2,
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      operator: string;
+      contract: string;
+      transaction: { type: string; contract: string; calldata: string };
+    };
+    expect(body.operator).toBe(admin);
+    expect(body.contract).toBe(CONTRACT);
+    expect(body.transaction.type).toBe("contract_call");
+    expect(body.transaction.contract).toBe(CONTRACT);
+    expect(body.transaction.calldata.startsWith("0x")).toBe(true);
+    const expected = mtTransferCalldata(admin, 2, 2);
+    expect(body.transaction.calldata).toBe(
+      "0x" +
+        Array.from(expected)
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join(""),
+    );
+  });
+
+  it("credits inventory once from a verified transfer and rejects a replay", async () => {
+    expect(inventoryQty("ore-spark")).toBe(5);
+    mockIncludedTransfer(owner, admin, 2, 2);
+    const first = await post("/api/items/deposit/confirm", {
+      owner,
+      tx_hash: DEPOSIT_TX,
+    });
+    expect(first.status).toBe(200);
+    const body = (await first.json()) as {
+      deposit: { qty: number; tx_hash: string; status: string };
+    };
+    expect(body.deposit).toMatchObject({
+      qty: 2,
+      tx_hash: DEPOSIT_TX,
+      status: "credited",
+    });
+    expect(inventoryQty("ore-spark")).toBe(7);
+
+    const replay = await post("/api/items/deposit/confirm", {
+      owner,
+      tx_hash: DEPOSIT_TX,
+    });
+    expect(replay.status).toBe(409);
+    expect(inventoryQty("ore-spark")).toBe(7);
+    expect(
+      db.prepare("SELECT COUNT(*) AS n FROM onchain_deposits").get(),
+    ).toEqual({ n: 1 });
+
+    const status = (await (
+      await get("/api/items/onchain?owner=" + owner)
+    ).json()) as {
+      items: Array<{ gameItemId: string; offchain_qty: number }>;
+      deposits: Array<{ tx_hash: string; qty: number }>;
+    };
+    expect(status.deposits[0]).toMatchObject({ tx_hash: DEPOSIT_TX, qty: 2 });
+    expect(
+      status.items.find((i) => i.gameItemId === "ore-spark")?.offchain_qty,
+    ).toBe(7);
+  });
+
+  it("rejects a mint log, a transfer to the wrong account, and a pending receipt", async () => {
+    mockIncludedTransfer("0x" + "00".repeat(32), owner, 2, 2);
+    // mint: from zero to owner (qualifyingDepositTransfer skips isMint)
+    const mint = await post("/api/items/deposit/confirm", {
+      owner,
+      tx_hash: DEPOSIT_TX,
+    });
+    expect(mint.status).toBe(400);
+    expect(inventoryQty("ore-spark")).toBe(5);
+
+    mockIncludedTransfer(owner, "0x" + "99".repeat(32), 2, 2);
+    const wrongTo = await post("/api/items/deposit/confirm", {
+      owner,
+      tx_hash: "0x" + "11".repeat(32),
+    });
+    expect(wrongTo.status).toBe(400);
+
+    rpcState.receipt = null;
+    const pending = await post("/api/items/deposit/confirm", {
+      owner,
+      tx_hash: "0x" + "22".repeat(32),
+    });
+    expect(pending.status).toBe(425);
     expect(inventoryQty("ore-spark")).toBe(5);
   });
 });
