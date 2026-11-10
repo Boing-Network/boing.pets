@@ -285,6 +285,21 @@ describe("automatic native payouts", () => {
     expect(row(h.db, "seller").attempts).toBeGreaterThanOrEqual(2);
   });
 
+  it("treats a balance equal to the payout but short the network fee as pending", async () => {
+    const amount = parseBoing("1");
+    h.account.balance = amount.toString();
+    insertLeg(h.db, "seller", seller, amount.toString());
+    const result = await processMarketPayoutsWithSigner(h.env, h.signer, {
+      now,
+      paymentTx,
+      force: true,
+    });
+    expect(result[0]?.status).toBe("pending");
+    expect(result[0]?.last_error).toBe("insufficient-balance");
+    expect(h.submissions).toHaveLength(0);
+    expect(row(h.db, "seller").payout_tx).toBeNull();
+  });
+
   it("does not double-pay when two processors run at once", async () => {
     insertLeg(h.db, "seller", seller, parseBoing("0.5").toString());
     const [a, b] = await Promise.all([

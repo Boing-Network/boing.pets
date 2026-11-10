@@ -133,6 +133,7 @@ beforeEach(async () => {
     ASSETS: { fetch: async () => new Response("assets") } as unknown as Fetcher,
     RPC_URL: "https://rpc.example",
     APP_ORIGIN: origin,
+    MARKET_WRITES: "on",
     PLAZA: {
       getByName: () => ({
         fetch: async () => new Response("plaza stub"),
@@ -1370,6 +1371,7 @@ describe("Pets API", () => {
     expect(market.rules).toMatchObject({
       currency: "boing",
       feeBps: 500,
+      minPriceBoing: "0.1",
       provisional: true,
       maxOpenListings: 8,
       expiryDays: 7,
@@ -1416,6 +1418,14 @@ describe("Pets API", () => {
     expect(held.status).toBe(409);
 
     db.prepare("UPDATE inventory_acquisitions SET created_at=0").run();
+    const tooLow = await request("/api/economy/challenge", {
+      owner,
+      kind: "list",
+      item_id: "hat-ribbon",
+      qty: 1,
+      price_boing: "0.01",
+    });
+    expect(tooLow.status).toBe(400);
     const list = await request("/api/economy/challenge", {
       owner,
       kind: "list",

@@ -1,6 +1,10 @@
 import { CATALOG } from "../../economy";
 import { ONCHAIN_ITEMS } from "../../content/onchainItems";
-import { formatMarketPriceBoing, isSellableItem } from "../../market";
+import {
+  formatMarketPriceBoing,
+  isSellableItem,
+  parseMarketPriceBoing,
+} from "../../market";
 import { hex32 } from "../../core";
 import {
   COLLECTION_CATEGORY_LABELS,
@@ -265,6 +269,15 @@ export async function refreshEconomy() {
       expiryDays: number;
       provisional?: boolean;
       settlement?: string;
+      gasSubsidy?: string;
+    };
+    writesEnabled?: boolean;
+    gasReserve?: {
+      ok: boolean;
+      surplusBoing: string;
+      requiredBoing: string;
+      pendingLegs: number;
+      floorBoing: string;
     };
   }>("/api/marketplace" + (app.owner ? `?owner=${app.owner}` : ""));
   let summary =
@@ -351,6 +364,15 @@ export async function refreshEconomy() {
       const qty = Number($maybe<HTMLInputElement>("#list-qty")?.value || "1");
       const price = $maybe<HTMLInputElement>("#list-price")?.value || "";
       if (!itemId) return;
+      try {
+        parseMarketPriceBoing(price);
+      } catch (error) {
+        const notice = $maybe("#notice");
+        if (notice)
+          notice.textContent =
+            error instanceof Error ? error.message : "Invalid price";
+        return;
+      }
       void run(() =>
         economyAct("list", { item_id: itemId, qty, price_boing: price }),
       );
@@ -388,7 +410,10 @@ export async function refreshEconomy() {
           btn.textContent = listing.price_boing
             ? "Buy listing · pay BOING"
             : "Relist required";
-          btn.disabled = app.busy || !app.owner || !listing.price_boing;
+          const paused =
+            market.writesEnabled === false || market.gasReserve?.ok === false;
+          btn.disabled =
+            app.busy || !app.owner || !listing.price_boing || paused;
           btn.onclick = () =>
             void run(() =>
               economyAct("buy_listing", { listing_id: listing.id }),
@@ -429,16 +454,36 @@ export async function refreshEconomy() {
     }
   }
 
+  const gasNotice = $maybe("#market-gas-notice");
+  if (gasNotice) {
+    const paused =
+      market.writesEnabled === false || market.gasReserve?.ok === false;
+    if (paused) {
+      gasNotice.hidden = false;
+      gasNotice.textContent =
+        market.writesEnabled === false
+          ? "Market listings and purchases are temporarily disabled. Outstanding payouts are unchanged."
+          : "Purchases are paused because the operator gas reserve is too low. The 5% treasury fee does not replenish operator gas.";
+    } else {
+      gasNotice.hidden = true;
+      gasNotice.textContent = "";
+    }
+  }
+
   const rulesEl = $maybe("#market-rules");
   if (rulesEl && market.rules) {
     const provisional = market.rules.provisional
       ? " Caps, expiry, and anti-wash holds are provisional."
       : "";
+    const subsidy = market.rules.gasSubsidy
+      ? " " + market.rules.gasSubsidy
+      : "";
     rulesEl.textContent =
       `${market.rules.feeBps / 100}% of each player-market sale sinks to the pasture treasury. ` +
       `Up to ${market.rules.maxOpenListings} open listings, ${market.rules.expiryDays}-day expiry, ` +
-      `prices ${market.rules.minPriceBoing}–${market.rules.maxPriceBoing} testnet BOING.` +
-      provisional;
+      `prices ${market.rules.minPriceBoing}?${market.rules.maxPriceBoing} testnet BOING.` +
+      provisional +
+      subsidy;
   }
 
   const dropTableEl = $maybe("#drop-table");

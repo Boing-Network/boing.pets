@@ -11,9 +11,15 @@ import {
 import { hex32 } from "../src/core";
 import {
   MARKET_ESCROW_ADDRESS,
+  MARKET_GAS_RESERVE_FLOOR_BOING,
   MARKET_SINK_ADDRESS,
+  NATIVE_TRANSFER_FEE_BASE_UNITS,
+  PAYOUT_LEGS_PER_FILL,
+  canAdmitMarketPurchase,
+  formatMarketPriceBoing,
   marketPayoutId,
   marketPayoutTxUrl,
+  payoutSubmitBalanceRequired,
 } from "../src/market";
 import { bytesToHex, hex64 } from "../src/content/onchainItems";
 
@@ -358,7 +364,7 @@ async function sendFreshPayout(
   const amount = BigInt(row.amount_boing);
   try {
     const bal = await operatorBalance(env, signer.admin);
-    if (bal < amount) {
+    if (bal < payoutSubmitBalanceRequired(amount)) {
       const attempts = row.attempts + 1;
       await env.DB.prepare(
         "UPDATE market_payouts SET attempts=?, last_error=?, updated_at=? WHERE id=? AND status IN ('pending','failed')",
@@ -369,7 +375,7 @@ async function sendFreshPayout(
         env,
         row,
         "insufficient-balance",
-        `Operator balance is below the ${row.kind} payout of ${row.amount_boing} base units.`,
+        `Operator balance is below the ${row.kind} payout of ${row.amount_boing} base units plus the ${NATIVE_TRANSFER_FEE_BASE_UNITS.toString()} base-unit network fee.`,
         now,
       );
       return {
@@ -461,7 +467,116 @@ async function sendFreshPayout(
   }
 }
 
+const SIGNER_LOCK_ID = "market-payout-signer-lock";
+const SIGNER_LOCK_TTL_MS = 30_000;
+
+async function acquirePayoutSignerLock(
+  env: Env,
+  now: number,
+): Promise<boolean> {
+  try {
+    await env.DB.prepare(
+      "INSERT INTO market_payout_alerts(id,payout_id,payment_tx,code,message,created_at,resolved_at) VALUES(?,?,?,?,?,?,NULL)",
+    )
+      .bind(SIGNER_LOCK_ID, "", "", "signer-lock", "processing", now)
+      .run();
+    return true;
+  } catch {
+    const stolen = await env.DB.prepare(
+      `UPDATE market_payout_alerts
+       SET created_at=?, resolved_at=NULL, message='processing'
+       WHERE id=? AND (resolved_at IS NOT NULL OR created_at<=?)`,
+    )
+      .bind(now, SIGNER_LOCK_ID, now - SIGNER_LOCK_TTL_MS)
+      .run();
+    const changes =
+      Number((stolen as { meta?: { changes?: number } }).meta?.changes ?? 0) ||
+      Number((stolen as { changes?: number }).changes ?? 0);
+    return changes > 0;
+  }
+}
+
+async function releasePayoutSignerLock(env: Env, now: number): Promise<void> {
+  await env.DB.prepare(
+    "UPDATE market_payout_alerts SET resolved_at=? WHERE id=? AND resolved_at IS NULL",
+  )
+    .bind(now, SIGNER_LOCK_ID)
+    .run();
+}
+
+export async function loadPendingPayoutTotals(env: Env): Promise<{
+  pendingLegs: number;
+  pendingPayoutAmounts: bigint;
+}> {
+  const rows = await env.DB.prepare(
+    "SELECT amount_boing FROM market_payouts WHERE status IN ('pending','sent','failed')",
+  ).all<{ amount_boing: string }>();
+  let pendingPayoutAmounts = 0n;
+  for (const row of rows.results) {
+    pendingPayoutAmounts += BigInt(row.amount_boing);
+  }
+  return { pendingLegs: rows.results.length, pendingPayoutAmounts };
+}
+
+export async function evaluateOperatorGasReserve(
+  env: Env,
+  extraLegs = PAYOUT_LEGS_PER_FILL,
+): Promise<
+  ReturnType<typeof canAdmitMarketPurchase> & {
+    operatorBalance: bigint;
+    surplusBoing: string;
+    requiredBoing: string;
+  }
+> {
+  const { pendingLegs, pendingPayoutAmounts } =
+    await loadPendingPayoutTotals(env);
+  const balance = await operatorBalance(env, MARKET_ESCROW_ADDRESS);
+  const reserve = canAdmitMarketPurchase({
+    operatorBalance: balance,
+    pendingPayoutAmounts,
+    pendingLegs,
+    extraLegs,
+  });
+  return {
+    ...reserve,
+    operatorBalance: balance,
+    surplusBoing: formatMarketPriceBoing(reserve.surplus),
+    requiredBoing: formatMarketPriceBoing(reserve.required),
+  };
+}
+
+export function publicGasReserve(
+  reserve: Awaited<ReturnType<typeof evaluateOperatorGasReserve>>,
+) {
+  return {
+    ok: reserve.ok,
+    surplusBoing: reserve.surplusBoing,
+    requiredBoing: reserve.requiredBoing,
+    pendingLegs: reserve.pendingLegs,
+    floorBoing: MARKET_GAS_RESERVE_FLOOR_BOING,
+  };
+}
+
 export async function processMarketPayoutsWithSigner(
+  env: Env,
+  signer: { secret: Uint8Array; admin: string },
+  opts: {
+    now: number;
+    paymentTx?: string;
+    force?: boolean;
+    limit?: number;
+  },
+): Promise<MarketPayoutRow[]> {
+  const locked = await acquirePayoutSignerLock(env, opts.now);
+  if (!locked) return [];
+  try {
+    return await processMarketPayoutsWithSignerLocked(env, signer, opts);
+  } finally {
+    await releasePayoutSignerLock(env, opts.now);
+  }
+}
+
+async function processMarketPayoutsWithSignerLocked(
   env: Env,
   signer: { secret: Uint8Array; admin: string },
   opts: {

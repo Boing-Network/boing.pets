@@ -3,8 +3,10 @@
 This revision records the day-one design: **player listings are priced in
 testnet BOING from the start**, not in Boinglets first. The official shop
 catalog stays on the off-chain Boinglets / Sparkles ledger. Implementation
-is local-only until a separate go-ahead; this document still does not
-authorize a remote D1 migration, a production deploy, or a mainnet change.
+was local-only until the 2026-11-10 go-ahead to apply remote migrations
+0025 and 0026 and deploy the testnet market. This document still does not
+authorize additional remote schema, a change to `MULTI_TOKEN_CONTRACT`, or
+any mainnet change.
 
 Related: `docs/PHASE4.md`, `docs/PHASE4-SPARKLES.md`, `docs/ONCHAIN-ITEMS.md`,
 `docs/ROADMAP.md`. Cosmetic item ids 70-76 in `src/content/onchainItems.ts`
@@ -95,7 +97,18 @@ API and UI:
 - No immediate sell-back: a buyer cannot list the same item back to the
   previous seller for **2 hours**.
 - Quantity **1-20**.
-- Price band **0.01-100,000** testnet BOING.
+- Price band **0.1-100,000** testnet BOING. The 0.1 minimum is a total
+  listing price chosen so the 5% fee (0.005 BOING) is about 11.9 times
+  the two payout network fees measured on official testnet on 2026-11-10
+  (native Transfer `gas_used=21000`, `execution_gas_fee_bps=100`, fee
+  0.00021 BOING each, 0.00042 BOING for seller + sink, payouts untipped).
+  The 95/5 split is unchanged. Because 100% of the received price is
+  paid out, this minimum does **not** replenish operator gas. The 5%
+  lands on the pasture treasury; payout fees are subsidized from
+  operator surplus. New purchases pause when that surplus would fall
+  below a 0.01 BOING floor after budgeting 0.00084 BOING per pending or
+  new payout leg (4x the measured fee). Do not seize seller proceeds or
+  silently reduce payouts to pay gas.
 
 ### Anti-wash, honestly scoped
 
@@ -244,11 +257,12 @@ playtest retune:
 6. **Placed furniture.** Must pick up before listing. No "listed in place"
    lock in v1.
 7. **Exact wash thresholds.** 1 UTC day hold, 2-hour sell-back, 8 open
-   listings, 10 opens and 10 fills per UTC day, and the 0.01-100,000 BOING
+   listings, 10 opens and 10 fills per UTC day, and the 0.1-100,000 BOING
    price band. Retune after playtest.
 8. **Escrow payouts.** Sent automatically after a fill. Status is
    pending, sent, confirmed, or failed. No new cron. The 5% treasury
    address is `MARKET_SINK_ADDRESS`.
 
-Nothing in this document should be taken as permission to apply a remote
-migration, change `MULTI_TOKEN_CONTRACT`, or deploy.
+The 2026-11-10 go-ahead covers applying remote migrations 0025 and 0026
+and deploying this market. It does not authorize later schema, a change
+to `MULTI_TOKEN_CONTRACT`, or mainnet.

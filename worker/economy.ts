@@ -16,12 +16,15 @@ import {
   listingExpiresAt,
   listingFeeBaseUnits,
   MARKET_ESCROW_ADDRESS,
+  MARKET_PURCHASES_PAUSED_MESSAGE,
   MARKET_SINK_ADDRESS,
+  MARKET_WRITES_DISABLED_MESSAGE,
   marketPayoutId,
   MARKET_MAX_FILLS_PER_UTC_DAY,
   MARKET_MAX_LIST_OPENS_PER_UTC_DAY,
   MARKET_MAX_OPEN_LISTINGS,
   formatMarketPriceBoing,
+  marketWritesEnabled,
   parseMarketPriceBoing,
   publicMarketRules,
   sellerProceedsBaseUnits,
@@ -33,7 +36,9 @@ import {
 import { hex32, type CareEvent } from "../src/core";
 import { assertEscrowPayment, loadIncludedTransfer } from "./marketPay";
 import {
+  evaluateOperatorGasReserve,
   loadSellerPayouts,
+  publicGasReserve,
   scheduleMarketPayouts,
   type WaitUntilFn,
 } from "./marketPayouts";
@@ -242,6 +247,22 @@ async function verifySignature(
     );
 }
 
+function assertMarketWrites(env: Env, kind: string) {
+  if (kind !== "list" && kind !== "buy_listing") return;
+  if (!marketWritesEnabled(env))
+    throw new HttpError(503, MARKET_WRITES_DISABLED_MESSAGE);
+}
+
+async function assertPurchaseGasReserve(env: Env) {
+  let reserve;
+  try {
+    reserve = await evaluateOperatorGasReserve(env);
+  } catch {
+    throw new HttpError(503, MARKET_PURCHASES_PAUSED_MESSAGE);
+  }
+  if (!reserve.ok) throw new HttpError(503, MARKET_PURCHASES_PAUSED_MESSAGE);
+}
+
 export async function economyGet(
   req: Request,
   env: Env,
@@ -299,10 +320,24 @@ export async function economyGet(
     ).all();
     const ownerParam = url.searchParams.get("owner");
     const payouts = ownerParam ? await loadSellerPayouts(env, ownerParam) : [];
+    let gasReserve = {
+      ok: false,
+      surplusBoing: "unknown",
+      requiredBoing: "unknown",
+      pendingLegs: 0,
+      floorBoing: publicMarketRules().gasReserveFloorBoing,
+    };
+    try {
+      gasReserve = publicGasReserve(await evaluateOperatorGasReserve(env));
+    } catch {
+      // Fail closed in the public snapshot if the operator balance cannot be read.
+    }
     return Response.json({
       listings: listings.results,
       payouts,
       rules: publicMarketRules(),
+      writesEnabled: marketWritesEnabled(env),
+      gasReserve,
       now,
     });
   }
@@ -410,6 +445,7 @@ export async function economyPost(
           error instanceof Error ? error.message : "Invalid price",
         );
       }
+      assertMarketWrites(env, "list");
       await expireOpenListings(env, now);
       await assertListable(env, owner, itemId, qty, now);
       const price = BigInt(priceBoing);
@@ -433,6 +469,8 @@ export async function economyPost(
 
     if (kind === "buy_listing") {
       const listingId = String(body.listing_id || "");
+      assertMarketWrites(env, "buy_listing");
+      await assertPurchaseGasReserve(env);
       await expireOpenListings(env, now);
       const listing = await env.DB.prepare(
         "SELECT * FROM marketplace_listings WHERE id=? AND status='open'",
@@ -658,6 +696,7 @@ export async function economyPost(
     }
 
     if (c.kind === "list") {
+      assertMarketWrites(env, "list");
       const itemId = String(payload.item_id);
       const qty = Number(payload.qty);
       const priceBoing = String(payload.price_boing || "");

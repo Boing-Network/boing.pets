@@ -4,6 +4,7 @@ import {
   parseBoing,
   formatBoing,
   BOING_DECIMALS,
+  estimateMicroTransferFee,
 } from "@boing-network/boing-sdk";
 import { CATALOG } from "./economy";
 import {
@@ -30,9 +31,107 @@ export const MARKET_MAX_FILLS_PER_UTC_DAY = 10;
 export const MARKET_QTY_MIN = 1;
 export const MARKET_QTY_MAX = 20;
 
-/** Provisional price band in whole BOING, stored as 18-decimal base units. */
-export const MARKET_MIN_BOING = "0.01";
+/**
+ * Minimum TOTAL listing price in testnet BOING (18-decimal base units).
+ * Chosen so the 5% fee (0.005 BOING) is about 11.9x the two payout
+ * transfer fees measured on official testnet on 2026-11-10.
+ * This does not replenish operator gas: the 5% is paid out to the
+ * pasture treasury, and payout network fees come from operator surplus.
+ */
+export const MARKET_MIN_BOING = "0.1";
 export const MARKET_MAX_BOING = "100000";
+
+/** Live official-testnet receipts: native Transfer gas_used is 21000. */
+export const NATIVE_TRANSFER_GAS_USED = 21000n;
+
+/**
+ * Untipped native transfer fee: gas_used * 1e12 * 100 / 10000 = 0.00021
+ * BOING. Matches `estimateMicroTransferFee()`, `execution_gas_fee_bps=100`,
+ * `gas_price_base_units=1000000000000`, `extra_fixed_fee=0`, and
+ * `transfer_amount_bps=0` from boing_getNetworkInfo on 2026-11-10.
+ */
+export const NATIVE_TRANSFER_FEE_BASE_UNITS = estimateMicroTransferFee();
+export const PAYOUT_LEGS_PER_FILL = 2;
+export const PAYOUT_NETWORK_FEE_BUDGET_BASE_UNITS =
+  NATIVE_TRANSFER_FEE_BASE_UNITS * BigInt(PAYOUT_LEGS_PER_FILL);
+
+/**
+ * Budgeted gas per payout leg for reserve math: 4x the measured micro fee
+ * (0.00084 BOING). A later small fee-policy bump should not immediately
+ * exhaust the reserve. Not a source of operator gas.
+ */
+export const MARKET_GAS_BUDGET_PER_LEG_BASE_UNITS =
+  NATIVE_TRANSFER_FEE_BASE_UNITS * 4n;
+
+/** Surplus that must remain after admitting a purchase. */
+export const MARKET_GAS_RESERVE_FLOOR_BOING = "0.01";
+
+export const MARKET_PURCHASES_PAUSED_MESSAGE =
+  "Market purchases are paused until the operator has enough testnet BOING reserved for payout network fees. The 5% sale fee does not replenish that reserve.";
+
+export const MARKET_WRITES_DISABLED_MESSAGE =
+  "Market listings and purchases are temporarily disabled. Outstanding payouts are unchanged.";
+
+export function marketGasReserveFloor(): bigint {
+  return parseBoing(MARKET_GAS_RESERVE_FLOOR_BOING);
+}
+
+export function operatorSurplus(
+  operatorBalance: bigint,
+  pendingPayoutAmounts: bigint,
+): bigint {
+  const surplus = operatorBalance - pendingPayoutAmounts;
+  return surplus > 0n ? surplus : 0n;
+}
+
+export function gasReserveRequiredBaseUnits(
+  pendingLegs: number,
+  extraLegs = 0,
+): bigint {
+  const legs = BigInt(Math.max(0, pendingLegs) + Math.max(0, extraLegs));
+  return legs * MARKET_GAS_BUDGET_PER_LEG_BASE_UNITS + marketGasReserveFloor();
+}
+
+export type MarketGasReserve = {
+  ok: boolean;
+  surplus: bigint;
+  required: bigint;
+  pendingLegs: number;
+  pendingPayoutAmounts: bigint;
+};
+
+export function canAdmitMarketPurchase(input: {
+  operatorBalance: bigint;
+  pendingPayoutAmounts: bigint;
+  pendingLegs: number;
+  extraLegs?: number;
+}): MarketGasReserve {
+  const extraLegs = input.extraLegs ?? PAYOUT_LEGS_PER_FILL;
+  const surplus = operatorSurplus(
+    input.operatorBalance,
+    input.pendingPayoutAmounts,
+  );
+  const required = gasReserveRequiredBaseUnits(input.pendingLegs, extraLegs);
+  return {
+    ok: surplus >= required,
+    surplus,
+    required,
+    pendingLegs: input.pendingLegs,
+    pendingPayoutAmounts: input.pendingPayoutAmounts,
+  };
+}
+
+/** Balance needed to submit one payout leg, including the measured network fee. */
+export function payoutSubmitBalanceRequired(amount: bigint): bigint {
+  return amount + NATIVE_TRANSFER_FEE_BASE_UNITS;
+}
+
+export function marketWritesEnabled(env: { MARKET_WRITES?: string }): boolean {
+  const raw = String(env.MARKET_WRITES ?? "on")
+    .trim()
+    .toLowerCase();
+  return raw !== "off" && raw !== "disabled" && raw !== "0" && raw !== "false";
+}
 
 export const MARKET_PRICE_CURRENCY = "boing" as const;
 
@@ -174,7 +273,17 @@ export function publicMarketRules() {
     maxFillsPerUtcDay: MARKET_MAX_FILLS_PER_UTC_DAY,
     provisional: true,
     sink: MARKET_SINK_ADDRESS,
+    nativeTransferFeeBoing: formatBoing(NATIVE_TRANSFER_FEE_BASE_UNITS),
+    payoutNetworkFeeBudgetBoing: formatBoing(
+      PAYOUT_NETWORK_FEE_BUDGET_BASE_UNITS,
+    ),
+    gasReserveFloorBoing: MARKET_GAS_RESERVE_FLOOR_BOING,
+    gasBudgetPerLegBoing: formatBoing(MARKET_GAS_BUDGET_PER_LEG_BASE_UNITS),
     settlement:
       "escrow-to-operator: buyer pays the full testnet BOING price to the Pets operator in one native transfer; the worker verifies the receipt, releases the item, and the operator pays 95% to the seller and 5% to the pasture treasury as native BOING transfers",
+    feeAssumptions:
+      "Official testnet 2026-11-10: native Transfer gas_used=21000, execution_gas_fee_bps=100, gas_price_base_units=1000000000000, extra_fixed_fee=0, transfer_amount_bps=0, payouts untipped. Fee per transfer is 0.00021 BOING; two payout legs cost 0.00042 BOING. The 0.1 minimum listing makes the 5% fee 0.005 BOING, about 11.9 times that budget. Revisit if the fee policy changes.",
+    gasSubsidy:
+      "The 5% fee is paid to the pasture treasury and does not replenish operator gas. Payout network fees are paid from operator surplus. New purchases pause if that surplus would fall below the gas reserve floor after the two new payout legs.",
   };
 }

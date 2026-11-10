@@ -100,6 +100,7 @@ beforeEach(() => {
     ASSETS: { fetch: async () => new Response("assets") } as unknown as Fetcher,
     RPC_URL: "https://rpc.example",
     APP_ORIGIN: origin,
+    MARKET_WRITES: "on",
     PLAZA: {
       getByName: () => ({
         fetch: async () => new Response("plaza stub"),
