@@ -245,6 +245,11 @@ function hookPastureChat() {
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
+      if (window.__pasture3d?.getStationMenu?.()) {
+        window.__pasture3d.closeStationMenu();
+        event.preventDefault();
+        return;
+      }
       if (document.activeElement === input) {
         input.blur();
         event.preventDefault();
@@ -254,6 +259,7 @@ function hookPastureChat() {
       return;
     }
     if (event.key !== "Enter") return;
+    if (document.querySelector(".pasture-station-menu")) return;
     const target = event.target as HTMLElement | null;
     const tag = target?.tagName;
     if (

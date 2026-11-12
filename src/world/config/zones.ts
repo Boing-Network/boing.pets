@@ -8,7 +8,7 @@ export interface WorldPoint {
 export interface WorldStation {
   id: string;
   label: string;
-  kind: "care" | "info" | "portal";
+  kind: "care" | "info" | "portal" | "craft" | "market";
   position: WorldPoint;
   radius: number;
   hint: string;
@@ -358,6 +358,24 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       width: 3.6,
       depth: 3.6,
     },
+    {
+      id: "crafting-station",
+      label: "Crafting Station",
+      position: { x: -16, y: 0, z: 12 },
+      color: "#c4a574",
+      height: 1.55,
+      width: 3.0,
+      depth: 2.0,
+    },
+    {
+      id: "market-stall",
+      label: "Market Stall",
+      position: { x: 16, y: 0, z: 12 },
+      color: "#e8b86d",
+      height: 2.6,
+      width: 3.2,
+      depth: 2.4,
+    },
   ],
   stations: [
     {
@@ -367,6 +385,22 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       position: { x: 0, y: 0, z: 0 },
       radius: 2.2,
       hint: "Click the ground to walk. Press Enter to chat. Click a buddy to say hi.",
+    },
+    {
+      id: "pasture-craft",
+      label: "Crafting Station",
+      kind: "craft",
+      position: { x: -16, y: 0, z: 12 },
+      radius: 3.4,
+      hint: "Press E to craft",
+    },
+    {
+      id: "pasture-market",
+      label: "Market Stall",
+      kind: "market",
+      position: { x: 16, y: 0, z: 12 },
+      radius: 3.4,
+      hint: "Press E to open the market",
     },
   ],
   paths: [

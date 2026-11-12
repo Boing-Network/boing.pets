@@ -3,12 +3,12 @@ import { useRef, type MutableRefObject } from "react";
 import { Fog, type DirectionalLight, type HemisphereLight } from "three";
 import * as THREE from "three";
 import { tickMeadowWind } from "./meadowWind";
-import { samplePastureDay } from "./pastureDay";
+import { publicPastureDay, samplePastureDay } from "./pastureDay";
 
 /** Live atmosphere flags for decor (fireflies, etc.). */
 export const pastureDayLive = { showFireflies: false, isNight: false };
 
-/** Set to an hour 0-24 to freeze lighting (screenshots). Null follows the clock. */
+/** Set to an hour 0-24 to freeze lighting (screenshots / debug). Null uses the public mid-morning lock, not the wall clock. */
 export const pastureHourOverride: { current: number | null } = {
   current: null,
 };
@@ -33,9 +33,7 @@ export function MeadowAtmosphere({
     if (!reducedMotion) tickMeadowWind(clock.elapsedTime);
     const hour = pastureHourOverride.current;
     const day =
-      hour == null
-        ? samplePastureDay(Date.now())
-        : samplePastureDay(hour, true);
+      hour == null ? publicPastureDay() : samplePastureDay(hour, true);
     pastureDayLive.showFireflies = day.showFireflies;
     pastureDayLive.isNight = day.isNight;
     if (ambient.current) ambient.current.intensity = day.ambient;
@@ -70,7 +68,7 @@ export function MeadowAtmosphere({
     gl.toneMappingExposure = day.exposure;
   });
 
-  const first = samplePastureDay(Date.now());
+  const first = publicPastureDay();
   return (
     <>
       <color attach="background" args={[first.background]} />

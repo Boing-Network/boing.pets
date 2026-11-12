@@ -282,6 +282,7 @@ export async function refreshEconomy() {
   }>("/api/marketplace" + (app.owner ? `?owner=${app.owner}` : ""));
   let summary =
     "Connect to claim care rewards and daily testnet Sparkles, then browse cosmetics or list items in testnet BOING.";
+  if (!$maybe("#economy-summary") || !$maybe("#catalog")) return;
   const claimBtn = $("#claim") as HTMLButtonElement;
   const sparklesBtn = $("#claim-sparkles") as HTMLButtonElement;
   let inventory: Array<{ item_id: string; qty: number }> = [];

@@ -29,8 +29,20 @@ import {
 import { approachSpeed, desiredWalkSpeed, lerpAngle, retarget } from "./motion";
 import { meadowHeight } from "./meadowHeight";
 import { Meadow } from "./Meadow";
+import { PastureStations } from "./PastureStations";
+import { PastureCraftMenu } from "./PastureCraftMenu";
+import { PastureMarketMenu } from "./PastureMarketMenu";
+import {
+  isWithinStationRadius,
+  nearbyInteractStation,
+  stationActionLabel,
+  stationPrompt,
+  type PastureStationKind,
+} from "./stationInteract";
+import type { WorldStation } from "../world/config/zones";
 import { PasturePaths } from "./PasturePaths";
 import { MeadowAtmosphere, pastureHourOverride } from "./MeadowAtmosphere";
+import { PUBLIC_PASTURE_HOUR } from "./pastureDay";
 import type { PasturePet } from "./types";
 import type { EquippedCosmetics } from "../content/cosmetics";
 import {
@@ -67,6 +79,10 @@ export type PastureDebug = {
   resetCamera: () => void;
   setTimeOfDay: (hours: number | null) => void;
   getTimeOfDay: () => number | null;
+  getStationMenu: () => PastureStationKind | null;
+  openStationMenu: (kind: PastureStationKind) => void;
+  closeStationMenu: () => void;
+  getNearbyStation: () => { id: string; kind: string } | null;
 };
 
 export type PastureAppProps = {
@@ -130,6 +146,11 @@ export function PastureApp({
   const [ready, setReady] = useState(false);
   const [hintOpen, setHintOpen] = useState(readHintOpen);
   const [selected, setSelected] = useState<string | null>(null);
+  const [stationMenu, setStationMenu] = useState<PastureStationKind | null>(
+    null,
+  );
+  const [nearbyStation, setNearbyStation] = useState<WorldStation | null>(null);
+  const stationMenuRef = useRef<PastureStationKind | null>(null);
   const [joinNonce, setJoinNonce] = useState(0);
   const [allowPrompt, setAllowPrompt] = useState(false);
   const silentRejoin = useRef(false);
@@ -231,6 +252,33 @@ export function PastureApp({
     walkTarget.current = retarget(walkTarget.current, target);
   }, []);
 
+  const closeStationMenu = useCallback(() => {
+    stationMenuRef.current = null;
+    setStationMenu(null);
+  }, []);
+
+  const openStationMenu = useCallback(
+    (kind: PastureStationKind) => {
+      stationMenuRef.current = kind;
+      setStationMenu(kind);
+      dismissHint();
+    },
+    [dismissHint],
+  );
+
+  const onStationInteract = useCallback(
+    (station: WorldStation) => {
+      if (station.kind !== "craft" && station.kind !== "market") return;
+      const here = { x: livePose.current.x, z: livePose.current.z };
+      if (isWithinStationRadius(here, station)) {
+        openStationMenu(station.kind);
+        return;
+      }
+      walkTo(station.position.x, station.position.z);
+    },
+    [openStationMenu, walkTo],
+  );
+
   const sendChat = useCallback(
     (text: string) => {
       if (presence.walletBound) return presence.sendChat(text);
@@ -322,11 +370,27 @@ export function PastureApp({
       } else if (event.key === "0") {
         event.preventDefault();
         resetCamera();
+      } else if (event.key === "Escape" && stationMenuRef.current) {
+        event.preventDefault();
+        event.stopPropagation();
+        closeStationMenu();
+      } else if (
+        (event.key === "e" || event.key === "E") &&
+        !stationMenuRef.current
+      ) {
+        const near = nearbyInteractStation(
+          { x: livePose.current.x, z: livePose.current.z },
+          PASTURE_ZONE,
+        );
+        if (near && (near.kind === "craft" || near.kind === "market")) {
+          event.preventDefault();
+          openStationMenu(near.kind);
+        }
       }
     };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [applyZoom, dismissHint, resetCamera]);
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [applyZoom, dismissHint, resetCamera, closeStationMenu, openStationMenu]);
 
   useEffect(() => {
     const debug: PastureDebug = {
@@ -358,7 +422,17 @@ export function PastureApp({
       setTimeOfDay: (hours) => {
         pastureHourOverride.current = hours;
       },
-      getTimeOfDay: () => pastureHourOverride.current,
+      getTimeOfDay: () => pastureHourOverride.current ?? PUBLIC_PASTURE_HOUR,
+      getStationMenu: () => stationMenuRef.current,
+      openStationMenu,
+      closeStationMenu,
+      getNearbyStation: () => {
+        const near = nearbyInteractStation(
+          { x: livePose.current.x, z: livePose.current.z },
+          PASTURE_ZONE,
+        );
+        return near ? { id: near.id, kind: near.kind } : null;
+      },
     };
     if (handleRef) handleRef.current = debug;
     if (typeof window !== "undefined") window.__pasture3d = debug;
@@ -380,6 +454,8 @@ export function PastureApp({
     handleRef,
     applyZoom,
     resetCamera,
+    openStationMenu,
+    closeStationMenu,
   ]);
 
   return (
@@ -393,7 +469,8 @@ export function PastureApp({
         <div className="pasture-hint" role="status">
           <p>
             Click the meadow to walk. Scroll or pinch to zoom. Press Enter to
-            chat. Use + / - or the buttons to zoom, and 0 to reset.
+            chat. Walk west to the Crafting Station or northeast to the Market
+            Stall. Use + / - or the buttons to zoom, and 0 to reset.
           </p>
           <button type="button" className="quiet" onClick={dismissHint}>
             Got it
@@ -425,6 +502,32 @@ export function PastureApp({
           Reset
         </button>
       </div>
+      {nearbyStation && !stationMenu ? (
+        <div className="pasture-station-prompt" role="status">
+          <p>{stationPrompt(nearbyStation)}</p>
+          <button
+            type="button"
+            onClick={() => {
+              if (
+                nearbyStation.kind === "craft" ||
+                nearbyStation.kind === "market"
+              )
+                openStationMenu(nearbyStation.kind);
+            }}
+          >
+            {stationActionLabel(nearbyStation)}
+          </button>
+        </div>
+      ) : null}
+      {stationMenu ? (
+        <div className="pasture-station-overlay">
+          {stationMenu === "craft" ? (
+            <PastureCraftMenu onClose={closeStationMenu} />
+          ) : (
+            <PastureMarketMenu onClose={closeStationMenu} />
+          )}
+        </div>
+      ) : null}
       <Canvas
         shadows={!preferPerf}
         dpr={preferPerf ? [1, 1.25] : [1, 1.75]}
@@ -451,8 +554,10 @@ export function PastureApp({
           <Meadow
             preferPerf={preferPerf}
             onWalk={walkTo}
-            walkEnabled={!!mine}
+            walkEnabled={!!mine && !stationMenu}
           />
+          <PastureStations onInteract={onStationInteract} />
+          <StationProximity poseRef={livePose} onNearby={setNearbyStation} />
           <PasturePaths preferPerf={preferPerf} />
           <StarterTown
             zone={PASTURE_ZONE}
@@ -924,4 +1029,22 @@ declare global {
   interface Window {
     __pasture3d?: PastureDebug;
   }
+}
+
+function StationProximity({
+  poseRef,
+  onNearby,
+}: {
+  poseRef: { current: { x: number; z: number } };
+  onNearby: (station: WorldStation | null) => void;
+}) {
+  const lastId = useRef<string>("");
+  useFrame(() => {
+    const near = nearbyInteractStation(poseRef.current, PASTURE_ZONE);
+    const id = near?.id ?? "";
+    if (id === lastId.current) return;
+    lastId.current = id;
+    onNearby(near);
+  });
+  return null;
 }

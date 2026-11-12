@@ -1,6 +1,10 @@
 import { Float } from "@react-three/drei";
 import { WorldText } from "./WorldText";
 import type { WorldLandmark, WorldZoneConfig } from "../config/zones";
+import {
+  isCustomPastureLandmark,
+  isPastureStationKind,
+} from "../../pasture3d/stationInteract";
 
 function Landmark({ item, y = 0 }: { item: WorldLandmark; y?: number }) {
   const isBuilding = item.height >= 1;
@@ -141,43 +145,47 @@ export function StarterTown({
             />
           ))}
 
-      {zone.landmarks.map((item) => (
-        <Landmark
-          key={item.id}
-          item={item}
-          y={yAt(item.position.x, item.position.z)}
-        />
-      ))}
+      {zone.landmarks
+        .filter((item) => !isCustomPastureLandmark(item.id))
+        .map((item) => (
+          <Landmark
+            key={item.id}
+            item={item}
+            y={yAt(item.position.x, item.position.z)}
+          />
+        ))}
 
-      {zone.stations.map((station) => (
-        <Float
-          key={station.id}
-          speed={1.4}
-          rotationIntensity={0.2}
-          floatIntensity={0.5}
-        >
-          <mesh
-            position={[
-              station.position.x,
-              0.35 + yAt(station.position.x, station.position.z),
-              station.position.z,
-            ]}
+      {zone.stations
+        .filter((station) => !isPastureStationKind(station.kind))
+        .map((station) => (
+          <Float
+            key={station.id}
+            speed={1.4}
+            rotationIntensity={0.2}
+            floatIntensity={0.5}
           >
-            <cylinderGeometry args={[0.55, 0.7, 0.25, 12]} />
-            <meshStandardMaterial
-              color={
-                station.kind === "care"
-                  ? "#7fa7ff"
-                  : station.kind === "portal"
-                    ? "#e0b15a"
-                    : "#9ad7c2"
-              }
-              emissive={station.kind === "care" ? "#355f9a" : "#224433"}
-              emissiveIntensity={0.35}
-            />
-          </mesh>
-        </Float>
-      ))}
+            <mesh
+              position={[
+                station.position.x,
+                0.35 + yAt(station.position.x, station.position.z),
+                station.position.z,
+              ]}
+            >
+              <cylinderGeometry args={[0.55, 0.7, 0.25, 12]} />
+              <meshStandardMaterial
+                color={
+                  station.kind === "care"
+                    ? "#7fa7ff"
+                    : station.kind === "portal"
+                      ? "#e0b15a"
+                      : "#9ad7c2"
+                }
+                emissive={station.kind === "care" ? "#355f9a" : "#224433"}
+                emissiveIntensity={0.35}
+              />
+            </mesh>
+          </Float>
+        ))}
 
       {hideTrees
         ? null

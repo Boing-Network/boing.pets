@@ -1,0 +1,116 @@
+import { describe, expect, it } from "vitest";
+import { PASTURE_ZONE } from "../src/world/config/zones";
+import {
+  isCustomPastureLandmark,
+  isWithinStationRadius,
+  nearbyInteractStation,
+  stationActionLabel,
+  stationByKind,
+  stationPrompt,
+} from "../src/pasture3d/stationInteract";
+import {
+  clampPresencePosition,
+  obstaclesForZone,
+  resolveClickTarget,
+} from "../src/pasture3d/pathing";
+import { MEADOW_TREE_SPOTS } from "../src/pasture3d/meadowLayout";
+import { PASTURE_FLATTEN } from "../src/pasture3d/meadowHeight";
+
+const obstacles = obstaclesForZone(PASTURE_ZONE);
+
+describe("public pasture stations", () => {
+  const craft = stationByKind(PASTURE_ZONE, "craft");
+  const market = stationByKind(PASTURE_ZONE, "market");
+
+  it("places labeled craft and market landmarks east and west of spawn", () => {
+    expect(craft?.position).toEqual({ x: -16, y: 0, z: 12 });
+    expect(market?.position).toEqual({ x: 16, y: 0, z: 12 });
+    expect(craft?.radius).toBe(3.4);
+    expect(market?.radius).toBe(3.4);
+    expect(craft?.careHref).toBeUndefined();
+    expect(market?.careHref).toBeUndefined();
+    const craftLand = PASTURE_ZONE.landmarks.find(
+      (item) => item.id === "crafting-station",
+    );
+    const marketLand = PASTURE_ZONE.landmarks.find(
+      (item) => item.id === "market-stall",
+    );
+    expect(craftLand?.label).toBe("Crafting Station");
+    expect(marketLand?.label).toBe("Market Stall");
+    expect(isCustomPastureLandmark("crafting-station")).toBe(true);
+    expect(isCustomPastureLandmark("snack-barn")).toBe(false);
+  });
+
+  it("keeps stations clear of trees, the barn, and the main path corridors", () => {
+    const barn = PASTURE_ZONE.landmarks.find(
+      (item) => item.id === "snack-barn",
+    )!;
+    for (const station of [craft!, market!]) {
+      const land = PASTURE_ZONE.landmarks.find(
+        (item) =>
+          item.position.x === station.position.x &&
+          item.position.z === station.position.z,
+      )!;
+      const halfW = land.width / 2 + 0.55;
+      const halfD = land.depth / 2 + 0.55;
+      for (const [x, z] of MEADOW_TREE_SPOTS) {
+        const dx = Math.max(Math.abs(station.position.x - x) - halfW, 0);
+        const dz = Math.max(Math.abs(station.position.z - z) - halfD, 0);
+        expect(Math.hypot(dx, dz)).toBeGreaterThan(0.85);
+      }
+      expect(
+        Math.hypot(
+          station.position.x - barn.position.x,
+          station.position.z - barn.position.z,
+        ),
+      ).toBeGreaterThan(8);
+      // Main path corridors are x=0 and z=0.
+      expect(Math.abs(station.position.x)).toBeGreaterThan(station.radius + 2);
+      expect(Math.abs(station.position.z)).toBeGreaterThan(station.radius);
+      expect(
+        PASTURE_FLATTEN.some(
+          (spot) =>
+            spot.x === station.position.x && spot.z === station.position.z,
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("opens only when the player is inside the interact radius", () => {
+    expect(nearbyInteractStation({ x: 0, z: 6 }, PASTURE_ZONE)).toBeNull();
+    expect(
+      nearbyInteractStation({ x: -16, z: 12 + 3.3 }, PASTURE_ZONE)?.kind,
+    ).toBe("craft");
+    expect(
+      nearbyInteractStation({ x: -16, z: 12 + 3.5 }, PASTURE_ZONE),
+    ).toBeNull();
+    expect(isWithinStationRadius({ x: 16, z: 12 }, market!)).toBe(true);
+    expect(stationPrompt(craft!)).toMatch(/craft/i);
+    expect(stationActionLabel(market!)).toMatch(/market/i);
+  });
+
+  it("collides at the station boxes and resolves a walk target just outside", () => {
+    for (const id of ["crafting-station", "market-stall"]) {
+      const land = PASTURE_ZONE.landmarks.find((item) => item.id === id)!;
+      const inside = clampPresencePosition(
+        "pasture",
+        land.position.x,
+        0,
+        land.position.z,
+      );
+      expect(
+        Math.hypot(inside.x - land.position.x, inside.z - land.position.z),
+      ).toBeGreaterThan(1);
+      const target = resolveClickTarget(
+        { x: land.position.x, z: land.position.z },
+        PASTURE_ZONE,
+        obstacles,
+      );
+      const box = obstacles.find((item) => item.id === id);
+      expect(box).toBeTruthy();
+      expect(
+        Math.hypot(target.x - land.position.x, target.z - land.position.z),
+      ).toBeGreaterThanOrEqual(Math.min(box!.halfW, box!.halfD) - 0.05);
+    }
+  });
+});

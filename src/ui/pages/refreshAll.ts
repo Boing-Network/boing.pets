@@ -8,6 +8,7 @@ import {
   refreshTreasure,
 } from "./activitiesPage";
 import { refreshGarden, refreshHousing, refreshKitchen } from "./lifestylePage";
+import { refreshCraft } from "./craftPage";
 import {
   refreshCollections,
   refreshEconomy,
@@ -66,6 +67,10 @@ export async function refresh(page: PageId) {
   if (page === "kitchen")
     await refreshKitchen().catch(() => {
       /* cooking tables may be missing until migration 0014 */
+    });
+  if (page === "craft")
+    await refreshCraft().catch(() => {
+      /* crafting tables may be missing until migration 0027 */
     });
   if (page === "mining") {
     await refreshMining().catch(() => {

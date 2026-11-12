@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { hourFromMs, samplePastureDay } from "../src/pasture3d/pastureDay";
+import {
+  hourFromMs,
+  PUBLIC_PASTURE_HOUR,
+  publicPastureDay,
+  samplePastureDay,
+} from "../src/pasture3d/pastureDay";
 
 describe("pasture day cycle", () => {
   it("makes noon brighter than night", () => {
@@ -26,4 +31,23 @@ describe("pasture day cycle", () => {
     expect(hourFromMs(when)).toBeCloseTo(15.5, 5);
     expect(samplePastureDay(when).hour).toBeCloseTo(15.5, 5);
   });
+});
+
+it("locks the public pasture to mid-morning even at wall-clock night", () => {
+  const locked = publicPastureDay();
+  expect(PUBLIC_PASTURE_HOUR).toBeGreaterThanOrEqual(10);
+  expect(PUBLIC_PASTURE_HOUR).toBeLessThanOrEqual(10.5);
+  expect(locked.hour).toBe(PUBLIC_PASTURE_HOUR);
+  expect(locked.showFireflies).toBe(false);
+  expect(locked.isNight).toBe(false);
+  expect(locked.sunIntensity).toBeGreaterThan(1);
+  expect(locked.exposure).toBeGreaterThan(0.95);
+
+  const evening = new Date(2026, 10, 11, 21, 51, 0).getTime();
+  const ifClockFollowed = samplePastureDay(evening);
+  expect(hourFromMs(evening)).toBeCloseTo(21.85, 2);
+  expect(ifClockFollowed.isNight).toBe(true);
+  expect(ifClockFollowed.showFireflies).toBe(true);
+  expect(ifClockFollowed.sunIntensity).toBeLessThan(locked.sunIntensity);
+  expect(ifClockFollowed.exposure).toBeLessThan(locked.exposure);
 });

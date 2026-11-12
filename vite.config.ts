@@ -31,6 +31,7 @@ export default defineConfig({
         treasure: resolve(root, "treasure.html"),
         garden: resolve(root, "garden.html"),
         kitchen: resolve(root, "kitchen.html"),
+        craft: resolve(root, "craft.html"),
         mining: resolve(root, "mining.html"),
         racing: resolve(root, "racing.html"),
         home: resolve(root, "home.html"),

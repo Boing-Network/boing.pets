@@ -1,4 +1,17 @@
-/** Local-clock pasture lighting. Hours are 0-24 in the viewer's timezone. */
+/** Public pasture lighting.
+
+The plaza stays locked to mid-morning so every visitor sees a bright,
+readable meadow. Hours are 0-24. `samplePastureDay` still understands a
+wall-clock timestamp for tests and for the debug override, but the public
+default must not follow dusk or night.
+*/
+
+/** Pleasant mid-morning, matching the earlier realism-pass daylight shots. */
+export const PUBLIC_PASTURE_HOUR = 10.25;
+
+export function publicPastureDay() {
+  return samplePastureDay(PUBLIC_PASTURE_HOUR, true);
+}
 
 export type PastureDaySample = {
   hour: number;

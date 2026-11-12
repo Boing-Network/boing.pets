@@ -5,6 +5,7 @@ export type PageId =
   | "treasure"
   | "garden"
   | "kitchen"
+  | "craft"
   | "mining"
   | "racing"
   | "home"
@@ -46,6 +47,11 @@ export const PAGE_META: Record<
     path: "/kitchen.html",
     title: "Kitchen",
     docTitle: "Boing Pets · Kitchen",
+  },
+  craft: {
+    path: "/craft.html",
+    title: "Craft",
+    docTitle: "Boing Pets · Craft",
   },
   mining: {
     path: "/mining.html",
@@ -93,6 +99,7 @@ export const HASH_REDIRECTS: Record<string, string> = {
   treasure: "/treasure.html",
   garden: "/garden.html",
   kitchen: "/kitchen.html",
+  craft: "/craft.html",
   mining: "/mining.html",
   racing: "/racing.html",
   home: "/home.html",
@@ -119,7 +126,7 @@ function dropdown(
 }
 
 export function renderHeader(active: PageId): string {
-  return `<header><a class="brand" href="/">boing<span>pets</span><i>✦</i></a><nav aria-label="Main">${dropdown("Play", ["pasture", "home"], active, '<a href="/world.html">Starter Town</a>')}${dropdown("Activities", ["fishing", "treasure", "garden", "kitchen", "mining", "racing"], active)}${dropdown("Social", ["friends"], active)}${dropdown("Progress", ["quests", "collections"], active)}${link("market", active)}${dropdown("Help", ["how"], active, '<a href="https://boing.network/testnet" target="_blank" rel="noreferrer">Boing Network ↗</a>')}</nav><div class="wallet-ctl"><button id="connect" type="button" aria-haspopup="menu" aria-expanded="false">Connect Express</button><div id="wallet-menu" class="wallet-menu" hidden role="menu"><button type="button" id="disconnect" role="menuitem">Disconnect</button></div></div></header>`;
+  return `<header><a class="brand" href="/">boing<span>pets</span><i>✦</i></a><nav aria-label="Main">${dropdown("Play", ["pasture", "home"], active, '<a href="/world.html">Starter Town</a>')}${dropdown("Activities", ["fishing", "treasure", "garden", "kitchen", "craft", "mining", "racing"], active)}${dropdown("Social", ["friends"], active)}${dropdown("Progress", ["quests", "collections"], active)}${link("market", active)}${dropdown("Help", ["how"], active, '<a href="https://boing.network/testnet" target="_blank" rel="noreferrer">Boing Network ↗</a>')}</nav><div class="wallet-ctl"><button id="connect" type="button" aria-haspopup="menu" aria-expanded="false">Connect Express</button><div id="wallet-menu" class="wallet-menu" hidden role="menu"><button type="button" id="disconnect" role="menuitem">Disconnect</button></div></div></header>`;
 }
 
 export function isPageId(value: string): value is PageId {
