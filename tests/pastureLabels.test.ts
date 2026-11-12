@@ -4,6 +4,7 @@ import {
   pastureBubbleVisible,
   pastureNameplateLayers,
   pastureNameplateVisible,
+  pastureHudOverlaysVisible,
   pasturePetLabel,
 } from "../src/pasture3d/labels";
 
@@ -37,5 +38,10 @@ describe("pasture nameplates", () => {
       true,
     );
     expect(pastureBubbleVisible(80)).toBe(false);
+  });
+
+  it("hides nameplates and bubbles while a station menu is open", () => {
+    expect(pastureHudOverlaysVisible(false)).toBe(true);
+    expect(pastureHudOverlaysVisible(true)).toBe(false);
   });
 });

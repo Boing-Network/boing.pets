@@ -68,17 +68,6 @@ function Workbench({
         <meshStandardMaterial color="#a67c4e" roughness={0.8} />
       </mesh>
       <WorldText
-        position={[0, 1.55, -0.98]}
-        fontSize={0.28}
-        color="#fff6e0"
-        anchorX="center"
-        anchorY="middle"
-        outlineWidth={0.015}
-        outlineColor="#3a2412"
-      >
-        Crafting Station
-      </WorldText>
-      <WorldText
         position={[0, 2.35, 0]}
         fontSize={0.36}
         color="#123055"
@@ -157,17 +146,6 @@ function MarketStall({
         <boxGeometry args={[1.85, 0.7, 0.1]} />
         <meshStandardMaterial color="#f3d9a4" roughness={0.8} />
       </mesh>
-      <WorldText
-        position={[0, 1.7, -1.18]}
-        fontSize={0.3}
-        color="#5a2416"
-        anchorX="center"
-        anchorY="middle"
-        outlineWidth={0.012}
-        outlineColor="#fff6e0"
-      >
-        Market Stall
-      </WorldText>
       <WorldText
         position={[0, 3.15, 0]}
         fontSize={0.38}

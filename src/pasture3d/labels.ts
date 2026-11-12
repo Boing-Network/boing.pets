@@ -33,3 +33,8 @@ export function pastureNameplateVisible(distanceToCamera: number): boolean {
 export function pastureBubbleVisible(distanceToCamera: number): boolean {
   return distanceToCamera <= PASTURE_BUBBLE_CULL_DISTANCE;
 }
+
+/** HTML nameplates and chat bubbles must not punch through a station menu. */
+export function pastureHudOverlaysVisible(stationMenuOpen: boolean): boolean {
+  return !stationMenuOpen;
+}

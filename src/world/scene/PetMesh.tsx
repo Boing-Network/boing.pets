@@ -5,6 +5,7 @@ import { Vector3, type Group } from "three";
 import type { EquippedCosmetics } from "../../content/cosmetics";
 import {
   pastureBubbleVisible,
+  pastureHudOverlaysVisible,
   pastureNameplateVisible,
   pasturePetLabel,
 } from "../../pasture3d/labels";
@@ -35,6 +36,7 @@ export function PetMesh({
   bubble,
   onClick,
   scale = 1,
+  hideHudOverlays = false,
   children,
 }: {
   look: PetMeshLook;
@@ -48,6 +50,7 @@ export function PetMesh({
   bubble?: string;
   onClick?: () => void;
   scale?: number;
+  hideHudOverlays?: boolean;
   children?: ReactNode;
 }) {
   const hop = useRef<Group>(null);
@@ -189,39 +192,42 @@ export function PetMesh({
           opacity={selected || yours ? 0.45 : 0.22}
         />
       </mesh>
-      <Html
-        position={[0, model.labelY, 0]}
-        center
-        sprite
-        style={{ pointerEvents: "none" }}
-      >
-        <div className="pasture-label-stack">
-          {bubble ? (
-            <div ref={bubbleRef} className="pasture-bubble">
-              {worldSafeText(bubble)}
-            </div>
-          ) : null}
-          <button
-            ref={nameRef}
-            type="button"
-            className={
-              "pasture-pet-hit" +
-              (yours ? " yours" : "") +
-              (selected ? " is-selected" : "")
-            }
-            data-owner-label={label}
-            data-species={model.species}
-            data-feature={model.featureKind}
-            style={{ pointerEvents: "auto" }}
-            onClick={(event) => {
-              event.stopPropagation();
-              onClick?.();
-            }}
-          >
-            {label}
-          </button>
-        </div>
-      </Html>
+      {pastureHudOverlaysVisible(hideHudOverlays) ? (
+        <Html
+          position={[0, model.labelY, 0]}
+          center
+          sprite
+          style={{ pointerEvents: "none" }}
+          zIndexRange={[5, 0]}
+        >
+          <div className="pasture-label-stack">
+            {bubble ? (
+              <div ref={bubbleRef} className="pasture-bubble">
+                {worldSafeText(bubble)}
+              </div>
+            ) : null}
+            <button
+              ref={nameRef}
+              type="button"
+              className={
+                "pasture-pet-hit" +
+                (yours ? " yours" : "") +
+                (selected ? " is-selected" : "")
+              }
+              data-owner-label={label}
+              data-species={model.species}
+              data-feature={model.featureKind}
+              style={{ pointerEvents: "auto" }}
+              onClick={(event) => {
+                event.stopPropagation();
+                onClick?.();
+              }}
+            >
+              {label}
+            </button>
+          </div>
+        </Html>
+      ) : null}
     </group>
   );
 }

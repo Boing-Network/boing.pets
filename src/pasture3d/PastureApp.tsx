@@ -459,7 +459,12 @@ export function PastureApp({
   ]);
 
   return (
-    <div className="pasture-3d-stage" ref={stageRef}>
+    <div
+      className={
+        "pasture-3d-stage" + (stationMenu ? " is-station-menu-open" : "")
+      }
+      ref={stageRef}
+    >
       {!ready ? (
         <div className="pasture-loading" role="status">
           Growing the meadow…
@@ -579,6 +584,7 @@ export function PastureApp({
             preferPerf={preferPerf}
             reducedMotion={reducedMotion}
             followOwner={!!mine}
+            hideHudOverlays={!!stationMenu}
             onInspect={inspect}
           />
         </Suspense>
@@ -603,6 +609,7 @@ function PastureWorld({
   preferPerf,
   reducedMotion,
   followOwner,
+  hideHudOverlays,
   onInspect,
 }: {
   pets: PasturePet[];
@@ -625,6 +632,7 @@ function PastureWorld({
   preferPerf: boolean;
   reducedMotion: boolean;
   followOwner: boolean;
+  hideHudOverlays: boolean;
   onInspect: (pet: PasturePet) => void;
 }) {
   const obstacles = PASTURE_OBSTACLES;
@@ -684,6 +692,7 @@ function PastureWorld({
           reducedMotion={reducedMotion}
           selected={selected === mine.owner}
           bubble={bubbleById.get(mine.owner)}
+          hideHudOverlays={hideHudOverlays}
           onInspect={() => onInspect(mine)}
         />
       ) : null}
@@ -699,6 +708,7 @@ function PastureWorld({
             selected={selected === player.id}
             reducedMotion={reducedMotion}
             bubble={bubbleById.get(player.id)}
+            hideHudOverlays={hideHudOverlays}
             onInspect={() =>
               onInspect({
                 ...pet,
@@ -718,6 +728,7 @@ function PastureWorld({
           selected={selected === pet.owner}
           bubble={bubbleById.get(pet.owner)}
           preferPerf={preferPerf}
+          hideHudOverlays={hideHudOverlays}
           onInspect={() => onInspect(pet)}
         />
       ))}
@@ -773,6 +784,7 @@ function LocalPet({
   reducedMotion,
   selected,
   bubble,
+  hideHudOverlays,
   onInspect,
 }: {
   pet: PasturePet;
@@ -782,6 +794,7 @@ function LocalPet({
   reducedMotion: boolean;
   selected: boolean;
   bubble?: string;
+  hideHudOverlays?: boolean;
   onInspect: () => void;
 }) {
   const group = useRef<THREE.Group>(null);
@@ -858,6 +871,7 @@ function LocalPet({
         yours
         movingRef={moving}
         bubble={bubble}
+        hideHudOverlays={hideHudOverlays}
         onClick={onInspect}
       />
     </group>
@@ -872,6 +886,7 @@ function WanderingPet({
   selected,
   bubble,
   preferPerf,
+  hideHudOverlays,
   onInspect,
 }: {
   pet: PasturePet;
@@ -881,6 +896,7 @@ function WanderingPet({
   selected: boolean;
   bubble?: string;
   preferPerf: boolean;
+  hideHudOverlays?: boolean;
   onInspect: () => void;
 }) {
   const spawn = useMemo(
@@ -940,6 +956,7 @@ function WanderingPet({
         selected={selected}
         movingRef={moving}
         bubble={bubble}
+        hideHudOverlays={hideHudOverlays}
         onClick={onInspect}
       />
     </group>
@@ -953,6 +970,7 @@ function RemotePet({
   selected,
   reducedMotion,
   bubble,
+  hideHudOverlays,
   onInspect,
 }: {
   pet: PasturePet;
@@ -969,6 +987,7 @@ function RemotePet({
   selected: boolean;
   reducedMotion: boolean;
   bubble?: string;
+  hideHudOverlays?: boolean;
   onInspect: () => void;
 }) {
   const group = useRef<THREE.Group>(null);
@@ -1019,6 +1038,7 @@ function RemotePet({
         yours={player.id === owner}
         movingRef={moving}
         bubble={bubble}
+        hideHudOverlays={hideHudOverlays}
         onClick={onInspect}
       />
     </group>

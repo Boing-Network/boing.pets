@@ -1182,6 +1182,12 @@ a:hover {
   gap: 6px;
   pointer-events: none;
 }
+.pasture-3d-stage.is-station-menu-open .pasture-label-stack,
+.pasture-3d-stage.is-station-menu-open .pasture-pet-hit,
+.pasture-3d-stage.is-station-menu-open .pasture-bubble {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
 .pasture-pet-hit {
   border: 0;
   background: #0c1c14cc;
