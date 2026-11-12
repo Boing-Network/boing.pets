@@ -5,6 +5,15 @@ import {
   isSellableItem,
   parseMarketPriceBoing,
 } from "../../market";
+import { itemDisplayName, itemRarity } from "../../content/items";
+import { ITEM_RARITY_LABELS } from "../../content/rarities";
+import { filterMarketListings } from "../../marketFilters";
+import {
+  MARKET_FILTER_FORM_HTML,
+  bindMarketFilterForm,
+  readMarketFilterForm,
+} from "../marketFiltersDom";
+
 import { hex32 } from "../../core";
 import {
   COLLECTION_CATEGORY_LABELS,
@@ -320,7 +329,11 @@ export async function refreshEconomy() {
           : `${item.priceBoinglets} Boinglets`;
       const el = document.createElement("article");
       el.className = "market-card";
-      el.innerHTML = `<h3>${item.name}</h3><p class="subtle">${item.kind} · ${priceLabel}</p><p class="small">${item.description}</p>`;
+      const rarity = itemRarity(item.id);
+      const rarityHtml = rarity
+        ? `<span class="rarity-badge rarity-${rarity}">${ITEM_RARITY_LABELS[rarity]}</span>`
+        : "";
+      el.innerHTML = `<div class="market-card-top"><h3>${item.name}</h3>${rarityHtml}</div><p class="subtle">${item.kind} · ${priceLabel}</p><p class="small">${item.description}</p>`;
       const btn = document.createElement("button");
       btn.className = "secondary";
       btn.textContent = "Buy · sign";
@@ -380,25 +393,57 @@ export async function refreshEconomy() {
     });
   }
 
-  if (!market.listings.length) {
+  const filterHost = $maybe("#market-filter-host");
+  if (filterHost && !filterHost.dataset.ready) {
+    filterHost.innerHTML = MARKET_FILTER_FORM_HTML;
+    filterHost.dataset.ready = "1";
+    bindMarketFilterForm(() => {
+      void refreshEconomy();
+    });
+  }
+  const filterQuery = {
+    ...readMarketFilterForm(),
+    owner: app.owner,
+  };
+  const visibleListings = filterMarketListings(
+    market.listings || [],
+    filterQuery,
+  );
+  const statusEl = $maybe("#market-filter-status");
+  if (statusEl) {
+    statusEl.textContent = !(market.listings || []).length
+      ? "No player listings yet."
+      : visibleListings.length
+        ? `${visibleListings.length} listing${visibleListings.length === 1 ? "" : "s"} shown`
+        : "No listings match these filters.";
+  }
+
+  if (!(market.listings || []).length) {
     $("#listings").textContent =
       "No player listings yet. Buy from the catalog or earn a drop, then list it here in testnet BOING.";
+  } else if (!visibleListings.length) {
+    $("#listings").textContent =
+      "No listings match these filters. Clear filters to see every open listing.";
   } else {
     $("#listings").replaceChildren(
-      ...market.listings.map((listing) => {
+      ...visibleListings.map((listing) => {
         const priceLabel = listing.price_boing
           ? `${formatMarketPriceBoing(listing.price_boing)} testnet BOING`
           : "Relist in testnet BOING";
         const expiry = listing.expires_at
           ? `Expires ${new Date(listing.expires_at).toLocaleDateString()}`
           : "No expiry";
+        const rarity = listing.rarity || itemRarity(listing.item_id);
+        const rarityHtml = rarity
+          ? `<span class="rarity-badge rarity-${rarity}">${ITEM_RARITY_LABELS[rarity]}</span>`
+          : "";
         const el = document.createElement("article");
         el.className = "market-card";
-        el.innerHTML = `<h3>${itemName(listing.item_id)}</h3><p class="subtle">${listing.qty}× · ${priceLabel}</p><p class="small">${listing.seller.slice(0, 10)}… · ${expiry}</p>`;
+        el.innerHTML = `<div class="market-card-top"><h3>${itemDisplayName(listing.item_id)}</h3>${rarityHtml}</div><p class="subtle">${listing.qty}x · ${priceLabel}</p><p class="small">${listing.seller.slice(0, 10)}… · ${expiry}</p>`;
         if (app.owner && listing.seller === app.owner) {
           const btn = document.createElement("button");
           btn.className = "secondary";
-          btn.textContent = "Cancel · sign";
+          btn.textContent = "Cancel / sign";
           btn.disabled = app.busy;
           btn.onclick = () =>
             void run(() =>
@@ -407,9 +452,8 @@ export async function refreshEconomy() {
           el.append(btn);
         } else {
           const btn = document.createElement("button");
-          btn.className = "secondary";
           btn.textContent = listing.price_boing
-            ? "Buy listing · pay BOING"
+            ? "Buy listing / pay BOING"
             : "Relist required";
           const paused =
             market.writesEnabled === false || market.gasReserve?.ok === false;

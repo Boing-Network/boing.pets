@@ -1354,7 +1354,7 @@ describe("Pets API", () => {
       entries: unknown[];
     };
     expect(table).toMatchObject({ version: "drop:v1", hitChanceBps: 1500 });
-    expect(table.entries).toHaveLength(7);
+    expect(table.entries).toHaveLength(10);
 
     const marketRes = await request("/api/marketplace");
     expect(marketRes.status).toBe(200);

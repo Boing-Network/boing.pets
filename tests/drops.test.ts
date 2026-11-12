@@ -10,18 +10,18 @@ import {
 const emptyPity = { hitsSinceRare: 0, hitsSincePremium: 0 };
 
 describe("cosmetic drop table", () => {
-  it("keeps official odds for items 70-76 that sum to 1000", () => {
+  it("keeps official odds for cosmetic drops that sum to 1000", () => {
     const table = publicDropTable();
     expect(table.version).toBe("drop:v1");
     expect(table.hitChanceBps).toBe(1500);
     expect(DROP_TABLE.reduce((s, e) => s + e.weight, 0)).toBe(1000);
     expect(table.entries.map((e) => e.itemId).sort((a, b) => a - b)).toEqual([
-      70, 71, 72, 73, 74, 75, 76,
+      70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
     ]);
     const ribbon = table.entries.find((e) => e.itemId === 70);
-    expect(ribbon?.oddsPerMille).toBe(400);
+    expect(ribbon?.oddsPerMille).toBe(340);
     const aurora = table.entries.find((e) => e.itemId === 74);
-    expect(aurora?.oddsPerMille).toBe(12);
+    expect(aurora?.oddsPerMille).toBe(10);
   });
 
   it("is deterministic and auditable from the blake3 seed", () => {
@@ -66,7 +66,7 @@ describe("cosmetic drop table", () => {
       premiumsThisWeek: 0,
     });
     expect(pity.hit).toBe(true);
-    expect(pity.entry?.tier).toBe("premium");
+    expect(pity.entry?.tier).toBe("legendary");
     expect(pity.reason).toBe("pity-premium");
     expect(pity.pity.hitsSincePremium).toBe(0);
 

@@ -1,0 +1,18 @@
+{
+  "itemId": 34,
+  "gameItemId": "crop-starglider",
+  "name": "Starglider Bloom",
+  "description": "A slow-growing bloom that opens toward the stars.",
+  "image": "(planned, not hosted yet) /items/crop-starglider.svg",
+  "attributes": [
+    {
+      "trait_type": "Category",
+      "value": "Crop"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Epic"
+    }
+  ],
+  "note": "Prepared for boing items set-metadata. Do not broadcast until Nico approves the new token ids and images."
+}

@@ -46,6 +46,19 @@ export const RECIPES: RecipeDef[] = [
     energyBoost: 10,
   },
   {
+    id: "recipe-honey-tart",
+    name: "Honeyroot Tart",
+    ingredients: [
+      { itemId: "crop-honeyroot", qty: 1 },
+      { itemId: "crop-berry", qty: 1 },
+    ],
+    foodId: "food-honey-tart",
+    foodName: "Honeyroot Tart",
+    rewardBoinglets: 12,
+    hungerBoost: 22,
+    energyBoost: 8,
+  },
+  {
     id: "recipe-moon-feast",
     name: "Moon Feast",
     ingredients: [
@@ -57,6 +70,19 @@ export const RECIPES: RecipeDef[] = [
     rewardBoinglets: 22,
     hungerBoost: 40,
     energyBoost: 20,
+  },
+  {
+    id: "recipe-starlit",
+    name: "Starlit Broth",
+    ingredients: [
+      { itemId: "crop-starglider", qty: 1 },
+      { itemId: "fish-starfin", qty: 1 },
+    ],
+    foodId: "food-starlit",
+    foodName: "Starlit Broth",
+    rewardBoinglets: 32,
+    hungerBoost: 45,
+    energyBoost: 25,
   },
 ];
 

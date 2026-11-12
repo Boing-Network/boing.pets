@@ -32,3 +32,15 @@ Local migration `0027_crafting_table.sql` adds `craft_challenges` and `craft_log
 - Market Stall at `(16, 12)`, same radius, reuses `/api/marketplace` and `/api/economy/*`.
 - Collision uses shared `obstaclesForZone` / `clampPresencePosition`.
 - Closing the overlay (Esc or Close) returns the player to the pasture without a route change.
+
+## Expansion recipes
+
+New Crafting Station recipes that mix earlier resources with the rarity expansion
+(see `docs/ITEMS.md` for the full item table):
+
+- Assemble a Glow Lantern: Sun Shard + Emberite + Honeyroot
+- Weave a Leaf Cap: Bounce Sprout x2 + Honeyroot + Wind Bell
+- Forge an Aether Pick: Crystal Pick + Aetherite x2 + Comet Bead
+- Set a Comet Pin: Comet Bead + Aetherite + Starglider Bloom
+
+Kitchen (not this table) also gained Honeyroot Tart and Starlit Broth.

@@ -14,7 +14,7 @@ import {
 
 describe("crafting content", () => {
   it("defines starter recipes from activity resources into catalog items", () => {
-    expect(CRAFT_RECIPES.length).toBe(5);
+    expect(CRAFT_RECIPES.length).toBe(9);
     expect(CRAFT_DAILY_CAP).toBe(10);
     expect(craftRecipeById("craft-iron-pick")?.outputItemId).toBe(
       "tool-pick-iron",

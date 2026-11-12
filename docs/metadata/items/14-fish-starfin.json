@@ -1,0 +1,18 @@
+{
+  "itemId": 14,
+  "gameItemId": "fish-starfin",
+  "name": "Starfin",
+  "description": "A rare night-water fish with a starlit fin.",
+  "image": "(planned, not hosted yet) /items/fish-starfin.svg",
+  "attributes": [
+    {
+      "trait_type": "Category",
+      "value": "Fish"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Epic"
+    }
+  ],
+  "note": "Prepared for boing items set-metadata. Do not broadcast until Nico approves the new token ids and images."
+}

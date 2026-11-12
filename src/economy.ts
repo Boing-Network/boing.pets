@@ -83,6 +83,39 @@ export const CATALOG = [
     priceSparkles: 0,
     description: "Tier-3 pickaxe. Unlocks the best mining rolls.",
   },
+  {
+    id: "hat-leaf",
+    name: "Leaf Cap",
+    kind: "pet_skin",
+    priceBoinglets: 50,
+    priceSparkles: 0,
+    description: "A leafy cap for your buddy. Purely cosmetic.",
+  },
+  {
+    id: "furn-lantern",
+    name: "Glow Lantern",
+    kind: "furniture",
+    priceBoinglets: 110,
+    priceSparkles: 0,
+    description: "A warm lantern for your cottage grid.",
+  },
+  {
+    id: "tool-pick-aether",
+    name: "Aether Pick",
+    kind: "tool",
+    priceBoinglets: 320,
+    priceSparkles: 0,
+    description:
+      "Tier-4 pickaxe for the rarest mining rolls. Cosmetic tool progression.",
+  },
+  {
+    id: "hat-comet",
+    name: "Comet Pin",
+    kind: "pet_skin",
+    priceBoinglets: 0,
+    priceSparkles: 10,
+    description: "An epic testnet pin. Cosmetics only - no power.",
+  },
 ] as const;
 
 export type CatalogItem = (typeof CATALOG)[number];

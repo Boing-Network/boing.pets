@@ -10,7 +10,7 @@ import {
 
 describe("mining content", () => {
   it("defines ores, stamina, and pickaxe tiers", () => {
-    expect(ORES.length).toBe(3);
+    expect(ORES.length).toBe(5);
     expect(MINING_STAMINA_MAX).toBe(10);
     expect(isOreItem("ore-spark")).toBe(true);
     expect(pickaxeTier([])).toBe(1);

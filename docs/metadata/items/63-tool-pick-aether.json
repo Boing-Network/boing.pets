@@ -1,0 +1,18 @@
+{
+  "itemId": 63,
+  "gameItemId": "tool-pick-aether",
+  "name": "Aether Pick",
+  "description": "A tier-4 pickaxe bound with Aetherite and a Comet Bead.",
+  "image": "(planned, not hosted yet) /items/tool-pick-aether.svg",
+  "attributes": [
+    {
+      "trait_type": "Category",
+      "value": "Tool"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Epic"
+    }
+  ],
+  "note": "Prepared for boing items set-metadata. Do not broadcast until Nico approves the new token ids and images."
+}

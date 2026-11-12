@@ -1,4 +1,4 @@
-/** Cosmetic RNG drop table for on-chain item ids 70-76. Pure; no I/O. */
+/** Cosmetic RNG drop table for on-chain cosmetic and furniture ids. Pure; no I/O. */
 
 import { blake3 } from "@noble/hashes/blake3";
 
@@ -13,7 +13,7 @@ export const DROP_MAX_PREMIUM_PER_UTC_WEEK = 1;
 export const DROP_CARE_SOURCES = ["feed", "checkin", "play", "groom"] as const;
 export type DropCareSource = (typeof DROP_CARE_SOURCES)[number];
 
-export type DropTier = "common" | "uncommon" | "rare" | "premium";
+export type DropTier = "common" | "uncommon" | "rare" | "epic" | "legendary";
 
 export type DropTableEntry = {
   itemId: number;
@@ -30,51 +30,80 @@ export const DROP_TABLE: readonly DropTableEntry[] = [
     gameItemId: "hat-ribbon",
     name: "Pasture Ribbon",
     tier: "common",
-    weight: 400,
+    weight: 340,
   },
   {
     itemId: 71,
     gameItemId: "hat-antenna",
     name: "Glow Antenna",
     tier: "uncommon",
-    weight: 220,
+    weight: 180,
+  },
+  {
+    itemId: 77,
+    gameItemId: "hat-leaf",
+    name: "Leaf Cap",
+    tier: "uncommon",
+    weight: 120,
   },
   {
     itemId: 75,
     gameItemId: "furn-cushion",
     name: "Bounce Cushion",
     tier: "uncommon",
-    weight: 180,
+    weight: 100,
   },
   {
     itemId: 76,
     gameItemId: "furn-lamp",
     name: "Meadow Lamp",
     tier: "rare",
-    weight: 100,
+    weight: 80,
+  },
+  {
+    itemId: 78,
+    gameItemId: "furn-lantern",
+    name: "Glow Lantern",
+    tier: "rare",
+    weight: 70,
   },
   {
     itemId: 73,
     gameItemId: "frame-gold",
     name: "Gold Card Frame",
     tier: "rare",
-    weight: 60,
+    weight: 50,
+  },
+  {
+    itemId: 79,
+    gameItemId: "hat-comet",
+    name: "Comet Pin",
+    tier: "epic",
+    weight: 30,
   },
   {
     itemId: 72,
     gameItemId: "hat-stardust",
     name: "Stardust Halo",
-    tier: "premium",
-    weight: 28,
+    tier: "legendary",
+    weight: 20,
   },
   {
     itemId: 74,
     gameItemId: "frame-aurora",
     name: "Aurora Frame",
-    tier: "premium",
-    weight: 12,
+    tier: "legendary",
+    weight: 10,
   },
 ];
+
+function isPremiumTier(tier: string): boolean {
+  return tier === "legendary" || tier === "premium";
+}
+
+function isRareOrBetter(tier: string): boolean {
+  return tier === "rare" || tier === "epic" || isPremiumTier(tier);
+}
 
 export type DropPityState = {
   hitsSinceRare: number;
@@ -162,15 +191,12 @@ function withSoftPity(
 ): DropTableEntry[] {
   return DROP_TABLE.map((entry) => {
     let w = entry.weight;
-    if (
-      hitsSinceRare >= DROP_SOFT_PITY_RARE &&
-      (entry.tier === "rare" || entry.tier === "premium")
-    ) {
+    if (hitsSinceRare >= DROP_SOFT_PITY_RARE && isRareOrBetter(entry.tier)) {
       w = Math.round(w * 1.35);
     }
     if (
       hitsSincePremium >= DROP_SOFT_PITY_PREMIUM &&
-      entry.tier === "premium"
+      isPremiumTier(entry.tier)
     ) {
       w = Math.round(w * 1.5);
     }
@@ -225,10 +251,10 @@ export function rollCosmeticDrop(input: {
   let reason: DropRollResult["reason"] = "table";
   let pool: DropTableEntry[];
   if (forcePremium) {
-    pool = DROP_TABLE.filter((e) => e.tier === "premium");
+    pool = DROP_TABLE.filter((e) => isPremiumTier(e.tier));
     reason = "pity-premium";
   } else if (forceRare) {
-    pool = DROP_TABLE.filter((e) => e.tier === "rare" || e.tier === "premium");
+    pool = DROP_TABLE.filter((e) => isRareOrBetter(e.tier));
     reason = "pity-rare";
   } else {
     pool = withSoftPity(pity.hitsSinceRare, pity.hitsSincePremium);
@@ -236,7 +262,7 @@ export function rollCosmeticDrop(input: {
 
   let entry = pickFromWeights(tableRoll, pool);
   if (
-    entry.tier === "premium" &&
+    isPremiumTier(entry.tier) &&
     input.premiumsThisWeek >= DROP_MAX_PREMIUM_PER_UTC_WEEK
   ) {
     const lower = DROP_TABLE.filter((e) => e.tier === "rare");
@@ -244,12 +270,10 @@ export function rollCosmeticDrop(input: {
     reason = "capped-premium-downgrade";
   }
 
-  pity.hitsSinceRare =
-    entry.tier === "rare" || entry.tier === "premium"
-      ? 0
-      : pity.hitsSinceRare + 1;
-  pity.hitsSincePremium =
-    entry.tier === "premium" ? 0 : pity.hitsSincePremium + 1;
+  pity.hitsSinceRare = isRareOrBetter(entry.tier) ? 0 : pity.hitsSinceRare + 1;
+  pity.hitsSincePremium = isPremiumTier(entry.tier)
+    ? 0
+    : pity.hitsSincePremium + 1;
 
   return {
     hit: true,

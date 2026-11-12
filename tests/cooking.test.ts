@@ -11,7 +11,7 @@ import {
 
 describe("cooking content", () => {
   it("defines three recipes with food outputs", () => {
-    expect(RECIPES.length).toBe(3);
+    expect(RECIPES.length).toBe(5);
     expect(COOK_DAILY_CAP).toBe(5);
     expect(isCookKind("cook")).toBe(true);
     expect(isCookKind("bake")).toBe(false);

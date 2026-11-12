@@ -1,4 +1,5 @@
 import { dayOf } from "../core";
+import type { ItemRarity } from "./rarities";
 
 export const MINING_STAMINA_MAX = 10;
 export const MINING_STRIKE_MIN_MS = 1_500;
@@ -8,7 +9,7 @@ export const MINING_STRIKE_WINDOW_MS = 2_000;
 export interface OreDef {
   id: string;
   name: string;
-  rarity: "common" | "uncommon" | "rare";
+  rarity: ItemRarity;
   rewardBoinglets: number;
   staminaCost: number;
   weight: number;
@@ -25,6 +26,7 @@ export const PICKAXES: PickaxeDef[] = [
   { id: "tool-pick-wood", name: "Wood Pick", tier: 1 },
   { id: "tool-pick-iron", name: "Iron Pick", tier: 2 },
   { id: "tool-pick-crystal", name: "Crystal Pick", tier: 3 },
+  { id: "tool-pick-aether", name: "Aether Pick", tier: 4 },
 ];
 
 export const ORES: OreDef[] = [
@@ -34,7 +36,7 @@ export const ORES: OreDef[] = [
     rarity: "common",
     rewardBoinglets: 4,
     staminaCost: 1,
-    weight: 55,
+    weight: 46,
     minTier: 1,
   },
   {
@@ -43,8 +45,17 @@ export const ORES: OreDef[] = [
     rarity: "uncommon",
     rewardBoinglets: 10,
     staminaCost: 2,
-    weight: 30,
+    weight: 24,
     minTier: 1,
+  },
+  {
+    id: "ore-emberite",
+    name: "Emberite",
+    rarity: "rare",
+    rewardBoinglets: 18,
+    staminaCost: 3,
+    weight: 14,
+    minTier: 2,
   },
   {
     id: "ore-crystal",
@@ -52,8 +63,17 @@ export const ORES: OreDef[] = [
     rarity: "rare",
     rewardBoinglets: 22,
     staminaCost: 3,
-    weight: 15,
+    weight: 12,
     minTier: 2,
+  },
+  {
+    id: "ore-aetherite",
+    name: "Aetherite",
+    rarity: "epic",
+    rewardBoinglets: 36,
+    staminaCost: 4,
+    weight: 4,
+    minTier: 3,
   },
 ];
 

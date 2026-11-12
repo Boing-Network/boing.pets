@@ -10,7 +10,7 @@ import {
 
 describe("gardening content", () => {
   it("defines three crops and three slots", () => {
-    expect(CROPS.length).toBe(3);
+    expect(CROPS.length).toBe(5);
     expect(GARDEN_SLOTS).toBe(3);
     expect(isValidSlot(0)).toBe(true);
     expect(isValidSlot(3)).toBe(false);

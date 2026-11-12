@@ -15,7 +15,7 @@ describe("fishing content", () => {
   it("picks fish deterministically from a seed", () => {
     expect(pickFish("same-seed").id).toBe(pickFish("same-seed").id);
     expect(fishById("fish-ripple")?.name).toBe("Ripple Minnow");
-    expect(FISH.length).toBe(3);
+    expect(FISH.length).toBe(5);
     expect(FISHING_DAILY_CATCH_CAP).toBe(3);
   });
 

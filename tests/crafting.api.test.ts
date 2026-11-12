@@ -126,7 +126,7 @@ describe("crafting API", () => {
       recipes: unknown[];
       craftedToday: number;
     };
-    expect(body.recipes.length).toBe(5);
+    expect(body.recipes.length).toBe(9);
     expect(body.craftedToday).toBe(0);
   });
 

@@ -1,24 +1,38 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { ONCHAIN_ITEMS } from "../content/onchainItems";
-import { CATALOG } from "../economy";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { itemDisplayName, itemRarity } from "../content/items";
+import {
+  ITEM_RARITIES,
+  ITEM_RARITY_LABELS,
+  MARKET_CATEGORIES,
+  MARKET_CATEGORY_LABELS,
+  type ItemRarity,
+} from "../content/rarities";
 import {
   formatMarketPriceBoing,
   isSellableItem,
   parseMarketPriceBoing,
 } from "../market";
+import {
+  MARKET_SORT_LABELS,
+  MARKET_SORTS,
+  emptyMarketFilters,
+  filterMarketListings,
+  marketFiltersAreActive,
+  type MarketFilterQuery,
+  type MarketListingView,
+} from "../marketFilters";
 import { api, app, notice } from "../ui/appRuntime";
 import { run } from "../ui/careActions";
 import { economyAct } from "../ui/pages/progressPage";
-import { craftItemName } from "../content/crafting";
 
-type Listing = {
-  id: string;
-  seller: string;
-  item_id: string;
-  qty: number;
-  price_boing: string | null;
-  expires_at: number | null;
-};
+type Listing = MarketListingView;
 
 type Payout = {
   id: string;
@@ -53,14 +67,6 @@ type MarketPayload = {
 
 type InventoryRow = { item_id: string; qty: number };
 
-function marketItemName(id: string): string {
-  return (
-    CATALOG.find((c) => c.id === id)?.name ||
-    ONCHAIN_ITEMS.find((c) => c.gameItemId === id)?.name ||
-    craftItemName(id)
-  );
-}
-
 function priceLabel(price: string | null): string {
   if (!price) return "Relist in testnet BOING";
   try {
@@ -68,6 +74,11 @@ function priceLabel(price: string | null): string {
   } catch {
     return `${price} testnet BOING`;
   }
+}
+
+function rarityClass(id: string): string {
+  const rarity = itemRarity(id);
+  return rarity ? `rarity-badge rarity-${rarity}` : "rarity-badge";
 }
 
 export function PastureMarketMenu({ onClose }: { onClose: () => void }) {
@@ -80,6 +91,10 @@ export function PastureMarketMenu({ onClose }: { onClose: () => void }) {
   const [price, setPrice] = useState("0.1");
   const [qty, setQty] = useState("1");
   const [itemId, setItemId] = useState("");
+  const [filters, setFilters] = useState<MarketFilterQuery>(emptyMarketFilters);
+  const [buyerBalanceBoing, setBuyerBalanceBoing] = useState<string | null>(
+    null,
+  );
 
   const reload = useCallback(async () => {
     const desk = await api<MarketPayload>(
@@ -105,8 +120,50 @@ export function PastureMarketMenu({ onClose }: { onClose: () => void }) {
     closeRef.current?.focus();
   }, [reload]);
 
+  useEffect(() => {
+    if (!app.owner || !app.provider) {
+      setBuyerBalanceBoing(null);
+      return;
+    }
+    let cancelled = false;
+    void app.provider
+      .request({ method: "boing_getBalance", params: [app.owner] })
+      .then((value: unknown) => {
+        if (cancelled) return;
+        const raw =
+          typeof value === "string"
+            ? value
+            : value && typeof value === "object" && "balance" in value
+              ? String((value as { balance: unknown }).balance)
+              : "";
+        setBuyerBalanceBoing(raw || null);
+      })
+      .catch(() => {
+        if (!cancelled) setBuyerBalanceBoing(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [app.owner]);
+
   const sellable = inventory.filter((row) => isSellableItem(row.item_id));
   const selected = itemId || sellable[0]?.item_id || "";
+
+  const visibleListings = useMemo(() => {
+    const rows = market?.listings || [];
+    return filterMarketListings(rows, {
+      ...filters,
+      owner: app.owner,
+      buyerBalanceBoing,
+    });
+  }, [market, filters, buyerBalanceBoing]);
+
+  const updateFilter = <K extends keyof MarketFilterQuery>(
+    key: K,
+    value: MarketFilterQuery[K],
+  ) => {
+    setFilters((current) => ({ ...current, [key]: value }));
+  };
 
   const act = (kind: string, extra: Record<string, unknown>, done: string) => {
     setError(null);
@@ -127,7 +184,7 @@ export function PastureMarketMenu({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="pasture-station-menu"
+      className="pasture-station-menu market-station-menu"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
@@ -140,15 +197,14 @@ export function PastureMarketMenu({ onClose }: { onClose: () => void }) {
         <button
           ref={closeRef}
           type="button"
-          className="quiet"
+          className="quiet pasture-station-close"
           onClick={onClose}
         >
           Close
         </button>
       </div>
       <p className="subtle">
-        Browse, list, and buy in testnet BOING. This uses the live player
-        market, not a second shop. The full desk is also at{" "}
+        Browse and trade in testnet BOING. Full desk also at{" "}
         <a href="/market.html">/market</a>.
       </p>
       {flash ? (
@@ -172,6 +228,221 @@ export function PastureMarketMenu({ onClose }: { onClose: () => void }) {
           {market.rules.feeBps / 100}% sinks to the pasture treasury.
         </p>
       ) : null}
+
+      <h3 className="market-sub">Player listings</h3>
+      <form
+        className="market-filters"
+        onSubmit={(event) => event.preventDefault()}
+      >
+        <label className="market-filter-search">
+          Search
+          <input
+            type="search"
+            placeholder="Name or item id"
+            value={filters.q || ""}
+            onChange={(event) => updateFilter("q", event.target.value)}
+          />
+        </label>
+        <label>
+          Category
+          <select
+            value={filters.category || ""}
+            onChange={(event) =>
+              updateFilter(
+                "category",
+                event.target.value as MarketFilterQuery["category"],
+              )
+            }
+          >
+            <option value="">All categories</option>
+            {MARKET_CATEGORIES.map((id) => (
+              <option key={id} value={id}>
+                {MARKET_CATEGORY_LABELS[id]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Rarity
+          <select
+            value={filters.rarity || ""}
+            onChange={(event) =>
+              updateFilter(
+                "rarity",
+                event.target.value as MarketFilterQuery["rarity"],
+              )
+            }
+          >
+            <option value="">All rarities</option>
+            {ITEM_RARITIES.map((id) => (
+              <option key={id} value={id}>
+                {ITEM_RARITY_LABELS[id]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Min price
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder="0.1"
+            value={filters.minPriceBoing || ""}
+            onChange={(event) =>
+              updateFilter("minPriceBoing", event.target.value)
+            }
+          />
+        </label>
+        <label>
+          Max price
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder="100"
+            value={filters.maxPriceBoing || ""}
+            onChange={(event) =>
+              updateFilter("maxPriceBoing", event.target.value)
+            }
+          />
+        </label>
+        <label>
+          Sort
+          <select
+            value={filters.sort || "newest"}
+            onChange={(event) =>
+              updateFilter(
+                "sort",
+                event.target.value as MarketFilterQuery["sort"],
+              )
+            }
+          >
+            {MARKET_SORTS.map((id) => (
+              <option key={id} value={id}>
+                {MARKET_SORT_LABELS[id]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Min qty
+          <input
+            type="number"
+            min={0}
+            max={20}
+            placeholder="Any"
+            value={filters.minQty ?? ""}
+            onChange={(event) =>
+              updateFilter(
+                "minQty",
+                event.target.value === "" ? "" : Number(event.target.value),
+              )
+            }
+          />
+        </label>
+        <label className="market-filter-check">
+          <input
+            type="checkbox"
+            checked={!!filters.mine}
+            onChange={(event) => updateFilter("mine", event.target.checked)}
+          />{" "}
+          My listings
+        </label>
+        <label className="market-filter-check">
+          <input
+            type="checkbox"
+            checked={!!filters.affordable}
+            disabled={!buyerBalanceBoing}
+            onChange={(event) =>
+              updateFilter("affordable", event.target.checked)
+            }
+          />{" "}
+          I can afford
+        </label>
+        <button
+          type="button"
+          className="quiet"
+          onClick={() => setFilters(emptyMarketFilters())}
+        >
+          Clear filters
+        </button>
+      </form>
+      <p className="small market-filter-status">
+        {!market
+          ? "Loading listings..."
+          : visibleListings.length
+            ? `${visibleListings.length} listing${visibleListings.length === 1 ? "" : "s"} shown`
+            : marketFiltersAreActive(filters)
+              ? "No listings match these filters."
+              : "No player listings yet."}
+      </p>
+      <div className="pasture-station-list">
+        {!market ? null : !visibleListings.length ? (
+          <p className="small market-empty-state">
+            {marketFiltersAreActive(filters)
+              ? "Try clearing a filter or searching a different name."
+              : "When players list resources or cosmetics, they will show up here."}
+          </p>
+        ) : (
+          visibleListings.map((listing) => {
+            const listingPrice = priceLabel(listing.price_boing);
+            const mine = app.owner && listing.seller === app.owner;
+            const rarity = (listing.rarity ||
+              itemRarity(listing.item_id)) as ItemRarity | null;
+            return (
+              <article key={listing.id} className="market-card">
+                <div className="market-card-top">
+                  <h3>{listing.name || itemDisplayName(listing.item_id)}</h3>
+                  {rarity ? (
+                    <span className={rarityClass(listing.item_id)}>
+                      {ITEM_RARITY_LABELS[rarity]}
+                    </span>
+                  ) : null}
+                </div>
+                <p className="subtle">
+                  {listing.qty}x {listingPrice}
+                </p>
+                <p className="small">
+                  {listing.seller.slice(0, 10)}...{" "}
+                  {listing.expires_at
+                    ? `Expires ${new Date(listing.expires_at).toLocaleDateString()}`
+                    : "No expiry"}
+                </p>
+                {mine ? (
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() =>
+                      act(
+                        "cancel_listing",
+                        { listing_id: listing.id },
+                        "Listing canceled.",
+                      )
+                    }
+                  >
+                    Cancel / sign
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={!app.owner || !listing.price_boing || paused}
+                    onClick={() =>
+                      act(
+                        "buy_listing",
+                        { listing_id: listing.id },
+                        "Purchase submitted.",
+                      )
+                    }
+                  >
+                    {listing.price_boing
+                      ? "Buy listing / pay BOING"
+                      : "Relist required"}
+                  </button>
+                )}
+              </article>
+            );
+          })
+        )}
+      </div>
 
       <h3 className="market-sub">List an item</h3>
       <form
@@ -203,7 +474,7 @@ export function PastureMarketMenu({ onClose }: { onClose: () => void }) {
             {sellable.length ? (
               sellable.map((row) => (
                 <option key={row.item_id} value={row.item_id}>
-                  {marketItemName(row.item_id)} x {row.qty}
+                  {itemDisplayName(row.item_id)} x {row.qty}
                 </option>
               ))
             ) : (
@@ -239,66 +510,6 @@ export function PastureMarketMenu({ onClose }: { onClose: () => void }) {
           List / sign
         </button>
       </form>
-
-      <h3 className="market-sub">Player listings</h3>
-      <div className="pasture-station-list">
-        {!market ? (
-          <p className="small">Loading listings...</p>
-        ) : !market.listings.length ? (
-          <p className="small">No player listings yet.</p>
-        ) : (
-          market.listings.map((listing) => {
-            const listingPrice = priceLabel(listing.price_boing);
-            const mine = app.owner && listing.seller === app.owner;
-            return (
-              <article key={listing.id} className="market-card">
-                <h3>{marketItemName(listing.item_id)}</h3>
-                <p className="subtle">
-                  {listing.qty}x {listingPrice}
-                </p>
-                <p className="small">
-                  {listing.seller.slice(0, 10)}...{" "}
-                  {listing.expires_at
-                    ? `Expires ${new Date(listing.expires_at).toLocaleDateString()}`
-                    : "No expiry"}
-                </p>
-                {mine ? (
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={() =>
-                      act(
-                        "cancel_listing",
-                        { listing_id: listing.id },
-                        "Listing canceled.",
-                      )
-                    }
-                  >
-                    Cancel / sign
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="secondary"
-                    disabled={!app.owner || !listing.price_boing || paused}
-                    onClick={() =>
-                      act(
-                        "buy_listing",
-                        { listing_id: listing.id },
-                        "Purchase submitted.",
-                      )
-                    }
-                  >
-                    {listing.price_boing
-                      ? "Buy listing / pay BOING"
-                      : "Relist required"}
-                  </button>
-                )}
-              </article>
-            );
-          })
-        )}
-      </div>
 
       <h3 className="market-sub">Your payouts</h3>
       <div className="pasture-station-list">

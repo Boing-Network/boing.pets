@@ -1,3 +1,5 @@
+import type { ItemRarity } from "./rarities";
+
 export const GARDEN_SLOTS = 3;
 export const GARDEN_KINDS = ["plant", "water", "harvest"] as const;
 export type GardenKind = (typeof GARDEN_KINDS)[number];
@@ -8,6 +10,7 @@ export interface CropDef {
   growMs: number;
   wateredGrowMs: number;
   rewardBoinglets: number;
+  rarity: ItemRarity;
 }
 
 export const CROPS: CropDef[] = [
@@ -17,6 +20,7 @@ export const CROPS: CropDef[] = [
     growMs: 60_000,
     wateredGrowMs: 30_000,
     rewardBoinglets: 6,
+    rarity: "common",
   },
   {
     id: "crop-berry",
@@ -24,6 +28,15 @@ export const CROPS: CropDef[] = [
     growMs: 90_000,
     wateredGrowMs: 45_000,
     rewardBoinglets: 10,
+    rarity: "uncommon",
+  },
+  {
+    id: "crop-honeyroot",
+    name: "Honeyroot",
+    growMs: 100_000,
+    wateredGrowMs: 50_000,
+    rewardBoinglets: 12,
+    rarity: "uncommon",
   },
   {
     id: "crop-moonbloom",
@@ -31,6 +44,15 @@ export const CROPS: CropDef[] = [
     growMs: 120_000,
     wateredGrowMs: 60_000,
     rewardBoinglets: 16,
+    rarity: "rare",
+  },
+  {
+    id: "crop-starglider",
+    name: "Starglider Bloom",
+    growMs: 180_000,
+    wateredGrowMs: 90_000,
+    rewardBoinglets: 24,
+    rarity: "epic",
   },
 ];
 

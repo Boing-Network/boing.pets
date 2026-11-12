@@ -129,3 +129,15 @@ contract admin, withdrawals pause with 503 and no inventory is touched.
   `transfer_admin`.
 - Withdrawals are capped at 100 per request and 5 withdrawal challenges per wallet per minute.
 - Gas: one transfer or mint ≈ 42.8k gas on testnet. A split withdrawal submits two txs.
+
+## Prepared metadata for new item ids (do not broadcast yet)
+
+New mapped ids fill reserved gaps in each band: ores 4-5, fish 13-14, loot
+23-24, crops 33-34, food 43-44, tools 63, cosmetics 77-79. Reserved ids 50-52
+and 60 stay unused. JSON drafts for the new ids are in `docs/metadata/items/`,
+including name, description, planned image path, and Category/Rarity
+attributes.
+
+Do **not** run `boing items set-metadata` or any other on-chain metadata
+transaction until Nico approves the new token ids and art. Existing mapped ids
+are unchanged.

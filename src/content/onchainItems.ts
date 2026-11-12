@@ -37,6 +37,8 @@ export interface OnchainItemDef {
 
 /**
  * Fixed item-id table for every stackable, tradable inventory item.
+ * New ids fill reserved gaps in each band (ores 4-5, fish 13-14, loot 23-24,
+ * crops 33-34, food 43-44, tools 63, cosmetics 77-79).
  * Gaps between bands are reserved for future items in that category.
  * Pets stay unique NFTs (not listed here). Species/discovery collection
  * entries and cook-book recipe defs are achievements or recipes, not inventory
@@ -59,6 +61,13 @@ export const ONCHAIN_ITEMS: readonly OnchainItemDef[] = [
     name: "Boing Crystal",
     category: "ore",
   },
+  { gameItemId: "ore-emberite", itemId: 4, name: "Emberite", category: "ore" },
+  {
+    gameItemId: "ore-aetherite",
+    itemId: 5,
+    name: "Aetherite",
+    category: "ore",
+  },
   {
     gameItemId: "fish-ripple",
     itemId: 10,
@@ -75,6 +84,18 @@ export const ONCHAIN_ITEMS: readonly OnchainItemDef[] = [
     gameItemId: "fish-moonkoi",
     itemId: 12,
     name: "Moon Koi",
+    category: "fish",
+  },
+  {
+    gameItemId: "fish-copperfin",
+    itemId: 13,
+    name: "Copperfin",
+    category: "fish",
+  },
+  {
+    gameItemId: "fish-starfin",
+    itemId: 14,
+    name: "Starfin",
     category: "fish",
   },
   {
@@ -96,6 +117,18 @@ export const ONCHAIN_ITEMS: readonly OnchainItemDef[] = [
     category: "treasure",
   },
   {
+    gameItemId: "loot-wind-bell",
+    itemId: 23,
+    name: "Wind Bell",
+    category: "treasure",
+  },
+  {
+    gameItemId: "loot-comet-bead",
+    itemId: 24,
+    name: "Comet Bead",
+    category: "treasure",
+  },
+  {
     gameItemId: "crop-sprout",
     itemId: 30,
     name: "Bounce Sprout",
@@ -111,6 +144,18 @@ export const ONCHAIN_ITEMS: readonly OnchainItemDef[] = [
     gameItemId: "crop-moonbloom",
     itemId: 32,
     name: "Moonbloom",
+    category: "crop",
+  },
+  {
+    gameItemId: "crop-honeyroot",
+    itemId: 33,
+    name: "Honeyroot",
+    category: "crop",
+  },
+  {
+    gameItemId: "crop-starglider",
+    itemId: 34,
+    name: "Starglider Bloom",
     category: "crop",
   },
   {
@@ -132,6 +177,18 @@ export const ONCHAIN_ITEMS: readonly OnchainItemDef[] = [
     category: "food",
   },
   {
+    gameItemId: "food-honey-tart",
+    itemId: 43,
+    name: "Honeyroot Tart",
+    category: "food",
+  },
+  {
+    gameItemId: "food-starlit",
+    itemId: 44,
+    name: "Starlit Broth",
+    category: "food",
+  },
+  {
     gameItemId: "tool-pick-iron",
     itemId: 61,
     name: "Iron Pick",
@@ -141,6 +198,12 @@ export const ONCHAIN_ITEMS: readonly OnchainItemDef[] = [
     gameItemId: "tool-pick-crystal",
     itemId: 62,
     name: "Crystal Pick",
+    category: "material",
+  },
+  {
+    gameItemId: "tool-pick-aether",
+    itemId: 63,
+    name: "Aether Pick",
     category: "material",
   },
   {
@@ -183,6 +246,24 @@ export const ONCHAIN_ITEMS: readonly OnchainItemDef[] = [
     gameItemId: "furn-lamp",
     itemId: 76,
     name: "Meadow Lamp",
+    category: "cosmetic",
+  },
+  {
+    gameItemId: "hat-leaf",
+    itemId: 77,
+    name: "Leaf Cap",
+    category: "cosmetic",
+  },
+  {
+    gameItemId: "furn-lantern",
+    itemId: 78,
+    name: "Glow Lantern",
+    category: "cosmetic",
+  },
+  {
+    gameItemId: "hat-comet",
+    itemId: 79,
+    name: "Comet Pin",
     category: "cosmetic",
   },
 ];

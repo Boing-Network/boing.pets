@@ -33,6 +33,11 @@ import {
   validateListQty,
   isImmediateSellback,
 } from "../src/market";
+import {
+  filterMarketListings,
+  marketFiltersFromSearchParams,
+  type MarketListingView,
+} from "../src/marketFilters";
 import { hex32, type CareEvent } from "../src/core";
 import { assertEscrowPayment, loadIncludedTransfer } from "./marketPay";
 import {
@@ -317,8 +322,16 @@ export async function economyGet(
     scheduleMarketPayouts(waitUntil, env, { now });
     const listings = await env.DB.prepare(
       "SELECT id,seller,item_id,qty,price_boinglets,price_boing,status,expires_at,created_at,updated_at FROM marketplace_listings WHERE status='open' ORDER BY created_at DESC LIMIT 48",
-    ).all();
+    ).all<MarketListingView>();
     const ownerParam = url.searchParams.get("owner");
+    const filters = {
+      ...marketFiltersFromSearchParams(url.searchParams),
+      owner: ownerParam || url.searchParams.get("owner"),
+    };
+    const filteredListings = filterMarketListings(
+      listings.results || [],
+      filters,
+    );
     const payouts = ownerParam ? await loadSellerPayouts(env, ownerParam) : [];
     let gasReserve = {
       ok: false,
@@ -333,7 +346,7 @@ export async function economyGet(
       // Fail closed in the public snapshot if the operator balance cannot be read.
     }
     return Response.json({
-      listings: listings.results,
+      listings: filteredListings,
       payouts,
       rules: publicMarketRules(),
       writesEnabled: marketWritesEnabled(env),

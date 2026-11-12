@@ -1,4 +1,5 @@
 import { dayOf } from "../core";
+import type { ItemRarity } from "./rarities";
 
 export const FISHING_DAILY_CATCH_CAP = 3;
 export const FISHING_BITE_MIN_MS = 2_000;
@@ -8,7 +9,7 @@ export const FISHING_REEL_WINDOW_MS = 2_500;
 export interface FishDef {
   id: string;
   name: string;
-  rarity: "common" | "uncommon" | "rare";
+  rarity: ItemRarity;
   rewardBoinglets: number;
   weight: number;
 }
@@ -19,21 +20,35 @@ export const FISH: FishDef[] = [
     name: "Ripple Minnow",
     rarity: "common",
     rewardBoinglets: 4,
-    weight: 60,
+    weight: 48,
   },
   {
     id: "fish-boingfin",
     name: "Boingfin",
     rarity: "uncommon",
     rewardBoinglets: 10,
-    weight: 30,
+    weight: 24,
+  },
+  {
+    id: "fish-copperfin",
+    name: "Copperfin",
+    rarity: "uncommon",
+    rewardBoinglets: 12,
+    weight: 16,
   },
   {
     id: "fish-moonkoi",
     name: "Moon Koi",
     rarity: "rare",
     rewardBoinglets: 22,
-    weight: 10,
+    weight: 9,
+  },
+  {
+    id: "fish-starfin",
+    name: "Starfin",
+    rarity: "epic",
+    rewardBoinglets: 34,
+    weight: 3,
   },
 ];
 

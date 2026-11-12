@@ -1,0 +1,18 @@
+{
+  "itemId": 43,
+  "gameItemId": "food-honey-tart",
+  "name": "Honeyroot Tart",
+  "description": "A kitchen tart baked from honeyroot and berries.",
+  "image": "(planned, not hosted yet) /items/food-honey-tart.svg",
+  "attributes": [
+    {
+      "trait_type": "Category",
+      "value": "Food"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Uncommon"
+    }
+  ],
+  "note": "Prepared for boing items set-metadata. Do not broadcast until Nico approves the new token ids and images."
+}

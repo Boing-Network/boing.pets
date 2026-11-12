@@ -83,6 +83,54 @@ export const CRAFT_RECIPES: CraftRecipe[] = [
     outputItemId: "hat-ribbon",
     outputQty: 1,
   },
+  {
+    id: "craft-glow-lantern",
+    name: "Assemble a Glow Lantern",
+    description: "Set a sun shard in emberite and honeyroot glass.",
+    inputs: [
+      { itemId: "loot-sun-shard", qty: 1 },
+      { itemId: "ore-emberite", qty: 1 },
+      { itemId: "crop-honeyroot", qty: 1 },
+    ],
+    outputItemId: "furn-lantern",
+    outputQty: 1,
+  },
+  {
+    id: "craft-leaf-cap",
+    name: "Weave a Leaf Cap",
+    description: "Stitch sprouts, honeyroot, and a wind bell into a leafy cap.",
+    inputs: [
+      { itemId: "crop-sprout", qty: 2 },
+      { itemId: "crop-honeyroot", qty: 1 },
+      { itemId: "loot-wind-bell", qty: 1 },
+    ],
+    outputItemId: "hat-leaf",
+    outputQty: 1,
+  },
+  {
+    id: "craft-aether-pick",
+    name: "Forge an Aether Pick",
+    description: "Bind an Aetherite core and a Comet Bead to a Crystal Pick.",
+    inputs: [
+      { itemId: "tool-pick-crystal", qty: 1 },
+      { itemId: "ore-aetherite", qty: 2 },
+      { itemId: "loot-comet-bead", qty: 1 },
+    ],
+    outputItemId: "tool-pick-aether",
+    outputQty: 1,
+  },
+  {
+    id: "craft-comet-pin",
+    name: "Set a Comet Pin",
+    description: "Mount a Comet Bead on aetherite and starglider silk.",
+    inputs: [
+      { itemId: "loot-comet-bead", qty: 1 },
+      { itemId: "ore-aetherite", qty: 1 },
+      { itemId: "crop-starglider", qty: 1 },
+    ],
+    outputItemId: "hat-comet",
+    outputQty: 1,
+  },
 ];
 
 const BLOCKED_ITEM_IDS = new Set<string>([

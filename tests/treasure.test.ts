@@ -17,7 +17,7 @@ describe("treasure content", () => {
     expect(pickSpot("same")).toBeLessThan(TREASURE_GRID);
     expect(pickTreasure("seed").id).toBe(pickTreasure("seed").id);
     expect(clueForSpot(0).length).toBeGreaterThan(8);
-    expect(TREASURES.length).toBe(3);
+    expect(TREASURES.length).toBe(5);
     expect(TREASURE_DAILY_DIG_CAP).toBe(3);
   });
 

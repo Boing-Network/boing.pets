@@ -266,3 +266,19 @@ playtest retune:
 The 2026-11-10 go-ahead covers applying remote migrations 0025 and 0026
 and deploying this market. It does not authorize later schema, a change
 to `MULTI_TOKEN_CONTRACT`, or mainnet.
+
+## Market filters and item rarity
+
+The Market Stall overlay and the `/market` desk share the same listing filters:
+search (name or item id), category (ores, fish, loot, crops, food, tools,
+cosmetics, furniture), rarity (common through legendary), price min/max, sort
+(newest, ending soon, price, name), my listings, I can afford (when a buyer
+balance is known), minimum quantity, and clear-all. `/api/marketplace` accepts
+the same query params (`q`, `category`, `rarity`, `min_price`, `max_price`,
+`sort`, `mine`, `affordable`, `min_qty`, `buyer_balance`, `owner`) and returns
+enriched listings with `name`, `category`, and `rarity`.
+
+Care-drop "premium" items are labeled **Legendary** in the rarity system. The
+pity and weekly cap behavior is unchanged. The full item table, new drop
+weights, and prepared (not broadcast) metadata live in `docs/ITEMS.md` and
+`docs/metadata/items/`.
