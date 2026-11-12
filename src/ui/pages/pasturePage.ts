@@ -1,13 +1,12 @@
 import { ACHIEVEMENTS, petSvg } from "../../core";
-import {
-  COSMETIC_SLOT_LABELS,
-  COSMETIC_SLOTS,
-  type CosmeticSlot,
-  type EquippedCosmetics,
-} from "../../content/cosmetics";
-import { catalogItem } from "../../economy";
+import { type EquippedCosmetics } from "../../content/cosmetics";
 import { api, app, $maybe, notice, pending, type ViewPet } from "../appRuntime";
-import { sessionApi } from "../socialSession";
+import {
+  buddyChipLabel,
+  equippedSummary,
+  isOwnBuddy,
+  publicPetInfo,
+} from "./buddyPanel";
 import { formatWalletLabel } from "../../wallet/session";
 import type { PastureMount } from "../../pasture3d/mountPasture3d";
 import type { PasturePet } from "../../pasture3d/types";
@@ -127,11 +126,31 @@ export async function refreshBuddyCard() {
   if (app.mine) {
     const el = card(app.mine);
     slot.append(el);
-    void attachEquipPanel(el, app.mine);
+    void attachEquippedSummary(el, app.mine);
   } else
     slot.textContent = app.owner
       ? "Your egg is waiting. Ready to meet the tiny oddball inside?"
       : "Connect Boing Express to hatch your first buddy. You can browse the pasture without a wallet.";
+  refreshBuddyChip();
+}
+
+function refreshBuddyChip() {
+  const chip = $maybe("#buddy-chip");
+  const label = chip?.querySelector(".pasture-buddy-chip-label") || chip;
+  if (!label) return;
+  label.textContent = buddyChipLabel({
+    connected: !!app.owner,
+    hasPet: !!app.mine,
+    species: app.mine?.traits.species,
+  });
+  chip?.setAttribute(
+    "aria-label",
+    app.mine
+      ? `Open your buddy card, ${app.mine.traits.species}`
+      : app.owner
+        ? "Open hatch and care"
+        : "Open your buddy corner",
+  );
 }
 
 export async function refreshPastureGallery() {
@@ -255,6 +274,11 @@ function hookPastureChat() {
         event.preventDefault();
         return;
       }
+      if (isBuddyOverlayOpen()) {
+        closeBuddyOverlay();
+        event.preventDefault();
+        return;
+      }
       closeInspect();
       return;
     }
@@ -276,7 +300,7 @@ function hookPastureChat() {
 
 type CosmeticsPayload = {
   equipped: EquippedCosmetics;
-  owned: Array<{ id: string; slot: CosmeticSlot | null; name: string }>;
+  owned: Array<{ id: string; slot: string | null; name: string }>;
 };
 
 const cosmeticsCache = new Map<string, CosmeticsPayload>();
@@ -295,8 +319,7 @@ async function loadOwnedCosmetics(owner: string): Promise<CosmeticsPayload> {
   return payload;
 }
 
-async function attachEquipPanel(host: HTMLElement, pet: ViewPet) {
-  if (pet.owner !== app.owner) return;
+async function attachEquippedSummary(host: HTMLElement, pet: ViewPet) {
   const existing = host.querySelector(".pasture-equip");
   existing?.remove();
   const box = document.createElement("div");
@@ -305,118 +328,133 @@ async function attachEquipPanel(host: HTMLElement, pet: ViewPet) {
   title.className = "eyebrow";
   title.textContent = "EQUIPPED COSMETICS";
   box.append(title);
-  let data: CosmeticsPayload;
+  const line = document.createElement("p");
+  line.className = "small";
   try {
-    data = await loadOwnedCosmetics(pet.owner);
+    const data = await loadOwnedCosmetics(pet.owner);
+    const equipped = pet.cosmetics || data.equipped;
+    line.textContent = equippedSummary(equipped);
   } catch {
-    const hint = document.createElement("p");
-    hint.className = "small";
-    hint.textContent = "Could not load cosmetics yet.";
-    box.append(hint);
-    host.append(box);
-    return;
+    line.textContent = "Could not load cosmetics yet.";
   }
-  if (pet.cosmetics) data = { ...data, equipped: pet.cosmetics };
-  if (!data.owned.length) {
-    const hint = document.createElement("p");
-    hint.className = "small";
-    hint.textContent =
-      "Unlock cosmetics in the collection log, then equip them here.";
-    box.append(hint);
-    host.append(box);
-    return;
-  }
-  for (const slot of COSMETIC_SLOTS) {
-    const row = document.createElement("label");
-    row.className = "pasture-equip-row";
-    row.append(`${COSMETIC_SLOT_LABELS[slot]} `);
-    const select = document.createElement("select");
-    select.dataset.slot = slot;
-    const none = document.createElement("option");
-    none.value = "";
-    none.textContent = "Unequipped";
-    select.append(none);
-    const items = data.owned.filter((item) => item.slot === slot);
-    for (const item of items) {
-      const opt = document.createElement("option");
-      opt.value = item.id;
-      opt.textContent = item.name || catalogItem(item.id)?.name || item.id;
-      if (data.equipped?.[slot] === item.id) opt.selected = true;
-      select.append(opt);
-    }
-    select.addEventListener("change", () => {
-      void equipSlot(pet, slot, select.value || null, select);
-    });
-    row.append(select);
-    box.append(row);
-  }
+  const hint = document.createElement("p");
+  hint.className = "small";
+  hint.innerHTML =
+    "Walk southwest of spawn to the Customization Station to change outfits.";
+  box.append(line, hint);
   host.append(box);
 }
 
-async function equipSlot(
-  pet: ViewPet,
-  slot: CosmeticSlot,
-  itemId: string | null,
-  select: HTMLSelectElement,
-) {
-  select.disabled = true;
-  try {
-    const result = await sessionApi<{
-      ok: boolean;
-      equipped: EquippedCosmetics;
-    }>("/api/pet/cosmetics/equip", {
-      owner: pet.owner,
-      slot,
-      item_id: itemId,
-    });
-    const equipped = result.equipped || {};
-    cosmeticsCache.set(pet.owner, {
-      equipped,
-      owned: cosmeticsCache.get(pet.owner)?.owned || [],
-    });
-    pet.cosmetics = equipped;
-    if (app.mine?.owner === pet.owner) app.mine.cosmetics = equipped;
-    pastureMount?.setEquipped(pet.owner, equipped);
-    window.__pasture3d?.sendCosmetics(equipped);
-  } catch (error) {
-    notice(
-      error instanceof Error ? error.message : "Could not equip that cosmetic",
-      true,
-    );
-    const current = pet.cosmetics?.[slot] || "";
-    select.value = current;
-  } finally {
-    select.disabled = false;
-  }
+function setCanvasOverlayOpen(open: boolean) {
+  $maybe("#pasture-canvas")?.classList.toggle("is-overlay-open", open);
 }
 
-function closeInspect() {
+function isBuddyOverlayOpen() {
+  const overlay = $maybe("#pasture-buddy-overlay");
+  return !!overlay && !overlay.hidden;
+}
+
+function syncOverlayClass() {
+  const inspect = $maybe("#pasture-inspect");
+  setCanvasOverlayOpen(isBuddyOverlayOpen() || (!!inspect && !inspect.hidden));
+}
+
+function closeBuddyOverlay() {
+  const overlay = $maybe("#pasture-buddy-overlay");
+  const chip = $maybe("#buddy-chip");
+  if (overlay) overlay.hidden = true;
+  chip?.setAttribute("aria-expanded", "false");
+  syncOverlayClass();
+}
+
+export function openBuddyOverlay() {
+  closeInspect(false);
+  const overlay = $maybe("#pasture-buddy-overlay");
+  const chip = $maybe("#buddy-chip");
+  if (!overlay) return;
+  overlay.hidden = false;
+  chip?.setAttribute("aria-expanded", "true");
+  syncOverlayClass();
+  if (app.mine) {
+    const cardEl = $maybe("#my-pet .pet-card");
+    if (cardEl) void attachEquippedSummary(cardEl, app.mine);
+  }
+  overlay.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  $maybe("#buddy-close")?.focus();
+}
+
+function hookBuddyOverlay() {
+  const chip = $maybe("#buddy-chip");
+  const close = $maybe("#buddy-close");
+  if (chip && !chip.dataset.wired) {
+    chip.dataset.wired = "1";
+    chip.addEventListener("click", () => {
+      if (isBuddyOverlayOpen()) closeBuddyOverlay();
+      else openBuddyOverlay();
+    });
+  }
+  if (close && !close.dataset.wired) {
+    close.dataset.wired = "1";
+    close.addEventListener("click", closeBuddyOverlay);
+  }
+  const openFromHash = () => {
+    if (location.hash === "#buddy") openBuddyOverlay();
+  };
+  if (!document.documentElement.dataset.buddyHashWired) {
+    document.documentElement.dataset.buddyHashWired = "1";
+    window.addEventListener("hashchange", openFromHash);
+    document.addEventListener("click", (event) => {
+      const target = event.target as HTMLElement | null;
+      const link = target?.closest?.('a[href="#buddy"]');
+      if (!link) return;
+      event.preventDefault();
+      history.replaceState(null, "", "#buddy");
+      openBuddyOverlay();
+    });
+  }
+  openFromHash();
+}
+
+function closeInspect(sync = true) {
   const inspect = $maybe("#pasture-inspect");
   if (!inspect) return;
   inspect.hidden = true;
   inspect.replaceChildren();
+  if (sync) syncOverlayClass();
 }
 
-function openInspect(pet: ViewPet) {
+function openPublicInspect(pet: ViewPet) {
   const inspect = $maybe("#pasture-inspect");
   if (!inspect) return;
+  closeBuddyOverlay();
   inspect.hidden = false;
   inspect.replaceChildren();
   const head = document.createElement("div");
   head.className = "pasture-inspect-head";
   const title = document.createElement("p");
   title.className = "eyebrow";
-  title.textContent = pet.owner === app.owner ? "YOUR BUDDY" : "PASTURE FRIEND";
+  title.textContent = "PASTURE FRIEND";
   const close = document.createElement("button");
   close.type = "button";
   close.className = "quiet";
   close.textContent = "Close";
-  close.addEventListener("click", closeInspect);
+  close.addEventListener("click", () => closeInspect());
   head.append(title, close);
-  const petCard = card(pet);
+  const info = publicPetInfo(pet);
+  const petCard = document.createElement("article");
+  petCard.className = "pet-card";
+  petCard.innerHTML = `<div class="card-head"><h3>${info.species}</h3><span class="badge">NEIGHBOR</span></div><p class="subtle">${info.personality} · ${info.stage}</p><p class="small">A pasture friend. Private care stats stay with their owner.</p>`;
   inspect.append(head, petCard);
-  void attachEquipPanel(petCard, pet);
+  syncOverlayClass();
   inspect.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+
+function openInspect(pet: ViewPet) {
+  if (isOwnBuddy(pet, app.owner)) {
+    openBuddyOverlay();
+    return;
+  }
+  openPublicInspect(pet);
 }
 
 function renderA11yList(pets: ViewPet[]) {
@@ -456,6 +494,7 @@ async function mountOrUpdatePasture(pets: ViewPet[]) {
   else pastureMount.update(props);
   hookPastureChat();
   hookPastureViewport();
+  hookBuddyOverlay();
   if (!pastureEscapeHooked) pastureEscapeHooked = true;
 }
 

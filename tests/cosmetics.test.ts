@@ -10,12 +10,15 @@ describe("cosmetic slots", () => {
   it("maps catalog cosmetics to hat, accessory, and trail slots", () => {
     expect(slotForCosmetic("hat-ribbon")).toBe("hat");
     expect(slotForCosmetic("hat-antenna")).toBe("hat");
+    expect(slotForCosmetic("hat-leaf")).toBe("hat");
+    expect(slotForCosmetic("hat-comet")).toBe("hat");
     expect(slotForCosmetic("hat-stardust")).toBe("hat");
     expect(slotForCosmetic("frame-gold")).toBe("accessory");
     expect(slotForCosmetic("frame-aurora")).toBe("accessory");
     expect(slotForCosmetic("tool-pick-iron")).toBe("trail");
     expect(slotForCosmetic("tool-pick-crystal")).toBe("trail");
     expect(slotForCosmetic("furn-cushion")).toBeNull();
+    expect(slotForCosmetic("furn-lantern")).toBeNull();
     expect(slotForCosmetic("not-an-item")).toBeNull();
   });
 

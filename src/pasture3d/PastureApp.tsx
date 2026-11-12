@@ -32,7 +32,9 @@ import { Meadow } from "./Meadow";
 import { PastureStations } from "./PastureStations";
 import { PastureCraftMenu } from "./PastureCraftMenu";
 import { PastureMarketMenu } from "./PastureMarketMenu";
+import { PastureCustomizeMenu } from "./PastureCustomizeMenu";
 import {
+  isPastureStationKind,
   isWithinStationRadius,
   nearbyInteractStation,
   stationActionLabel,
@@ -268,7 +270,7 @@ export function PastureApp({
 
   const onStationInteract = useCallback(
     (station: WorldStation) => {
-      if (station.kind !== "craft" && station.kind !== "market") return;
+      if (!isPastureStationKind(station.kind)) return;
       const here = { x: livePose.current.x, z: livePose.current.z };
       if (isWithinStationRadius(here, station)) {
         openStationMenu(station.kind);
@@ -382,7 +384,7 @@ export function PastureApp({
           { x: livePose.current.x, z: livePose.current.z },
           PASTURE_ZONE,
         );
-        if (near && (near.kind === "craft" || near.kind === "market")) {
+        if (near && isPastureStationKind(near.kind)) {
           event.preventDefault();
           openStationMenu(near.kind);
         }
@@ -474,8 +476,9 @@ export function PastureApp({
         <div className="pasture-hint" role="status">
           <p>
             Click the meadow to walk. Scroll or pinch to zoom. Press Enter to
-            chat. Walk west to the Crafting Station or northeast to the Market
-            Stall. Use + / - or the buttons to zoom, and 0 to reset.
+            chat. Walk northwest to the Crafting Station, northeast to the
+            Market Stall, or southwest to the Customization Station. Use + / -
+            or the buttons to zoom, and 0 to reset.
           </p>
           <button type="button" className="quiet" onClick={dismissHint}>
             Got it
@@ -513,10 +516,7 @@ export function PastureApp({
           <button
             type="button"
             onClick={() => {
-              if (
-                nearbyStation.kind === "craft" ||
-                nearbyStation.kind === "market"
-              )
+              if (isPastureStationKind(nearbyStation.kind))
                 openStationMenu(nearbyStation.kind);
             }}
           >
@@ -528,8 +528,10 @@ export function PastureApp({
         <div className="pasture-station-overlay">
           {stationMenu === "craft" ? (
             <PastureCraftMenu onClose={closeStationMenu} />
-          ) : (
+          ) : stationMenu === "market" ? (
             <PastureMarketMenu onClose={closeStationMenu} />
+          ) : (
+            <PastureCustomizeMenu onClose={closeStationMenu} />
           )}
         </div>
       ) : null}

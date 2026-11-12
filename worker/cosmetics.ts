@@ -8,7 +8,7 @@ import {
   type EquippedCosmetics,
   validateEquip,
 } from "../src/content/cosmetics";
-import { catalogItem } from "../src/economy";
+import { CATALOG, catalogItem } from "../src/economy";
 import { HttpError, requireSocialSession } from "./social";
 
 const json = (data: unknown, status = 200) =>
@@ -104,11 +104,26 @@ export async function cosmeticsGet(
       name: item?.name || id,
     };
   });
+  const inv = await env.DB.prepare(
+    "SELECT item_id FROM inventory WHERE owner=? AND qty>0",
+  )
+    .bind(owner)
+    .all<{ item_id: string }>();
+  const invIds = new Set(inv.results.map((row) => row.item_id));
+  const furniture = CATALOG.filter((item) => item.kind === "furniture").map(
+    (item) => ({
+      id: item.id,
+      name: item.name,
+      kind: item.kind,
+      owned: invIds.has(item.id),
+    }),
+  );
   return json({
     owner,
     slots: COSMETIC_SLOTS,
     equipped,
     owned,
+    furniture,
     catalog: equippableCatalogItems().map((item) => ({
       id: item.id,
       slot: slotForCosmetic(item.id),

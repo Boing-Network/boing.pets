@@ -21,6 +21,11 @@ export type PastureMount = {
 
 let root: Root | null = null;
 let props: PastureAppProps | null = null;
+let current: PastureMount | null = null;
+
+export function currentPastureMount(): PastureMount | null {
+  return current;
+}
 const handleRef: { current: PastureDebug | null } = { current: null };
 
 export function mountPasture3d(
@@ -40,7 +45,7 @@ export function mountPasture3d(
       root.render(<PastureApp {...props} handleRef={handleRef} />);
   };
 
-  return {
+  const mount: PastureMount = {
     update(patch) {
       if (!props) return;
       props = { ...props, ...patch };
@@ -77,8 +82,11 @@ export function mountPasture3d(
       root?.unmount();
       root = null;
       props = null;
+      if (current === mount) current = null;
     },
   };
+  current = mount;
+  return mount;
 }
 
 export type { PresenceChat, PasturePet };

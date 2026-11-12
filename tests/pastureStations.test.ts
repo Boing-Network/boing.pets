@@ -21,23 +21,32 @@ const obstacles = obstaclesForZone(PASTURE_ZONE);
 describe("public pasture stations", () => {
   const craft = stationByKind(PASTURE_ZONE, "craft");
   const market = stationByKind(PASTURE_ZONE, "market");
+  const customize = stationByKind(PASTURE_ZONE, "customize");
 
-  it("places labeled craft and market landmarks east and west of spawn", () => {
+  it("places labeled craft, market, and customize landmarks around spawn", () => {
     expect(craft?.position).toEqual({ x: -16, y: 0, z: 12 });
     expect(market?.position).toEqual({ x: 16, y: 0, z: 12 });
+    expect(customize?.position).toEqual({ x: -16, y: 0, z: -12 });
     expect(craft?.radius).toBe(3.4);
     expect(market?.radius).toBe(3.4);
+    expect(customize?.radius).toBe(3.4);
     expect(craft?.careHref).toBeUndefined();
     expect(market?.careHref).toBeUndefined();
+    expect(customize?.careHref).toBeUndefined();
     const craftLand = PASTURE_ZONE.landmarks.find(
       (item) => item.id === "crafting-station",
     );
     const marketLand = PASTURE_ZONE.landmarks.find(
       (item) => item.id === "market-stall",
     );
+    const customizeLand = PASTURE_ZONE.landmarks.find(
+      (item) => item.id === "customization-station",
+    );
     expect(craftLand?.label).toBe("Crafting Station");
     expect(marketLand?.label).toBe("Market Stall");
+    expect(customizeLand?.label).toBe("Customization Station");
     expect(isCustomPastureLandmark("crafting-station")).toBe(true);
+    expect(isCustomPastureLandmark("customization-station")).toBe(true);
     expect(isCustomPastureLandmark("snack-barn")).toBe(false);
   });
 
@@ -45,7 +54,7 @@ describe("public pasture stations", () => {
     const barn = PASTURE_ZONE.landmarks.find(
       (item) => item.id === "snack-barn",
     )!;
-    for (const station of [craft!, market!]) {
+    for (const station of [craft!, market!, customize!]) {
       const land = PASTURE_ZONE.landmarks.find(
         (item) =>
           item.position.x === station.position.x &&
@@ -85,12 +94,25 @@ describe("public pasture stations", () => {
       nearbyInteractStation({ x: -16, z: 12 + 3.5 }, PASTURE_ZONE),
     ).toBeNull();
     expect(isWithinStationRadius({ x: 16, z: 12 }, market!)).toBe(true);
+    expect(
+      nearbyInteractStation({ x: -16, z: -12 + 3.3 }, PASTURE_ZONE)?.kind,
+    ).toBe("customize");
+    expect(
+      nearbyInteractStation({ x: -16, z: -12 + 3.5 }, PASTURE_ZONE),
+    ).toBeNull();
+    expect(isWithinStationRadius({ x: -16, z: -12 }, customize!)).toBe(true);
     expect(stationPrompt(craft!)).toMatch(/craft/i);
     expect(stationActionLabel(market!)).toMatch(/market/i);
+    expect(stationPrompt(customize!)).toMatch(/customize/i);
+    expect(stationActionLabel(customize!)).toMatch(/customize/i);
   });
 
   it("collides at the station boxes and resolves a walk target just outside", () => {
-    for (const id of ["crafting-station", "market-stall"]) {
+    for (const id of [
+      "crafting-station",
+      "market-stall",
+      "customization-station",
+    ]) {
       const land = PASTURE_ZONE.landmarks.find((item) => item.id === id)!;
       const inside = clampPresencePosition(
         "pasture",

@@ -161,6 +161,121 @@ function MarketStall({
   );
 }
 
+function DressingStand({
+  x,
+  z,
+  y,
+  onInteract,
+}: {
+  x: number;
+  z: number;
+  y: number;
+  onInteract: (event: ThreeEvent<PointerEvent>) => void;
+}) {
+  return (
+    <group
+      position={[x, y, z]}
+      onPointerDown={onInteract}
+      onPointerOver={() => {
+        document.body.style.cursor = "pointer";
+      }}
+      onPointerOut={() => {
+        document.body.style.cursor = "";
+      }}
+    >
+      <mesh position={[0, 0.02, 0]} receiveShadow>
+        <cylinderGeometry args={[1.55, 1.55, 0.06, 20]} />
+        <meshStandardMaterial color="#8f6f9a" roughness={1} />
+      </mesh>
+      <mesh position={[0, 0.07, 0]} receiveShadow>
+        <cylinderGeometry args={[1.25, 1.25, 0.05, 20]} />
+        <meshStandardMaterial color="#d7c6e4" roughness={0.95} />
+      </mesh>
+      <mesh position={[-0.85, 1.15, -0.15]} castShadow receiveShadow>
+        <boxGeometry args={[0.95, 2.2, 0.7]} />
+        <meshStandardMaterial color="#5d3b4c" roughness={0.75} />
+      </mesh>
+      <mesh position={[-1.08, 1.2, 0.22]} castShadow>
+        <boxGeometry args={[0.42, 1.9, 0.08]} />
+        <meshStandardMaterial color="#7a5164" roughness={0.7} />
+      </mesh>
+      <mesh position={[-0.62, 1.2, 0.22]} castShadow>
+        <boxGeometry args={[0.42, 1.9, 0.08]} />
+        <meshStandardMaterial color="#7a5164" roughness={0.7} />
+      </mesh>
+      <mesh position={[-0.95, 1.2, 0.28]} castShadow>
+        <sphereGeometry args={[0.05, 8, 8]} />
+        <meshStandardMaterial
+          color="#e6c36a"
+          roughness={0.35}
+          metalness={0.55}
+        />
+      </mesh>
+      <mesh position={[-0.75, 1.2, 0.28]} castShadow>
+        <sphereGeometry args={[0.05, 8, 8]} />
+        <meshStandardMaterial
+          color="#e6c36a"
+          roughness={0.35}
+          metalness={0.55}
+        />
+      </mesh>
+      <mesh position={[0.7, 0.15, 0.15]} castShadow>
+        <cylinderGeometry args={[0.16, 0.22, 0.28, 10]} />
+        <meshStandardMaterial
+          color="#c9d0d8"
+          roughness={0.4}
+          metalness={0.35}
+        />
+      </mesh>
+      <mesh position={[0.7, 0.7, 0.15]} castShadow>
+        <cylinderGeometry args={[0.07, 0.07, 0.9, 8]} />
+        <meshStandardMaterial color="#b7bec6" roughness={0.4} metalness={0.4} />
+      </mesh>
+      <mesh position={[0.7, 1.55, 0.15]} castShadow>
+        <cylinderGeometry args={[0.48, 0.48, 0.08, 20]} />
+        <meshStandardMaterial color="#dfe6ee" roughness={0.3} metalness={0.5} />
+      </mesh>
+      <mesh position={[0.7, 1.55, 0.16]} rotation={[0.05, 0, 0]} castShadow>
+        <cylinderGeometry args={[0.4, 0.4, 0.05, 20]} />
+        <meshStandardMaterial
+          color="#c5e8f4"
+          roughness={0.12}
+          metalness={0.2}
+          emissive="#9fd4e8"
+          emissiveIntensity={0.18}
+        />
+      </mesh>
+      <mesh position={[0.15, 0.28, 0.55]} castShadow>
+        <cylinderGeometry args={[0.22, 0.24, 0.12, 10]} />
+        <meshStandardMaterial color="#6d4a32" roughness={0.85} />
+      </mesh>
+      <mesh position={[0.15, 0.48, 0.55]} castShadow>
+        <boxGeometry args={[0.42, 0.08, 0.42]} />
+        <meshStandardMaterial color="#c4a06a" roughness={0.7} />
+      </mesh>
+      <mesh
+        position={[-0.85, 2.05, 0.2]}
+        rotation={[0.2, 0.1, 0.15]}
+        castShadow
+      >
+        <boxGeometry args={[0.34, 0.16, 0.28]} />
+        <meshStandardMaterial color="#6f9b5a" roughness={0.8} />
+      </mesh>
+      <WorldText
+        position={[0, 2.95, 0]}
+        fontSize={0.3}
+        color="#123055"
+        anchorX="center"
+        anchorY="middle"
+        outlineWidth={0.022}
+        outlineColor="#ffffff"
+      >
+        Customization Station
+      </WorldText>
+    </group>
+  );
+}
+
 export function PastureStations({
   onInteract,
 }: {
@@ -169,8 +284,10 @@ export function PastureStations({
 }) {
   const craft = PASTURE_ZONE.stations.find((s) => s.kind === "craft");
   const market = PASTURE_ZONE.stations.find((s) => s.kind === "market");
+  const customize = PASTURE_ZONE.stations.find((s) => s.kind === "customize");
   const craftLand = landmarkFor("crafting-station");
   const marketLand = landmarkFor("market-stall");
+  const customizeLand = landmarkFor("customization-station");
   const handle =
     (station: WorldStation | undefined) =>
     (event: ThreeEvent<PointerEvent>) => {
@@ -193,6 +310,14 @@ export function PastureStations({
           z={marketLand.position.z}
           y={meadowHeight(marketLand.position.x, marketLand.position.z)}
           onInteract={handle(market)}
+        />
+      ) : null}
+      {customize && customizeLand ? (
+        <DressingStand
+          x={customizeLand.position.x}
+          z={customizeLand.position.z}
+          y={meadowHeight(customizeLand.position.x, customizeLand.position.z)}
+          onInteract={handle(customize)}
         />
       ) : null}
     </group>

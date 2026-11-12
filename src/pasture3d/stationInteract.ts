@@ -1,23 +1,25 @@
-/** In-pasture Crafting Station and Market Stall interact helpers. */
+/** In-pasture Crafting, Market, and Customization station interact helpers. */
 
 import type { WorldStation, WorldZoneConfig } from "../world/config/zones";
 
-export type PastureStationKind = "craft" | "market";
+export type PastureStationKind = "craft" | "market" | "customize";
 
 export const PASTURE_STATION_KINDS: readonly PastureStationKind[] = [
   "craft",
   "market",
+  "customize",
 ];
 
 export const CUSTOM_PASTURE_LANDMARK_IDS = [
   "crafting-station",
   "market-stall",
+  "customization-station",
 ] as const;
 
 export function isPastureStationKind(
   kind: WorldStation["kind"],
 ): kind is PastureStationKind {
-  return kind === "craft" || kind === "market";
+  return kind === "craft" || kind === "market" || kind === "customize";
 }
 
 export function isCustomPastureLandmark(id: string): boolean {
@@ -49,7 +51,7 @@ export function isWithinStationRadius(
   return distanceToStation(pos, station) <= station.radius;
 }
 
-/** Closest craft/market station in range, if any. */
+/** Closest interactable pasture station in range, if any. */
 export function nearbyInteractStation(
   pos: { x: number; z: number },
   zone: WorldZoneConfig,
@@ -69,11 +71,13 @@ export function nearbyInteractStation(
 export function stationPrompt(station: WorldStation): string {
   if (station.kind === "craft") return "Press E to craft";
   if (station.kind === "market") return "Press E to open the market";
+  if (station.kind === "customize") return "Press E to customize";
   return station.hint;
 }
 
 export function stationActionLabel(station: WorldStation): string {
   if (station.kind === "craft") return "Craft";
   if (station.kind === "market") return "Open market";
+  if (station.kind === "customize") return "Customize";
   return "Interact";
 }

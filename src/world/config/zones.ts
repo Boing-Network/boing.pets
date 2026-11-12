@@ -8,7 +8,7 @@ export interface WorldPoint {
 export interface WorldStation {
   id: string;
   label: string;
-  kind: "care" | "info" | "portal" | "craft" | "market";
+  kind: "care" | "info" | "portal" | "craft" | "market" | "customize";
   position: WorldPoint;
   radius: number;
   hint: string;
@@ -376,6 +376,15 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       width: 3.2,
       depth: 2.4,
     },
+    {
+      id: "customization-station",
+      label: "Customization Station",
+      position: { x: -16, y: 0, z: -12 },
+      color: "#c9b8d9",
+      height: 2.4,
+      width: 3.0,
+      depth: 2.2,
+    },
   ],
   stations: [
     {
@@ -401,6 +410,14 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       position: { x: 16, y: 0, z: 12 },
       radius: 3.4,
       hint: "Press E to open the market",
+    },
+    {
+      id: "pasture-customize",
+      label: "Customization Station",
+      kind: "customize",
+      position: { x: -16, y: 0, z: -12 },
+      radius: 3.4,
+      hint: "Press E to customize",
     },
   ],
   paths: [
@@ -431,6 +448,10 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     [
       { x: 0, y: 0.02, z: 0 },
       { x: -10, y: 0.02, z: -12 },
+    ],
+    [
+      { x: -10, y: 0.02, z: -12 },
+      { x: -16, y: 0.02, z: -12 },
     ],
     [
       { x: -10, y: 0.02, z: -12 },

@@ -896,7 +896,7 @@ a:hover {
 }
 .pasture-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
   align-items: start;
   margin-top: 18px;
@@ -980,16 +980,64 @@ a:hover {
   filter: drop-shadow(0 0 12px #9cc7ffcc) drop-shadow(0 10px 10px #0005);
   z-index: 80 !important;
 }
-.pasture-panel .panel {
+.pasture-buddy-chip {
+  position: absolute;
+  z-index: 9;
+  top: 12px;
+  left: 12px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid #2a5a46;
+  background: #0c1c14ee;
+  color: #eef8ff;
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  box-shadow: 0 8px 24px #0005;
+}
+.pasture-buddy-chip:focus-visible {
+  outline: 2px solid #fff4b8;
+  outline-offset: 1px;
+}
+.pasture-buddy-overlay,
+.pasture-inspect-float {
+  position: absolute;
+  z-index: 11;
+  top: 12px;
+  left: 12px;
+  width: min(360px, calc(100% - 96px));
+  max-height: calc(100% - 24px);
+  overflow: auto;
   margin: 0;
+}
+.pasture-buddy-overlay .panel {
+  margin: 0;
+  box-shadow: 0 16px 40px #0006;
 }
 .pasture-inspect {
   border: 1px solid #789ff5;
   border-radius: 24px;
   padding: 16px 16px 8px;
   background: linear-gradient(130deg, #152546, #0b1225);
-  margin-bottom: 16px;
+  margin-bottom: 0;
   box-shadow: 0 0 25px #5c8aff22;
+}
+#pasture-canvas.is-overlay-open .pasture-bubble,
+#pasture-canvas.is-overlay-open .pasture-label-stack,
+#pasture-canvas.is-overlay-open .pasture-pet-hit {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+.pasture-buddy-overlay .actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding-top: 10px;
+  background: linear-gradient(180deg, #0b122500, #0b1225 12px);
+}
+.pasture-buddy-overlay #my-pet .pet-picture {
+  height: 110px;
 }
 .pasture-inspect-head {
   display: flex;
@@ -1079,8 +1127,10 @@ a:hover {
 }
 .pasture-presence-status {
   position: absolute;
-  top: 10px;
+  z-index: 8;
+  top: 58px;
   left: 12px;
+  max-width: min(420px, calc(100% - 120px));
   margin: 0;
   padding: 4px 8px;
   border-radius: 10px;
@@ -1758,4 +1808,41 @@ a:hover {
 
 .market-station-menu .market-card button {
   min-height: 36px;
+}
+
+.customize-station-menu {
+  width: min(560px, 100%);
+  max-height: calc(100% - 4px);
+  margin-top: 0;
+}
+.customize-slot {
+  margin-top: 12px;
+}
+.customize-slot > h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+.customize-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.customize-card.is-locked {
+  opacity: 0.72;
+}
+.customize-card.is-equipped {
+  outline: 1px solid #9fe7b8;
+}
+.customize-locked-hint {
+  margin-bottom: 0;
+}
+@media (max-width: 640px) {
+  .pasture-buddy-overlay,
+  .pasture-inspect-float {
+    width: calc(100% - 16px);
+    left: 8px;
+    right: 8px;
+    max-height: min(70%, calc(100% - 80px));
+  }
 }
