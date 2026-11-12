@@ -26,7 +26,7 @@ describe("public pasture stations", () => {
   it("places labeled craft, market, and customize landmarks around spawn", () => {
     expect(craft?.position).toEqual({ x: -16, y: 0, z: 12 });
     expect(market?.position).toEqual({ x: 16, y: 0, z: 12 });
-    expect(customize?.position).toEqual({ x: -16, y: 0, z: -12 });
+    expect(customize?.position).toEqual({ x: 16, y: 0, z: -8 });
     expect(craft?.radius).toBe(3.4);
     expect(market?.radius).toBe(3.4);
     expect(customize?.radius).toBe(3.4);
@@ -95,12 +95,12 @@ describe("public pasture stations", () => {
     ).toBeNull();
     expect(isWithinStationRadius({ x: 16, z: 12 }, market!)).toBe(true);
     expect(
-      nearbyInteractStation({ x: -16, z: -12 + 3.3 }, PASTURE_ZONE)?.kind,
+      nearbyInteractStation({ x: 16, z: -8 + 3.3 }, PASTURE_ZONE)?.kind,
     ).toBe("customize");
     expect(
-      nearbyInteractStation({ x: -16, z: -12 + 3.5 }, PASTURE_ZONE),
+      nearbyInteractStation({ x: 16, z: -8 + 3.5 }, PASTURE_ZONE),
     ).toBeNull();
-    expect(isWithinStationRadius({ x: -16, z: -12 }, customize!)).toBe(true);
+    expect(isWithinStationRadius({ x: 16, z: -8 }, customize!)).toBe(true);
     expect(stationPrompt(craft!)).toMatch(/craft/i);
     expect(stationActionLabel(market!)).toMatch(/market/i);
     expect(stationPrompt(customize!)).toMatch(/customize/i);

@@ -379,7 +379,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "customization-station",
       label: "Customization Station",
-      position: { x: -16, y: 0, z: -12 },
+      position: { x: 16, y: 0, z: -8 },
       color: "#c9b8d9",
       height: 2.4,
       width: 3.0,
@@ -415,7 +415,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       id: "pasture-customize",
       label: "Customization Station",
       kind: "customize",
-      position: { x: -16, y: 0, z: -12 },
+      position: { x: 16, y: 0, z: -8 },
       radius: 3.4,
       hint: "Press E to customize",
     },
@@ -450,8 +450,8 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       { x: -10, y: 0.02, z: -12 },
     ],
     [
-      { x: -10, y: 0.02, z: -12 },
-      { x: -16, y: 0.02, z: -12 },
+      { x: 12, y: 0.02, z: -8 },
+      { x: 16, y: 0.02, z: -8 },
     ],
     [
       { x: -10, y: 0.02, z: -12 },

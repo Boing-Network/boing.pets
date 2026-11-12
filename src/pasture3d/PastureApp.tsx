@@ -477,7 +477,7 @@ export function PastureApp({
           <p>
             Click the meadow to walk. Scroll or pinch to zoom. Press Enter to
             chat. Walk northwest to the Crafting Station, northeast to the
-            Market Stall, or southwest to the Customization Station. Use + / -
+            Market Stall, or southeast to the Customization Station. Use + / -
             or the buttons to zoom, and 0 to reset.
           </p>
           <button type="button" className="quiet" onClick={dismissHint}>

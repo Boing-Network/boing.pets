@@ -340,7 +340,7 @@ async function attachEquippedSummary(host: HTMLElement, pet: ViewPet) {
   const hint = document.createElement("p");
   hint.className = "small";
   hint.innerHTML =
-    "Walk southwest of spawn to the Customization Station to change outfits.";
+    "Walk southeast of spawn to the Customization Station to change outfits.";
   box.append(line, hint);
   host.append(box);
 }
