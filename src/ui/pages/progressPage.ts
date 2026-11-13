@@ -18,6 +18,7 @@ import { hex32 } from "../../core";
 import {
   COLLECTION_CATEGORY_LABELS,
   COLLECTION_CATEGORY_ORDER,
+  collectionLogCopy,
   type CollectionCategory,
 } from "../../content/collections";
 import { collectionIconSvg } from "../itemIcons";
@@ -194,9 +195,22 @@ export async function refreshCollections() {
     grid.className = "collection-grid";
     for (const def of items) {
       const got = unlocked.has(def.id);
+      const copy = collectionLogCopy(def, got);
       const el = document.createElement("article");
       el.className = "collection-item" + (got ? " is-collected" : " is-locked");
-      el.innerHTML = `<div class="collection-icon" aria-hidden="true">${collectionIconSvg(def.id)}</div><h4>${esc(def.title)}${got ? " ✓" : ""}</h4><p class="small">${esc(def.description)}</p>`;
+      el.setAttribute(
+        "aria-label",
+        copy.revealed ? def.title : copy.description,
+      );
+      el.innerHTML =
+        '<div class="collection-icon" aria-hidden="true">' +
+        collectionIconSvg(def.id, { silhouette: !got }) +
+        "</div><h4>" +
+        esc(copy.title) +
+        (got ? " ✓" : "") +
+        '</h4><p class="small">' +
+        esc(copy.description) +
+        "</p>";
       grid.append(el);
     }
     section.append(heading, grid);

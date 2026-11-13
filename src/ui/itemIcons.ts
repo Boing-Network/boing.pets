@@ -188,26 +188,44 @@ export function itemIconSvg(itemId: string): string {
   return activityIconSvg("treasure");
 }
 
+/** Flatten an icon to a solid silhouette, dropping the rounded card background. */
+export function silhouetteIconSvg(svgMarkup: string): string {
+  return svgMarkup
+    .replace(/<rect width="64" height="64"[^>]*>/g, "")
+    .replace(/fill="(?!none)[^"]*"/g, 'fill="currentColor"')
+    .replace(/stroke="(?!none)[^"]*"/g, 'stroke="currentColor"')
+    .replace(/opacity="[^"]*"/g, 'opacity="1"')
+    .replace(/<svg /, '<svg class="is-silhouette" ');
+}
+
 /** Icon for a collection entry id such as species:Boingle or discovery:fish:fish-ripple. */
-export function collectionIconSvg(entryId: string): string {
+export function collectionIconSvg(
+  entryId: string,
+  options: { silhouette?: boolean } = {},
+): string {
+  let icon = itemIconSvg(entryId);
   if (entryId.startsWith("species:"))
-    return speciesIcon(entryId.slice("species:".length));
-  if (DISCOVERY_ICONS[entryId]) return DISCOVERY_ICONS[entryId]!;
-  const prefixes = [
-    "discovery:fish:",
-    "discovery:treasure:",
-    "discovery:crop:",
-    "discovery:ore:",
-    "discovery:ribbon:",
-    "cosmetic:",
-  ];
-  for (const prefix of prefixes) {
-    if (entryId.startsWith(prefix))
-      return itemIconSvg(entryId.slice(prefix.length));
+    icon = speciesIcon(entryId.slice("species:".length));
+  else if (DISCOVERY_ICONS[entryId]) icon = DISCOVERY_ICONS[entryId]!;
+  else if (entryId.startsWith("discovery:recipe:"))
+    icon = recipeIcon(entryId.slice("discovery:recipe:".length));
+  else {
+    const prefixes = [
+      "discovery:fish:",
+      "discovery:treasure:",
+      "discovery:crop:",
+      "discovery:ore:",
+      "discovery:ribbon:",
+      "cosmetic:",
+    ];
+    for (const prefix of prefixes) {
+      if (entryId.startsWith(prefix)) {
+        icon = itemIconSvg(entryId.slice(prefix.length));
+        break;
+      }
+    }
   }
-  if (entryId.startsWith("discovery:recipe:"))
-    return recipeIcon(entryId.slice("discovery:recipe:".length));
-  return itemIconSvg(entryId);
+  return options.silhouette ? silhouetteIconSvg(icon) : icon;
 }
 
 export function hasItemIcon(itemId: string): boolean {

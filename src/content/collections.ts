@@ -163,3 +163,44 @@ export function collectionProgress(
     byCategory,
   };
 }
+
+export const COLLECTION_UNKNOWN_LABELS: Record<CollectionCategory, string> = {
+  species: "Unknown species",
+  fish: "Unknown fish",
+  treasure: "Unknown treasure",
+  crops: "Unknown crop",
+  recipes: "Unknown recipe",
+  ores: "Unknown ore",
+  ribbons: "Unknown ribbon",
+  discovery: "Unknown discovery",
+  cosmetic: "Unknown cosmetic",
+};
+
+export function isCollectionCategory(
+  value: string,
+): value is CollectionCategory {
+  return value in COLLECTION_UNKNOWN_LABELS;
+}
+
+export function collectionLogCopy(
+  entry: { title: string; description: string; category: string },
+  unlocked: boolean,
+): { title: string; description: string; revealed: boolean } {
+  if (unlocked) {
+    return {
+      title: entry.title,
+      description: entry.description,
+      revealed: true,
+    };
+  }
+  const category = isCollectionCategory(entry.category)
+    ? entry.category
+    : "discovery";
+  return {
+    title: "???",
+    description:
+      COLLECTION_UNKNOWN_LABELS[category] +
+      ". Discover it to reveal this entry.",
+    revealed: false,
+  };
+}

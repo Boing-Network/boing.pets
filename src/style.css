@@ -1430,8 +1430,14 @@ a:hover {
   height: 64px;
 }
 .collection-item.is-locked .collection-icon {
-  filter: grayscale(1) brightness(0) invert(0.42);
-  opacity: 0.9;
+  color: #9aa7c2;
+  opacity: 0.85;
+}
+.collection-item.is-locked .collection-icon svg {
+  filter: none;
+}
+.collection-item.is-locked {
+  background: #0c1322;
 }
 .collection-item h4 {
   margin: 0 0 6px;

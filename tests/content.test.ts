@@ -4,9 +4,10 @@ import {
   COLLECTION_CATEGORY_ORDER,
   COLLECTION_DEFS,
   collectionProgress,
+  collectionLogCopy,
   unlockedCollections,
 } from "../src/content/collections";
-import { collectionIconSvg } from "../src/ui/itemIcons";
+import { collectionIconSvg, silhouetteIconSvg } from "../src/ui/itemIcons";
 import { isQuestComplete, questPeriodKey, QUESTS } from "../src/content/quests";
 import { activeEvents } from "../src/content/seasons";
 
@@ -77,5 +78,27 @@ describe("content framework", () => {
       expect(icon, def.id).toContain("<svg");
       expect(icon, def.id).not.toContain("undefined");
     }
+  });
+
+  it("hides undiscovered collection names behind silhouettes", () => {
+    const sample = COLLECTION_DEFS.find((d) => d.category === "fish")!;
+    const hidden = collectionLogCopy(sample, false);
+    expect(hidden.revealed).toBe(false);
+    expect(hidden.title).toBe("???");
+    expect(hidden.description).toMatch(/unknown fish/i);
+    expect(hidden.description).not.toContain(sample.title);
+    const shown = collectionLogCopy(sample, true);
+    expect(shown.title).toBe(sample.title);
+    expect(shown.description).toBe(sample.description);
+  });
+
+  it("renders locked icons as silhouettes without the original palette", () => {
+    const sample = COLLECTION_DEFS[0]!;
+    const art = collectionIconSvg(sample.id);
+    const shadow = collectionIconSvg(sample.id, { silhouette: true });
+    expect(shadow).toContain("is-silhouette");
+    expect(shadow).toContain("currentColor");
+    expect(shadow).not.toContain('<rect width="64" height="64"');
+    expect(silhouetteIconSvg(art)).toBe(shadow);
   });
 });
