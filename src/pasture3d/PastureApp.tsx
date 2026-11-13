@@ -74,6 +74,15 @@ import {
 import { PastureAudioControls } from "./PastureAudioControls";
 import { WalkthroughCard } from "../onboarding/WalkthroughCard";
 import { DailyQuestChip } from "./DailyQuestChip";
+import { PastureTouchControls } from "./PastureTouchControls";
+import {
+  pastureMobileDpr,
+  readPastureTouchPrefs,
+  stickMagnitude,
+  stickWorldDelta,
+  STICK_DEADZONE,
+} from "./mobileControls";
+import type { ControlState } from "../world/hooks/usePlayerControls";
 import {
   isWalkthroughVisible,
   loadWalkthrough,
@@ -130,19 +139,22 @@ const WALK_SPEED = 5.2;
 const WANDER_SPEED = 1.35;
 const PASTURE_OBSTACLES = obstaclesForZone(PASTURE_ZONE);
 
-function usePrefers() {
-  return useMemo(() => {
-    if (typeof window === "undefined")
-      return { preferPerf: true, reducedMotion: false };
-    const reducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    const preferPerf =
-      reducedMotion ||
-      window.matchMedia("(pointer: coarse)").matches ||
-      window.matchMedia("(max-width: 900px)").matches;
-    return { preferPerf, reducedMotion };
+function usePasturePrefs() {
+  const [prefs, setPrefs] = useState(() => readPastureTouchPrefs());
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const update = () => setPrefs(readPastureTouchPrefs());
+    const medias = [
+      window.matchMedia("(prefers-reduced-motion: reduce)"),
+      window.matchMedia("(pointer: coarse)"),
+      window.matchMedia("(max-width: 900px)"),
+    ];
+    for (const mq of medias) mq.addEventListener("change", update);
+    return () => {
+      for (const mq of medias) mq.removeEventListener("change", update);
+    };
   }, []);
+  return prefs;
 }
 
 function readHintOpen() {
@@ -166,7 +178,17 @@ export function PastureApp({
   onStatus,
   handleRef,
 }: PastureAppProps) {
-  const { preferPerf, reducedMotion } = usePrefers();
+  const { preferPerf, reducedMotion, touchControls } = usePasturePrefs();
+  const controls = useRef<ControlState>({
+    forward: false,
+    back: false,
+    left: false,
+    right: false,
+    interact: false,
+    stickX: 0,
+    stickY: 0,
+  });
+  const camYawRef = useRef(0);
   const livePose = useRef<LivePose>(
     (() => {
       const pose = owner
@@ -543,7 +565,9 @@ export function PastureApp({
   return (
     <div
       className={
-        "pasture-3d-stage" + (stationMenu ? " is-station-menu-open" : "")
+        "pasture-3d-stage" +
+        (stationMenu ? " is-station-menu-open" : "") +
+        (touchControls && mine ? " is-touch-controls" : "")
       }
       ref={stageRef}
     >
@@ -562,6 +586,15 @@ export function PastureApp({
           else if (step === "pet-care") {
             document.getElementById("buddy-chip")?.click();
           }
+        }}
+      />
+      <PastureTouchControls
+        visible={touchControls && !!mine && !stationMenu}
+        controls={controls}
+        canInteract={!!nearbyStation}
+        onInteract={() => {
+          if (nearbyStation && isPastureStationKind(nearbyStation.kind))
+            openStationMenu(nearbyStation.kind);
         }}
       />
       {hintOpen ? (
@@ -638,7 +671,7 @@ export function PastureApp({
       <div className="pasture-3d-canvas">
         <Canvas
           shadows={!preferPerf}
-          dpr={preferPerf ? [1, 1.25] : [1, 1.75]}
+          dpr={pastureMobileDpr(preferPerf)}
           camera={{ position: [0, 11, 16], fov: 46, near: 0.1, far: 280 }}
           gl={{
             antialias: !preferPerf,
@@ -695,6 +728,9 @@ export function PastureApp({
               reducedMotion={reducedMotion}
               followOwner={!!mine}
               hideHudOverlays={!!stationMenu}
+              camYawRef={camYawRef}
+              controls={controls}
+              stickEnabled={!!mine && !stationMenu}
               onInspect={inspect}
             />
           </Suspense>
@@ -721,6 +757,9 @@ function PastureWorld({
   reducedMotion,
   followOwner,
   hideHudOverlays,
+  camYawRef,
+  controls,
+  stickEnabled,
   onInspect,
 }: {
   pets: PasturePet[];
@@ -744,6 +783,9 @@ function PastureWorld({
   reducedMotion: boolean;
   followOwner: boolean;
   hideHudOverlays: boolean;
+  camYawRef: MutableRefObject<number>;
+  controls: MutableRefObject<ControlState>;
+  stickEnabled: boolean;
   onInspect: (pet: PasturePet) => void;
 }) {
   const obstacles = PASTURE_OBSTACLES;
@@ -793,6 +835,7 @@ function PastureWorld({
         zoomRef={zoomRef}
         reducedMotion={reducedMotion}
         followOwner={followOwner}
+        camYawRef={camYawRef}
       />
       {mine ? (
         <LocalPet
@@ -804,6 +847,9 @@ function PastureWorld({
           selected={selected === mine.owner}
           bubble={bubbleById.get(mine.owner)}
           hideHudOverlays={hideHudOverlays}
+          camYawRef={camYawRef}
+          controls={controls}
+          stickEnabled={stickEnabled}
           onInspect={() => onInspect(mine)}
         />
       ) : null}
@@ -852,18 +898,19 @@ function FollowCamera({
   zoomRef,
   reducedMotion,
   followOwner,
+  camYawRef,
 }: {
   livePose: MutableRefObject<LivePose>;
   zoomRef: MutableRefObject<number>;
   reducedMotion: boolean;
   followOwner: boolean;
+  camYawRef: MutableRefObject<number>;
 }) {
   const camTarget = useMemo(() => new THREE.Vector3(), []);
   const lookSmooth = useMemo(() => new THREE.Vector3(), []);
   const lookTarget = useMemo(() => new THREE.Vector3(), []);
   const boxes = useMemo(() => cameraOccludersForZone(PASTURE_ZONE), []);
   const started = useRef(false);
-  const camYaw = useRef(0);
   const followStarted = useRef(false);
 
   useFrame((state, delta) => {
@@ -878,10 +925,10 @@ function FollowCamera({
     );
     if (followOwner && fromSpawn > 0.6) followStarted.current = true;
     const desiredYaw = followStarted.current ? cameraBehindYaw(petYaw) : 0;
-    if (!started.current || reducedMotion) camYaw.current = desiredYaw;
+    if (!started.current || reducedMotion) camYawRef.current = desiredYaw;
     else {
-      camYaw.current = lerpAngle(
-        camYaw.current,
+      camYawRef.current = lerpAngle(
+        camYawRef.current,
         desiredYaw,
         1 - Math.pow(0.12, delta),
       );
@@ -899,7 +946,7 @@ function FollowCamera({
       zoomRef.current,
       meadowHeight,
       boxes,
-      camYaw.current,
+      camYawRef.current,
     );
     camTarget.set(cam.x, cam.y, cam.z);
     lookTarget.set(look.x, look.y, look.z);
@@ -936,6 +983,9 @@ function LocalPet({
   selected,
   bubble,
   hideHudOverlays,
+  camYawRef,
+  controls,
+  stickEnabled,
   onInspect,
 }: {
   pet: PasturePet;
@@ -946,6 +996,9 @@ function LocalPet({
   selected: boolean;
   bubble?: string;
   hideHudOverlays?: boolean;
+  camYawRef: MutableRefObject<number>;
+  controls: MutableRefObject<ControlState>;
+  stickEnabled: boolean;
   onInspect: () => void;
 }) {
   const group = useRef<THREE.Group>(null);
@@ -962,9 +1015,44 @@ function LocalPet({
       node.position.set(livePose.current.x, y0, livePose.current.z);
       started.current = true;
     }
-    const target = walkTarget.current;
-    if (target) {
-      const here = { x: node.position.x, z: node.position.z };
+    const here = { x: node.position.x, z: node.position.z };
+    const stickLen = stickMagnitude(
+      controls.current.stickX,
+      controls.current.stickY,
+    );
+    const stickActive = stickEnabled && stickLen > STICK_DEADZONE;
+    const target = stickActive ? null : walkTarget.current;
+    if (stickActive) {
+      walkTarget.current = null;
+      const dir = stickWorldDelta(
+        controls.current.stickX,
+        controls.current.stickY,
+        camYawRef.current,
+      );
+      const dest = { x: here.x + dir.x, z: here.z + dir.z };
+      speed.current = approachSpeed(
+        speed.current,
+        WALK_SPEED * Math.min(1, stickLen),
+        delta,
+      );
+      const stepped = stepToward(
+        here,
+        dest,
+        delta,
+        speed.current,
+        PASTURE_ZONE,
+        obstacles,
+      );
+      node.position.x = stepped.pos.x;
+      node.position.z = stepped.pos.z;
+      if (stepped.yaw !== null) {
+        const turn = reducedMotion ? 1 : 1 - Math.pow(0.0008, delta);
+        yaw.current = lerpAngle(yaw.current, stepped.yaw, turn);
+        node.rotation.y = yaw.current;
+      }
+      moving.current = true;
+      playFootstepSfx();
+    } else if (target) {
       const dist = Math.hypot(target.x - here.x, target.z - here.z);
       const desired = desiredWalkSpeed(dist, WALK_SPEED);
       speed.current = approachSpeed(speed.current, desired, delta);

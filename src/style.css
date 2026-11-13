@@ -2028,3 +2028,62 @@ a:hover {
     min-width: 0;
   }
 }
+
+.pasture-touch-controls {
+  position: absolute;
+  inset: 0;
+  z-index: 14;
+  pointer-events: none;
+}
+.pasture-touch-controls .joystick,
+.pasture-touch-controls .interact-btn {
+  pointer-events: auto;
+  position: absolute;
+  bottom: 16px;
+}
+.pasture-touch-controls .joystick {
+  left: 16px;
+  width: 118px;
+  height: 118px;
+  border-radius: 50%;
+  border: 1px solid rgba(180, 220, 190, 0.4);
+  background: rgba(16, 28, 22, 0.82);
+  touch-action: none;
+}
+.pasture-touch-controls .joystick-knob {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #b7e3c2;
+  position: absolute;
+  left: 35px;
+  top: 35px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.pasture-touch-controls .interact-btn {
+  right: 16px;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.8rem;
+  border: 0;
+  border-radius: 999px;
+  background: #b7e3c2;
+  color: #102016;
+  padding: 16px 22px;
+  min-width: 112px;
+}
+.pasture-touch-controls .interact-btn:disabled {
+  opacity: 0.45;
+}
+.pasture-3d-stage.is-touch-controls .walkthrough-card {
+  bottom: 150px;
+}
+.pasture-3d-stage.is-touch-controls .pasture-dailies-chip {
+  bottom: 150px;
+}
+@media (max-width: 700px) {
+  .pasture-3d-stage.is-touch-controls .pasture-dailies-chip {
+    top: 86px;
+    bottom: auto;
+  }
+}
