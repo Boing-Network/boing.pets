@@ -1,42 +1,38 @@
 import { useFrame } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { PASTURE_ZONE } from "../world/config/zones";
 import { pastureDayLive } from "./MeadowAtmosphere";
-import { meadowHeight, PASTURE_FLATTEN } from "./meadowHeight";
+import { meadowHeight } from "./meadowHeight";
+import {
+  patchFlowers,
+  patchTallGrass,
+  placedRocks,
+  scatteredFlowers,
+  scatteredGrass,
+  scatteredRocks,
+  mulberry,
+  type DecorInstance,
+} from "./meadowDecor";
+import {
+  POND_RIM_LIFT,
+  POND_RIM_WIDTH,
+  POND_WATER_LIFT,
+  lilyPondEllipse,
+} from "./meadowFootprints";
 import {
   MEADOW_APRON_TREE_SPOTS,
   MEADOW_BUSH_SPOTS,
   MEADOW_EXTRA_BUSH_SPOTS,
   MEADOW_FENCES,
-  MEADOW_FLOWER_PATCHES,
   MEADOW_ROCK_SPOTS,
-  MEADOW_TALL_GRASS_PATCHES,
   MEADOW_TREE_SPOTS,
   PASTURE_GROUND_RADIUS,
-  distanceToPasturePath,
 } from "./meadowLayout";
 import { applyInstancedFade, useOccluderFades } from "./meadowInstanceFade";
 import { applyMeadowWind } from "./meadowWind";
 
 const ALL_TREE_SPOTS = [...MEADOW_TREE_SPOTS, ...MEADOW_APRON_TREE_SPOTS];
 const ALL_BUSH_SPOTS = [...MEADOW_BUSH_SPOTS, ...MEADOW_EXTRA_BUSH_SPOTS];
-
-function mulberry(seed: number) {
-  let t = (seed + 0x6d2b79f5) >>> 0;
-  t = Math.imul(t ^ (t >>> 15), t | 1);
-  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-}
-
-function isDecorClear(x: number, z: number) {
-  if (Math.abs(x) < 1.2 || Math.abs(z) < 1.2) return false;
-  if (distanceToPasturePath(x, z) < 1.8) return false;
-  for (const spot of PASTURE_FLATTEN) {
-    if (Math.hypot(x - spot.x, z - spot.z) < spot.radius * 0.72) return false;
-  }
-  return Math.hypot(x, z) < PASTURE_GROUND_RADIUS - 3;
-}
 
 function makeGrassTexture() {
   const size = 512;
@@ -103,6 +99,46 @@ function Terrain({
     return g;
   }, [preferPerf]);
   const map = useMemo(() => makeGrassTexture(), []);
+  const pondHole = useMemo(() => lilyPondEllipse(), []);
+  const mat = useRef<THREE.MeshStandardMaterial>(null);
+  useLayoutEffect(() => {
+    const material = mat.current;
+    const hole = pondHole;
+    if (!material || !hole) return;
+    const rx = Math.max(0.5, hole.rx - 0.12);
+    const rz = Math.max(0.5, hole.rz - 0.12);
+    material.customProgramCacheKey = () => "pasture-terrain-pond-hole";
+    material.onBeforeCompile = (shader) => {
+      shader.uniforms.uPond = {
+        value: new THREE.Vector4(hole.x, hole.z, rx, rz),
+      };
+      shader.vertexShader = shader.vertexShader
+        .replace(
+          "#include <common>",
+          `#include <common>
+varying vec2 vMeadowXZ;`,
+        )
+        .replace(
+          "#include <begin_vertex>",
+          `#include <begin_vertex>
+vMeadowXZ = position.xz;`,
+        );
+      shader.fragmentShader = shader.fragmentShader
+        .replace(
+          "#include <common>",
+          `#include <common>
+varying vec2 vMeadowXZ;
+uniform vec4 uPond;`,
+        )
+        .replace(
+          "#include <clipping_planes_fragment>",
+          `#include <clipping_planes_fragment>
+vec2 pondDelta = (vMeadowXZ - uPond.xy) / uPond.zw;
+if (dot(pondDelta, pondDelta) < 1.0) discard;`,
+        );
+    };
+    material.needsUpdate = true;
+  }, [pondHole]);
   return (
     <mesh
       geometry={geom}
@@ -115,6 +151,7 @@ function Terrain({
       }}
     >
       <meshStandardMaterial
+        ref={mat}
         map={map ?? undefined}
         vertexColors
         color={map ? "#d5e8c0" : "#5fa86a"}
@@ -142,48 +179,35 @@ function InstancedDecor({
     return ["#3f7a3e", "#4d8a4a", "#5a9a52"];
   }, [kind]);
 
+  const items = useMemo((): DecorInstance[] => {
+    if (kind === "grass") return scatteredGrass(preferPerf);
+    if (kind === "flower") return scatteredFlowers(preferPerf);
+    return scatteredRocks(preferPerf);
+  }, [kind, preferPerf]);
+
   useLayoutEffect(() => {
     const inst = mesh.current;
     if (!inst) return;
     const dummy = new THREE.Object3D();
     const color = new THREE.Color();
-    const seedBase = kind === "grass" ? 11 : kind === "flower" ? 29 : 47;
-    let placed = 0;
-    let i = 0;
-    while (placed < count && i < count * 8) {
-      const u = mulberry(seedBase + i * 3);
-      const v = mulberry(seedBase + i * 3 + 1);
-      const r = Math.sqrt(u) * (PASTURE_GROUND_RADIUS - 4);
-      const a = v * Math.PI * 2;
-      const x = Math.cos(a) * r;
-      const z = Math.sin(a) * r;
-      i += 1;
-      if (!isDecorClear(x, z)) continue;
-      const y = meadowHeight(x, z);
-      dummy.position.set(x, y, z);
-      dummy.rotation.set(0, mulberry(seedBase + i) * Math.PI * 2, 0);
-      if (kind === "grass") {
-        dummy.scale.setScalar(0.7 + mulberry(i * 5) * 1.1);
-      } else if (kind === "flower") {
-        dummy.scale.setScalar(0.8 + mulberry(i * 5) * 0.6);
-      } else {
-        dummy.scale.setScalar(0.6 + mulberry(i * 5) * 0.9);
-      }
+    items.forEach((row, i) => {
+      dummy.position.set(row.x, row.y, row.z);
+      dummy.rotation.set(0, row.rotY, 0);
+      dummy.scale.setScalar(row.scale);
       dummy.updateMatrix();
-      inst.setMatrixAt(placed, dummy.matrix);
+      inst.setMatrixAt(i, dummy.matrix);
       if (kind !== "grass") {
-        color.set(colors[placed % colors.length]!);
-        inst.setColorAt(placed, color);
+        color.set(row.color || colors[i % colors.length]!);
+        inst.setColorAt(i, color);
       }
-      placed += 1;
-    }
-    inst.count = placed;
+    });
+    inst.count = items.length;
     inst.instanceMatrix.needsUpdate = true;
     if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
     if (mat.current && kind === "grass" && !preferPerf) {
       applyMeadowWind(mat.current, 0.16);
     }
-  }, [count, kind, colors, preferPerf]);
+  }, [items, kind, colors, preferPerf]);
 
   if (kind === "grass") {
     return (
@@ -210,23 +234,90 @@ function InstancedDecor({
 }
 
 function Pond() {
-  const pond = PASTURE_ZONE.landmarks.find((item) => item.id === "lily-pond");
+  const pond = lilyPondEllipse();
   if (!pond) return null;
-  const x = pond.position.x;
-  const z = pond.position.z;
-  const radius = Math.min(pond.width, pond.depth) / 2 - 0.35;
-  const y = meadowHeight(x, z) + 0.08;
+  const { x, z, rx, rz } = pond;
+  const ground = meadowHeight(x, z);
+  const waterRx = Math.max(0.5, rx - POND_RIM_WIDTH * 0.55);
+  const waterRz = Math.max(0.5, rz - POND_RIM_WIDTH * 0.55);
+  const inner = Math.max(0.2, 1 - POND_RIM_WIDTH / Math.max(rx, rz));
+  const waterTop = ground + POND_WATER_LIFT;
+  const basinDepth = 0.22;
+  const pads = [
+    [0.28, 0.18, 0.55],
+    [-0.42, -0.12, 0.44],
+    [0.08, -0.48, 0.4],
+    [-0.2, 0.42, 0.34],
+  ] as const;
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[x, y, z]} renderOrder={1}>
-      <circleGeometry args={[radius, 28]} />
-      <meshStandardMaterial
-        color="#5aa0c4"
-        roughness={0.18}
-        metalness={0.1}
-        transparent
-        opacity={0.82}
-      />
-    </mesh>
+    <group>
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[x, waterTop - basinDepth, z]}
+        scale={[rx, rz, 1]}
+        renderOrder={2}
+      >
+        <circleGeometry args={[1, 48]} />
+        <meshStandardMaterial color="#6b5a3a" roughness={1} metalness={0} />
+      </mesh>
+      <mesh
+        position={[x, waterTop - basinDepth / 2, z]}
+        scale={[waterRx, 1, waterRz]}
+        renderOrder={3}
+      >
+        <cylinderGeometry args={[1, 1, basinDepth, 48]} />
+        <meshStandardMaterial
+          color="#3e8aaf"
+          roughness={0.16}
+          metalness={0.12}
+          transparent
+          opacity={0.9}
+          depthWrite
+        />
+      </mesh>
+      <mesh
+        position={[x, waterTop - basinDepth / 2, z]}
+        scale={[rx, 1, rz]}
+        renderOrder={4}
+      >
+        <cylinderGeometry args={[1, 1, basinDepth, 48, 1, true]} />
+        <meshStandardMaterial
+          color="#8a7a58"
+          roughness={0.92}
+          metalness={0}
+          side={THREE.DoubleSide}
+          depthWrite
+        />
+      </mesh>
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[x, ground + POND_RIM_LIFT, z]}
+        scale={[rx, rz, 1]}
+        renderOrder={5}
+      >
+        <ringGeometry args={[inner, 1, 48]} />
+        <meshStandardMaterial
+          color="#8a7a58"
+          roughness={0.92}
+          metalness={0}
+          depthWrite
+          polygonOffset
+          polygonOffsetFactor={-3}
+          polygonOffsetUnits={-3}
+        />
+      </mesh>
+      {pads.map(([nx, nz, s], i) => (
+        <mesh
+          key={i}
+          rotation={[-Math.PI / 2, 0, i * 0.7]}
+          position={[x + nx * waterRx, waterTop + 0.006, z + nz * waterRz]}
+          renderOrder={6}
+        >
+          <circleGeometry args={[s, 14]} />
+          <meshStandardMaterial color="#6f9b5a" roughness={0.8} />
+        </mesh>
+      ))}
+    </group>
   );
 }
 
@@ -505,83 +596,59 @@ function MeadowPatches({ preferPerf }: { preferPerf: boolean }) {
   const grassMat = useRef<THREE.MeshStandardMaterial>(null);
   const rockMesh = useRef<THREE.InstancedMesh>(null);
   const rockMat = useRef<THREE.MeshStandardMaterial>(null);
-  const flowerCount = preferPerf ? 160 : 420;
-  const grassCount = preferPerf ? 220 : 640;
+  const flowers = useMemo(() => patchFlowers(preferPerf), [preferPerf]);
+  const tufts = useMemo(() => patchTallGrass(preferPerf), [preferPerf]);
+  const rocks = useMemo(() => placedRocks(), []);
+  const flowerCount = Math.max(flowers.length, 1);
+  const grassCount = Math.max(tufts.length, 1);
   useOccluderFades([rockMesh], MEADOW_ROCK_SPOTS, 0.75, 0.28);
 
   useLayoutEffect(() => {
     const dummy = new THREE.Object3D();
     const color = new THREE.Color();
-    const flowerColors = [
-      "#ef9bb8",
-      "#f2d38a",
-      "#c9a0e8",
-      "#f4a27a",
-      "#f7f0c8",
-    ];
     const flower = flowerMesh.current;
     if (flower) {
-      let placed = 0;
-      let i = 0;
-      while (placed < flowerCount && i < flowerCount * 6) {
-        const patch = MEADOW_FLOWER_PATCHES[i % MEADOW_FLOWER_PATCHES.length]!;
-        const ang = mulberry(i * 19 + 3) * Math.PI * 2;
-        const rad = Math.sqrt(mulberry(i * 23 + 5)) * 3.2;
-        const x = patch[0] + Math.cos(ang) * rad;
-        const z = patch[1] + Math.sin(ang) * rad;
-        i += 1;
-        dummy.position.set(x, meadowHeight(x, z) + 0.05, z);
-        dummy.scale.setScalar(0.7 + mulberry(i * 7) * 0.8);
-        dummy.rotation.set(0, mulberry(i) * Math.PI * 2, 0);
+      flowers.forEach((row, i) => {
+        dummy.position.set(row.x, row.y, row.z);
+        dummy.scale.setScalar(row.scale);
+        dummy.rotation.set(0, row.rotY, 0);
         dummy.updateMatrix();
-        flower.setMatrixAt(placed, dummy.matrix);
-        color.set(flowerColors[placed % flowerColors.length]!);
-        flower.setColorAt(placed, color);
-        placed += 1;
-      }
-      flower.count = placed;
+        flower.setMatrixAt(i, dummy.matrix);
+        color.set(row.color || "#ef9bb8");
+        flower.setColorAt(i, color);
+      });
+      flower.count = flowers.length;
       flower.instanceMatrix.needsUpdate = true;
       if (flower.instanceColor) flower.instanceColor.needsUpdate = true;
     }
     const grass = grassMesh.current;
     if (grass) {
-      let placed = 0;
-      let i = 0;
-      while (placed < grassCount && i < grassCount * 6) {
-        const patch =
-          MEADOW_TALL_GRASS_PATCHES[i % MEADOW_TALL_GRASS_PATCHES.length]!;
-        const ang = mulberry(i * 29 + 11) * Math.PI * 2;
-        const rad = Math.sqrt(mulberry(i * 31 + 2)) * 3.8;
-        const x = patch[0] + Math.cos(ang) * rad;
-        const z = patch[1] + Math.sin(ang) * rad;
-        i += 1;
-        dummy.position.set(x, meadowHeight(x, z), z);
-        dummy.scale.setScalar(0.9 + mulberry(i * 9) * 1.4);
-        dummy.rotation.set(0, mulberry(i * 3) * Math.PI * 2, 0);
+      tufts.forEach((row, i) => {
+        dummy.position.set(row.x, row.y, row.z);
+        dummy.scale.setScalar(row.scale);
+        dummy.rotation.set(0, row.rotY, 0);
         dummy.updateMatrix();
-        grass.setMatrixAt(placed, dummy.matrix);
-        placed += 1;
-      }
-      grass.count = placed;
+        grass.setMatrixAt(i, dummy.matrix);
+      });
+      grass.count = tufts.length;
       grass.instanceMatrix.needsUpdate = true;
       if (grassMat.current && !preferPerf)
         applyMeadowWind(grassMat.current, 0.2);
     }
-    const rocks = rockMesh.current;
-    if (rocks) {
-      MEADOW_ROCK_SPOTS.forEach(([x, z], i) => {
-        const y = meadowHeight(x, z);
-        dummy.position.set(x, y + 0.05, z);
-        dummy.rotation.set(mulberry(i) * 0.4, i * 0.7, mulberry(i + 2) * 0.3);
-        dummy.scale.setScalar(0.8 + (i % 4) * 0.25);
+    const rockInst = rockMesh.current;
+    if (rockInst) {
+      rocks.forEach((row, i) => {
+        dummy.position.set(row.x, row.y, row.z);
+        dummy.rotation.set(mulberry(i) * 0.4, row.rotY, mulberry(i + 2) * 0.3);
+        dummy.scale.setScalar(row.scale);
         dummy.updateMatrix();
-        rocks.setMatrixAt(i, dummy.matrix);
+        rockInst.setMatrixAt(i, dummy.matrix);
       });
-      rocks.count = MEADOW_ROCK_SPOTS.length;
-      rocks.instanceMatrix.needsUpdate = true;
+      rockInst.count = rocks.length;
+      rockInst.instanceMatrix.needsUpdate = true;
       if (rockMat.current) applyInstancedFade(rockMat.current, 0);
     }
-  }, [preferPerf, flowerCount, grassCount]);
+  }, [preferPerf, flowers, tufts, rocks]);
 
   return (
     <group>
@@ -598,7 +665,7 @@ function MeadowPatches({ preferPerf }: { preferPerf: boolean }) {
       </instancedMesh>
       <instancedMesh
         ref={rockMesh}
-        args={[undefined, undefined, MEADOW_ROCK_SPOTS.length]}
+        args={[undefined, undefined, Math.max(rocks.length, 1)]}
         castShadow={!preferPerf}
       >
         <icosahedronGeometry args={[0.28, 0]} />

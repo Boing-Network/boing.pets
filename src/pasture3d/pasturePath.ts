@@ -3,6 +3,7 @@
 import { PASTURE_ZONE } from "../world/config/zones";
 import { meadowHeight } from "./meadowHeight";
 import { pointToSegment } from "./meadowLayout";
+import { inPondFootprint } from "./meadowFootprints";
 
 export const MAIN_PATH_HALF = 1.1;
 export const SIDE_PATH_HALF = 0.775;
@@ -18,6 +19,8 @@ export function pathHalfWidth(index: number): number {
  * Junctions take the max so crossing trails join without a seam.
  */
 export function pasturePathWear(x: number, z: number): number {
+  // Dirt trails stop at the pond rim so they do not float through the water.
+  if (inPondFootprint(x, z, 0.2)) return 0;
   let wear = 0;
   for (const [i, path] of PASTURE_ZONE.paths.entries()) {
     const a = path[0];
@@ -82,6 +85,17 @@ export function buildPasturePathMeshData(
           }
         }
       }
+    }
+  }
+
+  // Neighbor inflation would otherwise keep a fringe of verts inside the
+  // pond and drape that mesh over the water (both surfaces are transparent).
+  for (let j = 0; j <= segs; j++) {
+    for (let i = 0; i <= segs; i++) {
+      if (!keep[j * col + i]) continue;
+      const x = -extent + (i / segs) * extent * 2;
+      const z = -extent + (j / segs) * extent * 2;
+      if (inPondFootprint(x, z, 0.25)) keep[j * col + i] = 0;
     }
   }
 
