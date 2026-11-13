@@ -59,7 +59,7 @@ export async function refreshTreasure() {
   ensureWired("treasure");
 }
 
-const wired = new Set<ActivityId>();
+const wiredButtons = new Map<ActivityId, HTMLButtonElement>();
 const buttonIds: Partial<Record<ActivityId, string>> = {
   fishing: "fish-cast",
   mining: "mine-swing",
@@ -68,12 +68,12 @@ const buttonIds: Partial<Record<ActivityId, string>> = {
 };
 
 function ensureWired(activity: ActivityId) {
-  if (wired.has(activity)) {
-    const id = buttonIds[activity];
-    if (id)
-      document
-        .getElementById(id)
-        ?.dispatchEvent(new Event("boing-refresh-label"));
+  const id = buttonIds[activity];
+  const current = id
+    ? (document.getElementById(id) as HTMLButtonElement | null)
+    : null;
+  if (current && wiredButtons.get(activity) === current) {
+    current.dispatchEvent(new Event("boing-refresh-label"));
     return;
   }
   const map: Record<
@@ -131,7 +131,7 @@ function ensureWired(activity: ActivityId) {
     labelReady: cfg.label,
   });
   button.addEventListener("boing-refresh-label", () => refreshLabel());
-  wired.add(activity);
+  if (button) wiredButtons.set(activity, button);
 }
 
 /** Legacy no-ops kept for any leftover imports. */

@@ -30,14 +30,18 @@ import { approachSpeed, desiredWalkSpeed, lerpAngle, retarget } from "./motion";
 import { meadowHeight } from "./meadowHeight";
 import { Meadow } from "./Meadow";
 import { PastureStations } from "./PastureStations";
+import { PastureActivityAreas } from "./PastureActivityAreas";
 import { PastureCraftMenu } from "./PastureCraftMenu";
 import { PastureMarketMenu } from "./PastureMarketMenu";
 import { PastureCustomizeMenu } from "./PastureCustomizeMenu";
+import { PastureActivityMenu } from "./PastureActivityMenu";
 import {
+  isActivityStationKind,
   isPastureStationKind,
   isWithinStationRadius,
   nearbyInteractStation,
   stationActionLabel,
+  stationByKind,
   stationPrompt,
   type PastureStationKind,
 } from "./stationInteract";
@@ -84,6 +88,7 @@ export type PastureDebug = {
   getStationMenu: () => PastureStationKind | null;
   openStationMenu: (kind: PastureStationKind) => void;
   closeStationMenu: () => void;
+  walkToAndOpen: (kind: PastureStationKind) => void;
   getNearbyStation: () => { id: string; kind: string } | null;
 };
 
@@ -153,6 +158,7 @@ export function PastureApp({
   );
   const [nearbyStation, setNearbyStation] = useState<WorldStation | null>(null);
   const stationMenuRef = useRef<PastureStationKind | null>(null);
+  const pendingOpenRef = useRef<PastureStationKind | null>(null);
   const [joinNonce, setJoinNonce] = useState(0);
   const [allowPrompt, setAllowPrompt] = useState(false);
   const silentRejoin = useRef(false);
@@ -261,11 +267,27 @@ export function PastureApp({
 
   const openStationMenu = useCallback(
     (kind: PastureStationKind) => {
+      pendingOpenRef.current = null;
       stationMenuRef.current = kind;
       setStationMenu(kind);
       dismissHint();
     },
     [dismissHint],
+  );
+
+  const walkToAndOpen = useCallback(
+    (kind: PastureStationKind) => {
+      const station = stationByKind(PASTURE_ZONE, kind);
+      if (!station) return;
+      const here = { x: livePose.current.x, z: livePose.current.z };
+      if (isWithinStationRadius(here, station)) {
+        openStationMenu(kind);
+        return;
+      }
+      pendingOpenRef.current = kind;
+      walkTo(station.position.x, station.position.z);
+    },
+    [openStationMenu, walkTo],
   );
 
   const onStationInteract = useCallback(
@@ -428,6 +450,7 @@ export function PastureApp({
       getStationMenu: () => stationMenuRef.current,
       openStationMenu,
       closeStationMenu,
+      walkToAndOpen,
       getNearbyStation: () => {
         const near = nearbyInteractStation(
           { x: livePose.current.x, z: livePose.current.z },
@@ -458,6 +481,7 @@ export function PastureApp({
     resetCamera,
     openStationMenu,
     closeStationMenu,
+    walkToAndOpen,
   ]);
 
   return (
@@ -530,9 +554,14 @@ export function PastureApp({
             <PastureCraftMenu onClose={closeStationMenu} />
           ) : stationMenu === "market" ? (
             <PastureMarketMenu onClose={closeStationMenu} />
-          ) : (
+          ) : stationMenu === "customize" ? (
             <PastureCustomizeMenu onClose={closeStationMenu} />
-          )}
+          ) : isActivityStationKind(stationMenu) ? (
+            <PastureActivityMenu
+              kind={stationMenu}
+              onClose={closeStationMenu}
+            />
+          ) : null}
         </div>
       ) : null}
       <Canvas
@@ -564,7 +593,13 @@ export function PastureApp({
             walkEnabled={!!mine && !stationMenu}
           />
           <PastureStations onInteract={onStationInteract} />
-          <StationProximity poseRef={livePose} onNearby={setNearbyStation} />
+          <PastureActivityAreas onInteract={onStationInteract} />
+          <StationProximity
+            poseRef={livePose}
+            pendingOpenRef={pendingOpenRef}
+            onNearby={setNearbyStation}
+            onArrive={openStationMenu}
+          />
           <PasturePaths preferPerf={preferPerf} />
           <StarterTown
             zone={PASTURE_ZONE}
@@ -1055,14 +1090,28 @@ declare global {
 
 function StationProximity({
   poseRef,
+  pendingOpenRef,
   onNearby,
+  onArrive,
 }: {
   poseRef: { current: { x: number; z: number } };
+  pendingOpenRef: { current: PastureStationKind | null };
   onNearby: (station: WorldStation | null) => void;
+  onArrive: (kind: PastureStationKind) => void;
 }) {
   const lastId = useRef<string>("");
   useFrame(() => {
     const near = nearbyInteractStation(poseRef.current, PASTURE_ZONE);
+    const pending = pendingOpenRef.current;
+    if (
+      pending &&
+      near &&
+      near.kind === pending &&
+      isPastureStationKind(near.kind)
+    ) {
+      pendingOpenRef.current = null;
+      onArrive(near.kind);
+    }
     const id = near?.id ?? "";
     if (id === lastId.current) return;
     lastId.current = id;

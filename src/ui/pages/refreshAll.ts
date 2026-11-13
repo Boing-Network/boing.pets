@@ -25,6 +25,7 @@ export async function refresh(page: PageId) {
   if (page === "pasture") {
     await refreshBuddyCard();
     await refreshPastureGallery();
+    await refreshOpenActivityOverlay();
   } else if (app.owner || page === "friends") {
     // Keep buddy vitals fresh when serving snacks / care-adjacent pages.
     if (["kitchen", "home", "market", "quests"].includes(page) && app.owner)
@@ -85,4 +86,17 @@ export async function refresh(page: PageId) {
       /* racing tables may be missing until migration 0016 */
     });
   controls();
+}
+
+/** Re-bind and refresh an in-pasture activity overlay if its panel is mounted. */
+export async function refreshOpenActivityOverlay() {
+  const jobs: Array<Promise<unknown>> = [];
+  if (document.getElementById("fishing-summary")) jobs.push(refreshFishing());
+  if (document.getElementById("mining-summary")) jobs.push(refreshMining());
+  if (document.getElementById("treasure-summary")) jobs.push(refreshTreasure());
+  if (document.getElementById("racing-summary")) jobs.push(refreshRacing());
+  if (document.getElementById("garden-summary")) jobs.push(refreshGarden());
+  if (document.getElementById("kitchen-summary")) jobs.push(refreshKitchen());
+  if (!jobs.length) return;
+  await Promise.all(jobs.map((job) => job.catch(() => undefined)));
 }

@@ -12,15 +12,16 @@ import type { ActivityId } from "../../content/attempts";
 const attemptStatus: Partial<
   Record<ActivityId, Awaited<ReturnType<typeof loadAttemptStatus>>>
 > = {};
-const wiredLifestyle = new Set<string>();
+const wiredLifestyle = new Map<string, HTMLButtonElement>();
 
 function ensureLifestylePlay(activity: "garden" | "cook") {
   const buttonId = activity === "garden" ? "garden-play" : "cook-play";
   const stageId = activity === "garden" ? "garden-minigame" : "cook-minigame";
-  if (wiredLifestyle.has(buttonId)) {
-    document
-      .getElementById(buttonId)
-      ?.dispatchEvent(new Event("boing-refresh-label"));
+  const existing = document.getElementById(
+    buttonId,
+  ) as HTMLButtonElement | null;
+  if (existing && wiredLifestyle.get(buttonId) === existing) {
+    existing.dispatchEvent(new Event("boing-refresh-label"));
     return;
   }
   const button = document.getElementById(buttonId) as HTMLButtonElement | null;
@@ -38,7 +39,7 @@ function ensureLifestylePlay(activity: "garden" | "cook") {
     labelReady: activity === "garden" ? "Tend · play" : "Cook · play",
   });
   button.addEventListener("boing-refresh-label", () => refreshLabel());
-  wiredLifestyle.add(buttonId);
+  if (button) wiredLifestyle.set(buttonId, button);
 }
 
 function rewardExtrasNotice(

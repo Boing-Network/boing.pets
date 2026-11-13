@@ -8,7 +8,19 @@ export interface WorldPoint {
 export interface WorldStation {
   id: string;
   label: string;
-  kind: "care" | "info" | "portal" | "craft" | "market" | "customize";
+  kind:
+    | "care"
+    | "info"
+    | "portal"
+    | "craft"
+    | "market"
+    | "customize"
+    | "mine"
+    | "fish"
+    | "treasure"
+    | "garden"
+    | "cook"
+    | "race";
   position: WorldPoint;
   radius: number;
   hint: string;
@@ -157,7 +169,7 @@ export const STARTER_TOWN: WorldZoneConfig = {
       position: { x: -12, y: 0, z: 10 },
       radius: 2.5,
       hint: "Cast, wait for a nibble, reel in time — up to 3 catches per UTC day.",
-      careHref: "/fishing.html",
+      careHref: "/#fish",
     },
     {
       id: "station-home",
@@ -175,7 +187,7 @@ export const STARTER_TOWN: WorldZoneConfig = {
       position: { x: 6, y: 0, z: -12 },
       radius: 2.4,
       hint: "Read the clue, pick a tile, dig — up to 3 tries per UTC day.",
-      careHref: "/treasure.html",
+      careHref: "/#dig",
     },
     {
       id: "station-garden",
@@ -184,7 +196,7 @@ export const STARTER_TOWN: WorldZoneConfig = {
       position: { x: 14, y: 0, z: 10 },
       radius: 2.5,
       hint: "Plant, water, and harvest crops on three garden slots.",
-      careHref: "/garden.html",
+      careHref: "/#crops",
     },
     {
       id: "station-kitchen",
@@ -193,7 +205,7 @@ export const STARTER_TOWN: WorldZoneConfig = {
       position: { x: -14, y: 0, z: 8 },
       radius: 2.5,
       hint: "Cook recipes from crops and fish, then serve snacks for care boosts.",
-      careHref: "/kitchen.html",
+      careHref: "/#cook",
     },
     {
       id: "station-mine",
@@ -202,7 +214,7 @@ export const STARTER_TOWN: WorldZoneConfig = {
       position: { x: -10, y: 0, z: -14 },
       radius: 2.5,
       hint: "Spend stamina to strike ore veins — upgrade pickaxes for rarer finds.",
-      careHref: "/mining.html",
+      careHref: "/#mine",
     },
     {
       id: "station-race",
@@ -211,7 +223,7 @@ export const STARTER_TOWN: WorldZoneConfig = {
       position: { x: 12, y: 0, z: -8 },
       radius: 2.5,
       hint: "Line up for a heat — finish on the flash for gold, silver, or bronze.",
-      careHref: "/racing.html",
+      careHref: "/#race",
     },
   ],
   paths: [
@@ -385,6 +397,60 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       width: 3.0,
       depth: 2.2,
     },
+    {
+      id: "crystal-quarry",
+      label: "Crystal Quarry",
+      position: { x: -30, y: 0, z: 6 },
+      color: "#8a8f96",
+      height: 2.2,
+      width: 3.6,
+      depth: 3.0,
+    },
+    {
+      id: "pond-pier",
+      label: "Pond Pier",
+      position: { x: 27, y: 0, z: -16 },
+      color: "#c4a06a",
+      height: 1.2,
+      width: 2.8,
+      depth: 2.2,
+    },
+    {
+      id: "treasure-dig",
+      label: "Treasure Dig",
+      position: { x: 8, y: 0, z: -28 },
+      color: "#c9a66b",
+      height: 1.15,
+      width: 3.2,
+      depth: 2.6,
+    },
+    {
+      id: "garden-beds",
+      label: "Garden Beds",
+      position: { x: 12, y: 0, z: 28 },
+      color: "#7eab62",
+      height: 1.15,
+      width: 3.6,
+      depth: 3.0,
+    },
+    {
+      id: "kitchen-hut",
+      label: "Pasture Kitchen",
+      position: { x: -22, y: 0, z: 26 },
+      color: "#d9896b",
+      height: 2.6,
+      width: 3.2,
+      depth: 2.6,
+    },
+    {
+      id: "race-gate",
+      label: "Race Track",
+      position: { x: -12, y: 0, z: -32 },
+      color: "#e8c27a",
+      height: 2.4,
+      width: 3.2,
+      depth: 1.8,
+    },
   ],
   stations: [
     {
@@ -418,6 +484,54 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       position: { x: 16, y: 0, z: -8 },
       radius: 3.4,
       hint: "Press E to customize",
+    },
+    {
+      id: "pasture-mine",
+      label: "Crystal Quarry",
+      kind: "mine",
+      position: { x: -30, y: 0, z: 6 },
+      radius: 3.4,
+      hint: "Press E to mine",
+    },
+    {
+      id: "pasture-fish",
+      label: "Pond Pier",
+      kind: "fish",
+      position: { x: 27, y: 0, z: -16 },
+      radius: 3.4,
+      hint: "Press E to fish",
+    },
+    {
+      id: "pasture-treasure",
+      label: "Treasure Dig",
+      kind: "treasure",
+      position: { x: 8, y: 0, z: -28 },
+      radius: 3.4,
+      hint: "Press E to dig",
+    },
+    {
+      id: "pasture-garden",
+      label: "Garden Beds",
+      kind: "garden",
+      position: { x: 12, y: 0, z: 28 },
+      radius: 3.4,
+      hint: "Press E to tend the garden",
+    },
+    {
+      id: "pasture-cook",
+      label: "Pasture Kitchen",
+      kind: "cook",
+      position: { x: -22, y: 0, z: 26 },
+      radius: 3.4,
+      hint: "Press E to cook",
+    },
+    {
+      id: "pasture-race",
+      label: "Race Track",
+      kind: "race",
+      position: { x: -12, y: 0, z: -32 },
+      radius: 3.4,
+      hint: "Press E to race",
     },
   ],
   paths: [
@@ -480,6 +594,30 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     [
       { x: 0, y: 0.02, z: -28 },
       { x: 22, y: 0.02, z: -16 },
+    ],
+    [
+      { x: -28, y: 0.02, z: 4 },
+      { x: -30, y: 0.02, z: 6 },
+    ],
+    [
+      { x: -20, y: 0.02, z: 18 },
+      { x: -22, y: 0.02, z: 26 },
+    ],
+    [
+      { x: 10, y: 0.02, z: 14 },
+      { x: 12, y: 0.02, z: 28 },
+    ],
+    [
+      { x: 28, y: 0.02, z: 4 },
+      { x: 27, y: 0.02, z: -16 },
+    ],
+    [
+      { x: 0, y: 0.02, z: -28 },
+      { x: 8, y: 0.02, z: -28 },
+    ],
+    [
+      { x: 0, y: 0.02, z: -28 },
+      { x: -12, y: 0.02, z: -32 },
     ],
   ],
 };

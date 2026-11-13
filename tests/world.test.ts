@@ -41,14 +41,16 @@ describe("Starter Town world config", () => {
     }
   });
 
-  it("points activity portals at dedicated multipage routes", () => {
+  it("points activity portals at public pasture deep links", () => {
     const byId = Object.fromEntries(
       STARTER_TOWN.stations.map((s) => [s.id, s.careHref]),
     );
-    expect(byId["station-fish"]).toBe("/fishing.html");
-    expect(byId["station-mine"]).toBe("/mining.html");
-    expect(byId["station-kitchen"]).toBe("/kitchen.html");
-    expect(byId["station-race"]).toBe("/racing.html");
+    expect(byId["station-fish"]).toBe("/#fish");
+    expect(byId["station-mine"]).toBe("/#mine");
+    expect(byId["station-kitchen"]).toBe("/#cook");
+    expect(byId["station-race"]).toBe("/#race");
+    expect(byId["station-dig"]).toBe("/#dig");
+    expect(byId["station-garden"]).toBe("/#crops");
   });
 
   it("includes tutorial and marketplace hooks for later phases", () => {

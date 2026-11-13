@@ -11,6 +11,7 @@ import { formatWalletLabel } from "../../wallet/session";
 import type { PastureMount } from "../../pasture3d/mountPasture3d";
 import type { PasturePet } from "../../pasture3d/types";
 import type { PresenceChat } from "../../world/hooks/usePlazaPresence";
+import { activityKindForHash } from "../../pasture3d/activityAreas";
 
 export function controls() {
   for (const id of [
@@ -383,6 +384,47 @@ export function openBuddyOverlay() {
   $maybe("#buddy-close")?.focus();
 }
 
+function hookActivityAreaHash() {
+  const go = () => {
+    const kind = activityKindForHash(location.hash);
+    if (!kind) return;
+    const tryWalk = (attempts = 0) => {
+      const dbg = pastureMount?.getDebug() || window.__pasture3d;
+      if (dbg?.walkToAndOpen) {
+        dbg.walkToAndOpen(kind);
+        return;
+      }
+      if (attempts < 40) window.setTimeout(() => tryWalk(attempts + 1), 50);
+    };
+    tryWalk();
+  };
+  if (!document.documentElement.dataset.activityHashWired) {
+    document.documentElement.dataset.activityHashWired = "1";
+    window.addEventListener("hashchange", go);
+    document.addEventListener("click", (event) => {
+      const target = event.target as HTMLElement | null;
+      const link = target?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!link) return;
+      const href = link.getAttribute("href") || "";
+      const hash = href.startsWith("/#")
+        ? href.slice(1)
+        : href.startsWith("#")
+          ? href
+          : "";
+      const kind = activityKindForHash(hash);
+      if (!kind) return;
+      const path = location.pathname;
+      const onPasture =
+        path === "/" || path.endsWith("/index.html") || path.endsWith("/");
+      if (!onPasture) return;
+      event.preventDefault();
+      history.replaceState(null, "", hash.startsWith("#") ? hash : `#${hash}`);
+      go();
+    });
+  }
+  go();
+}
+
 function hookBuddyOverlay() {
   const chip = $maybe("#buddy-chip");
   const close = $maybe("#buddy-close");
@@ -495,6 +537,7 @@ async function mountOrUpdatePasture(pets: ViewPet[]) {
   hookPastureChat();
   hookPastureViewport();
   hookBuddyOverlay();
+  hookActivityAreaHash();
   if (!pastureEscapeHooked) pastureEscapeHooked = true;
 }
 

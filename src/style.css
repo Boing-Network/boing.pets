@@ -1846,3 +1846,39 @@ a:hover {
     max-height: min(70%, calc(100% - 80px));
   }
 }
+
+/* In-pasture daily-activity overlays share station chrome, with a roomier stage. */
+.pasture-activity-menu {
+  max-width: min(42rem, calc(100% - 1.5rem));
+  max-height: min(44rem, calc(100dvh - 3.5rem));
+}
+.pasture-activity-body {
+  overflow: auto;
+}
+.pasture-activity-menu .activity-panel {
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.pasture-activity-menu .activity-panel > .section-title {
+  display: none;
+}
+.pasture-activity-menu .minigame-stage {
+  display: block;
+  min-height: 10rem;
+  margin: 0.6rem 0 1rem;
+}
+.pasture-activity-menu .minigame-stage[hidden] {
+  display: none;
+}
+.activity-pasture-hint {
+  margin-top: 0.8rem;
+}
+@media (max-width: 520px) {
+  .pasture-activity-menu {
+    max-width: calc(100% - 1rem);
+    max-height: calc(100dvh - 2.5rem);
+  }
+}
