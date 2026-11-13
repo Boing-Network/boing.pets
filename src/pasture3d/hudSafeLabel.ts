@@ -1,9 +1,13 @@
+import { Vector3, type Camera, type Matrix4 } from "three";
+
 /** Screen-space rules so always-on-top pasture labels stay off the HUD. */
 
 export type Rect = { left: number; top: number; right: number; bottom: number };
 
 /** Extra padding around HUD chrome where labels begin to fade. */
 export const HUD_LABEL_PAD = 16;
+/** Inset from the 3D canvas edge before a label is treated as clipped. */
+export const LABEL_EDGE_PAD = 16;
 /** Normalized-device fade band at the viewport edge. */
 export const HUD_EDGE_FADE = 0.1;
 
@@ -65,6 +69,77 @@ export function labelScreenRect(
     top: centerY - height / 2,
     right: centerX + width / 2,
     bottom: centerY + height / 2,
+  };
+}
+
+const _corner = new Vector3();
+
+/**
+ * Project a local-space XY box (e.g. Troika text blockBounds) to a
+ * CSS-pixel screen rect using the mesh world matrix.
+ */
+export function projectLocalBoxToScreen(
+  matrixWorld: Matrix4,
+  minX: number,
+  minY: number,
+  maxX: number,
+  maxY: number,
+  camera: Camera,
+  size: { width: number; height: number },
+  z = 0,
+): Rect {
+  let left = Infinity;
+  let top = Infinity;
+  let right = -Infinity;
+  let bottom = -Infinity;
+  for (const x of [minX, maxX]) {
+    for (const y of [minY, maxY]) {
+      _corner.set(x, y, z).applyMatrix4(matrixWorld).project(camera);
+      const sx = (_corner.x * 0.5 + 0.5) * size.width;
+      const sy = (-_corner.y * 0.5 + 0.5) * size.height;
+      left = Math.min(left, sx);
+      right = Math.max(right, sx);
+      top = Math.min(top, sy);
+      bottom = Math.max(bottom, sy);
+    }
+  }
+  return { left, top, right, bottom };
+}
+
+export type LabelClamp = Rect & { dx: number; dy: number };
+
+/**
+ * Shift a billboard so it stays fully inside the canvas with padding.
+ * Returns null when the label cannot fit (caller should hide it).
+ */
+export function clampLabelToViewport(
+  rect: Rect,
+  viewport: { width: number; height: number },
+  pad = LABEL_EDGE_PAD,
+): LabelClamp | null {
+  const maxW = Math.max(0, viewport.width - pad * 2);
+  const maxH = Math.max(0, viewport.height - pad * 2);
+  const width = rect.right - rect.left;
+  const height = rect.bottom - rect.top;
+  if (width > maxW + 0.5 || height > maxH + 0.5) return null;
+
+  let dx = 0;
+  let dy = 0;
+  if (rect.left < pad) dx += pad - rect.left;
+  if (rect.right + dx > viewport.width - pad) {
+    dx -= rect.right + dx - (viewport.width - pad);
+  }
+  if (rect.top < pad) dy += pad - rect.top;
+  if (rect.bottom + dy > viewport.height - pad) {
+    dy -= rect.bottom + dy - (viewport.height - pad);
+  }
+  return {
+    left: rect.left + dx,
+    top: rect.top + dy,
+    right: rect.right + dx,
+    bottom: rect.bottom + dy,
+    dx,
+    dy,
   };
 }
 

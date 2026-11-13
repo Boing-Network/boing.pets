@@ -1,3 +1,4 @@
+import { Matrix4, PerspectiveCamera } from "three";
 import { describe, expect, it } from "vitest";
 import {
   closestPointOnSegment,
@@ -6,7 +7,10 @@ import {
   occluderOpacityAgainstTargets,
 } from "../src/pasture3d/occluderFade";
 import {
+  clampLabelToViewport,
+  projectLocalBoxToScreen,
   edgeFade,
+  LABEL_EDGE_PAD,
   labelDistanceScale,
   labelHudOpacity,
   labelScreenRect,
@@ -105,5 +109,71 @@ describe("HUD-safe labels", () => {
     expect(labelDistanceScale(40)).toBe(1);
     expect(labelDistanceScale(8)).toBeLessThan(1);
     expect(labelDistanceScale(8)).toBeGreaterThanOrEqual(0.55);
+  });
+
+  it("clamps labels that would clip the canvas edge and hides ones that cannot fit", () => {
+    const pond = labelScreenRect(-8, 420, 28, 9);
+    expect(pond.left).toBeLessThan(0);
+    const clamped = clampLabelToViewport(pond, viewport);
+    expect(clamped).not.toBeNull();
+    expect(clamped!.left).toBe(LABEL_EDGE_PAD);
+    expect(clamped!.right).toBeLessThanOrEqual(viewport.width - LABEL_EDGE_PAD);
+    expect(clamped!.top).toBeGreaterThanOrEqual(LABEL_EDGE_PAD);
+    expect(clamped!.bottom).toBeLessThanOrEqual(
+      viewport.height - LABEL_EDGE_PAD,
+    );
+    expect(clamped!.dx).toBeGreaterThan(0);
+
+    const inside = labelScreenRect(700, 420, 24, 12);
+    const untouched = clampLabelToViewport(inside, viewport);
+    expect(untouched?.dx).toBe(0);
+    expect(untouched?.dy).toBe(0);
+
+    const tooWide = { left: -20, top: 40, right: 1600, bottom: 80 };
+    expect(clampLabelToViewport(tooWide, viewport)).toBeNull();
+  });
+
+  it("projects a local text box to a screen-space rect around the anchor", () => {
+    const cam = new PerspectiveCamera(
+      50,
+      viewport.width / viewport.height,
+      0.1,
+      1000,
+    );
+    cam.position.set(0, 0, 10);
+    cam.lookAt(0, 0, 0);
+    cam.updateProjectionMatrix();
+    cam.updateMatrixWorld();
+    const matrix = new Matrix4().setPosition(0, 0, 0);
+    const rect = projectLocalBoxToScreen(
+      matrix,
+      -1.2,
+      -0.4,
+      1.2,
+      0.4,
+      cam,
+      viewport,
+    );
+    expect(rect.left).toBeLessThan(viewport.width / 2);
+    expect(rect.right).toBeGreaterThan(viewport.width / 2);
+    expect(rect.top).toBeLessThan(viewport.height / 2);
+    expect(rect.bottom).toBeGreaterThan(viewport.height / 2);
+    expect(rect.right - rect.left).toBeGreaterThan(rect.bottom - rect.top);
+    // A box that would sit past the left edge clamps in with padding.
+    const shifted = new Matrix4().setPosition(-8, 0, 0);
+    const overflow = projectLocalBoxToScreen(
+      shifted,
+      -1.2,
+      -0.4,
+      1.2,
+      0.4,
+      cam,
+      viewport,
+    );
+    expect(overflow.left).toBeLessThan(0);
+    const clamped = clampLabelToViewport(overflow, viewport);
+    expect(clamped).not.toBeNull();
+    expect(clamped!.left).toBe(LABEL_EDGE_PAD);
+    expect(clamped!.dx).toBeGreaterThan(0);
   });
 });
