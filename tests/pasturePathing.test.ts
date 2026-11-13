@@ -182,3 +182,71 @@ describe("pasture pathing", () => {
     }
   });
 });
+
+function walkToGoal(
+  start: { x: number; z: number },
+  goal: { x: number; z: number },
+  obstacles: ReturnType<typeof obstaclesForZone>,
+) {
+  let pos = resolveClickTarget(start, PASTURE_ZONE, obstacles);
+  const dest = resolveClickTarget(goal, PASTURE_ZONE, obstacles);
+  let arrived = false;
+  let stuck = 0;
+  for (let i = 0; i < 900; i++) {
+    const before = pos;
+    const step = stepToward(pos, dest, 0.16, 6, PASTURE_ZONE, obstacles);
+    pos = step.pos;
+    expect(blocked(pos, obstacles)).toBeNull();
+    const moved = Math.hypot(pos.x - before.x, pos.z - before.z);
+    stuck = moved < 1e-4 ? stuck + 1 : 0;
+    expect(stuck).toBeLessThan(8);
+    arrived = step.arrived;
+    if (arrived) break;
+  }
+  expect(arrived).toBe(true);
+  expect(Math.hypot(pos.x - dest.x, pos.z - dest.z)).toBeLessThan(0.6);
+  return pos;
+}
+
+describe("pasture route audit", () => {
+  const obstacles = obstaclesForZone(PASTURE_ZONE);
+  const pois = [
+    { id: "spawn", ...PASTURE_ZONE.spawn },
+    { id: "old-oak", x: -18, z: -20 },
+    ...PASTURE_ZONE.stations
+      .filter((station) => station.kind !== "info")
+      .map((station) => ({
+        id: station.id,
+        x: station.position.x,
+        z: station.position.z,
+      })),
+  ];
+
+  it("snaps a walk into the Old Oak onto a reachable rim", () => {
+    const rim = resolveClickTarget({ x: -18, z: -20 }, PASTURE_ZONE, obstacles);
+    expect(blocked(rim, obstacles)).toBeNull();
+    expect(Math.hypot(rim.x + 18, rim.z + 20)).toBeGreaterThan(1);
+  });
+
+  it("walks from spawn and Treasure Dig to the Old Oak without stalling mid-south", () => {
+    for (const start of [
+      { x: 0, z: 6 },
+      { x: 8, z: -28 },
+    ]) {
+      const pos = walkToGoal(start, { x: -18, z: -20 }, obstacles);
+      // The previous greedy detour could pin a walker around (2.35, -21.99).
+      expect(Math.hypot(pos.x - 2.35, pos.z + 21.99)).toBeGreaterThan(8);
+      expect(Math.hypot(pos.x + 18, pos.z + 20)).toBeLessThan(2.5);
+    }
+  });
+
+  it("walks between every station, area, spawn, and the Old Oak", () => {
+    for (const a of pois) {
+      for (const b of pois) {
+        if (a.id === b.id) continue;
+        walkToGoal(a, b, obstacles);
+      }
+    }
+    expect(pois.length).toBeGreaterThanOrEqual(11);
+  });
+});

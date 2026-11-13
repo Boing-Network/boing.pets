@@ -103,6 +103,8 @@ export function blocked(pos: Vec2, obstacles: Obstacle[]): Obstacle | null {
   return null;
 }
 
+const PUSH_EPS = 0.05;
+
 function pushOutOf(pos: Vec2, o: Obstacle): Vec2 {
   const dx = pos.x - o.x;
   const dz = pos.z - o.z;
@@ -110,16 +112,20 @@ function pushOutOf(pos: Vec2, o: Obstacle): Vec2 {
     const gapX = o.halfW - Math.abs(dx);
     const gapZ = o.halfD - Math.abs(dz);
     if (gapX < gapZ) {
-      return { x: o.x + Math.sign(dx || 1) * o.halfW, z: pos.z };
+      return { x: o.x + Math.sign(dx || 1) * (o.halfW + PUSH_EPS), z: pos.z };
     }
-    return { x: pos.x, z: o.z + Math.sign(dz || 1) * o.halfD };
+    return { x: pos.x, z: o.z + Math.sign(dz || 1) * (o.halfD + PUSH_EPS) };
   }
   const nx = dx / o.halfW;
   const nz = dz / o.halfD;
-  const len = Math.hypot(nx, nz) || 1;
+  const len = Math.hypot(nx, nz);
+  // A point at the exact center has no direction; step east off the rim.
+  if (len < 1e-6) {
+    return { x: o.x + o.halfW + PUSH_EPS, z: o.z };
+  }
   return {
-    x: o.x + (nx / len) * o.halfW,
-    z: o.z + (nz / len) * o.halfD,
+    x: o.x + (nx / len) * (o.halfW + PUSH_EPS),
+    z: o.z + (nz / len) * (o.halfD + PUSH_EPS),
   };
 }
 
@@ -279,6 +285,231 @@ function slide(pos: Vec2, next: Vec2, hit: Obstacle): Vec2 {
   return pushOutOf(next, hit);
 }
 
+const PATH_CELL = 0.75;
+const PATH_DIRS: Array<[number, number, number]> = [
+  [1, 0, 1],
+  [-1, 0, 1],
+  [0, 1, 1],
+  [0, -1, 1],
+  [1, 1, Math.SQRT2],
+  [1, -1, Math.SQRT2],
+  [-1, 1, Math.SQRT2],
+  [-1, -1, Math.SQRT2],
+];
+
+function cellKey(ix: number, iz: number): number {
+  return ((ix + 1024) << 16) | (iz + 1024);
+}
+
+function cellCenter(ix: number, iz: number): Vec2 {
+  return { x: ix * PATH_CELL, z: iz * PATH_CELL };
+}
+
+function toCell(pos: Vec2): { ix: number; iz: number } {
+  return {
+    ix: Math.round(pos.x / PATH_CELL),
+    iz: Math.round(pos.z / PATH_CELL),
+  };
+}
+
+function inBoundsCell(ix: number, iz: number, zone: WorldZoneConfig): boolean {
+  const p = cellCenter(ix, iz);
+  return (
+    p.x >= zone.bounds.minX &&
+    p.x <= zone.bounds.maxX &&
+    p.z >= zone.bounds.minZ &&
+    p.z <= zone.bounds.maxZ
+  );
+}
+
+/**
+ * Grid path around solids. Returns [start, ..., goal]. Falls back to a
+ * single local detour when the search is exhausted.
+ */
+export function findPath(
+  start: Vec2,
+  goal: Vec2,
+  zone: WorldZoneConfig,
+  obstacles: Obstacle[],
+): Vec2[] {
+  const from = clampToWalkable(start, zone, obstacles);
+  const to = clampToWalkable(goal, zone, obstacles);
+  if (!firstHitOnSegment(from, to, obstacles)) return [from, to];
+
+  const blockedCache = new Map<number, boolean>();
+  const isBlocked = (ix: number, iz: number) => {
+    const key = cellKey(ix, iz);
+    const hit = blockedCache.get(key);
+    if (hit !== undefined) return hit;
+    if (!inBoundsCell(ix, iz, zone)) {
+      blockedCache.set(key, true);
+      return true;
+    }
+    // Treat a cell as blocked if its center or any corner sits in a solid,
+    // so the walker does not thread a tight gap and get stuck on the rim.
+    const c = cellCenter(ix, iz);
+    const r = PATH_CELL * 0.5;
+    const samples = [
+      c,
+      { x: c.x - r, z: c.z - r },
+      { x: c.x - r, z: c.z + r },
+      { x: c.x + r, z: c.z - r },
+      { x: c.x + r, z: c.z + r },
+    ];
+    const value = samples.some(
+      (p) => !inBoundsCell(ix, iz, zone) || blocked(p, obstacles) !== null,
+    );
+    blockedCache.set(key, value);
+    return value;
+  };
+
+  const openNear = (ix: number, iz: number): { ix: number; iz: number } => {
+    if (!isBlocked(ix, iz)) return { ix, iz };
+    for (let r = 1; r <= 5; r++) {
+      for (let dx = -r; dx <= r; dx++) {
+        for (let dz = -r; dz <= r; dz++) {
+          if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+          if (!isBlocked(ix + dx, iz + dz)) return { ix: ix + dx, iz: iz + dz };
+        }
+      }
+    }
+    return { ix, iz };
+  };
+
+  const startCell = openNear(toCell(from).ix, toCell(from).iz);
+  const goalCell = openNear(toCell(to).ix, toCell(to).iz);
+
+  type Node = {
+    ix: number;
+    iz: number;
+    g: number;
+    f: number;
+    px: number;
+    pz: number;
+  };
+  const open: Node[] = [];
+  const bestG = new Map<number, number>();
+  const parent = new Map<number, number>();
+  const heur = (ix: number, iz: number) =>
+    Math.hypot(ix - goalCell.ix, iz - goalCell.iz);
+
+  const push = (n: Node) => {
+    open.push(n);
+    let i = open.length - 1;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (open[p]!.f <= open[i]!.f) break;
+      const tmp = open[p]!;
+      open[p] = open[i]!;
+      open[i] = tmp;
+      i = p;
+    }
+  };
+  const pop = (): Node => {
+    const root = open[0]!;
+    const last = open.pop()!;
+    if (!open.length) return root;
+    open[0] = last;
+    let i = 0;
+    for (;;) {
+      const l = i * 2 + 1;
+      const r = l + 1;
+      let m = i;
+      if (l < open.length && open[l]!.f < open[m]!.f) m = l;
+      if (r < open.length && open[r]!.f < open[m]!.f) m = r;
+      if (m === i) break;
+      const tmp = open[m]!;
+      open[m] = open[i]!;
+      open[i] = tmp;
+      i = m;
+    }
+    return root;
+  };
+
+  const startKey = cellKey(startCell.ix, startCell.iz);
+  bestG.set(startKey, 0);
+  push({
+    ix: startCell.ix,
+    iz: startCell.iz,
+    g: 0,
+    f: heur(startCell.ix, startCell.iz),
+    px: startCell.ix,
+    pz: startCell.iz,
+  });
+
+  let found = false;
+  let steps = 0;
+  while (open.length && steps++ < 14000) {
+    const cur = pop();
+    const key = cellKey(cur.ix, cur.iz);
+    if (cur.g !== bestG.get(key)) continue;
+    if (cur.ix === goalCell.ix && cur.iz === goalCell.iz) {
+      found = true;
+      break;
+    }
+    for (const [dx, dz, cost] of PATH_DIRS) {
+      const nx = cur.ix + dx;
+      const nz = cur.iz + dz;
+      if (isBlocked(nx, nz)) continue;
+      if (
+        dx !== 0 &&
+        dz !== 0 &&
+        (isBlocked(cur.ix + dx, cur.iz) || isBlocked(cur.ix, cur.iz + dz))
+      ) {
+        continue;
+      }
+      const ng = cur.g + cost;
+      const nKey = cellKey(nx, nz);
+      const prev = bestG.get(nKey);
+      if (prev !== undefined && ng >= prev) continue;
+      bestG.set(nKey, ng);
+      parent.set(nKey, key);
+      push({
+        ix: nx,
+        iz: nz,
+        g: ng,
+        f: ng + heur(nx, nz),
+        px: cur.ix,
+        pz: cur.iz,
+      });
+    }
+  }
+
+  if (!found) return [from, aroundWaypoint(from, to, obstacles), to];
+
+  const cells: Vec2[] = [to];
+  let key = cellKey(goalCell.ix, goalCell.iz);
+  const startKey2 = cellKey(startCell.ix, startCell.iz);
+  let guard = 0;
+  while (key !== startKey2 && guard++ < 4000) {
+    const ix = (key >> 16) - 1024;
+    const iz = (key & 0xffff) - 1024;
+    cells.push(cellCenter(ix, iz));
+    const prev = parent.get(key);
+    if (prev === undefined) break;
+    key = prev;
+  }
+  cells.push(from);
+  cells.reverse();
+  return cells;
+}
+
+function nextPathPoint(here: Vec2, path: Vec2[], obstacles: Obstacle[]): Vec2 {
+  const goal = path[path.length - 1] ?? here;
+  // Follow the path in order rather than leaping to the furthest visible
+  // point. Furthest-LOS along a tight tree or pond rim causes the walker
+  // to orbit the solid and never pass it.
+  for (let i = 0; i < path.length; i++) {
+    const p = path[i]!;
+    if (Math.hypot(p.x - here.x, p.z - here.z) < 0.3) continue;
+    if (firstHitOnSegment(here, p, obstacles)) {
+      return aroundWaypoint(here, p, obstacles);
+    }
+    return p;
+  }
+  return goal;
+}
+
 export function stepToward(
   pos: Vec2,
   target: Vec2,
@@ -291,7 +522,11 @@ export function stepToward(
   const here = clampToWalkable(pos, zone, obstacles);
   const remain = Math.hypot(goal.x - here.x, goal.z - here.z);
   if (remain < 0.08) return { pos: here, arrived: true, yaw: null };
-  const waypoint = aroundWaypoint(here, goal, obstacles);
+  const waypoint = nextPathPoint(
+    here,
+    findPath(here, goal, zone, obstacles),
+    obstacles,
+  );
   const dx = waypoint.x - here.x;
   const dz = waypoint.z - here.z;
   const dist = Math.hypot(dx, dz);
