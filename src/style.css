@@ -2087,3 +2087,42 @@ a:hover {
     bottom: auto;
   }
 }
+
+.pasture-emote-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  z-index: 15;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(16, 28, 22, 0.88);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
+  pointer-events: auto;
+}
+.pasture-emote-btn {
+  margin: 0;
+  min-width: 0;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+}
+.pasture-emote-heart {
+  margin: 0 auto 4px;
+  color: #ff7aa2;
+  font-size: 1.35rem;
+  line-height: 1;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+.pasture-3d-stage.is-touch-controls .pasture-emote-bar {
+  bottom: 150px;
+}
+@media (max-width: 700px) {
+  .pasture-emote-bar {
+    left: 50%;
+    right: auto;
+    width: max-content;
+    max-width: calc(100% - 24px);
+  }
+}

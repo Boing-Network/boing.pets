@@ -4,6 +4,7 @@ import {
   sanitizeEquipped,
   type EquippedCosmetics,
 } from "../../content/cosmetics";
+import { isEmoteId, type EmoteId } from "./emotes";
 
 export const PRESENCE_MAX_PLAYERS = 64;
 export const PRESENCE_MOVE_MIN_MS = 80;
@@ -39,6 +40,7 @@ export type ClientPresenceMessage =
     }
   | { type: "move"; x: number; y: number; z: number }
   | { type: "chat"; text: string }
+  | { type: "emote"; emote: EmoteId }
   | { type: "cosmetics"; cosmetics?: EquippedCosmetics };
 
 export type ServerPresenceMessage =
@@ -54,6 +56,7 @@ export type ServerPresenceMessage =
       at: number;
     }
   | { type: "cosmetics"; id: string; cosmetics?: EquippedCosmetics }
+  | { type: "emote"; id: string; emote: EmoteId; at: number }
   | { type: "error"; message: string };
 
 export function isFinitePos(n: unknown): n is number {
@@ -127,6 +130,10 @@ export function parseClientPresenceMessage(
     }
     if (data.type === "cosmetics") {
       return { type: "cosmetics", cosmetics: sanitizeEquipped(data.cosmetics) };
+    }
+    if (data.type === "emote") {
+      if (!isEmoteId(data.emote)) return null;
+      return { type: "emote", emote: data.emote };
     }
     return null;
   } catch {

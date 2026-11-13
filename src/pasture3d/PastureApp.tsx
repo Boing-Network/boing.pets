@@ -75,6 +75,9 @@ import { PastureAudioControls } from "./PastureAudioControls";
 import { WalkthroughCard } from "../onboarding/WalkthroughCard";
 import { DailyQuestChip } from "./DailyQuestChip";
 import { PastureTouchControls } from "./PastureTouchControls";
+import { PastureEmoteBar } from "./PastureEmoteBar";
+import { SocialPlayWatch } from "./SocialPlayWatch";
+import { latestEmoteFor, type EmoteId } from "../world/lib/emotes";
 import {
   pastureMobileDpr,
   readPastureTouchPrefs,
@@ -214,6 +217,9 @@ export function PastureApp({
     null,
   );
   const [nearbyStation, setNearbyStation] = useState<WorldStation | null>(null);
+  const [localEmotes, setLocalEmotes] = useState<
+    Array<{ id: string; emote: EmoteId; at: number }>
+  >([]);
   const stationMenuRef = useRef<PastureStationKind | null>(null);
   const pendingOpenRef = useRef<PastureStationKind | null>(null);
   const [joinNonce, setJoinNonce] = useState(0);
@@ -597,6 +603,20 @@ export function PastureApp({
             openStationMenu(nearbyStation.kind);
         }}
       />
+      <PastureEmoteBar
+        visible={!!mine && !stationMenu}
+        disabled={!presence.walletBound || presence.status !== "live"}
+        onEmote={(emote) => {
+          const at = Date.now();
+          if (owner) {
+            setLocalEmotes((prev) => [
+              ...prev.filter((row) => row.id !== owner),
+              { id: owner, emote, at },
+            ]);
+          }
+          presence.sendEmote(emote);
+        }}
+      />
       {hintOpen ? (
         <div className="pasture-hint" role="status">
           <p>
@@ -714,6 +734,31 @@ export function PastureApp({
               hudSafeLabels
               heightAt={meadowHeight}
             />
+            <SocialPlayWatch
+              enabled={
+                !!mine &&
+                presence.walletBound &&
+                presence.status === "live" &&
+                !stationMenu
+              }
+              selfId={owner || ""}
+              livePose={livePose}
+              others={presence.players.map((player) => ({
+                id: player.id,
+                x: player.x,
+                z: player.z,
+              }))}
+              onPlay={(peerId) => {
+                const at = Date.now();
+                const rows = [{ id: peerId, emote: "play" as const, at }];
+                if (owner) rows.push({ id: owner, emote: "play", at });
+                setLocalEmotes((prev) => {
+                  const skip = new Set(rows.map((row) => row.id));
+                  return [...prev.filter((row) => !skip.has(row.id)), ...rows];
+                });
+                presence.sendEmote("play");
+              }}
+            />
             <PastureWorld
               pets={pets}
               owner={owner}
@@ -724,6 +769,7 @@ export function PastureApp({
               zoomRef={zoomRef}
               presencePlayers={presence.players}
               chats={presence.chats}
+              emotes={[...presence.emotes, ...localEmotes]}
               preferPerf={preferPerf}
               reducedMotion={reducedMotion}
               followOwner={!!mine}
@@ -753,6 +799,7 @@ function PastureWorld({
   zoomRef,
   presencePlayers,
   chats,
+  emotes,
   preferPerf,
   reducedMotion,
   followOwner,
@@ -779,6 +826,7 @@ function PastureWorld({
     cosmetics?: EquippedCosmetics;
   }>;
   chats: PresenceChat[];
+  emotes: Array<{ id: string; emote: EmoteId; at: number }>;
   preferPerf: boolean;
   reducedMotion: boolean;
   followOwner: boolean;
@@ -850,6 +898,7 @@ function PastureWorld({
           camYawRef={camYawRef}
           controls={controls}
           stickEnabled={stickEnabled}
+          emote={latestEmoteFor(emotes, mine.owner)}
           onInspect={() => onInspect(mine)}
         />
       ) : null}
@@ -866,6 +915,7 @@ function PastureWorld({
             reducedMotion={reducedMotion}
             bubble={bubbleById.get(player.id)}
             hideHudOverlays={hideHudOverlays}
+            emote={latestEmoteFor(emotes, player.id)}
             onInspect={() =>
               onInspect({
                 ...pet,
@@ -886,6 +936,7 @@ function PastureWorld({
           bubble={bubbleById.get(pet.owner)}
           preferPerf={preferPerf}
           hideHudOverlays={hideHudOverlays}
+          emote={latestEmoteFor(emotes, pet.owner)}
           onInspect={() => onInspect(pet)}
         />
       ))}
@@ -986,6 +1037,7 @@ function LocalPet({
   camYawRef,
   controls,
   stickEnabled,
+  emote,
   onInspect,
 }: {
   pet: PasturePet;
@@ -999,6 +1051,7 @@ function LocalPet({
   camYawRef: MutableRefObject<number>;
   controls: MutableRefObject<ControlState>;
   stickEnabled: boolean;
+  emote?: { id: EmoteId; at: number } | null;
   onInspect: () => void;
 }) {
   const group = useRef<THREE.Group>(null);
@@ -1113,6 +1166,7 @@ function LocalPet({
         movingRef={moving}
         bubble={bubble}
         hideHudOverlays={hideHudOverlays}
+        emote={emote}
         onClick={onInspect}
       />
     </group>
@@ -1128,6 +1182,7 @@ function WanderingPet({
   bubble,
   preferPerf,
   hideHudOverlays,
+  emote,
   onInspect,
 }: {
   pet: PasturePet;
@@ -1138,6 +1193,7 @@ function WanderingPet({
   bubble?: string;
   preferPerf: boolean;
   hideHudOverlays?: boolean;
+  emote?: { id: EmoteId; at: number } | null;
   onInspect: () => void;
 }) {
   const spawn = useMemo(
@@ -1198,6 +1254,7 @@ function WanderingPet({
         movingRef={moving}
         bubble={bubble}
         hideHudOverlays={hideHudOverlays}
+        emote={emote}
         onClick={onInspect}
       />
     </group>
@@ -1212,6 +1269,7 @@ function RemotePet({
   reducedMotion,
   bubble,
   hideHudOverlays,
+  emote,
   onInspect,
 }: {
   pet: PasturePet;
@@ -1229,6 +1287,7 @@ function RemotePet({
   reducedMotion: boolean;
   bubble?: string;
   hideHudOverlays?: boolean;
+  emote?: { id: EmoteId; at: number } | null;
   onInspect: () => void;
 }) {
   const group = useRef<THREE.Group>(null);
@@ -1280,6 +1339,7 @@ function RemotePet({
         movingRef={moving}
         bubble={bubble}
         hideHudOverlays={hideHudOverlays}
+        emote={emote}
         onClick={onInspect}
       />
     </group>

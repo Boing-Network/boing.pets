@@ -15,11 +15,18 @@ import {
 import type { LivePose } from "../scene/Player";
 import { plazaErrorMessage } from "../lib/plazaJoinGate";
 import { isChatWalletRequiredMessage } from "../lib/plazaChatAuth";
+import { isEmoteId, type EmoteId } from "../lib/emotes";
 
 export type PresenceChat = {
   id: string;
   name: string;
   text: string;
+  at: number;
+};
+
+export type PresenceEmote = {
+  id: string;
+  emote: EmoteId;
   at: number;
 };
 
@@ -41,6 +48,7 @@ export function usePlazaPresence(
 ) {
   const [players, setPlayers] = useState<PresencePlayer[]>([]);
   const [chats, setChats] = useState<PresenceChat[]>([]);
+  const [emotes, setEmotes] = useState<PresenceEmote[]>([]);
   const [status, setStatus] = useState<"off" | "connecting" | "live" | "error">(
     "off",
   );
@@ -59,6 +67,7 @@ export function usePlazaPresence(
       setStatus("off");
       setPlayers([]);
       setChats([]);
+      setEmotes([]);
       setWalletBound(false);
       return;
     }
@@ -215,6 +224,14 @@ export function usePlazaPresence(
           setChats((prev) => [...prev, message].slice(-40));
           return;
         }
+        if (message.type === "emote" && isEmoteId(message.emote)) {
+          setEmotes((prev) =>
+            [...prev.filter((row) => row.id !== message.id), message].slice(
+              -24,
+            ),
+          );
+          return;
+        }
         if (message.type === "leave") {
           setPlayers((prev) => prev.filter((p) => p.id !== message.id));
           return;
@@ -223,7 +240,12 @@ export function usePlazaPresence(
           // Ignore stale handshake races if we somehow still get one.
           if (!joined && message.message === "Send hello first") return;
           // A guest-chat reject is recoverable; do not tear the pasture down.
-          if (isChatWalletRequiredMessage(message.message)) {
+          if (
+            isChatWalletRequiredMessage(message.message) ||
+            /emote is cooling down|emotes require a signed-in wallet/i.test(
+              message.message,
+            )
+          ) {
             setError(plazaErrorMessage(message.message));
             return;
           }
@@ -268,6 +290,15 @@ export function usePlazaPresence(
     return true;
   }, []);
 
+  const sendEmote = useCallback((emote: EmoteId) => {
+    if (!isEmoteId(emote)) return false;
+    const socket = socketRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN || !joinedRef.current)
+      return false;
+    socket.send(JSON.stringify({ type: "emote", emote }));
+    return true;
+  }, []);
+
   const sendCosmetics = useCallback((cosmetics?: EquippedCosmetics) => {
     cosmeticsRef.current = cosmetics;
     const socket = socketRef.current;
@@ -279,11 +310,13 @@ export function usePlazaPresence(
   return {
     players,
     chats,
+    emotes,
     status,
     error,
     walletBound,
     selfId: selfId.current,
     sendChat,
+    sendEmote,
     sendCosmetics,
   };
 }

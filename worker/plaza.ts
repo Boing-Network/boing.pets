@@ -16,11 +16,13 @@ import {
   type PresencePlayer,
   type ServerPresenceMessage,
 } from "../src/world/lib/presenceProtocol";
+import { canSendEmote } from "../src/world/lib/emotes";
 import { clampPresencePosition } from "../src/pasture3d/pathing";
 
 type Attachment = PresencePlayer & {
   lastMoveAt: number;
   lastChatAt: number;
+  lastEmoteAt: number;
   chatSentAt: number[];
 };
 
@@ -214,6 +216,7 @@ export class PlazaRoom extends DurableObject<Env> {
         ...player,
         lastMoveAt: Date.now(),
         lastChatAt: 0,
+        lastEmoteAt: 0,
         chatSentAt: [],
       } satisfies Attachment);
       const players = this.listPlayers();
@@ -265,6 +268,35 @@ export class PlazaRoom extends DurableObject<Env> {
         id: self.id,
         name: self.name,
         text,
+        at: now,
+      };
+      send(ws, payload);
+      this.broadcast(ws, payload);
+      return;
+    }
+
+    if (parsed.type === "emote") {
+      if (!WALLET_ID_RE.test(self.id)) {
+        send(ws, {
+          type: "error",
+          message: "Emotes require a signed-in wallet",
+        });
+        return;
+      }
+      const now = Date.now();
+      if (!canSendEmote(self.lastEmoteAt || 0, now)) {
+        send(ws, {
+          type: "error",
+          message: "Emote is cooling down. Please wait.",
+        });
+        return;
+      }
+      self.lastEmoteAt = now;
+      ws.serializeAttachment(self);
+      const payload: ServerPresenceMessage = {
+        type: "emote",
+        id: self.id,
+        emote: parsed.emote,
         at: now,
       };
       send(ws, payload);

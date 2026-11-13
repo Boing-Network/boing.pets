@@ -19,6 +19,7 @@ import {
   type PetModelLook,
 } from "../lib/petModel";
 import { CosmeticAttachments } from "./CosmeticAttachments";
+import { EMOTE_DURATION_MS, emoteActive, type EmoteId } from "../lib/emotes";
 import { PetFeatureMesh } from "./PetFeatureMesh";
 
 const _worldPos = new Vector3();
@@ -38,6 +39,7 @@ export function PetMesh({
   onClick,
   scale = 1,
   hideHudOverlays = false,
+  emote = null,
   children,
 }: {
   look: PetMeshLook;
@@ -52,6 +54,7 @@ export function PetMesh({
   onClick?: () => void;
   scale?: number;
   hideHudOverlays?: boolean;
+  emote?: { id: EmoteId; at: number } | null;
   children?: ReactNode;
 }) {
   const hop = useRef<Group>(null);
@@ -77,11 +80,39 @@ export function PetMesh({
     }
     if (!hop.current || reducedMotion) return;
     const isMoving = movingRef?.current ?? moving;
-    hop.current.position.y = pastureHopOffset(
-      clock.elapsedTime,
-      isMoving,
-      reducedMotion,
-    );
+    const baseY = pastureHopOffset(clock.elapsedTime, isMoving, reducedMotion);
+    const now = Date.now();
+    const playing = emote && emoteActive(emote.at, now);
+    if (playing) {
+      const u = Math.min(1, Math.max(0, (now - emote.at) / EMOTE_DURATION_MS));
+      const pulse = Math.sin(u * Math.PI);
+      if (emote.id === "wave") {
+        hop.current.position.y = baseY + pulse * 0.12;
+        hop.current.rotation.z = Math.sin(u * Math.PI * 4) * 0.35;
+        hop.current.rotation.y = 0;
+        hop.current.scale.set(1, 1, 1);
+      } else if (emote.id === "hop" || emote.id === "play") {
+        hop.current.position.y =
+          baseY + Math.abs(Math.sin(u * Math.PI * 2)) * 0.42;
+        hop.current.rotation.z = Math.sin(u * Math.PI * 2) * 0.12;
+        hop.current.rotation.y = emote.id === "play" ? pulse * 0.4 : 0;
+        hop.current.scale.setScalar(1 + pulse * 0.08);
+      } else if (emote.id === "spin") {
+        hop.current.position.y = baseY + pulse * 0.18;
+        hop.current.rotation.z = 0;
+        hop.current.rotation.y = u * Math.PI * 2;
+        hop.current.scale.set(1, 1, 1);
+      } else {
+        hop.current.position.y = baseY + pulse * 0.16;
+        hop.current.rotation.z = 0;
+        hop.current.rotation.y = 0;
+        hop.current.scale.setScalar(1 + pulse * 0.18);
+      }
+      return;
+    }
+    hop.current.position.y = baseY;
+    hop.current.rotation.y = 0;
+    hop.current.scale.set(1, 1, 1);
     hop.current.rotation.z = isMoving
       ? Math.sin(clock.elapsedTime * 11) * 0.06
       : Math.sin(clock.elapsedTime * 2.4) * 0.02;
@@ -207,6 +238,11 @@ export function PetMesh({
             {bubble ? (
               <div ref={bubbleRef} className="pasture-bubble">
                 {worldSafeText(bubble)}
+              </div>
+            ) : null}
+            {emote && emote.id === "heart" ? (
+              <div className="pasture-emote-heart" aria-hidden="true">
+                ♥
               </div>
             ) : null}
             <button
