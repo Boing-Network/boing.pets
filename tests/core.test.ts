@@ -185,13 +185,35 @@ describe("server-side transaction proof (never trust a hash alone)", () => {
     expect(() => verifyProof(tx, c, receipt, block)).not.toThrow());
   it("rejects unknown, failed, old and wrong-hash receipts", () => {
     expect(() => verifyProof(tx, c, null, null)).toThrow();
+    const failed = {
+      ...receipt,
+      success: false,
+      error: "Execution reverted",
+    };
     expect(() =>
-      verifyProof(tx, c, { ...receipt, success: false }, block),
-    ).toThrow();
+      verifyProof(tx, c, failed, { ...block, receipts: [failed] }),
+    ).toThrow(/failed/i);
     expect(() =>
       verifyProof(tx, c, { ...receipt, block_height: 100 }, block),
     ).toThrow();
     expect(() => verifyProof(owner, c, receipt, block)).toThrow();
+  });
+  it("accepts a success in the block when a later failed receipt hides it", () => {
+    const failed = {
+      ...receipt,
+      tx_index: 1,
+      success: false,
+      error: "Invalid nonce: expected 2, got 1",
+    };
+    const mixed = {
+      ...block,
+      transactions: [
+        block.transactions[0],
+        { sender: owner, payload: { Transfer: { to: owner, amount: "1" } } },
+      ],
+      receipts: [receipt, failed],
+    };
+    expect(() => verifyProof(tx, c, failed, mixed)).not.toThrow();
   });
   it("rejects another owner, recipient, amount and block index", () => {
     for (const bad of [
@@ -202,9 +224,10 @@ describe("server-side transaction proof (never trust a hash alone)", () => {
       expect(() =>
         verifyProof(tx, c, receipt, { ...block, transactions: [bad] }),
       ).toThrow();
+    // A stale index is fine when the block still has the matching success.
     expect(() =>
       verifyProof(tx, c, { ...receipt, tx_index: 1 }, block),
-    ).toThrow();
+    ).not.toThrow();
   });
   it("requires matching block receipt and height", () => {
     expect(() =>

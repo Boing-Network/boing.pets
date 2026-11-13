@@ -67,6 +67,8 @@ let rpcState: {
   receipt: Record<string, unknown> | null;
   receiptsByHash: Record<string, Record<string, unknown> | null> | null;
   block: Record<string, unknown> | null;
+  blocksByHeight: Record<number, Record<string, unknown> | null> | null;
+  accountTxs: { transactions: unknown[] } | null;
   balance: number;
   operatorBalance: number;
   calls: string[];
@@ -162,6 +164,8 @@ beforeEach(async () => {
     receipt: null,
     receiptsByHash: null,
     block: null,
+    blocksByHeight: null,
+    accountTxs: null,
     balance: 0,
     operatorBalance: 0,
     calls: [],
@@ -232,7 +236,14 @@ beforeEach(async () => {
           return ok(rpcState.receiptsByHash[hash]);
         return ok(rpcState.receipt);
       }
-      if (method === "boing_getBlockByHeight") return ok(rpcState.block);
+      if (method === "boing_getBlockByHeight") {
+        const height = Number(params[0]);
+        if (rpcState.blocksByHeight && height in rpcState.blocksByHeight)
+          return ok(rpcState.blocksByHeight[height]);
+        return ok(rpcState.block);
+      }
+      if (method === "boing_getAccountTransactions")
+        return ok(rpcState.accountTxs ?? { transactions: [] });
       return ok(null);
     }),
   );
@@ -470,6 +481,49 @@ describe("on-chain item withdrawals", () => {
       .get() as { status: string; error: string };
     expect(row.status).toBe("minted");
     expect(row.error).toMatch(/mint of 3/);
+  });
+
+  it("does not refund when a later Invalid nonce receipt hides a successful mint", async () => {
+    expect((await withdraw(2)).status).toBe(200);
+    const { legs } = withdrawalLegs();
+    const hash = legs[0]!.hash;
+    const failed = {
+      success: false,
+      error: "Invalid nonce: expected 8, got 7",
+      tx_id: hash,
+      block_height: 102,
+      tx_index: 0,
+    };
+    const minted = {
+      success: true,
+      tx_id: hash,
+      block_height: 101,
+      tx_index: 0,
+    };
+    rpcState.receiptsByHash = { [hash]: failed };
+    rpcState.blocksByHeight = {
+      102: {
+        header: { height: 102 },
+        transactions: [{ sender: admin }],
+        receipts: [failed],
+      },
+      101: {
+        header: { height: 101 },
+        transactions: [{ sender: admin }],
+        receipts: [minted],
+      },
+    };
+    rpcState.accountTxs = {
+      transactions: [
+        { tx_id: hash, block_height: 102, tx_index: 0 },
+        { tx_id: hash, block_height: 101, tx_index: 0 },
+      ],
+    };
+    await get("/api/items/onchain?owner=" + owner);
+    expect(inventoryQty("ore-spark")).toBe(3);
+    expect(db.prepare("SELECT status FROM onchain_withdrawals").get()).toEqual({
+      status: "minted",
+    });
   });
 
   it("refunds the full amount once when a transfer-only withdrawal is dropped", async () => {

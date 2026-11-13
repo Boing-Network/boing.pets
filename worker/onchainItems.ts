@@ -40,6 +40,7 @@ import {
 } from "../src/content/onchainItems";
 import { hex32 } from "../src/core";
 import { mapPool, rpc as rpcCall, RpcRejected } from "./rpc";
+import { resolveIncludedReceipt } from "./proof";
 
 const CHAIN_ID = 6913;
 /** Resubmit unresolved signed withdrawal txs at most this often. */
@@ -314,13 +315,13 @@ async function settle(
     const legs = parseLegs(w);
     const outcomes: LegOutcome[] = [];
     for (const leg of legs) {
-      let receipt: { success?: boolean; error?: string } | null;
+      let receipt: { success?: boolean; error?: string | null } | null;
       try {
-        receipt = await rpc<{ success?: boolean; error?: string } | null>(
-          env,
-          "boing_getTransactionReceipt",
-          [leg.hash],
+        const resolved = await resolveIncludedReceipt(
+          (method, params) => rpc(env, method, params),
+          leg.hash,
         );
+        receipt = resolved.receipt;
       } catch {
         // Receipt RPC failed after the nonce read; do not guess at drops.
         return;
@@ -516,14 +517,10 @@ async function fetchIncludedTx(
   };
   tx: { sender: string; contract: string };
 }> {
-  const receipt = await rpc<{
-    success?: boolean;
-    error?: string | null;
-    block_height?: number;
-    tx_index?: number;
-    tx_id?: string;
-    logs?: unknown;
-  } | null>(env, "boing_getTransactionReceipt", [txHash]);
+  const { receipt, block } = await resolveIncludedReceipt(
+    (method, params) => rpc(env, method, params),
+    txHash,
+  );
   if (!receipt) {
     throw new HttpError(
       425,
@@ -549,10 +546,6 @@ async function fetchIncludedTx(
     index < 0
   )
     throw new HttpError(400, "Transaction receipt is missing a block position");
-  const block = await rpc<{
-    header?: { height?: number };
-    transactions?: unknown[];
-  } | null>(env, "boing_getBlockByHeight", [height, true, false]);
   if (!block || Number(block.header?.height) !== height)
     throw new HttpError(400, "Block is unavailable");
   const rawTx = block.transactions?.[index];

@@ -65,7 +65,7 @@ import {
   cosmeticsGet,
   cosmeticsPost,
 } from "./cosmetics";
-import { verifyProof, type Receipt, type RpcBlock } from "./proof";
+import { resolveIncludedReceipt, verifyProof } from "./proof";
 import { enforceIpRateLimit, rateLimitError } from "./rateLimit";
 import { mapPool, rpc as rpcCall } from "./rpc";
 export { PlazaRoom } from "./plaza";
@@ -792,18 +792,10 @@ async function api(
     } else {
       hash = hex32(body.tx_hash);
       await checkNetwork(env);
-      const receipt = await rpc<Receipt | null>(
-        env,
-        "boing_getTransactionReceipt",
-        [hash],
+      const { receipt, block } = await resolveIncludedReceipt(
+        (method, params) => rpc(env, method, params),
+        hash,
       );
-      const block = receipt
-        ? await rpc<RpcBlock | null>(env, "boing_getBlockByHeight", [
-            receipt.block_height,
-            true,
-            false,
-          ])
-        : null;
       try {
         verifyProof(hash, c, receipt, block);
       } catch (e) {

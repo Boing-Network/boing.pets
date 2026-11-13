@@ -3,6 +3,7 @@
 import { hex32 } from "../src/core";
 import { MARKET_ESCROW_ADDRESS } from "../src/market";
 import { rpc as rpcCall, RpcRejected } from "./rpc";
+import { resolveIncludedReceipt } from "./proof";
 
 export type NativeTransfer = {
   sender: string;
@@ -49,21 +50,14 @@ export function assertEscrowPayment(input: {
   }
 }
 
-type RpcBlock = {
-  header?: { height?: number };
-  transactions?: unknown[];
-};
-
 export async function loadIncludedTransfer(
   env: Env,
   txHash: string,
 ): Promise<{ transfer: NativeTransfer; blockHeight: number }> {
-  const receipt = await rpcJson<{
-    success?: boolean;
-    tx_id?: string;
-    block_height?: number;
-    tx_index?: number;
-  } | null>(env, "boing_getTransactionReceipt", [txHash]);
+  const { receipt, block } = await resolveIncludedReceipt(
+    (method, params) => rpcJson(env, method, params),
+    txHash,
+  );
   if (!receipt) {
     throw new Error(
       "Transaction is not included yet. Wait and retry confirmation.",
@@ -77,12 +71,11 @@ export async function loadIncludedTransfer(
   }
   const height = Number(receipt.block_height);
   const index = Number(receipt.tx_index);
-  const block = await rpcJson<RpcBlock | null>(env, "boing_getBlockByHeight", [
-    height,
-    true,
-    false,
-  ]);
-  if (!block || Number(block.header?.height) !== height) {
+  if (
+    !block ||
+    Number(block.header?.height) !== height ||
+    !Number.isSafeInteger(height)
+  ) {
     throw new Error("Block is unavailable");
   }
   const raw = block.transactions?.[index];

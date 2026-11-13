@@ -23,6 +23,7 @@ import {
 } from "../src/market";
 import { bytesToHex, hex64 } from "../src/content/onchainItems";
 import { rpc as rpcCall, RpcRejected } from "./rpc";
+import { resolveIncludedReceipt } from "./proof";
 
 const CHAIN_ID = 6913;
 const RETRY_AFTER_MS = 15_000;
@@ -237,11 +238,11 @@ async function confirmOrResubmit(
   if (!row.payout_tx || !row.signed_tx) return row;
   let receipt: { success?: boolean } | null = null;
   try {
-    receipt = await rpc<{ success?: boolean } | null>(
-      env,
-      "boing_getTransactionReceipt",
-      [row.payout_tx],
+    const resolved = await resolveIncludedReceipt(
+      (method, params) => rpc(env, method, params),
+      row.payout_tx,
     );
+    receipt = resolved.receipt;
   } catch {
     return row;
   }
