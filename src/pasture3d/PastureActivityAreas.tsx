@@ -1,4 +1,5 @@
 import type { ThreeEvent } from "@react-three/fiber";
+import { POND_PIER_LABEL_LOCAL } from "./meadowFootprints";
 import { PastureWorldText } from "./PastureWorldText";
 import type { WorldLandmark, WorldStation } from "../world/config/zones";
 import { PASTURE_ZONE } from "../world/config/zones";
@@ -148,7 +149,11 @@ function PondPier({ x, z, y, onInteract }: SitProps) {
         <meshStandardMaterial color="#6f9b5a" roughness={0.8} />
       </mesh>
       <PastureWorldText
-        position={[0, 2.55, 0]}
+        position={[
+          POND_PIER_LABEL_LOCAL.x,
+          POND_PIER_LABEL_LOCAL.y,
+          POND_PIER_LABEL_LOCAL.z,
+        ]}
         fontSize={0.32}
         color="#123055"
         anchorX="center"

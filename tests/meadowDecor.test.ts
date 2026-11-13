@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { collectMeadowDecor } from "../src/pasture3d/meadowDecor";
 import {
   DECOR_BASE_Y_TOLERANCE,
+  POND_PATH_OUTSET,
+  POND_PIER_LABEL_LOCAL,
   POND_WATER_LIFT,
+  ellipseRimPoint,
   inFenceFootprint,
   inPadFootprint,
   inPathFootprint,
@@ -85,5 +88,53 @@ describe("meadow decor sits on the ground and stays off footprints", () => {
       expect(Math.abs(meadowHeight(x, z))).toBeLessThan(0.02);
     }
     expect(Math.abs(meadowHeight(maxX + 16, 0))).toBeGreaterThan(0.05);
+  });
+
+  it("ends dirt trails at the pond rim or pier, never in the water", () => {
+    const pier = PASTURE_ZONE.landmarks.find((item) => item.id === "pond-pier");
+    if (!pier) throw new Error("missing pier");
+    let rimHits = 0;
+    for (const path of PASTURE_ZONE.paths) {
+      for (const point of path) {
+        expect(inPondFootprint(point.x, point.z, 0)).toBe(false);
+        const rim = ellipseRimPoint(pond, point.x, point.z, POND_PATH_OUTSET);
+        const onRim = Math.hypot(point.x - rim.x, point.z - rim.z) < 0.05;
+        const atPier =
+          Math.hypot(point.x - pier.position.x, point.z - pier.position.z) <
+          0.2;
+        if (onRim || atPier) rimHits += 1;
+      }
+    }
+    expect(rimHits).toBeGreaterThanOrEqual(3);
+    // Former grass gap between the customization pad and the pond path.
+    expect(pasturePathWear(17.05, -9.4)).toBeGreaterThan(0.5);
+  });
+
+  it("places pond-area labels off the water and the pier deck", () => {
+    const pondLand = PASTURE_ZONE.landmarks.find(
+      (item) => item.id === "lily-pond",
+    );
+    const pierLand = PASTURE_ZONE.landmarks.find(
+      (item) => item.id === "pond-pier",
+    );
+    if (!pondLand || !pierLand) throw new Error("missing pond labels");
+    const baseY = pondLand.height >= 1 ? pondLand.height + 1.8 : 1.15;
+    const off = pondLand.labelOffset ?? { x: 0, y: 0, z: 0 };
+    const lx = pondLand.position.x + off.x;
+    const ly = baseY + off.y;
+    const lz = pondLand.position.z + off.z;
+    expect(ly).toBeGreaterThan(1.8);
+    expect(inPondFootprint(lx, lz, 0.4)).toBe(false);
+    expect(lx).toBeLessThan(pond.x - pond.rx);
+    const pierLabelZ = pierLand.position.z + POND_PIER_LABEL_LOCAL.z;
+    expect(POND_PIER_LABEL_LOCAL.y).toBeGreaterThan(2.6);
+    expect(pierLabelZ).toBeGreaterThan(pierLand.position.z + 1);
+    expect(
+      inPondFootprint(
+        pierLand.position.x + POND_PIER_LABEL_LOCAL.x,
+        pierLabelZ,
+        0,
+      ),
+    ).toBe(false);
   });
 });

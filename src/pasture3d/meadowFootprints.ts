@@ -51,6 +51,34 @@ export function lilyPondEllipse(): MeadowEllipse | null {
   };
 }
 
+/** Extra outward offset so dirt trails meet the sand rim, not the water. */
+export const POND_PATH_OUTSET = 0.12;
+
+/** Local offset for the Pond Pier billboard, north of the deck and above the posts. */
+export const POND_PIER_LABEL_LOCAL = { x: 0.2, y: 2.9, z: 1.4 } as const;
+
+/**
+ * Point on the ellipse (plus optional outward margin) in the direction
+ * from the center toward (fromX, fromZ).
+ */
+export function ellipseRimPoint(
+  ellipse: MeadowEllipse,
+  fromX: number,
+  fromZ: number,
+  outward = POND_PATH_OUTSET,
+): { x: number; z: number } {
+  const rx = ellipse.rx + outward;
+  const rz = ellipse.rz + outward;
+  const dx = fromX - ellipse.x;
+  const dz = fromZ - ellipse.z;
+  const denom = (dx * dx) / (rx * rx) + (dz * dz) / (rz * rz);
+  if (!(denom > 1e-8) || !Number.isFinite(denom)) {
+    return { x: ellipse.x + rx, z: ellipse.z };
+  }
+  const t = 1 / Math.sqrt(denom);
+  return { x: ellipse.x + t * dx, z: ellipse.z + t * dz };
+}
+
 export function ellipseContains(
   ellipse: MeadowEllipse,
   x: number,

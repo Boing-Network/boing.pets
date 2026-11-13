@@ -37,6 +37,8 @@ export interface WorldLandmark {
   height: number;
   width: number;
   depth: number;
+  /** Added to the default billboard position so the name sits off the prop. */
+  labelOffset?: WorldPoint;
 }
 
 export interface WorldZoneConfig {
@@ -361,6 +363,8 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       height: 0.35,
       width: 7,
       depth: 5.5,
+      // North bank, slightly west, so the name is off the water and away from the pier / HUD.
+      labelOffset: { x: -5.0, y: 0.95, z: 2.2 },
     },
     {
       id: "wildflowers",
@@ -575,8 +579,8 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       { x: 12, y: 0.02, z: -8 },
     ],
     [
-      { x: 12, y: 0.02, z: -8 },
-      { x: 22, y: 0.02, z: -16 },
+      { x: 16, y: 0.02, z: -8 },
+      { x: 20.15, y: 0.02, z: -13.533 },
     ],
     [
       { x: 0, y: 0.02, z: 0 },
@@ -603,7 +607,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       { x: -28, y: 0.02, z: 4 },
     ],
     [
-      { x: 22, y: 0.02, z: -16 },
+      { x: 22.838, y: 0.02, z: -13.208 },
       { x: 28, y: 0.02, z: 4 },
     ],
     [
@@ -612,7 +616,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     ],
     [
       { x: 0, y: 0.02, z: -28 },
-      { x: 22, y: 0.02, z: -16 },
+      { x: 19.018, y: 0.02, z: -17.627 },
     ],
     [
       { x: -28, y: 0.02, z: 4 },

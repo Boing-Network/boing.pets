@@ -20,6 +20,7 @@ function Landmark({
   const isBuilding = item.height >= 1;
   const roofY = item.height + 0.35;
   const labelY = isBuilding ? item.height + 1.8 : 1.15;
+  const labelOff = item.labelOffset ?? { x: 0, y: 0, z: 0 };
   return (
     <group position={[item.position.x, item.position.y + y, item.position.z]}>
       {isBuilding ? (
@@ -41,7 +42,7 @@ function Landmark({
         </>
       ) : null}
       <Label
-        position={[0, labelY, 0]}
+        position={[labelOff.x, labelY + labelOff.y, labelOff.z]}
         fontSize={isBuilding ? 0.45 : 0.32}
         color="#123055"
         anchorX="center"
