@@ -915,6 +915,8 @@ a:hover {
   --pasture-chat-inset: 12px;
   --pasture-chat-bottom: 12px;
   --pasture-chat-clearance: 68px;
+  --pasture-emote-height: 52px;
+  --pasture-station-prompt-gap: 12px;
 }
 #pasture-canvas.is-touch-controls {
   --pasture-chat-bottom: 150px;
@@ -1462,9 +1464,12 @@ a:hover {
 
 .pasture-station-prompt {
   position: absolute;
-  z-index: 8;
+  z-index: 18;
   left: 50%;
-  bottom: calc(var(--pasture-chat-clearance, 68px) + 16px);
+  bottom: calc(
+    var(--pasture-chat-clearance, 68px) + var(--pasture-emote-height, 52px) +
+      var(--pasture-station-prompt-gap, 12px)
+  );
   transform: translateX(-50%);
   max-width: min(420px, calc(100% - 24px));
   margin: 0;
@@ -1478,6 +1483,7 @@ a:hover {
   display: flex;
   align-items: center;
   gap: 10px;
+  pointer-events: auto;
 }
 .pasture-station-prompt p {
   margin: 0;
