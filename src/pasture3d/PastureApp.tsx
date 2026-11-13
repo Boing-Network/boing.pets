@@ -258,6 +258,16 @@ export function PastureApp({
   }, []);
 
   useEffect(() => {
+    const canvas = document.getElementById("pasture-canvas");
+    if (!canvas) return undefined;
+    const on = !!(touchControls && mine);
+    canvas.classList.toggle("is-touch-controls", on);
+    return () => {
+      canvas.classList.remove("is-touch-controls");
+    };
+  }, [touchControls, mine]);
+
+  useEffect(() => {
     if (
       !shouldSilentRejoin({
         walletBound: presence.walletBound,
