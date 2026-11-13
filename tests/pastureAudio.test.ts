@@ -20,6 +20,15 @@ import {
   startPastureMusic,
   unlockAudio,
   updateAudioSettings,
+  MUSIC_BPM,
+  MUSIC_LOOP_BARS,
+  MUSIC_MAJOR_SCALE,
+  chordDegree,
+  isMajorScaleFrequency,
+  musicLoopDuration,
+  planPastureMusicBar,
+  planPastureMusicLoop,
+  playFootstepSfx,
 } from "../src/audio";
 
 function memoryStorage(initial: Record<string, string> = {}) {
@@ -147,5 +156,63 @@ describe("pasture audio gesture gate", () => {
       configurable: true,
       value: prev,
     });
+  });
+});
+
+describe("upbeat pasture music plan", () => {
+  it("is a major-key loop at a brisk, loopable tempo", () => {
+    expect(MUSIC_BPM).toBeGreaterThanOrEqual(110);
+    expect(MUSIC_BPM).toBeLessThanOrEqual(128);
+    expect(MUSIC_MAJOR_SCALE).toEqual([0, 2, 4, 5, 7, 9, 11, 12]);
+    expect(MUSIC_LOOP_BARS).toBe(8);
+    expect(musicLoopDuration()).toBeCloseTo(
+      (60 / MUSIC_BPM) * 4 * MUSIC_LOOP_BARS,
+    );
+  });
+
+  it("uses I/IV/V chords and keeps pitched notes in G major", () => {
+    const chords = Array.from({ length: MUSIC_LOOP_BARS }, (_, i) =>
+      chordDegree(i),
+    );
+    expect(new Set(chords)).toEqual(new Set([0, 3, 4]));
+    expect(chords[0]).toBe(0);
+    expect(chords[MUSIC_LOOP_BARS - 1]).toBe(4);
+    for (const ev of planPastureMusicLoop()) {
+      if (ev.kind !== "tone" || ev.slide) continue;
+      expect(isMajorScaleFrequency(ev.freq)).toBe(true);
+    }
+  });
+
+  it("schedules a bouncy bass, a cheerful melody, and light percussion", () => {
+    const bar = planPastureMusicBar(0);
+    const tones = bar.filter((e) => e.kind === "tone");
+    const noise = bar.filter((e) => e.kind === "noise");
+    const bass = tones.filter(
+      (e) => e.type === "triangle" && e.freq < 400 && e.dur < 0.3,
+    );
+    const melody = tones.filter((e) => e.type === "triangle" && e.freq >= 350);
+    expect(bass.length).toBeGreaterThanOrEqual(4);
+    expect(melody.length).toBeGreaterThanOrEqual(4);
+    expect(noise.length).toBeGreaterThanOrEqual(8);
+    expect(tones.some((e) => e.kind === "tone" && !!e.slide)).toBe(true);
+  });
+
+  it("varies the melody across the loop and repeats after eight bars", () => {
+    const sig = (bar: number) =>
+      planPastureMusicBar(bar)
+        .filter((e) => e.kind === "tone" && e.freq > 350)
+        .map((e) => (e.kind === "tone" ? e.freq.toFixed(2) : ""))
+        .join(",");
+    expect(sig(0)).not.toBe(sig(2));
+    expect(sig(0)).not.toBe(sig(4));
+    expect(sig(2)).not.toBe(sig(6));
+    expect(sig(0)).toBe(sig(MUSIC_LOOP_BARS));
+  });
+
+  it("rate-limits walk footsteps so they cannot fire every frame", () => {
+    resetAudioEngineForTests(DEFAULT_AUDIO_SETTINGS);
+    playFootstepSfx(1000);
+    expect(playFootstepSfx(1100)).toBe(false);
+    expect(playFootstepSfx(1279)).toBe(false);
   });
 });

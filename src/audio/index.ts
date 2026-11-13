@@ -18,6 +18,7 @@ export {
   isPastureMusicStarted,
   musicDuckCount,
   onAudioUnlocked,
+  playFootstepSfx,
   playHopSfx,
   playSfx,
   popMusicDuck,
@@ -31,3 +32,16 @@ export {
   updateAudioSettings,
   type SfxName,
 } from "./engine";
+export {
+  MUSIC_BAR,
+  MUSIC_BPM,
+  MUSIC_LOOP_BARS,
+  MUSIC_MAJOR_SCALE,
+  MUSIC_ROOT_HZ,
+  chordDegree,
+  isMajorScaleFrequency,
+  musicLoopDuration,
+  planPastureMusicBar,
+  planPastureMusicLoop,
+  scaleHz,
+} from "./pastureMusic";

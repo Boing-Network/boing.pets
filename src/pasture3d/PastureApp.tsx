@@ -75,7 +75,7 @@ import { PastureAudioControls } from "./PastureAudioControls";
 import {
   armAudioUnlock,
   onAudioUnlocked,
-  playHopSfx,
+  playFootstepSfx,
   playSfx,
   popMusicDuck,
   pushMusicDuck,
@@ -962,7 +962,7 @@ function LocalPet({
         node.rotation.y = yaw.current;
       }
       moving.current = !stepped.arrived;
-      if (!stepped.arrived) playHopSfx();
+      if (!stepped.arrived) playFootstepSfx();
       if (stepped.arrived) {
         walkTarget.current = null;
         speed.current = 0;

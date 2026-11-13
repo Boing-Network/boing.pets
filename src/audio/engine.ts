@@ -12,6 +12,19 @@ import {
   saveAudioSettings,
   type AudioSettings,
 } from "./settings";
+import {
+  MUSIC_BAR,
+  planPastureMusicBar,
+  type MusicEvent,
+} from "./pastureMusic";
+
+export {
+  MUSIC_BAR,
+  MUSIC_BPM,
+  MUSIC_LOOP_BARS,
+  MUSIC_MAJOR_SCALE,
+  MUSIC_ROOT_HZ,
+} from "./pastureMusic";
 
 export type SfxName =
   | "ui-click"
@@ -52,17 +65,7 @@ let musicStarted = false;
 const settingsListeners = new Set<Listener>();
 const unlockListeners = new Set<() => void>();
 const hopGate = { at: 0 };
-
-const MUSIC_BPM = 72;
-const BEAT = 60 / MUSIC_BPM;
-const BAR = BEAT * 4;
-const ROOT = 196;
-const PENT = [0, 2, 4, 7, 9, 12, 14, 16];
-const MELODY = [0, 2, 4, 2, 0, 4, 7, 4, 2, 0, 3, 2, 4, 6, 4, 2];
-
-function hz(degree: number): number {
-  return ROOT * Math.pow(2, PENT[degree % PENT.length]! / 12);
-}
+const stepGate = { at: 0 };
 
 export function getAudioSettings(): AudioSettings {
   return { ...settings };
@@ -425,11 +428,44 @@ export function playSfx(name: SfxName): boolean {
   }
 }
 
-/** Soft hop/footstep, rate-limited so a bouncing pet is not a drum roll. */
+/** Soft hop, rate-limited so a bouncing pet is not a drum roll. */
 export function playHopSfx(now = performance.now()): boolean {
   if (now - hopGate.at < 240) return false;
   hopGate.at = now;
   return playSfx("hop");
+}
+
+/** Walk footstep, slightly slower than the hop gate so steps stay even. */
+export function playFootstepSfx(now = performance.now()): boolean {
+  if (now - stepGate.at < 280) return false;
+  stepGate.at = now;
+  return playSfx("footstep");
+}
+
+function playMusicEvent(
+  audio: AudioContext,
+  dest: GainNode,
+  ev: MusicEvent,
+  when: number,
+): void {
+  if (ev.kind === "tone") {
+    tone(audio, dest, {
+      freq: ev.freq,
+      dur: ev.dur,
+      gain: ev.gain,
+      type: ev.type,
+      at: when + ev.at,
+      attack: ev.attack,
+      slide: ev.slide,
+    });
+    return;
+  }
+  noiseBurst(audio, dest, {
+    dur: ev.dur,
+    gain: ev.gain,
+    at: when + ev.at,
+    hp: ev.hp,
+  });
 }
 
 function scheduleBar(
@@ -438,33 +474,8 @@ function scheduleBar(
   barIndex: number,
   when: number,
 ): void {
-  // Soft root + fifth pad under a sparse pentatonic figure.
-  tone(audio, dest, {
-    freq: hz(0),
-    dur: BAR * 0.95,
-    gain: 0.05,
-    type: "sine",
-    at: when,
-    attack: 0.12,
-  });
-  tone(audio, dest, {
-    freq: hz(4),
-    dur: BAR * 0.95,
-    gain: 0.03,
-    type: "sine",
-    at: when,
-    attack: 0.16,
-  });
-  for (let i = 0; i < 4; i++) {
-    const degree = MELODY[(barIndex * 4 + i) % MELODY.length]!;
-    tone(audio, dest, {
-      freq: hz(degree),
-      dur: BEAT * 0.7,
-      gain: i % 2 === 0 ? 0.07 : 0.045,
-      type: "triangle",
-      at: when + i * BEAT + 0.02,
-      attack: 0.04,
-    });
+  for (const ev of planPastureMusicBar(barIndex)) {
+    playMusicEvent(audio, dest, ev, when);
   }
 }
 
@@ -474,12 +485,12 @@ function pumpMusic(): void {
     .__musicZero;
   const zero = startedAt ?? ctx.currentTime;
   (ctx as AudioContext & { __musicZero?: number }).__musicZero = zero;
-  const horizon = ctx.currentTime + BAR * 2.2;
-  while (zero + musicBar * BAR < horizon) {
-    scheduleBar(ctx, musicGain, musicBar, zero + musicBar * BAR);
+  const horizon = ctx.currentTime + MUSIC_BAR * 2.2;
+  while (zero + musicBar * MUSIC_BAR < horizon) {
+    scheduleBar(ctx, musicGain, musicBar, zero + musicBar * MUSIC_BAR);
     musicBar += 1;
   }
-  musicTimer = window.setTimeout(pumpMusic, BAR * 1000);
+  musicTimer = window.setTimeout(pumpMusic, MUSIC_BAR * 1000);
 }
 
 export function startPastureMusic(): boolean {
@@ -529,6 +540,7 @@ export function resetAudioEngineForTests(next?: AudioSettings): void {
   musicBar = 0;
   musicStarted = false;
   hopGate.at = 0;
+  stepGate.at = 0;
   settings = next ? saveAudioSettings(next) : loadAudioSettings();
 }
 
