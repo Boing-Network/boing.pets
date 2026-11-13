@@ -72,6 +72,11 @@ import {
   setPastureLookOverride,
 } from "./pastureFocus";
 import { PastureAudioControls } from "./PastureAudioControls";
+import { WalkthroughCard } from "../onboarding/WalkthroughCard";
+import {
+  isWalkthroughVisible,
+  loadWalkthrough,
+} from "../onboarding/walkthrough";
 import {
   armAudioUnlock,
   onAudioUnlocked,
@@ -142,7 +147,11 @@ function usePrefers() {
 function readHintOpen() {
   if (typeof window === "undefined") return false;
   try {
-    return window.localStorage.getItem(HINT_KEY) !== "1";
+    if (window.localStorage.getItem(HINT_KEY) === "1") return false;
+    // The guided tour replaces the old one-shot hint for first-time visitors.
+    const tour = loadWalkthrough();
+    if (isWalkthroughVisible(tour, "pasture") || !tour.completed) return false;
+    return true;
   } catch {
     return true;
   }
@@ -542,6 +551,17 @@ export function PastureApp({
           Growing the meadow…
         </div>
       ) : null}
+      <WalkthroughCard
+        scene="pasture"
+        openMenuKind={stationMenu}
+        onGuideTo={(step) => {
+          if (step === "visit-area") walkToAndOpen("mine");
+          else if (step === "visit-station") walkToAndOpen("craft");
+          else if (step === "pet-care") {
+            document.getElementById("buddy-chip")?.click();
+          }
+        }}
+      />
       {hintOpen ? (
         <div className="pasture-hint" role="status">
           <p>

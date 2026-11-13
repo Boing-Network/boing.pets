@@ -6,6 +6,7 @@ import type { ControlState } from "../hooks/usePlayerControls";
 import { syncRemotePosition } from "../lib/positionApi";
 import type { LivePose } from "../scene/Player";
 import { Joystick } from "./Joystick";
+import { WalkthroughCard } from "../../onboarding/WalkthroughCard";
 
 export function WorldHud({
   zone,
@@ -194,6 +195,8 @@ export function WorldHud({
           Interact
         </button>
       </div>
+
+      <WalkthroughCard scene="starter-town" />
 
       <footer className="world-help">
         <span>WASD / arrows move</span>
