@@ -16,6 +16,7 @@ import {
   PASTURE_GROUND_RADIUS,
   distanceToPasturePath,
 } from "./meadowLayout";
+import { applyInstancedFade, useOccluderFades } from "./meadowInstanceFade";
 import { applyMeadowWind } from "./meadowWind";
 
 const ALL_TREE_SPOTS = [...MEADOW_TREE_SPOTS, ...MEADOW_APRON_TREE_SPOTS];
@@ -259,9 +260,11 @@ function MeadowTrees({ preferPerf }: { preferPerf: boolean }) {
   const trunk = useRef<THREE.InstancedMesh>(null);
   const canopy = useRef<THREE.InstancedMesh>(null);
   const puff = useRef<THREE.InstancedMesh>(null);
+  const trunkMat = useRef<THREE.MeshStandardMaterial>(null);
   const canopyMat = useRef<THREE.MeshStandardMaterial>(null);
   const puffMat = useRef<THREE.MeshStandardMaterial>(null);
   const count = ALL_TREE_SPOTS.length;
+  useOccluderFades([trunk, canopy, puff], ALL_TREE_SPOTS, 1.5, 2.05);
 
   useLayoutEffect(() => {
     const dummy = new THREE.Object3D();
@@ -280,9 +283,11 @@ function MeadowTrees({ preferPerf }: { preferPerf: boolean }) {
     write(trunk.current, new THREE.Vector3(0, 0.75, 0));
     write(canopy.current, new THREE.Vector3(0, 2.05, 0));
     if (!preferPerf) write(puff.current, new THREE.Vector3(0.45, 1.7, 0.2));
-    if (!preferPerf && canopyMat.current)
-      applyMeadowWind(canopyMat.current, 0.045);
-    if (!preferPerf && puffMat.current) applyMeadowWind(puffMat.current, 0.055);
+    if (trunkMat.current) applyInstancedFade(trunkMat.current, 0);
+    if (canopyMat.current)
+      applyInstancedFade(canopyMat.current, preferPerf ? 0 : 0.045);
+    if (!preferPerf && puffMat.current)
+      applyInstancedFade(puffMat.current, 0.055);
   }, [preferPerf]);
 
   const sides = preferPerf ? 5 : 7;
@@ -294,7 +299,7 @@ function MeadowTrees({ preferPerf }: { preferPerf: boolean }) {
         castShadow={!preferPerf}
       >
         <cylinderGeometry args={[0.16, 0.26, 1.5, sides]} />
-        <meshStandardMaterial color="#6d4a32" roughness={0.9} />
+        <meshStandardMaterial ref={trunkMat} color="#6d4a32" roughness={0.9} />
       </instancedMesh>
       <instancedMesh
         ref={canopy}
@@ -332,6 +337,7 @@ function MeadowBushes({ preferPerf }: { preferPerf: boolean }) {
   const mesh = useRef<THREE.InstancedMesh>(null);
   const mat = useRef<THREE.MeshStandardMaterial>(null);
   const count = ALL_BUSH_SPOTS.length;
+  useOccluderFades([mesh], ALL_BUSH_SPOTS, 0.9, 0.4);
   useLayoutEffect(() => {
     const inst = mesh.current;
     if (!inst) return;
@@ -345,7 +351,7 @@ function MeadowBushes({ preferPerf }: { preferPerf: boolean }) {
       inst.setMatrixAt(i, dummy.matrix);
     });
     inst.instanceMatrix.needsUpdate = true;
-    if (mat.current && !preferPerf) applyMeadowWind(mat.current, 0.08);
+    if (mat.current) applyInstancedFade(mat.current, preferPerf ? 0 : 0.08);
   }, [preferPerf]);
   return (
     <instancedMesh
@@ -498,8 +504,10 @@ function MeadowPatches({ preferPerf }: { preferPerf: boolean }) {
   const grassMesh = useRef<THREE.InstancedMesh>(null);
   const grassMat = useRef<THREE.MeshStandardMaterial>(null);
   const rockMesh = useRef<THREE.InstancedMesh>(null);
+  const rockMat = useRef<THREE.MeshStandardMaterial>(null);
   const flowerCount = preferPerf ? 160 : 420;
   const grassCount = preferPerf ? 220 : 640;
+  useOccluderFades([rockMesh], MEADOW_ROCK_SPOTS, 0.75, 0.28);
 
   useLayoutEffect(() => {
     const dummy = new THREE.Object3D();
@@ -571,6 +579,7 @@ function MeadowPatches({ preferPerf }: { preferPerf: boolean }) {
       });
       rocks.count = MEADOW_ROCK_SPOTS.length;
       rocks.instanceMatrix.needsUpdate = true;
+      if (rockMat.current) applyInstancedFade(rockMat.current, 0);
     }
   }, [preferPerf, flowerCount, grassCount]);
 
@@ -593,7 +602,12 @@ function MeadowPatches({ preferPerf }: { preferPerf: boolean }) {
         castShadow={!preferPerf}
       >
         <icosahedronGeometry args={[0.28, 0]} />
-        <meshStandardMaterial color="#8a8478" roughness={0.92} flatShading />
+        <meshStandardMaterial
+          ref={rockMat}
+          color="#8a8478"
+          roughness={0.92}
+          flatShading
+        />
       </instancedMesh>
     </group>
   );

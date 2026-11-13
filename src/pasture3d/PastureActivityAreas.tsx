@@ -1,5 +1,5 @@
 import type { ThreeEvent } from "@react-three/fiber";
-import { WorldText } from "../world/scene/WorldText";
+import { PastureWorldText } from "./PastureWorldText";
 import type { WorldLandmark, WorldStation } from "../world/config/zones";
 import { PASTURE_ZONE } from "../world/config/zones";
 import { meadowHeight } from "./meadowHeight";
@@ -98,7 +98,7 @@ function CrystalQuarry({ x, z, y, onInteract }: SitProps) {
           metalness={0.3}
         />
       </mesh>
-      <WorldText
+      <PastureWorldText
         position={[0, 2.45, 0]}
         fontSize={0.34}
         color="#123055"
@@ -108,7 +108,7 @@ function CrystalQuarry({ x, z, y, onInteract }: SitProps) {
         outlineColor="#ffffff"
       >
         Crystal Quarry
-      </WorldText>
+      </PastureWorldText>
     </group>
   );
 }
@@ -147,7 +147,7 @@ function PondPier({ x, z, y, onInteract }: SitProps) {
         <boxGeometry args={[0.22, 0.08, 0.28]} />
         <meshStandardMaterial color="#6f9b5a" roughness={0.8} />
       </mesh>
-      <WorldText
+      <PastureWorldText
         position={[0, 2.55, 0]}
         fontSize={0.32}
         color="#123055"
@@ -157,7 +157,7 @@ function PondPier({ x, z, y, onInteract }: SitProps) {
         outlineColor="#ffffff"
       >
         Pond Pier
-      </WorldText>
+      </PastureWorldText>
     </group>
   );
 }
@@ -201,7 +201,7 @@ function TreasureDig({ x, z, y, onInteract }: SitProps) {
         <boxGeometry args={[0.52, 0.06, 0.38]} />
         <meshStandardMaterial color="#e6c36a" roughness={0.4} metalness={0.4} />
       </mesh>
-      <WorldText
+      <PastureWorldText
         position={[0, 2.45, 0]}
         fontSize={0.32}
         color="#123055"
@@ -211,7 +211,7 @@ function TreasureDig({ x, z, y, onInteract }: SitProps) {
         outlineColor="#ffffff"
       >
         Treasure Dig
-      </WorldText>
+      </PastureWorldText>
     </group>
   );
 }
@@ -250,7 +250,7 @@ function GardenBeds({ x, z, y, onInteract }: SitProps) {
         <cylinderGeometry args={[0.05, 0.06, 0.55, 6]} />
         <meshStandardMaterial color="#8a8f96" roughness={0.4} metalness={0.3} />
       </mesh>
-      <WorldText
+      <PastureWorldText
         position={[0, 2.4, 0]}
         fontSize={0.32}
         color="#123055"
@@ -260,7 +260,7 @@ function GardenBeds({ x, z, y, onInteract }: SitProps) {
         outlineColor="#ffffff"
       >
         Garden Beds
-      </WorldText>
+      </PastureWorldText>
     </group>
   );
 }
@@ -306,7 +306,7 @@ function KitchenHut({ x, z, y, onInteract }: SitProps) {
           metalness={0.35}
         />
       </mesh>
-      <WorldText
+      <PastureWorldText
         position={[0, 3.15, 0]}
         fontSize={0.32}
         color="#123055"
@@ -316,7 +316,7 @@ function KitchenHut({ x, z, y, onInteract }: SitProps) {
         outlineColor="#ffffff"
       >
         Pasture Kitchen
-      </WorldText>
+      </PastureWorldText>
     </group>
   );
 }
@@ -357,7 +357,7 @@ function RaceGate({ x, z, y, onInteract }: SitProps) {
         <boxGeometry args={[0.18, 0.03, 12]} />
         <meshStandardMaterial color="#e8c27a" roughness={1} />
       </mesh>
-      <WorldText
+      <PastureWorldText
         position={[0, 2.85, 0]}
         fontSize={0.32}
         color="#123055"
@@ -367,7 +367,7 @@ function RaceGate({ x, z, y, onInteract }: SitProps) {
         outlineColor="#ffffff"
       >
         Race Track
-      </WorldText>
+      </PastureWorldText>
     </group>
   );
 }

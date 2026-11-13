@@ -1,5 +1,5 @@
 import { Billboard, Text, type TextProps } from "@react-three/drei";
-import { useLayoutEffect, type ReactNode } from "react";
+import { forwardRef, useLayoutEffect, type ReactNode } from "react";
 import { FrontSide } from "three";
 import { ensureWorldFontConfig } from "../lib/configureWorldFonts";
 import {
@@ -18,7 +18,10 @@ type Props = Omit<TextProps, "font" | "children"> & {
  * Always faces the camera (FrontSide only) so the back face cannot show a
  * mirrored copy of the name.
  */
-export function WorldText({ children, position, ...props }: Props) {
+export const WorldText = forwardRef<unknown, Props>(function WorldText(
+  { children, position, ...props },
+  ref,
+) {
   useLayoutEffect(() => {
     ensureWorldFontConfig();
   }, []);
@@ -31,6 +34,7 @@ export function WorldText({ children, position, ...props }: Props) {
   return (
     <Billboard follow position={position}>
       <Text
+        ref={ref as never}
         font={WORLD_FONT_URL}
         // troika reads this on the mesh even though drei's types omit it
         {...{ unicodeFontsURL: WORLD_UNICODE_FONTS_URL }}
@@ -47,4 +51,4 @@ export function WorldText({ children, position, ...props }: Props) {
       </Text>
     </Billboard>
   );
-}
+});

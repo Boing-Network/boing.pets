@@ -1,4 +1,5 @@
 import { Float } from "@react-three/drei";
+import { PastureWorldText } from "../../pasture3d/PastureWorldText";
 import { WorldText } from "./WorldText";
 import type { WorldLandmark, WorldZoneConfig } from "../config/zones";
 import {
@@ -6,7 +7,16 @@ import {
   isPastureStationKind,
 } from "../../pasture3d/stationInteract";
 
-function Landmark({ item, y = 0 }: { item: WorldLandmark; y?: number }) {
+function Landmark({
+  item,
+  y = 0,
+  hudSafeLabels = false,
+}: {
+  item: WorldLandmark;
+  y?: number;
+  hudSafeLabels?: boolean;
+}) {
+  const Label = hudSafeLabels ? PastureWorldText : WorldText;
   const isBuilding = item.height >= 1;
   const roofY = item.height + 0.35;
   const labelY = isBuilding ? item.height + 1.8 : 1.15;
@@ -30,7 +40,7 @@ function Landmark({ item, y = 0 }: { item: WorldLandmark; y?: number }) {
           </mesh>
         </>
       ) : null}
-      <WorldText
+      <Label
         position={[0, labelY, 0]}
         fontSize={isBuilding ? 0.45 : 0.32}
         color="#123055"
@@ -40,7 +50,7 @@ function Landmark({ item, y = 0 }: { item: WorldLandmark; y?: number }) {
         outlineColor="#ffffff"
       >
         {item.label}
-      </WorldText>
+      </Label>
     </group>
   );
 }
@@ -94,12 +104,14 @@ export function StarterTown({
   hideGround = false,
   hideTrees = false,
   hidePaths = false,
+  hudSafeLabels = false,
   heightAt,
 }: {
   zone: WorldZoneConfig;
   hideGround?: boolean;
   hideTrees?: boolean;
   hidePaths?: boolean;
+  hudSafeLabels?: boolean;
   heightAt?: (x: number, z: number) => number;
 }) {
   const yAt = (x: number, z: number) => heightAt?.(x, z) ?? 0;
@@ -152,6 +164,7 @@ export function StarterTown({
             key={item.id}
             item={item}
             y={yAt(item.position.x, item.position.z)}
+            hudSafeLabels={hudSafeLabels}
           />
         ))}
 

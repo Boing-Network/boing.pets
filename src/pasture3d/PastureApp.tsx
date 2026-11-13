@@ -66,6 +66,11 @@ import {
   zoomFromWheel,
 } from "./camera";
 import { pasturePetLabel } from "./labels";
+import {
+  nearbyOcclusionPoint,
+  setPastureFocus,
+  setPastureLookOverride,
+} from "./pastureFocus";
 import { PastureAudioControls } from "./PastureAudioControls";
 import {
   armAudioUnlock,
@@ -103,6 +108,7 @@ export type PastureDebug = {
   closeStationMenu: () => void;
   walkToAndOpen: (kind: PastureStationKind) => void;
   getNearbyStation: () => { id: string; kind: string } | null;
+  setOcclusionLook: (look: { x: number; y: number; z: number } | null) => void;
 };
 
 export type PastureAppProps = {
@@ -482,6 +488,7 @@ export function PastureApp({
       setZoom: (distance) => applyZoom(distance),
       zoomBy: (steps) => applyZoom(zoomBySteps(zoomRef.current, steps)),
       resetCamera,
+      setOcclusionLook: (look) => setPastureLookOverride(look),
       setTimeOfDay: (hours) => {
         pastureHourOverride.current = hours;
       },
@@ -606,68 +613,71 @@ export function PastureApp({
           ) : null}
         </div>
       ) : null}
-      <Canvas
-        shadows={!preferPerf}
-        dpr={preferPerf ? [1, 1.25] : [1, 1.75]}
-        camera={{ position: [0, 11, 16], fov: 46, near: 0.1, far: 280 }}
-        gl={{
-          antialias: !preferPerf,
-          powerPreference: preferPerf ? "low-power" : "high-performance",
-          alpha: false,
-        }}
-        onCreated={({ gl }) => {
-          gl.domElement.dataset.pastureCanvas = "1";
-          gl.toneMapping = THREE.ACESFilmicToneMapping;
-          gl.toneMappingExposure = 1.05;
-          setReady(true);
-        }}
-        onPointerDown={dismissHint}
-      >
-        <Suspense fallback={null}>
-          <MeadowAtmosphere
-            preferPerf={preferPerf}
-            reducedMotion={reducedMotion}
-            followRef={livePose}
-          />
-          <Meadow
-            preferPerf={preferPerf}
-            onWalk={walkTo}
-            walkEnabled={!!mine && !stationMenu}
-          />
-          <PastureStations onInteract={onStationInteract} />
-          <PastureActivityAreas onInteract={onStationInteract} />
-          <StationProximity
-            poseRef={livePose}
-            pendingOpenRef={pendingOpenRef}
-            onNearby={setNearbyStation}
-            onArrive={openStationMenu}
-          />
-          <PasturePaths preferPerf={preferPerf} />
-          <StarterTown
-            zone={PASTURE_ZONE}
-            hideGround
-            hideTrees
-            hidePaths
-            heightAt={meadowHeight}
-          />
-          <PastureWorld
-            pets={pets}
-            owner={owner}
-            mine={mine}
-            selected={selected}
-            livePose={livePose}
-            walkTarget={walkTarget}
-            zoomRef={zoomRef}
-            presencePlayers={presence.players}
-            chats={presence.chats}
-            preferPerf={preferPerf}
-            reducedMotion={reducedMotion}
-            followOwner={!!mine}
-            hideHudOverlays={!!stationMenu}
-            onInspect={inspect}
-          />
-        </Suspense>
-      </Canvas>
+      <div className="pasture-3d-canvas">
+        <Canvas
+          shadows={!preferPerf}
+          dpr={preferPerf ? [1, 1.25] : [1, 1.75]}
+          camera={{ position: [0, 11, 16], fov: 46, near: 0.1, far: 280 }}
+          gl={{
+            antialias: !preferPerf,
+            powerPreference: preferPerf ? "low-power" : "high-performance",
+            alpha: false,
+          }}
+          onCreated={({ gl }) => {
+            gl.domElement.dataset.pastureCanvas = "1";
+            gl.toneMapping = THREE.ACESFilmicToneMapping;
+            gl.toneMappingExposure = 1.05;
+            setReady(true);
+          }}
+          onPointerDown={dismissHint}
+        >
+          <Suspense fallback={null}>
+            <MeadowAtmosphere
+              preferPerf={preferPerf}
+              reducedMotion={reducedMotion}
+              followRef={livePose}
+            />
+            <Meadow
+              preferPerf={preferPerf}
+              onWalk={walkTo}
+              walkEnabled={!!mine && !stationMenu}
+            />
+            <PastureStations onInteract={onStationInteract} />
+            <PastureActivityAreas onInteract={onStationInteract} />
+            <StationProximity
+              poseRef={livePose}
+              pendingOpenRef={pendingOpenRef}
+              onNearby={setNearbyStation}
+              onArrive={openStationMenu}
+            />
+            <PasturePaths preferPerf={preferPerf} />
+            <StarterTown
+              zone={PASTURE_ZONE}
+              hideGround
+              hideTrees
+              hidePaths
+              hudSafeLabels
+              heightAt={meadowHeight}
+            />
+            <PastureWorld
+              pets={pets}
+              owner={owner}
+              mine={mine}
+              selected={selected}
+              livePose={livePose}
+              walkTarget={walkTarget}
+              zoomRef={zoomRef}
+              presencePlayers={presence.players}
+              chats={presence.chats}
+              preferPerf={preferPerf}
+              reducedMotion={reducedMotion}
+              followOwner={!!mine}
+              hideHudOverlays={!!stationMenu}
+              onInspect={inspect}
+            />
+          </Suspense>
+        </Canvas>
+      </div>
       <span className="visually-hidden" aria-live="polite">
         Zoom {zoom.toFixed(1)}
       </span>
@@ -881,6 +891,16 @@ function FollowCamera({
       lookSmooth.lerp(lookTarget, k);
     }
     state.camera.lookAt(lookSmooth);
+    setPastureFocus({
+      camera: {
+        x: state.camera.position.x,
+        y: state.camera.position.y,
+        z: state.camera.position.z,
+      },
+      look,
+      pet: followOwner ? { x: pose.x, y: ground + 0.45, z: pose.z } : null,
+      nearby: nearbyOcclusionPoint({ x: pose.x, z: pose.z }),
+    });
   });
   return null;
 }

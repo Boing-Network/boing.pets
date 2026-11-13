@@ -1926,3 +1926,14 @@ a:hover {
   margin: 0;
   accent-color: #fff4b8;
 }
+.pasture-3d-root {
+  z-index: 1;
+}
+.pasture-3d-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+.pasture-3d-stage {
+  isolation: isolate;
+}

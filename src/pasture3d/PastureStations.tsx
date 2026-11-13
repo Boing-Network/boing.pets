@@ -1,5 +1,5 @@
 import type { ThreeEvent } from "@react-three/fiber";
-import { WorldText } from "../world/scene/WorldText";
+import { PastureWorldText } from "./PastureWorldText";
 import type { WorldLandmark, WorldStation } from "../world/config/zones";
 import { PASTURE_ZONE } from "../world/config/zones";
 import { meadowHeight } from "./meadowHeight";
@@ -67,7 +67,7 @@ function Workbench({
         <boxGeometry args={[1.7, 0.7, 0.12]} />
         <meshStandardMaterial color="#a67c4e" roughness={0.8} />
       </mesh>
-      <WorldText
+      <PastureWorldText
         position={[0, 2.35, 0]}
         fontSize={0.36}
         color="#123055"
@@ -77,7 +77,7 @@ function Workbench({
         outlineColor="#ffffff"
       >
         Crafting Station
-      </WorldText>
+      </PastureWorldText>
     </group>
   );
 }
@@ -146,7 +146,7 @@ function MarketStall({
         <boxGeometry args={[1.85, 0.7, 0.1]} />
         <meshStandardMaterial color="#f3d9a4" roughness={0.8} />
       </mesh>
-      <WorldText
+      <PastureWorldText
         position={[0, 3.15, 0]}
         fontSize={0.38}
         color="#123055"
@@ -156,7 +156,7 @@ function MarketStall({
         outlineColor="#ffffff"
       >
         Market Stall
-      </WorldText>
+      </PastureWorldText>
     </group>
   );
 }
@@ -261,7 +261,7 @@ function DressingStand({
         <boxGeometry args={[0.34, 0.16, 0.28]} />
         <meshStandardMaterial color="#6f9b5a" roughness={0.8} />
       </mesh>
-      <WorldText
+      <PastureWorldText
         position={[0, 2.95, 0]}
         fontSize={0.3}
         color="#123055"
@@ -271,7 +271,7 @@ function DressingStand({
         outlineColor="#ffffff"
       >
         Customization Station
-      </WorldText>
+      </PastureWorldText>
     </group>
   );
 }
