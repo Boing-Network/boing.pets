@@ -363,4 +363,111 @@ describe("activity attempts API", () => {
     );
     expect(blocked.status).toBe(409);
   });
+
+  it("flashes the cook recipe and returns hot-or-cold feedback on a miss", async () => {
+    const ow = await hatchOwner(fixtureKey, "0x" + "33".repeat(32));
+    const token = await sessionToken();
+    const auth = { Authorization: `Bearer ${token}` };
+
+    const start = await request(
+      "/api/activity/attempt/start",
+      { owner: ow, activity: "cook" },
+      origin,
+      auth,
+    );
+    expect(start.status).toBe(200);
+    const started = (await start.json()) as {
+      id: string;
+      public: {
+        ingredients: string[];
+        scrambled: string[];
+        timeLimitMs: number;
+        flashMs: number;
+        count: number;
+      };
+    };
+    expect(started.public.flashMs).toBe(2500);
+    expect(started.public.timeLimitMs).toBe(8000);
+    expect(started.public.ingredients).toHaveLength(started.public.count);
+    expect(started.public.scrambled.length).toBeGreaterThanOrEqual(
+      started.public.count,
+    );
+
+    const missPicked = [...started.public.ingredients].reverse();
+    const miss = await request(
+      "/api/activity/attempt/finish",
+      {
+        id: started.id,
+        owner: ow,
+        input: {
+          picked: missPicked,
+          pickElapsedMs: missPicked.map(
+            (_, i) => started.public.flashMs + 200 + i * 150,
+          ),
+        },
+      },
+      origin,
+      auth,
+    );
+    expect(miss.status).toBe(200);
+    const missed = (await miss.json()) as {
+      ok: boolean;
+      status: string;
+      feedback?: {
+        spots: string[];
+        correct: number;
+        total: number;
+        summary: string;
+      };
+    };
+    expect(missed.ok).toBe(false);
+    expect(missed.status).toBe("failed");
+    expect(missed.feedback).toBeTruthy();
+    expect(missed.feedback!.total).toBe(started.public.count);
+    expect(missed.feedback!.summary).toBe(
+      `${missed.feedback!.correct} of ${started.public.count} in the right spot`,
+    );
+    expect(missed.feedback!.spots).toHaveLength(started.public.count);
+
+    const status = await request(
+      `/api/activity/attempts/status?activity=cook&owner=${ow}`,
+    );
+    const st = (await status.json()) as { remaining: number };
+    expect(st.remaining).toBe(2);
+
+    const start2 = await request(
+      "/api/activity/attempt/start",
+      { owner: ow, activity: "cook" },
+      origin,
+      auth,
+    );
+    const s2 = (await start2.json()) as {
+      id: string;
+      public: { ingredients: string[]; flashMs: number };
+    };
+    const finish = await request(
+      "/api/activity/attempt/finish",
+      {
+        id: s2.id,
+        owner: ow,
+        input: {
+          picked: [...s2.public.ingredients],
+          pickElapsedMs: s2.public.ingredients.map(
+            (_, i) => s2.public.flashMs + 100 + i * 100,
+          ),
+        },
+      },
+      origin,
+      auth,
+    );
+    expect(finish.status).toBe(200);
+    const fin = (await finish.json()) as {
+      ok: boolean;
+      claim_message?: string;
+      feedback?: unknown;
+    };
+    expect(fin.ok).toBe(true);
+    expect(fin.claim_message).toBeTruthy();
+    expect(fin.feedback).toBeUndefined();
+  });
 });

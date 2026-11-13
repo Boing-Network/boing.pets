@@ -47,6 +47,7 @@ import {
   type GardenSecret,
 } from "../src/minigames/gardenGame";
 import {
+  cookOrderFeedback,
   makeCookSecret,
   validateCookOrder,
   type CookInput,
@@ -152,8 +153,10 @@ function publicFromSecret(
   }
   const s = secret as unknown as CookSecret;
   return {
+    ingredients: s.ingredients,
     scrambled: s.scrambled,
     timeLimitMs: s.timeLimitMs,
+    flashMs: s.flashMs,
     count: s.ingredients.length,
   };
 }
@@ -485,12 +488,24 @@ export async function activityAttemptsPost(
       )
         .bind(now, id)
         .run();
-      return Response.json({
+      const failed: Record<string, unknown> = {
         ok: false,
         status: "failed",
         message:
           "Missed it — no signature needed. Try again if you have attempts left.",
-      });
+      };
+      if (activity === "cook") {
+        const picked = Array.isArray(input.picked)
+          ? input.picked.filter(
+              (item): item is string => typeof item === "string",
+            )
+          : [];
+        failed.feedback = cookOrderFeedback(
+          secret as unknown as CookSecret,
+          picked,
+        );
+      }
+      return Response.json(failed);
     }
     const baseReward = pickReward(activity, id);
     const score = attemptLeaderboardScore(activity, input, baseReward);

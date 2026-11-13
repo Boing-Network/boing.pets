@@ -26,7 +26,13 @@ import {
   makeGardenSecret,
   validateGardenHold,
 } from "../src/minigames/gardenGame";
-import { makeCookSecret, validateCookOrder } from "../src/minigames/cookGame";
+import {
+  COOK_FLASH_MS,
+  cookIngredientItemId,
+  cookOrderFeedback,
+  makeCookSecret,
+  validateCookOrder,
+} from "../src/minigames/cookGame";
 
 describe("activity attempts content", () => {
   it("uses a shared daily cap of 3 across activities", () => {
@@ -168,22 +174,129 @@ describe("garden hold", () => {
 });
 
 describe("cook order", () => {
-  it("requires the secret ingredient sequence", () => {
+  it("builds a secret with a flash window and unique ingredients", () => {
     const secret = makeCookSecret("cook-seed");
-    const pickElapsedMs = secret.ingredients.map((_, i) => 100 + i * 200);
+    expect(secret.flashMs).toBe(COOK_FLASH_MS);
+    expect(secret.timeLimitMs).toBe(8000);
+    expect(secret.ingredients.length).toBeGreaterThanOrEqual(3);
+    expect(secret.ingredients.length).toBeLessThanOrEqual(4);
+    expect(new Set(secret.ingredients).size).toBe(secret.ingredients.length);
+    expect(secret.scrambled.length).toBeGreaterThanOrEqual(
+      secret.ingredients.length,
+    );
+    expect(
+      secret.ingredients.every((name) => cookIngredientItemId(name) !== null),
+    ).toBe(true);
+  });
+
+  it("requires the secret ingredient sequence after the flash", () => {
+    const secret = makeCookSecret("cook-seed");
+    const pickElapsedMs = secret.ingredients.map(
+      (_, i) => secret.flashMs + 200 + i * 200,
+    );
     expect(
       validateCookOrder(
         secret,
         { picked: [...secret.ingredients], pickElapsedMs },
-        50,
+        120,
       ),
     ).toBe(true);
     expect(
       validateCookOrder(
         secret,
         { picked: [...secret.ingredients].reverse(), pickElapsedMs },
-        50,
+        120,
       ),
     ).toBe(false);
+  });
+
+  it("rejects picks during the flash or after the time limit", () => {
+    const secret = makeCookSecret("cook-seed");
+    const tol = 120;
+    const duringFlash = secret.ingredients.map(() => secret.flashMs - tol - 1);
+    expect(
+      validateCookOrder(
+        secret,
+        { picked: [...secret.ingredients], pickElapsedMs: duringFlash },
+        tol,
+      ),
+    ).toBe(false);
+    expect(
+      validateCookOrder(
+        secret,
+        {
+          picked: [...secret.ingredients],
+          pickElapsedMs: secret.ingredients.map(() => secret.flashMs - tol),
+        },
+        tol,
+      ),
+    ).toBe(true);
+    expect(
+      validateCookOrder(
+        secret,
+        {
+          picked: [...secret.ingredients],
+          pickElapsedMs: secret.ingredients.map(() => secret.flashMs),
+        },
+        tol,
+      ),
+    ).toBe(true);
+    expect(
+      validateCookOrder(
+        secret,
+        {
+          picked: [...secret.ingredients],
+          pickElapsedMs: secret.ingredients.map(
+            () => secret.flashMs + secret.timeLimitMs + tol,
+          ),
+        },
+        tol,
+      ),
+    ).toBe(true);
+    expect(
+      validateCookOrder(
+        secret,
+        {
+          picked: [...secret.ingredients],
+          pickElapsedMs: secret.ingredients.map(
+            () => secret.flashMs + secret.timeLimitMs + tol + 1,
+          ),
+        },
+        tol,
+      ),
+    ).toBe(false);
+  });
+
+  it("returns per-position hot-or-cold feedback", () => {
+    const secret = makeCookSecret("cook-seed");
+    const all = cookOrderFeedback(secret, [...secret.ingredients]);
+    expect(all.spots.every((spot) => spot === "correct")).toBe(true);
+    expect(all.correct).toBe(secret.ingredients.length);
+    expect(all.total).toBe(secret.ingredients.length);
+    expect(all.summary).toBe(
+      `${secret.ingredients.length} of ${secret.ingredients.length} in the right spot`,
+    );
+
+    const recipe = secret.ingredients;
+    const swapped = [recipe[1]!, recipe[0]!, ...recipe.slice(2)];
+    const swappedFb = cookOrderFeedback(secret, swapped);
+    expect(swappedFb.spots[0]).toBe("present");
+    expect(swappedFb.spots[1]).toBe("present");
+    expect(swappedFb.correct).toBe(recipe.length - 2);
+
+    const withAbsent = [recipe[0]!, "not-an-ingredient", ...recipe.slice(2)];
+    const absentFb = cookOrderFeedback(secret, withAbsent);
+    expect(absentFb.spots[0]).toBe("correct");
+    expect(absentFb.spots[1]).toBe("absent");
+    expect(absentFb.summary).toBe(
+      `${absentFb.correct} of ${recipe.length} in the right spot`,
+    );
+
+    const partial = cookOrderFeedback(secret, [recipe[0]!]);
+    expect(partial.spots[0]).toBe("correct");
+    expect(partial.spots.slice(1).every((spot) => spot === "absent")).toBe(
+      true,
+    );
+    expect(partial.correct).toBe(1);
   });
 });

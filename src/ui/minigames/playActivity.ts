@@ -5,6 +5,12 @@ import { sessionApi } from "../socialSession";
 import { bindDisablePopover, type DisableReason } from "../disableReason";
 import type { ActivityId } from "../../content/attempts";
 import { needleAt } from "../../minigames/fishingGame";
+import {
+  COOK_FLASH_MS,
+  cookIngredientItemId,
+  type CookFeedback,
+} from "../../minigames/cookGame";
+import { itemIconSvg } from "../itemIcons";
 import { refreshEconomy } from "../pages/progressPage";
 import { closeRewardModal, showRewardModal } from "../rewardModal";
 import {
@@ -41,6 +47,7 @@ type FinishResponse = {
   message?: string;
   claim_message?: string;
   claim_expires_at?: number;
+  feedback?: CookFeedback;
 };
 
 type PlaySession = {
@@ -685,6 +692,58 @@ export async function playGarden(root: HTMLElement, onDone: () => void) {
   }
 }
 
+const COOK_HINT_DWELL_MS = 2200;
+
+function cookChip(name: string, step?: number): HTMLElement {
+  const artId = cookIngredientItemId(name);
+  const wrap = document.createElement(step != null ? "div" : "button");
+  if (wrap instanceof HTMLButtonElement) wrap.type = "button";
+  wrap.className = step != null ? "cook-chip" : "secondary cook-chip";
+  wrap.dataset.name = name;
+  if (step != null) {
+    const num = document.createElement("span");
+    num.className = "cook-chip-num";
+    num.textContent = String(step);
+    wrap.append(num);
+  }
+  if (artId) {
+    const art = document.createElement("span");
+    art.className = "cook-chip-art";
+    art.innerHTML = itemIconSvg(artId);
+    wrap.append(art);
+  }
+  const label = document.createElement("span");
+  label.className = "cook-chip-label";
+  label.textContent = name;
+  wrap.append(label);
+  return wrap;
+}
+
+function showCookFeedback(
+  root: HTMLElement,
+  buttons: HTMLButtonElement[],
+  picked: string[],
+  feedback: CookFeedback,
+) {
+  picked.forEach((name, i) => {
+    const mark = feedback.spots[i];
+    if (!mark) return;
+    const button = buttons.find(
+      (b) => b.dataset.name === name && !b.dataset.marked,
+    );
+    if (!button) return;
+    button.dataset.marked = "1";
+    button.classList.add(`cook-spot-${mark}`);
+  });
+  let line = root.querySelector(".cook-feedback");
+  if (!line) {
+    line = document.createElement("p");
+    line.className = "cook-feedback";
+    root.append(line);
+  }
+  line.textContent = feedback.summary;
+}
+
 export async function playCook(root: HTMLElement, onDone: () => void) {
   const play = beginPlay();
   try {
@@ -697,85 +756,108 @@ export async function playCook(root: HTMLElement, onDone: () => void) {
     );
     if (play.aborted) return;
     const pub = start.public as {
+      ingredients?: string[];
       scrambled: string[];
       timeLimitMs: number;
+      flashMs?: number;
       count: number;
     };
-    mountShell(
-      root,
-      `Tap ingredients in the secret recipe order (${pub.count} steps).`,
-    );
+    const flashMs =
+      typeof pub.flashMs === "number" && pub.flashMs >= 0
+        ? pub.flashMs
+        : COOK_FLASH_MS;
+    const ingredients = Array.isArray(pub.ingredients) ? pub.ingredients : [];
+    const count = pub.count || ingredients.length;
+    const started = performance.now();
+    mountShell(root, `Memorize the recipe order (${count} steps).`);
+    const flash = document.createElement("div");
+    flash.className = "cook-flash";
+    flash.setAttribute("role", "img");
+    flash.setAttribute("aria-label", `Recipe order: ${ingredients.join(", ")}`);
+    ingredients.forEach((name, i) => flash.append(cookChip(name, i + 1)));
+    root.append(flash);
+    await new Promise<void>((resolve) => {
+      play.onAbort.push(resolve);
+      trackTimeout(play, resolve, flashMs);
+    });
+    if (play.aborted) return;
+    flash.remove();
+    mountShell(root, `Tap ingredients in the recipe order (${count} steps).`);
     const row = document.createElement("div");
     row.className = "cook-ingredients";
     const picked: string[] = [];
     const pickElapsedMs: number[] = [];
-    const started = performance.now();
+    const buttons: HTMLButtonElement[] = [];
+    const timer = document.createElement("p");
+    timer.className = "cook-timer small";
+    const deadline = performance.now() + pub.timeLimitMs;
+    const tickTimer = () => {
+      if (play.aborted || picked.length >= count) return;
+      const left = Math.max(0, deadline - performance.now());
+      timer.textContent = `${(left / 1000).toFixed(1)}s`;
+      if (left > 0) trackTimeout(play, tickTimer, 100);
+    };
     await new Promise<void>((resolve, reject) => {
       play.onAbort.push(resolve);
-      pub.scrambled.forEach((name) => {
-        const b = document.createElement("button");
-        b.className = "secondary";
-        b.textContent = name;
-        b.onclick = () => {
-          playSfx("cook");
-          if (play.aborted) return;
-          picked.push(name);
-          pickElapsedMs.push(Math.round(performance.now() - started));
-          b.disabled = true;
-          if (picked.length >= pub.count) {
-            clearPlayHandles(play);
-            void sessionApi<FinishResponse>("/api/activity/attempt/finish", {
-              id: start.id,
-              owner: app.owner,
-              input: { picked, pickElapsedMs },
-            })
-              .then(async (finish) => {
-                if (play.aborted) {
-                  resolve();
-                  return;
-                }
-                if (!finish.ok)
-                  notice(finish.message || "Wrong order — no signature.", true);
-                else if (finish.claim_message) {
-                  notice(finish.message || "Dish ready!");
-                  try {
-                    await claimAttempt(
-                      start.id,
-                      finish.claim_message,
-                      "cook",
-                      play,
-                    );
-                  } catch (e) {
-                    notice(
-                      e instanceof Error ? e.message : "Claim failed",
-                      true,
-                    );
-                  }
-                }
-                resolve();
-              })
-              .catch(reject);
-          }
-        };
-        row.append(b);
-      });
-      root.append(row);
-      trackTimeout(
-        play,
-        () => {
-          if (play.aborted || picked.length >= pub.count) return;
-          void sessionApi<FinishResponse>("/api/activity/attempt/finish", {
-            id: start.id,
-            owner: app.owner,
-            input: { picked, pickElapsedMs },
-          }).then((finish) => {
+      const submit = () => {
+        clearPlayHandles(play);
+        void sessionApi<FinishResponse>("/api/activity/attempt/finish", {
+          id: start.id,
+          owner: app.owner,
+          input: { picked, pickElapsedMs },
+        })
+          .then(async (finish) => {
             if (play.aborted) {
               resolve();
               return;
             }
-            notice(finish.message || "Too slow — attempt used.", true);
+            if (!finish.ok) {
+              if (finish.feedback) {
+                showCookFeedback(root, buttons, picked, finish.feedback);
+                await new Promise<void>((wait) => {
+                  trackTimeout(play, wait, COOK_HINT_DWELL_MS);
+                });
+              } else {
+                notice(finish.message || "Wrong order — no signature.", true);
+              }
+            } else if (finish.claim_message) {
+              notice(finish.message || "Dish ready!");
+              try {
+                await claimAttempt(
+                  start.id,
+                  finish.claim_message,
+                  "cook",
+                  play,
+                );
+              } catch (e) {
+                notice(e instanceof Error ? e.message : "Claim failed", true);
+              }
+            }
             resolve();
-          }, reject);
+          })
+          .catch(reject);
+      };
+      pub.scrambled.forEach((name) => {
+        const b = cookChip(name) as HTMLButtonElement;
+        b.onclick = () => {
+          playSfx("cook");
+          if (play.aborted || b.disabled) return;
+          picked.push(name);
+          pickElapsedMs.push(Math.round(performance.now() - started));
+          b.disabled = true;
+          if (picked.length >= count) submit();
+        };
+        buttons.push(b);
+        row.append(b);
+      });
+      root.append(row);
+      root.append(timer);
+      tickTimer();
+      trackTimeout(
+        play,
+        () => {
+          if (play.aborted || picked.length >= count) return;
+          submit();
         },
         pub.timeLimitMs + 30,
       );

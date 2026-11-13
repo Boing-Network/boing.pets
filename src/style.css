@@ -825,10 +825,74 @@ a:hover {
   background: #e8c27a;
   color: #1a1205;
 }
+.cook-flash,
 .cook-ingredients {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  justify-content: center;
+}
+.cook-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 4.5rem;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid #4a6799;
+  background: #182948;
+  color: #e8eefc;
+}
+.cook-ingredients button.cook-chip {
+  cursor: pointer;
+}
+.cook-chip-num {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}
+.cook-chip-art {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+}
+.cook-chip-art svg {
+  width: 40px;
+  height: 40px;
+  display: block;
+}
+.cook-chip-label {
+  font-size: 0.85rem;
+  text-transform: capitalize;
+}
+.cook-timer {
+  margin: 8px 0 0;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.cook-feedback {
+  margin-top: 10px;
+  text-align: center;
+  font-weight: 600;
+}
+.cook-spot-correct {
+  border-color: #3dcc7a !important;
+  background: #163826 !important;
+  box-shadow: 0 0 0 2px rgba(61, 204, 122, 0.45);
+}
+.cook-spot-present {
+  border-color: #e8c27a !important;
+  background: #3a2e14 !important;
+  box-shadow: 0 0 0 2px rgba(232, 194, 122, 0.45);
+}
+.cook-spot-absent {
+  border-color: #6b7280 !important;
+  background: #2a2d33 !important;
+  color: #9aa3b5 !important;
+  box-shadow: 0 0 0 2px rgba(107, 114, 128, 0.4);
 }
 @media (prefers-reduced-motion: reduce) {
   .minigame-needle {
