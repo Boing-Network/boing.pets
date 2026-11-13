@@ -150,4 +150,35 @@ describe("pasture pathing", () => {
     const hit = resolveClickTarget({ x: -32, z: 18 }, PASTURE_ZONE, obstacles);
     expect(Math.abs(hit.x + 32)).toBeGreaterThan(0.3);
   });
+
+  it("walks from Pond Pier to Treasure Dig around the lily pond", () => {
+    const starts = [
+      { x: 29, z: -13 },
+      { x: 27, z: -12.5 },
+      { x: 30, z: -16 },
+      { x: 26.45, z: -14.33 },
+    ];
+    const goal = { x: 8, z: -28 };
+    for (const start of starts) {
+      let pos = resolveClickTarget(start, PASTURE_ZONE, obstacles);
+      let arrived = false;
+      let stuck = 0;
+      for (let i = 0; i < 500; i++) {
+        const before = pos;
+        const step = stepToward(pos, goal, 0.16, 6, PASTURE_ZONE, obstacles);
+        pos = step.pos;
+        arrived = step.arrived;
+        expect(blocked(pos, obstacles)).toBeNull();
+        const moved = Math.hypot(pos.x - before.x, pos.z - before.z);
+        stuck = moved < 1e-4 ? stuck + 1 : 0;
+        expect(stuck).toBeLessThan(8);
+        if (arrived) break;
+      }
+      expect(arrived).toBe(true);
+      const walkable = resolveClickTarget(goal, PASTURE_ZONE, obstacles);
+      expect(Math.hypot(pos.x - walkable.x, pos.z - walkable.z)).toBeLessThan(
+        0.5,
+      );
+    }
+  });
 });

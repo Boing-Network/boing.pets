@@ -9,6 +9,7 @@ import {
   refreshTreasure,
 } from "../ui/pages/activitiesPage";
 import { refreshGarden, refreshKitchen } from "../ui/pages/lifestylePage";
+import { resetActivityOverlayState } from "../ui/minigames/playActivity";
 
 async function refreshActivity(kind: ActivityStationKind) {
   switch (kind) {
@@ -52,6 +53,7 @@ export function PastureActivityMenu({
     closeRef.current?.focus();
     void refreshActivity(kind).catch(() => undefined);
     return () => {
+      resetActivityOverlayState();
       root.innerHTML = "";
     };
   }, [kind, meta.activity]);

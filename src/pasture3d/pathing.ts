@@ -150,13 +150,61 @@ export function resolveClickTarget(
   return clampToWalkable(click, zone, obstacles);
 }
 
-function cornersOf(o: Obstacle, out = 0.4): Vec2[] {
+function detourPad(o: Obstacle): number {
+  return Math.max(0.7, 0.18 * Math.max(o.halfW, o.halfD));
+}
+
+/** Rim samples used to steer around a solid. Ellipses need more than
+ * four AABB corners or a long detour (pond + pier) can pin the walker. */
+function detourPoints(o: Obstacle, out = detourPad(o)): Vec2[] {
+  if (o.shape === "circle") {
+    const pts: Vec2[] = [];
+    const steps = 12;
+    for (let i = 0; i < steps; i++) {
+      const a = (i / steps) * Math.PI * 2;
+      pts.push({
+        x: o.x + Math.cos(a) * (o.halfW + out),
+        z: o.z + Math.sin(a) * (o.halfD + out),
+      });
+    }
+    return pts;
+  }
+  // Corners only: edge midpoints on the near face sit closer than the
+  // far corners and make the walker oscillate along the wall.
+  const padW = o.halfW + out;
+  const padD = o.halfD + out;
   return [
-    { x: o.x - o.halfW - out, z: o.z - o.halfD - out },
-    { x: o.x - o.halfW - out, z: o.z + o.halfD + out },
-    { x: o.x + o.halfW + out, z: o.z - o.halfD - out },
-    { x: o.x + o.halfW + out, z: o.z + o.halfD + out },
+    { x: o.x - padW, z: o.z - padD },
+    { x: o.x - padW, z: o.z + padD },
+    { x: o.x + padW, z: o.z - padD },
+    { x: o.x + padW, z: o.z + padD },
   ];
+}
+
+function nearbyDetours(
+  pos: Vec2,
+  goal: Vec2,
+  hit: Obstacle,
+  obstacles: Obstacle[],
+): Vec2[] {
+  const pts: Vec2[] = [];
+  const seen = new Set<string>();
+  const add = (p: Vec2) => {
+    const key = `${p.x.toFixed(3)},${p.z.toFixed(3)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    pts.push(p);
+  };
+  for (const o of obstacles) {
+    const close =
+      o === hit ||
+      segmentHits(pos, goal, o) ||
+      Math.hypot(o.x - pos.x, o.z - pos.z) < 10 ||
+      Math.hypot(o.x - hit.x, o.z - hit.z) < 8;
+    if (!close) continue;
+    for (const p of detourPoints(o)) add(p);
+  }
+  return pts;
 }
 
 function segmentHits(a: Vec2, b: Vec2, o: Obstacle): boolean {
@@ -182,7 +230,10 @@ function firstHitOnSegment(
 
 /**
  * If the straight line to the goal cuts a solid, steer via the cheapest
- * outward corner so pets slide/route around instead of walking in.
+ * outward rim sample so pets slide/route around instead of walking in.
+ * Candidates come from the first hit and any nearby solids (the pier
+ * sits on the lily pond's east bank) and must be reachable without
+ * crossing any obstacle, not just the one that blocked the goal.
  */
 export function aroundWaypoint(
   pos: Vec2,
@@ -193,18 +244,25 @@ export function aroundWaypoint(
   if (!hit) return goal;
   let best: Vec2 | null = null;
   let bestCost = Infinity;
-  for (const c of cornersOf(hit)) {
+  for (const c of nearbyDetours(pos, goal, hit, obstacles)) {
     if (blocked(c, obstacles)) continue;
-    if (segmentHits(pos, c, hit)) continue;
-    // Don't sit on a corner whose straight line to the goal still
-    // cuts the solid ? walk to a different corner that can see it.
+    if (firstHitOnSegment(pos, c, obstacles)) continue;
+    // A candidate only has to clear the solid we are routing around
+    // to be 'able to see the goal'. Other solids are handled on later
+    // steps; requiring a fully clear line made walkers oscillate on
+    // the near side of a barn or pond.
     const alreadyHere = Math.hypot(c.x - pos.x, c.z - pos.z) < 0.25;
-    const clearToGoal = !segmentHits(c, goal, hit);
-    if (alreadyHere && !clearToGoal) continue;
+    const clearHit = !segmentHits(c, goal, hit);
+    const clearToGoal = !firstHitOnSegment(c, goal, obstacles);
+    if (alreadyHere && !clearHit) continue;
+    const recede =
+      Math.hypot(goal.x - c.x, goal.z - c.z) -
+      Math.hypot(goal.x - pos.x, goal.z - pos.z);
     const cost =
       Math.hypot(c.x - pos.x, c.z - pos.z) +
       Math.hypot(goal.x - c.x, goal.z - c.z) +
-      (clearToGoal ? 0 : 40);
+      (clearToGoal ? 0 : clearHit ? 12 : 80) +
+      (recede > 0 && !clearHit ? recede * 8 : 0);
     if (cost < bestCost) {
       bestCost = cost;
       best = c;

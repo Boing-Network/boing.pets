@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { formatRewardBreakdown } from "../src/ui/rewardBreakdown";
+import {
+  claimResultForActivity,
+  formatRewardBreakdown,
+} from "../src/ui/rewardBreakdown";
 
 describe("formatRewardBreakdown", () => {
   it("shows a base-only claim and remaining attempts", () => {
@@ -68,5 +71,24 @@ describe("formatRewardBreakdown", () => {
     });
     expect(view.lines.map((l) => l.key)).toEqual(["base"]);
     expect(view.extras).toEqual([]);
+  });
+
+  it("keeps the claimed activity when a payload names a different one", () => {
+    const view = formatRewardBreakdown(
+      claimResultForActivity(
+        {
+          activity: "fishing",
+          reward: {
+            name: "Silver Minnow",
+            rewardBoinglets: 4,
+            itemId: "fish-minnow",
+          },
+        },
+        "mining",
+      ),
+    );
+    expect(view.activityTitle).toBe("Mining");
+    expect(view.totalBoinglets).toBe(4);
+    expect(view.lines).toEqual([{ key: "base", label: "Base", value: "+4ℬ" }]);
   });
 });

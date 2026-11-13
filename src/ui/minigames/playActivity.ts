@@ -5,8 +5,11 @@ import { bindDisablePopover, type DisableReason } from "../disableReason";
 import type { ActivityId } from "../../content/attempts";
 import { needleAt } from "../../minigames/fishingGame";
 import { refreshEconomy } from "../pages/progressPage";
-import { showRewardModal } from "../rewardModal";
-import type { ClaimRewardResult } from "../rewardBreakdown";
+import { closeRewardModal, showRewardModal } from "../rewardModal";
+import {
+  claimResultForActivity,
+  type ClaimRewardResult,
+} from "../rewardBreakdown";
 
 interface AttemptStatus {
   activity: ActivityId;
@@ -39,6 +42,77 @@ type FinishResponse = {
   claim_expires_at?: number;
 };
 
+type PlaySession = {
+  aborted: boolean;
+  timers: number[];
+  rafs: number[];
+  onAbort: Array<() => void>;
+  keydown: ((event: KeyboardEvent) => void) | null;
+};
+
+const activePlays = new Set<PlaySession>();
+
+function beginPlay(): PlaySession {
+  const play: PlaySession = {
+    aborted: false,
+    timers: [],
+    rafs: [],
+    onAbort: [],
+    keydown: null,
+  };
+  activePlays.add(play);
+  return play;
+}
+
+function clearPlayHandles(play: PlaySession) {
+  for (const id of play.timers) window.clearTimeout(id);
+  play.timers.length = 0;
+  for (const id of play.rafs) cancelAnimationFrame(id);
+  play.rafs.length = 0;
+  if (play.keydown) {
+    window.removeEventListener("keydown", play.keydown);
+    play.keydown = null;
+  }
+}
+
+function endPlay(play: PlaySession) {
+  clearPlayHandles(play);
+  activePlays.delete(play);
+}
+
+/** Stop in-progress minigames and hide any leftover reward modal. */
+export function resetActivityOverlayState() {
+  for (const play of [...activePlays]) {
+    play.aborted = true;
+    clearPlayHandles(play);
+    for (const fn of play.onAbort) fn();
+    play.onAbort.length = 0;
+  }
+  activePlays.clear();
+  closeRewardModal();
+}
+
+export const abortActivityPlay = resetActivityOverlayState;
+
+function trackTimeout(play: PlaySession, fn: () => void, ms: number) {
+  const id = window.setTimeout(fn, ms);
+  play.timers.push(id);
+  return id;
+}
+
+function trackRaf(play: PlaySession, fn: FrameRequestCallback) {
+  for (const id of play.rafs) cancelAnimationFrame(id);
+  play.rafs.length = 0;
+  const id = requestAnimationFrame(fn);
+  play.rafs.push(id);
+  return id;
+}
+
+function trackKeydown(play: PlaySession, fn: (event: KeyboardEvent) => void) {
+  play.keydown = fn;
+  window.addEventListener("keydown", fn);
+}
+
 function prefersReducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
@@ -69,13 +143,17 @@ async function claimAttempt(
   id: string,
   claimMessage: string,
   activity?: ActivityId,
+  play?: PlaySession,
 ) {
+  if (play?.aborted) return;
   await assertWallet();
+  if (play?.aborted) return;
   notice("Approve to keep your reward…");
   const signature = await app.provider!.request({
     method: "boing_signMessage",
     params: [claimMessage, app.owner],
   });
+  if (play?.aborted) return;
   const result = await sessionApi<ClaimRewardResult>(
     "/api/activity/attempt/claim",
     {
@@ -84,9 +162,10 @@ async function claimAttempt(
       signature,
     },
   );
-  result.activity = result.activity || activity;
-  showRewardModal(result);
-  notice(`Claimed ${result.reward.name}.`);
+  if (play?.aborted) return;
+  const shown = claimResultForActivity(result, activity);
+  showRewardModal(shown);
+  notice(`Claimed ${shown.reward.name}.`);
   await refreshEconomy().catch(() => undefined);
 }
 
@@ -100,291 +179,106 @@ function mountShell(root: HTMLElement, title: string) {
   return root;
 }
 
+function finishPlay(root: HTMLElement, onDone: () => void, play: PlaySession) {
+  endPlay(play);
+  root.hidden = true;
+  if (!play.aborted) onDone();
+}
+
 export async function playFishing(root: HTMLElement, onDone: () => void) {
-  const start = await sessionApi<StartResponse>("/api/activity/attempt/start", {
-    owner: app.owner,
-    activity: "fishing",
-  });
-  const pub = start.public as {
-    periodMs: number;
-    zoneStart: number;
-    zoneWidth: number;
-    phase: number;
-  };
-  mountShell(
-    root,
-    prefersReducedMotion()
-      ? "Reduced motion: the zone is highlighted — click Reel when ready (timing still checked)."
-      : "Click Reel when the needle is in the green zone.",
-  );
-  const bar = document.createElement("div");
-  bar.className = "minigame-bar";
-  const zone = document.createElement("div");
-  zone.className = "minigame-zone";
-  zone.style.left = `${pub.zoneStart * 100}%`;
-  zone.style.width = `${pub.zoneWidth * 100}%`;
-  const needle = document.createElement("div");
-  needle.className = "minigame-needle";
-  bar.append(zone, needle);
-  root.append(bar);
-  const reel = document.createElement("button");
-  reel.textContent = "Reel!";
-  root.append(reel);
-  const started = performance.now();
-  let raf = 0;
-  const tick = () => {
-    const elapsed = performance.now() - started;
-    // Client mirrors server triangle using phase 0 visually; server validates with secret phase.
-    // Use zone-relative animation that still requires timing skill:
-    const pos = needleAt(elapsed, pub.periodMs, pub.phase);
-    needle.style.left = `${pos * 100}%`;
-    if (!prefersReducedMotion()) raf = requestAnimationFrame(tick);
-  };
-  if (prefersReducedMotion()) {
-    needle.style.left = `${(pub.zoneStart + pub.zoneWidth / 2) * 100}%`;
-  } else {
-    raf = requestAnimationFrame(tick);
-  }
-  await new Promise<void>((resolve, reject) => {
-    reel.onclick = () => {
-      cancelAnimationFrame(raf);
-      const clickElapsedMs = Math.round(performance.now() - started);
-      void sessionApi<FinishResponse>("/api/activity/attempt/finish", {
-        id: start.id,
+  const play = beginPlay();
+  try {
+    const start = await sessionApi<StartResponse>(
+      "/api/activity/attempt/start",
+      {
         owner: app.owner,
-        input: { clickElapsedMs },
-      })
-        .then(async (finish) => {
-          if (!finish.ok) {
-            notice(
-              finish.message || "Missed — attempt used, no signature.",
-              true,
-            );
-            resolve();
-            return;
-          }
-          notice(finish.message || "Success!");
-          if (finish.claim_message) {
-            try {
-              await claimAttempt(start.id, finish.claim_message, "fishing");
-            } catch (e) {
+        activity: "fishing",
+      },
+    );
+    if (play.aborted) return;
+    const pub = start.public as {
+      periodMs: number;
+      zoneStart: number;
+      zoneWidth: number;
+      phase: number;
+    };
+    mountShell(
+      root,
+      prefersReducedMotion()
+        ? "Reduced motion: the zone is highlighted — click Reel when ready (timing still checked)."
+        : "Click Reel when the needle is in the green zone.",
+    );
+    const bar = document.createElement("div");
+    bar.className = "minigame-bar";
+    const zone = document.createElement("div");
+    zone.className = "minigame-zone";
+    zone.style.left = `${pub.zoneStart * 100}%`;
+    zone.style.width = `${pub.zoneWidth * 100}%`;
+    const needle = document.createElement("div");
+    needle.className = "minigame-needle";
+    bar.append(zone, needle);
+    root.append(bar);
+    const reel = document.createElement("button");
+    reel.textContent = "Reel!";
+    root.append(reel);
+    const started = performance.now();
+    const tick = () => {
+      if (play.aborted) return;
+      const elapsed = performance.now() - started;
+      // Client mirrors server triangle using phase 0 visually; server validates with secret phase.
+      // Use zone-relative animation that still requires timing skill:
+      const pos = needleAt(elapsed, pub.periodMs, pub.phase);
+      needle.style.left = `${pos * 100}%`;
+      if (!prefersReducedMotion()) trackRaf(play, tick);
+    };
+    if (prefersReducedMotion()) {
+      needle.style.left = `${(pub.zoneStart + pub.zoneWidth / 2) * 100}%`;
+    } else {
+      trackRaf(play, tick);
+    }
+    await new Promise<void>((resolve, reject) => {
+      play.onAbort.push(resolve);
+      reel.onclick = () => {
+        if (play.aborted) {
+          resolve();
+          return;
+        }
+        clearPlayHandles(play);
+        const clickElapsedMs = Math.round(performance.now() - started);
+        void sessionApi<FinishResponse>("/api/activity/attempt/finish", {
+          id: start.id,
+          owner: app.owner,
+          input: { clickElapsedMs },
+        })
+          .then(async (finish) => {
+            if (play.aborted) {
+              resolve();
+              return;
+            }
+            if (!finish.ok) {
               notice(
-                e instanceof Error
-                  ? e.message
-                  : "Claim failed — you can retry claim from the summary.",
+                finish.message || "Missed — attempt used, no signature.",
                 true,
               );
+              resolve();
+              return;
             }
-          }
-          resolve();
-        })
-        .catch(reject);
-    };
-  });
-  root.hidden = true;
-  onDone();
-}
-
-export async function playMining(root: HTMLElement, onDone: () => void) {
-  const start = await sessionApi<StartResponse>("/api/activity/attempt/start", {
-    owner: app.owner,
-    activity: "mining",
-  });
-  const pub = start.public as { combo: string[]; timeLimitMs: number };
-  mountShell(
-    root,
-    `Press ${pub.combo.map((k) => k.toUpperCase()).join(" → ")} within ${Math.round(pub.timeLimitMs / 1000)}s`,
-  );
-  const row = document.createElement("div");
-  row.className = "minigame-keys";
-  const kbds = pub.combo.map((k, i) => {
-    const el = document.createElement("kbd");
-    el.textContent = k.toUpperCase();
-    if (i === 0) el.classList.add("next");
-    row.append(el);
-    return el;
-  });
-  root.append(row);
-  const touchRow = document.createElement("div");
-  touchRow.className = "minigame-touch-keys";
-  const started = performance.now();
-  const keys: string[] = [];
-  const pressElapsedMs: number[] = [];
-  await new Promise<void>((resolve, reject) => {
-    const pushKey = (key: string) => {
-      keys.push(key);
-      pressElapsedMs.push(Math.round(performance.now() - started));
-      const idx = keys.length - 1;
-      if (kbds[idx]) {
-        kbds[idx]!.classList.remove("next");
-        kbds[idx]!.classList.add("done");
-      }
-      if (kbds[idx + 1]) kbds[idx + 1]!.classList.add("next");
-      if (keys.length >= pub.combo.length) {
-        window.removeEventListener("keydown", onKey);
-        void sessionApi<FinishResponse>("/api/activity/attempt/finish", {
-          id: start.id,
-          owner: app.owner,
-          input: { keys, pressElapsedMs },
-        })
-          .then(async (finish) => {
-            if (!finish.ok) {
-              notice(finish.message || "Combo failed — no signature.", true);
-            } else if (finish.claim_message) {
-              notice(finish.message || "Vein cracked!");
+            notice(finish.message || "Success!");
+            if (finish.claim_message) {
               try {
-                await claimAttempt(start.id, finish.claim_message, "mining");
+                await claimAttempt(
+                  start.id,
+                  finish.claim_message,
+                  "fishing",
+                  play,
+                );
               } catch (e) {
-                notice(e instanceof Error ? e.message : "Claim failed", true);
-              }
-            }
-            resolve();
-          })
-          .catch(reject);
-      }
-    };
-    const onKey = (event: KeyboardEvent) => {
-      const key = event.key.toLowerCase();
-      if (key.length !== 1) return;
-      event.preventDefault();
-      pushKey(key);
-    };
-    for (const label of ["q", "w", "e", "a", "s", "d"]) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "secondary";
-      b.textContent = label.toUpperCase();
-      b.onclick = () => pushKey(label);
-      touchRow.append(b);
-    }
-    root.append(touchRow);
-    window.addEventListener("keydown", onKey);
-    window.setTimeout(() => {
-      if (keys.length >= pub.combo.length) return;
-      window.removeEventListener("keydown", onKey);
-      void sessionApi<FinishResponse>("/api/activity/attempt/finish", {
-        id: start.id,
-        owner: app.owner,
-        input: { keys, pressElapsedMs },
-      })
-        .then((finish) => {
-          notice(finish.message || "Too slow — attempt used.", true);
-          resolve();
-        })
-        .catch(reject);
-    }, pub.timeLimitMs + 50);
-  });
-  root.hidden = true;
-  onDone();
-}
-
-export async function playRacing(root: HTMLElement, onDone: () => void) {
-  const start = await sessionApi<StartResponse>("/api/activity/attempt/start", {
-    owner: app.owner,
-    activity: "racing",
-  });
-  const pub = start.public as { beatsMs: number[]; windowMs: number };
-  mountShell(root, "Tap / click on each beat flash.");
-  const pad = document.createElement("button");
-  pad.textContent = "Tap!";
-  pad.style.minHeight = "64px";
-  root.append(pad);
-  const started = performance.now();
-  const taps: number[] = [];
-  const flashes = pub.beatsMs.map((ms) =>
-    window.setTimeout(() => {
-      pad.classList.add("secondary");
-      pad.textContent = "NOW";
-      window.setTimeout(() => {
-        pad.classList.remove("secondary");
-        pad.textContent = "Tap!";
-      }, pub.windowMs);
-    }, ms),
-  );
-  await new Promise<void>((resolve, reject) => {
-    pad.onclick = () => {
-      taps.push(Math.round(performance.now() - started));
-      if (taps.length >= pub.beatsMs.length) {
-        flashes.forEach((id) => window.clearTimeout(id));
-        void sessionApi<FinishResponse>("/api/activity/attempt/finish", {
-          id: start.id,
-          owner: app.owner,
-          input: { tapElapsedMs: taps },
-        })
-          .then(async (finish) => {
-            if (!finish.ok)
-              notice(finish.message || "Off-beat — no signature.", true);
-            else if (finish.claim_message) {
-              notice(finish.message || "Photo finish!");
-              try {
-                await claimAttempt(start.id, finish.claim_message, "racing");
-              } catch (e) {
-                notice(e instanceof Error ? e.message : "Claim failed", true);
-              }
-            }
-            resolve();
-          })
-          .catch(reject);
-      }
-    };
-  });
-  root.hidden = true;
-  onDone();
-}
-
-export async function playTreasure(root: HTMLElement, onDone: () => void) {
-  const start = await sessionApi<StartResponse>("/api/activity/attempt/start", {
-    owner: app.owner,
-    activity: "treasure",
-  });
-  const pub = start.public as {
-    gridSize: number;
-    flashMs: number;
-    spot: number;
-  };
-  mountShell(root, "Memorize the glowing tile, then dig it.");
-  const grid = document.createElement("div");
-  grid.className = "treasure-grid";
-  const buttons: HTMLButtonElement[] = [];
-  for (let i = 0; i < pub.gridSize; i++) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.textContent = "·";
-    b.disabled = true;
-    grid.append(b);
-    buttons.push(b);
-  }
-  root.append(grid);
-  buttons[pub.spot]!.classList.add("flash");
-  buttons[pub.spot]!.textContent = "★";
-  const started = performance.now();
-  await new Promise((r) => setTimeout(r, pub.flashMs));
-  buttons.forEach((b) => {
-    b.classList.remove("flash");
-    b.textContent = "?";
-    b.disabled = false;
-  });
-  await new Promise<void>((resolve, reject) => {
-    buttons.forEach((b, guess) => {
-      b.onclick = () => {
-        buttons.forEach((x) => (x.disabled = true));
-        void sessionApi<FinishResponse>("/api/activity/attempt/finish", {
-          id: start.id,
-          owner: app.owner,
-          input: {
-            guess,
-            guessElapsedMs: Math.round(performance.now() - started),
-          },
-        })
-          .then(async (finish) => {
-            if (!finish.ok)
-              notice(finish.message || "Empty dirt — no signature.", true);
-            else if (finish.claim_message) {
-              notice(finish.message || "Something sparkled!");
-              try {
-                await claimAttempt(start.id, finish.claim_message, "treasure");
-              } catch (e) {
-                notice(e instanceof Error ? e.message : "Claim failed", true);
+                notice(
+                  e instanceof Error
+                    ? e.message
+                    : "Claim failed — you can retry claim from the summary.",
+                  true,
+                );
               }
             }
             resolve();
@@ -392,109 +286,80 @@ export async function playTreasure(root: HTMLElement, onDone: () => void) {
           .catch(reject);
       };
     });
-  });
-  root.hidden = true;
-  onDone();
+  } finally {
+    finishPlay(root, onDone, play);
+  }
 }
 
-export async function playGarden(root: HTMLElement, onDone: () => void) {
-  const start = await sessionApi<StartResponse>("/api/activity/attempt/start", {
-    owner: app.owner,
-    activity: "garden",
-  });
-  const pub = start.public as { targetHoldMs: number; windowMs: number };
-  mountShell(
-    root,
-    `Hold Water for about ${Math.round(pub.targetHoldMs / 100) / 10}s, then release.`,
-  );
-  const btn = document.createElement("button");
-  btn.textContent = "Hold to water";
-  root.append(btn);
-  let down = 0;
-  await new Promise<void>((resolve, reject) => {
-    const end = (holdMs: number) => {
-      void sessionApi<FinishResponse>("/api/activity/attempt/finish", {
-        id: start.id,
+export async function playMining(root: HTMLElement, onDone: () => void) {
+  const play = beginPlay();
+  try {
+    const start = await sessionApi<StartResponse>(
+      "/api/activity/attempt/start",
+      {
         owner: app.owner,
-        input: { holdMs },
-      })
-        .then(async (finish) => {
-          if (!finish.ok)
-            notice(
-              finish.message || "Over/under watered — no signature.",
-              true,
-            );
-          else if (finish.claim_message) {
-            notice(finish.message || "Fresh greens!");
-            try {
-              await claimAttempt(start.id, finish.claim_message, "garden");
-            } catch (e) {
-              notice(e instanceof Error ? e.message : "Claim failed", true);
-            }
+        activity: "mining",
+      },
+    );
+    if (play.aborted) return;
+    const pub = start.public as { combo: string[]; timeLimitMs: number };
+    mountShell(
+      root,
+      `Press ${pub.combo.map((k) => k.toUpperCase()).join(" → ")} within ${Math.round(pub.timeLimitMs / 1000)}s`,
+    );
+    const row = document.createElement("div");
+    row.className = "minigame-keys";
+    const kbds = pub.combo.map((k, i) => {
+      const el = document.createElement("kbd");
+      el.textContent = k.toUpperCase();
+      if (i === 0) el.classList.add("next");
+      row.append(el);
+      return el;
+    });
+    root.append(row);
+    const touchRow = document.createElement("div");
+    touchRow.className = "minigame-touch-keys";
+    const started = performance.now();
+    const keys: string[] = [];
+    const pressElapsedMs: number[] = [];
+    await new Promise<void>((resolve, reject) => {
+      play.onAbort.push(resolve);
+      const pushKey = (key: string) => {
+        if (play.aborted) return;
+        keys.push(key);
+        pressElapsedMs.push(Math.round(performance.now() - started));
+        const idx = keys.length - 1;
+        if (kbds[idx]) {
+          kbds[idx]!.classList.remove("next");
+          kbds[idx]!.classList.add("done");
+        }
+        if (kbds[idx + 1]) kbds[idx + 1]!.classList.add("next");
+        if (keys.length >= pub.combo.length) {
+          if (play.keydown) {
+            window.removeEventListener("keydown", play.keydown);
+            play.keydown = null;
           }
-          resolve();
-        })
-        .catch(reject);
-    };
-    btn.onpointerdown = (e) => {
-      e.preventDefault();
-      down = performance.now();
-      btn.textContent = "Watering…";
-    };
-    btn.onpointerup = () => {
-      if (!down) return;
-      end(Math.round(performance.now() - down));
-    };
-    btn.onpointerleave = () => {
-      if (!down) return;
-      end(Math.round(performance.now() - down));
-    };
-  });
-  root.hidden = true;
-  onDone();
-}
-
-export async function playCook(root: HTMLElement, onDone: () => void) {
-  const start = await sessionApi<StartResponse>("/api/activity/attempt/start", {
-    owner: app.owner,
-    activity: "cook",
-  });
-  const pub = start.public as {
-    scrambled: string[];
-    timeLimitMs: number;
-    count: number;
-  };
-  mountShell(
-    root,
-    `Tap ingredients in the secret recipe order (${pub.count} steps).`,
-  );
-  const row = document.createElement("div");
-  row.className = "cook-ingredients";
-  const picked: string[] = [];
-  const pickElapsedMs: number[] = [];
-  const started = performance.now();
-  await new Promise<void>((resolve, reject) => {
-    pub.scrambled.forEach((name) => {
-      const b = document.createElement("button");
-      b.className = "secondary";
-      b.textContent = name;
-      b.onclick = () => {
-        picked.push(name);
-        pickElapsedMs.push(Math.round(performance.now() - started));
-        b.disabled = true;
-        if (picked.length >= pub.count) {
           void sessionApi<FinishResponse>("/api/activity/attempt/finish", {
             id: start.id,
             owner: app.owner,
-            input: { picked, pickElapsedMs },
+            input: { keys, pressElapsedMs },
           })
             .then(async (finish) => {
-              if (!finish.ok)
-                notice(finish.message || "Wrong order — no signature.", true);
-              else if (finish.claim_message) {
-                notice(finish.message || "Dish ready!");
+              if (play.aborted) {
+                resolve();
+                return;
+              }
+              if (!finish.ok) {
+                notice(finish.message || "Combo failed — no signature.", true);
+              } else if (finish.claim_message) {
+                notice(finish.message || "Vein cracked!");
                 try {
-                  await claimAttempt(start.id, finish.claim_message, "cook");
+                  await claimAttempt(
+                    start.id,
+                    finish.claim_message,
+                    "mining",
+                    play,
+                  );
                 } catch (e) {
                   notice(e instanceof Error ? e.message : "Claim failed", true);
                 }
@@ -504,23 +369,397 @@ export async function playCook(root: HTMLElement, onDone: () => void) {
             .catch(reject);
         }
       };
-      row.append(b);
+      const onKey = (event: KeyboardEvent) => {
+        const key = event.key.toLowerCase();
+        if (key.length !== 1) return;
+        event.preventDefault();
+        pushKey(key);
+      };
+      for (const label of ["q", "w", "e", "a", "s", "d"]) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "secondary";
+        b.textContent = label.toUpperCase();
+        b.onclick = () => pushKey(label);
+        touchRow.append(b);
+      }
+      root.append(touchRow);
+      trackKeydown(play, onKey);
+      trackTimeout(
+        play,
+        () => {
+          if (play.aborted || keys.length >= pub.combo.length) return;
+          if (play.keydown) {
+            window.removeEventListener("keydown", play.keydown);
+            play.keydown = null;
+          }
+          void sessionApi<FinishResponse>("/api/activity/attempt/finish", {
+            id: start.id,
+            owner: app.owner,
+            input: { keys, pressElapsedMs },
+          })
+            .then((finish) => {
+              if (play.aborted) {
+                resolve();
+                return;
+              }
+              notice(finish.message || "Too slow — attempt used.", true);
+              resolve();
+            })
+            .catch(reject);
+        },
+        pub.timeLimitMs + 50,
+      );
     });
-    root.append(row);
-    window.setTimeout(() => {
-      if (picked.length >= pub.count) return;
-      void sessionApi<FinishResponse>("/api/activity/attempt/finish", {
-        id: start.id,
+  } finally {
+    finishPlay(root, onDone, play);
+  }
+}
+
+export async function playRacing(root: HTMLElement, onDone: () => void) {
+  const play = beginPlay();
+  try {
+    const start = await sessionApi<StartResponse>(
+      "/api/activity/attempt/start",
+      {
         owner: app.owner,
-        input: { picked, pickElapsedMs },
-      }).then((finish) => {
-        notice(finish.message || "Too slow — attempt used.", true);
-        resolve();
-      }, reject);
-    }, pub.timeLimitMs + 30);
-  });
-  root.hidden = true;
-  onDone();
+        activity: "racing",
+      },
+    );
+    if (play.aborted) return;
+    const pub = start.public as { beatsMs: number[]; windowMs: number };
+    mountShell(root, "Tap / click on each beat flash.");
+    const pad = document.createElement("button");
+    pad.textContent = "Tap!";
+    pad.style.minHeight = "64px";
+    root.append(pad);
+    const started = performance.now();
+    const taps: number[] = [];
+    for (const ms of pub.beatsMs) {
+      trackTimeout(
+        play,
+        () => {
+          if (play.aborted) return;
+          pad.classList.add("secondary");
+          pad.textContent = "NOW";
+          trackTimeout(
+            play,
+            () => {
+              if (play.aborted) return;
+              pad.classList.remove("secondary");
+              pad.textContent = "Tap!";
+            },
+            pub.windowMs,
+          );
+        },
+        ms,
+      );
+    }
+    await new Promise<void>((resolve, reject) => {
+      play.onAbort.push(resolve);
+      pad.onclick = () => {
+        if (play.aborted) return;
+        taps.push(Math.round(performance.now() - started));
+        if (taps.length >= pub.beatsMs.length) {
+          clearPlayHandles(play);
+          void sessionApi<FinishResponse>("/api/activity/attempt/finish", {
+            id: start.id,
+            owner: app.owner,
+            input: { tapElapsedMs: taps },
+          })
+            .then(async (finish) => {
+              if (play.aborted) {
+                resolve();
+                return;
+              }
+              if (!finish.ok)
+                notice(finish.message || "Off-beat — no signature.", true);
+              else if (finish.claim_message) {
+                notice(finish.message || "Photo finish!");
+                try {
+                  await claimAttempt(
+                    start.id,
+                    finish.claim_message,
+                    "racing",
+                    play,
+                  );
+                } catch (e) {
+                  notice(e instanceof Error ? e.message : "Claim failed", true);
+                }
+              }
+              resolve();
+            })
+            .catch(reject);
+        }
+      };
+    });
+  } finally {
+    finishPlay(root, onDone, play);
+  }
+}
+
+export async function playTreasure(root: HTMLElement, onDone: () => void) {
+  const play = beginPlay();
+  try {
+    const start = await sessionApi<StartResponse>(
+      "/api/activity/attempt/start",
+      {
+        owner: app.owner,
+        activity: "treasure",
+      },
+    );
+    if (play.aborted) return;
+    const pub = start.public as {
+      gridSize: number;
+      flashMs: number;
+      spot: number;
+    };
+    mountShell(root, "Memorize the glowing tile, then dig it.");
+    const grid = document.createElement("div");
+    grid.className = "treasure-grid";
+    const buttons: HTMLButtonElement[] = [];
+    for (let i = 0; i < pub.gridSize; i++) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = "·";
+      b.disabled = true;
+      grid.append(b);
+      buttons.push(b);
+    }
+    root.append(grid);
+    buttons[pub.spot]!.classList.add("flash");
+    buttons[pub.spot]!.textContent = "★";
+    const started = performance.now();
+    await new Promise<void>((resolve) => {
+      play.onAbort.push(resolve);
+      trackTimeout(play, resolve, pub.flashMs);
+    });
+    if (play.aborted) return;
+    buttons.forEach((b) => {
+      b.classList.remove("flash");
+      b.textContent = "?";
+      b.disabled = false;
+    });
+    await new Promise<void>((resolve, reject) => {
+      play.onAbort.push(resolve);
+      buttons.forEach((b, guess) => {
+        b.onclick = () => {
+          if (play.aborted) return;
+          buttons.forEach((x) => (x.disabled = true));
+          void sessionApi<FinishResponse>("/api/activity/attempt/finish", {
+            id: start.id,
+            owner: app.owner,
+            input: {
+              guess,
+              guessElapsedMs: Math.round(performance.now() - started),
+            },
+          })
+            .then(async (finish) => {
+              if (play.aborted) {
+                resolve();
+                return;
+              }
+              if (!finish.ok)
+                notice(finish.message || "Empty dirt — no signature.", true);
+              else if (finish.claim_message) {
+                notice(finish.message || "Something sparkled!");
+                try {
+                  await claimAttempt(
+                    start.id,
+                    finish.claim_message,
+                    "treasure",
+                    play,
+                  );
+                } catch (e) {
+                  notice(e instanceof Error ? e.message : "Claim failed", true);
+                }
+              }
+              resolve();
+            })
+            .catch(reject);
+        };
+      });
+    });
+  } finally {
+    finishPlay(root, onDone, play);
+  }
+}
+
+export async function playGarden(root: HTMLElement, onDone: () => void) {
+  const play = beginPlay();
+  try {
+    const start = await sessionApi<StartResponse>(
+      "/api/activity/attempt/start",
+      {
+        owner: app.owner,
+        activity: "garden",
+      },
+    );
+    if (play.aborted) return;
+    const pub = start.public as { targetHoldMs: number; windowMs: number };
+    mountShell(
+      root,
+      `Hold Water for about ${Math.round(pub.targetHoldMs / 100) / 10}s, then release.`,
+    );
+    const btn = document.createElement("button");
+    btn.textContent = "Hold to water";
+    root.append(btn);
+    let down = 0;
+    await new Promise<void>((resolve, reject) => {
+      play.onAbort.push(resolve);
+      const end = (holdMs: number) => {
+        if (play.aborted) {
+          resolve();
+          return;
+        }
+        void sessionApi<FinishResponse>("/api/activity/attempt/finish", {
+          id: start.id,
+          owner: app.owner,
+          input: { holdMs },
+        })
+          .then(async (finish) => {
+            if (play.aborted) {
+              resolve();
+              return;
+            }
+            if (!finish.ok)
+              notice(
+                finish.message || "Over/under watered — no signature.",
+                true,
+              );
+            else if (finish.claim_message) {
+              notice(finish.message || "Fresh greens!");
+              try {
+                await claimAttempt(
+                  start.id,
+                  finish.claim_message,
+                  "garden",
+                  play,
+                );
+              } catch (e) {
+                notice(e instanceof Error ? e.message : "Claim failed", true);
+              }
+            }
+            resolve();
+          })
+          .catch(reject);
+      };
+      btn.onpointerdown = (e) => {
+        e.preventDefault();
+        down = performance.now();
+        btn.textContent = "Watering…";
+      };
+      btn.onpointerup = () => {
+        if (!down) return;
+        end(Math.round(performance.now() - down));
+      };
+      btn.onpointerleave = () => {
+        if (!down) return;
+        end(Math.round(performance.now() - down));
+      };
+    });
+  } finally {
+    finishPlay(root, onDone, play);
+  }
+}
+
+export async function playCook(root: HTMLElement, onDone: () => void) {
+  const play = beginPlay();
+  try {
+    const start = await sessionApi<StartResponse>(
+      "/api/activity/attempt/start",
+      {
+        owner: app.owner,
+        activity: "cook",
+      },
+    );
+    if (play.aborted) return;
+    const pub = start.public as {
+      scrambled: string[];
+      timeLimitMs: number;
+      count: number;
+    };
+    mountShell(
+      root,
+      `Tap ingredients in the secret recipe order (${pub.count} steps).`,
+    );
+    const row = document.createElement("div");
+    row.className = "cook-ingredients";
+    const picked: string[] = [];
+    const pickElapsedMs: number[] = [];
+    const started = performance.now();
+    await new Promise<void>((resolve, reject) => {
+      play.onAbort.push(resolve);
+      pub.scrambled.forEach((name) => {
+        const b = document.createElement("button");
+        b.className = "secondary";
+        b.textContent = name;
+        b.onclick = () => {
+          if (play.aborted) return;
+          picked.push(name);
+          pickElapsedMs.push(Math.round(performance.now() - started));
+          b.disabled = true;
+          if (picked.length >= pub.count) {
+            clearPlayHandles(play);
+            void sessionApi<FinishResponse>("/api/activity/attempt/finish", {
+              id: start.id,
+              owner: app.owner,
+              input: { picked, pickElapsedMs },
+            })
+              .then(async (finish) => {
+                if (play.aborted) {
+                  resolve();
+                  return;
+                }
+                if (!finish.ok)
+                  notice(finish.message || "Wrong order — no signature.", true);
+                else if (finish.claim_message) {
+                  notice(finish.message || "Dish ready!");
+                  try {
+                    await claimAttempt(
+                      start.id,
+                      finish.claim_message,
+                      "cook",
+                      play,
+                    );
+                  } catch (e) {
+                    notice(
+                      e instanceof Error ? e.message : "Claim failed",
+                      true,
+                    );
+                  }
+                }
+                resolve();
+              })
+              .catch(reject);
+          }
+        };
+        row.append(b);
+      });
+      root.append(row);
+      trackTimeout(
+        play,
+        () => {
+          if (play.aborted || picked.length >= pub.count) return;
+          void sessionApi<FinishResponse>("/api/activity/attempt/finish", {
+            id: start.id,
+            owner: app.owner,
+            input: { picked, pickElapsedMs },
+          }).then((finish) => {
+            if (play.aborted) {
+              resolve();
+              return;
+            }
+            notice(finish.message || "Too slow — attempt used.", true);
+            resolve();
+          }, reject);
+        },
+        pub.timeLimitMs + 30,
+      );
+    });
+  } finally {
+    finishPlay(root, onDone, play);
+  }
 }
 
 export function wireActivityButton(opts: {

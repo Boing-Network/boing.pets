@@ -22,6 +22,16 @@ export type ClaimRewardResult = {
 
 export type RewardLine = { key: string; label: string; value: string };
 
+/** Prefer the activity the player just finished so a stale or mocked
+ * payload cannot retitle another area's reward modal. */
+export function claimResultForActivity(
+  result: ClaimRewardResult,
+  activity?: string,
+): ClaimRewardResult {
+  if (!activity) return result;
+  return { ...result, activity };
+}
+
 export function formatRewardBreakdown(result: ClaimRewardResult): {
   activityTitle: string;
   itemName: string;
