@@ -9,6 +9,7 @@ import {
   pastureNameplateVisible,
   pasturePetLabel,
 } from "../../pasture3d/labels";
+import { pastureHopOffset } from "../../pasture3d/pastureGround";
 import { worldSafeText } from "../lib/worldFont";
 import {
   UNIT_SPHERE,
@@ -76,9 +77,11 @@ export function PetMesh({
     }
     if (!hop.current || reducedMotion) return;
     const isMoving = movingRef?.current ?? moving;
-    hop.current.position.y =
-      Math.sin(clock.elapsedTime * (isMoving ? 11 : 2.4)) *
-      (isMoving ? 0.1 : 0.04);
+    hop.current.position.y = pastureHopOffset(
+      clock.elapsedTime,
+      isMoving,
+      reducedMotion,
+    );
     hop.current.rotation.z = isMoving
       ? Math.sin(clock.elapsedTime * 11) * 0.06
       : Math.sin(clock.elapsedTime * 2.4) * 0.02;

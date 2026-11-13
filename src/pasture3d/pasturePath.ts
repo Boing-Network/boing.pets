@@ -7,7 +7,7 @@ import { pointToSegment } from "./meadowLayout";
 export const MAIN_PATH_HALF = 1.1;
 export const SIDE_PATH_HALF = 0.775;
 export const PATH_FEATHER = 0.9;
-export const PATH_LIFT = 0.02;
+export const PATH_LIFT = 0.03;
 
 export function pathHalfWidth(index: number): number {
   return index < 2 ? MAIN_PATH_HALF : SIDE_PATH_HALF;

@@ -7,7 +7,7 @@ export const PASTURE_ZOOM_MIN = 6;
 export const PASTURE_ZOOM_MAX = 58;
 export const PASTURE_ZOOM_DEFAULT = 18;
 export const PASTURE_CAM_CLEARANCE = 1.25;
-export const PASTURE_CAM_PITCH = 0.56;
+export const PASTURE_CAM_PITCH = 0.64;
 
 export type Vec3 = { x: number; y: number; z: number };
 
@@ -63,6 +63,11 @@ export function liftCameraAboveTerrain(
   clearance = PASTURE_CAM_CLEARANCE,
 ): number {
   return Math.max(y, cameraMinHeight(terrainY, clearance));
+}
+
+/** Yaw that places the camera behind the pet (looking along its facing). */
+export function cameraBehindYaw(petYaw: number): number {
+  return petYaw + Math.PI;
 }
 
 export function cameraOffset(

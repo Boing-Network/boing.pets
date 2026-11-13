@@ -14,6 +14,7 @@ import {
   MEADOW_TALL_GRASS_PATCHES,
   MEADOW_TREE_SPOTS,
   PASTURE_GROUND_RADIUS,
+  distanceToPasturePath,
 } from "./meadowLayout";
 import { applyMeadowWind } from "./meadowWind";
 
@@ -29,6 +30,7 @@ function mulberry(seed: number) {
 
 function isDecorClear(x: number, z: number) {
   if (Math.abs(x) < 1.2 || Math.abs(z) < 1.2) return false;
+  if (distanceToPasturePath(x, z) < 1.8) return false;
   for (const spot of PASTURE_FLATTEN) {
     if (Math.hypot(x - spot.x, z - spot.z) < spot.radius * 0.72) return false;
   }

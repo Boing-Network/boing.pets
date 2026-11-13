@@ -16,6 +16,7 @@ export interface LivePose {
   x: number;
   y: number;
   z: number;
+  yaw?: number;
 }
 
 export function Player({

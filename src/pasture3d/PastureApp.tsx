@@ -28,6 +28,7 @@ import {
 } from "./pathing";
 import { approachSpeed, desiredWalkSpeed, lerpAngle, retarget } from "./motion";
 import { meadowHeight } from "./meadowHeight";
+import { pasturePetY } from "./pastureGround";
 import { Meadow } from "./Meadow";
 import { PastureStations } from "./PastureStations";
 import { PastureActivityAreas } from "./PastureActivityAreas";
@@ -58,6 +59,7 @@ import {
 import {
   PASTURE_ZOOM_DEFAULT,
   cameraOccludersForZone,
+  cameraBehindYaw,
   clampZoom,
   resolveFollowCamera,
   zoomBySteps,
@@ -143,7 +145,13 @@ export function PastureApp({
       const pose = owner
         ? seedPose(owner, 0, PASTURE_ZONE)
         : { x: PASTURE_ZONE.spawn.x, z: PASTURE_ZONE.spawn.z };
-      return { zone: PASTURE_ZONE.id, x: pose.x, y: 0, z: pose.z };
+      return {
+        zone: PASTURE_ZONE.id,
+        x: pose.x,
+        y: pasturePetY(pose.x, pose.z),
+        z: pose.z,
+        yaw: 0,
+      };
     })(),
   );
   const walkTarget = useRef<Vec2 | null>(null);
@@ -789,14 +797,44 @@ function FollowCamera({
   const lookTarget = useMemo(() => new THREE.Vector3(), []);
   const boxes = useMemo(() => cameraOccludersForZone(PASTURE_ZONE), []);
   const started = useRef(false);
+  const camYaw = useRef(0);
+  const followStarted = useRef(false);
 
   useFrame((state, delta) => {
     const pose = followOwner
       ? livePose.current
-      : { x: PASTURE_ZONE.spawn.x, y: 0, z: PASTURE_ZONE.spawn.z };
+      : { x: PASTURE_ZONE.spawn.x, y: 0, z: PASTURE_ZONE.spawn.z, yaw: 0 };
     const ground = meadowHeight(pose.x, pose.z);
-    const look = { x: pose.x, y: ground + 1.15, z: pose.z };
-    const cam = resolveFollowCamera(look, zoomRef.current, meadowHeight, boxes);
+    const petYaw = followOwner ? (pose.yaw ?? 0) : 0;
+    const fromSpawn = Math.hypot(
+      pose.x - PASTURE_ZONE.spawn.x,
+      pose.z - PASTURE_ZONE.spawn.z,
+    );
+    if (followOwner && fromSpawn > 0.6) followStarted.current = true;
+    const desiredYaw = followStarted.current ? cameraBehindYaw(petYaw) : 0;
+    if (!started.current || reducedMotion) camYaw.current = desiredYaw;
+    else {
+      camYaw.current = lerpAngle(
+        camYaw.current,
+        desiredYaw,
+        1 - Math.pow(0.12, delta),
+      );
+    }
+    const ahead = followStarted.current
+      ? Math.min(2.4, zoomRef.current * 0.1)
+      : 0;
+    const look = {
+      x: pose.x + Math.sin(petYaw) * ahead,
+      y: ground + 1.25,
+      z: pose.z + Math.cos(petYaw) * ahead,
+    };
+    const cam = resolveFollowCamera(
+      look,
+      zoomRef.current,
+      meadowHeight,
+      boxes,
+      camYaw.current,
+    );
     camTarget.set(cam.x, cam.y, cam.z);
     lookTarget.set(look.x, look.y, look.z);
     if (!started.current || reducedMotion) {
@@ -844,7 +882,7 @@ function LocalPet({
     const node = group.current;
     if (!node) return;
     if (!started.current) {
-      const y0 = meadowHeight(livePose.current.x, livePose.current.z);
+      const y0 = pasturePetY(livePose.current.x, livePose.current.z);
       node.position.set(livePose.current.x, y0, livePose.current.z);
       started.current = true;
     }
@@ -878,12 +916,13 @@ function LocalPet({
       moving.current = false;
       speed.current = approachSpeed(speed.current, 0, delta);
     }
-    node.position.y = meadowHeight(node.position.x, node.position.z);
+    node.position.y = pasturePetY(node.position.x, node.position.z);
     livePose.current = {
       zone: PASTURE_ZONE.id,
       x: node.position.x,
-      y: 0,
+      y: node.position.y,
       z: node.position.z,
+      yaw: yaw.current,
     };
   });
 
@@ -894,7 +933,7 @@ function LocalPet({
       ref={group}
       position={[
         livePose.current.x,
-        meadowHeight(livePose.current.x, livePose.current.z),
+        pasturePetY(livePose.current.x, livePose.current.z),
         livePose.current.z,
       ]}
       userData={{ pasturePet: pet.owner }}
@@ -969,7 +1008,7 @@ function WanderingPet({
     );
     node.position.x = stepped.pos.x;
     node.position.z = stepped.pos.z;
-    node.position.y = meadowHeight(node.position.x, node.position.z);
+    node.position.y = pasturePetY(node.position.x, node.position.z);
     if (stepped.yaw !== null) {
       node.rotation.y = lerpAngle(
         node.rotation.y,
@@ -983,7 +1022,7 @@ function WanderingPet({
   return (
     <group
       ref={group}
-      position={[spawn.x, meadowHeight(spawn.x, spawn.z), spawn.z]}
+      position={[spawn.x, pasturePetY(spawn.x, spawn.z), spawn.z]}
     >
       <PetMesh
         look={pet.traits}
@@ -1036,7 +1075,7 @@ function RemotePet({
     const node = group.current;
     if (!node) return;
     if (!started.current) {
-      node.position.set(player.x, meadowHeight(player.x, player.z), player.z);
+      node.position.set(player.x, pasturePetY(player.x, player.z), player.z);
       started.current = true;
     }
     const dx = player.x - node.position.x;
@@ -1045,7 +1084,7 @@ function RemotePet({
     const k = reducedMotion ? 1 : 1 - Math.pow(0.004, delta);
     node.position.x += dx * k;
     node.position.z += dz * k;
-    node.position.y = meadowHeight(node.position.x, node.position.z);
+    node.position.y = pasturePetY(node.position.x, node.position.z);
     if (dist > 0.05) {
       const targetYaw = Math.atan2(dx, dz);
       yaw.current = lerpAngle(
@@ -1061,7 +1100,7 @@ function RemotePet({
   return (
     <group
       ref={group}
-      position={[player.x, meadowHeight(player.x, player.z), player.z]}
+      position={[player.x, pasturePetY(player.x, player.z), player.z]}
     >
       <PetMesh
         look={pet.traits}

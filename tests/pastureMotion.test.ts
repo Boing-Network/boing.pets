@@ -50,14 +50,14 @@ describe("pasture motion", () => {
 });
 
 describe("meadow height", () => {
-  it("is flat at reserved landmark spots and rolls elsewhere", () => {
+  it("is level across the walkable paddock, including reserved spots", () => {
     expect(Math.abs(meadowHeight(0, 0))).toBeLessThan(0.05);
     expect(Math.abs(meadowHeight(-24, 18))).toBeLessThan(0.05);
-    expect(Math.abs(meadowHeight(14, 14))).toBeGreaterThan(0.05);
+    expect(Math.abs(meadowHeight(14, 14))).toBeLessThan(0.05);
     expect(Math.abs(meadowHeight(0, 20) - meadowHeight(0.7, 20))).toBeLessThan(
       0.08,
     );
-    expect(Math.abs(meadowHeight(26, 26))).toBeGreaterThan(0.2);
+    expect(Math.abs(meadowHeight(26, 26))).toBeLessThan(0.05);
     expect(PASTURE_FLATTEN.length).toBeGreaterThan(3);
   });
 });

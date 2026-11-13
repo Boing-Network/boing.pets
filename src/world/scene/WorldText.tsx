@@ -36,6 +36,11 @@ export function WorldText({ children, position, ...props }: Props) {
         {...{ unicodeFontsURL: WORLD_UNICODE_FONTS_URL }}
         characters="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,!?-+'#:_/()[]"
         material-side={FrontSide}
+        material-depthTest={false}
+        material-depthWrite={false}
+        renderOrder={20}
+        outlineWidth={0.015}
+        outlineColor="#142014"
         {...props}
       >
         {text}

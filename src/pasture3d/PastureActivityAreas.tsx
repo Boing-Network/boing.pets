@@ -148,7 +148,7 @@ function PondPier({ x, z, y, onInteract }: SitProps) {
         <meshStandardMaterial color="#6f9b5a" roughness={0.8} />
       </mesh>
       <WorldText
-        position={[0, 1.85, 0]}
+        position={[0, 2.55, 0]}
         fontSize={0.32}
         color="#123055"
         anchorX="center"
@@ -202,7 +202,7 @@ function TreasureDig({ x, z, y, onInteract }: SitProps) {
         <meshStandardMaterial color="#e6c36a" roughness={0.4} metalness={0.4} />
       </mesh>
       <WorldText
-        position={[0, 1.7, 0]}
+        position={[0, 2.45, 0]}
         fontSize={0.32}
         color="#123055"
         anchorX="center"
@@ -251,7 +251,7 @@ function GardenBeds({ x, z, y, onInteract }: SitProps) {
         <meshStandardMaterial color="#8a8f96" roughness={0.4} metalness={0.3} />
       </mesh>
       <WorldText
-        position={[0, 1.65, 0]}
+        position={[0, 2.4, 0]}
         fontSize={0.32}
         color="#123055"
         anchorX="center"
