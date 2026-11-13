@@ -2146,3 +2146,7 @@ a:hover {
 .leaderboard-card li {
   margin: 0 0 4px;
 }
+
+.pasture-home-menu .home-grid {
+  margin: 10px 0;
+}

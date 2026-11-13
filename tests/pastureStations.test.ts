@@ -85,6 +85,34 @@ describe("public pasture stations", () => {
     }
   });
 
+  it("adds a walk-in home plot with the 2D housing page as a fallback", () => {
+    const home = stationByKind(PASTURE_ZONE, "home");
+    expect(home?.position).toEqual({ x: 28, y: 0, z: 4 });
+    expect(home?.careHref).toBe("/home.html");
+    expect(stationActionLabel(home!)).toMatch(/home/i);
+    const land = PASTURE_ZONE.landmarks.find(
+      (item) => item.id === "home-plot",
+    )!;
+    expect(land.height).toBeLessThan(1);
+    expect(isCustomPastureLandmark("home-plot")).toBe(true);
+    expect(PASTURE_FLATTEN.some((spot) => spot.x === 28 && spot.z === 4)).toBe(
+      true,
+    );
+    const blocked = obstacles.some(
+      (item) =>
+        Math.hypot(item.x - 28, item.z - 4) < 1.2 &&
+        ("solid" in item ? item.solid : true),
+    );
+    // The patio must stay walkable (low landmark, not a solid obstacle).
+    const resolved = resolveClickTarget(
+      { x: 28, z: 4 },
+      PASTURE_ZONE,
+      obstacles,
+    );
+    expect(Math.hypot(resolved.x - 28, resolved.z - 4)).toBeLessThan(0.6);
+    expect(blocked).toBe(false);
+  });
+
   it("opens only when the player is inside the interact radius", () => {
     expect(nearbyInteractStation({ x: 0, z: 6 }, PASTURE_ZONE)).toBeNull();
     expect(

@@ -5,7 +5,9 @@ import type { WorldStation, WorldZoneConfig } from "../world/config/zones";
 export type DeskStationKind = "craft" | "market" | "customize";
 export type ActivityStationKind =
   "mine" | "fish" | "treasure" | "garden" | "cook" | "race";
-export type PastureStationKind = DeskStationKind | ActivityStationKind;
+export type HomeStationKind = "home";
+export type PastureStationKind =
+  DeskStationKind | ActivityStationKind | HomeStationKind;
 
 export const DESK_STATION_KINDS: readonly DeskStationKind[] = [
   "craft",
@@ -25,6 +27,7 @@ export const ACTIVITY_STATION_KINDS: readonly ActivityStationKind[] = [
 export const PASTURE_STATION_KINDS: readonly PastureStationKind[] = [
   ...DESK_STATION_KINDS,
   ...ACTIVITY_STATION_KINDS,
+  "home",
 ];
 
 export const CUSTOM_PASTURE_LANDMARK_IDS = [
@@ -37,6 +40,7 @@ export const CUSTOM_PASTURE_LANDMARK_IDS = [
   "garden-beds",
   "kitchen-hut",
   "race-gate",
+  "home-plot",
 ] as const;
 
 export function isDeskStationKind(
@@ -54,7 +58,9 @@ export function isActivityStationKind(
 export function isPastureStationKind(
   kind: WorldStation["kind"],
 ): kind is PastureStationKind {
-  return isDeskStationKind(kind) || isActivityStationKind(kind);
+  return (
+    isDeskStationKind(kind) || isActivityStationKind(kind) || kind === "home"
+  );
 }
 
 export function isCustomPastureLandmark(id: string): boolean {
@@ -113,6 +119,7 @@ export function stationPrompt(station: WorldStation): string {
   if (station.kind === "garden") return "Press E to tend the garden";
   if (station.kind === "cook") return "Press E to cook";
   if (station.kind === "race") return "Press E to race";
+  if (station.kind === "home") return "Press E to open your home plot";
   return station.hint;
 }
 
@@ -126,5 +133,6 @@ export function stationActionLabel(station: WorldStation): string {
   if (station.kind === "garden") return "Tend garden";
   if (station.kind === "cook") return "Cook";
   if (station.kind === "race") return "Race";
+  if (station.kind === "home") return "Open home plot";
   return "Interact";
 }

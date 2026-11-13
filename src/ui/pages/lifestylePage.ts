@@ -1,5 +1,5 @@
 import { playSfx, type SfxName } from "../../audio";
-import { api, app, $, notice } from "../appRuntime";
+import { api, app, $, $maybe, notice } from "../appRuntime";
 import { assertWallet, run } from "../careActions";
 import { refreshEconomy } from "./progressPage";
 import {
@@ -313,6 +313,24 @@ export async function refreshKitchen() {
   }
 }
 
+export type HousingPlotView = {
+  grid: number;
+  plot: { visibility: string } | null;
+  private?: boolean;
+  placements: Array<{ id: string; item_id: string; x: number; y: number }>;
+  furniture: Array<{ item_id: string; qty: number; name: string }>;
+};
+
+export async function loadHousingPlot(
+  owner: string | null,
+  viewer = owner,
+): Promise<HousingPlotView> {
+  const query = owner
+    ? "?owner=" + owner + (viewer ? "&viewer=" + viewer : "")
+    : "";
+  return api<HousingPlotView>("/api/housing/plot" + query);
+}
+
 export async function housingAct(
   kind: string,
   extra: Record<string, unknown> = {},
@@ -334,22 +352,15 @@ export async function housingAct(
 }
 
 export async function refreshHousing() {
-  const data = await api<{
-    grid: number;
-    plot: { visibility: string } | null;
-    private?: boolean;
-    placements: Array<{ id: string; item_id: string; x: number; y: number }>;
-    furniture: Array<{ item_id: string; qty: number; name: string }>;
-  }>(
-    "/api/housing/plot" +
-      (app.owner ? `?owner=${app.owner}&viewer=${app.owner}` : ""),
-  );
-  const visBtn = $("#home-visibility") as HTMLButtonElement;
+  const gridEl = $maybe("#home-grid");
+  if (!gridEl) return;
+  const data = await loadHousingPlot(app.owner || null);
+  const visBtn = $maybe("#home-visibility") as HTMLButtonElement | null;
   if (!app.owner || !data.plot) {
     $("#home-summary").textContent = app.owner
       ? "Hatch a buddy to unlock your home plot."
       : "Connect Express to claim a public 4×4 home plot.";
-    visBtn.hidden = true;
+    if (visBtn) visBtn.hidden = true;
     $("#home-grid").replaceChildren();
     ($("#home-furniture") as HTMLSelectElement).replaceChildren(
       new Option("Select owned furniture…", ""),
@@ -359,12 +370,14 @@ export async function refreshHousing() {
   $("#home-summary").textContent = data.private
     ? "This home is private."
     : `Your plot is ${data.plot.visibility}. ${data.furniture.length} furniture stack(s) ready to place.`;
-  visBtn.hidden = false;
-  visBtn.disabled = app.busy;
-  visBtn.textContent =
-    data.plot.visibility === "public"
-      ? "Make private · sign"
-      : "Make public · sign";
+  if (visBtn) {
+    visBtn.hidden = false;
+    visBtn.disabled = app.busy;
+    visBtn.textContent =
+      data.plot.visibility === "public"
+        ? "Make private · sign"
+        : "Make public · sign";
+  }
   const select = $("#home-furniture") as HTMLSelectElement;
   select.replaceChildren(new Option("Select owned furniture…", ""));
   for (const stack of data.furniture) {

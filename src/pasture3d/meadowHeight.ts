@@ -22,6 +22,7 @@ export const PASTURE_FLATTEN: readonly FlattenSpot[] = [
   { x: 12, z: 28, radius: 3.4 },
   { x: -22, z: 26, radius: 3.4 },
   { x: -12, z: -32, radius: 3.4 },
+  { x: 28, z: 4, radius: 3.6 },
 ];
 
 const PATH_FLATTEN_RADIUS = 1.7;

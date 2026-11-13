@@ -20,7 +20,8 @@ export interface WorldStation {
     | "treasure"
     | "garden"
     | "cook"
-    | "race";
+    | "race"
+    | "home";
   position: WorldPoint;
   radius: number;
   hint: string;
@@ -451,6 +452,15 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       width: 3.2,
       depth: 1.8,
     },
+    {
+      id: "home-plot",
+      label: "Home Plot",
+      position: { x: 28, y: 0, z: 4 },
+      color: "#e8d5b0",
+      height: 0.18,
+      width: 5.2,
+      depth: 5.2,
+    },
   ],
   stations: [
     {
@@ -532,6 +542,15 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       position: { x: -12, y: 0, z: -32 },
       radius: 3.4,
       hint: "Press E to race",
+    },
+    {
+      id: "pasture-home",
+      label: "Home Plot",
+      kind: "home",
+      position: { x: 28, y: 0, z: 4 },
+      radius: 3.4,
+      hint: "Walk onto your plot to place furniture. The 2D home page is still a fallback.",
+      careHref: "/home.html",
     },
   ],
   paths: [

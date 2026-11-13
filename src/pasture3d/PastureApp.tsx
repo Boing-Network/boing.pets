@@ -36,6 +36,7 @@ import { PastureCraftMenu } from "./PastureCraftMenu";
 import { PastureMarketMenu } from "./PastureMarketMenu";
 import { PastureCustomizeMenu } from "./PastureCustomizeMenu";
 import { PastureActivityMenu } from "./PastureActivityMenu";
+import { PastureHomeMenu } from "./PastureHomeMenu";
 import {
   isActivityStationKind,
   isPastureStationKind,
@@ -685,6 +686,8 @@ export function PastureApp({
               kind={stationMenu}
               onClose={closeStationMenu}
             />
+          ) : stationMenu === "home" ? (
+            <PastureHomeMenu onClose={closeStationMenu} />
           ) : null}
         </div>
       ) : null}

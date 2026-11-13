@@ -276,6 +276,68 @@ function DressingStand({
   );
 }
 
+function HomePlot({
+  x,
+  z,
+  y,
+  onInteract,
+}: {
+  x: number;
+  z: number;
+  y: number;
+  onInteract: (event: ThreeEvent<PointerEvent>) => void;
+}) {
+  return (
+    <group position={[x, y, z]} onPointerDown={onInteract}>
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, 0.03, 0]}
+        receiveShadow
+      >
+        <planeGeometry args={[5.2, 5.2]} />
+        <meshStandardMaterial color="#e8d5b0" roughness={0.9} />
+      </mesh>
+      {[-1.5, -0.5, 0.5, 1.5].flatMap((gx) =>
+        [-1.5, -0.5, 0.5, 1.5].map((gz) => (
+          <mesh
+            key={gx + ":" + gz}
+            rotation={[-Math.PI / 2, 0, 0]}
+            position={[gx, 0.04, gz]}
+          >
+            <planeGeometry args={[0.88, 0.88]} />
+            <meshStandardMaterial
+              color="#f3e6c8"
+              roughness={0.85}
+              transparent
+              opacity={0.85}
+            />
+          </mesh>
+        )),
+      )}
+      {[
+        [-2.4, -2.4],
+        [2.4, -2.4],
+        [-2.4, 2.4],
+        [2.4, 2.4],
+      ].map(([px, pz]) => (
+        <mesh key={px + ":" + pz} position={[px, 0.35, pz]}>
+          <boxGeometry args={[0.16, 0.7, 0.16]} />
+          <meshStandardMaterial color="#8b5a2b" roughness={0.7} />
+        </mesh>
+      ))}
+      <PastureWorldText
+        position={[0, 1.15, 0]}
+        fontSize={0.32}
+        color="#5a3a1c"
+        outlineWidth={0.022}
+        outlineColor="#ffffff"
+      >
+        Home Plot
+      </PastureWorldText>
+    </group>
+  );
+}
+
 export function PastureStations({
   onInteract,
 }: {
@@ -285,9 +347,11 @@ export function PastureStations({
   const craft = PASTURE_ZONE.stations.find((s) => s.kind === "craft");
   const market = PASTURE_ZONE.stations.find((s) => s.kind === "market");
   const customize = PASTURE_ZONE.stations.find((s) => s.kind === "customize");
+  const home = PASTURE_ZONE.stations.find((s) => s.kind === "home");
   const craftLand = landmarkFor("crafting-station");
   const marketLand = landmarkFor("market-stall");
   const customizeLand = landmarkFor("customization-station");
+  const homeLand = landmarkFor("home-plot");
   const handle =
     (station: WorldStation | undefined) =>
     (event: ThreeEvent<PointerEvent>) => {
@@ -318,6 +382,14 @@ export function PastureStations({
           z={customizeLand.position.z}
           y={meadowHeight(customizeLand.position.x, customizeLand.position.z)}
           onInteract={handle(customize)}
+        />
+      ) : null}
+      {home && homeLand ? (
+        <HomePlot
+          x={homeLand.position.x}
+          z={homeLand.position.z}
+          y={meadowHeight(homeLand.position.x, homeLand.position.z)}
+          onInteract={handle(home)}
         />
       ) : null}
     </group>
