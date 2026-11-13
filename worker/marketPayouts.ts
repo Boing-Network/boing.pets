@@ -22,6 +22,7 @@ import {
   payoutSubmitBalanceRequired,
 } from "../src/market";
 import { bytesToHex, hex64 } from "../src/content/onchainItems";
+import { rpc as rpcCall, RpcRejected } from "./rpc";
 
 const CHAIN_ID = 6913;
 const RETRY_AFTER_MS = 15_000;
@@ -72,16 +73,6 @@ class HttpError extends Error {
   }
 }
 
-class RpcRejected extends Error {
-  constructor(
-    public code: number,
-    message: string,
-    public data: unknown,
-  ) {
-    super(message);
-  }
-}
-
 const adminCache = new Map<string, string>();
 
 export async function operatorSigner(
@@ -105,29 +96,12 @@ export async function operatorSigner(
 }
 
 async function rpc<T>(env: Env, method: string, params: unknown[]): Promise<T> {
-  let body: {
-    result?: T;
-    error?: { code?: number; message?: string; data?: unknown };
-  };
   try {
-    const r = await fetch(env.RPC_URL, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-      signal: AbortSignal.timeout(15_000),
-    });
-    if (!r.ok) throw new Error("HTTP error");
-    body = (await r.json()) as typeof body;
-  } catch {
+    return await rpcCall<T>(env, method, params);
+  } catch (error) {
+    if (error instanceof RpcRejected) throw error;
     throw new Error("Testnet RPC is unavailable");
   }
-  if (body.error)
-    throw new RpcRejected(
-      Number(body.error.code ?? 0),
-      String(body.error.message ?? "RPC rejected request"),
-      body.error.data,
-    );
-  return body.result as T;
 }
 
 function isAlreadyKnown(e: unknown) {

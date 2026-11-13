@@ -1460,3 +1460,23 @@ describe("Pets API", () => {
     );
   });
 });
+
+describe("public content GETs stay off the RPC", () => {
+  it("serves collections, dailies, and weekly boards without touching the chain", async () => {
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockClear();
+    const collections = await request("/api/content/collections");
+    const dailies = await request("/api/content/dailies");
+    const boards = await request("/api/content/leaderboards");
+    expect(collections.status).toBe(200);
+    expect(dailies.status).toBe(200);
+    expect(boards.status).toBe(200);
+    const col = (await collections.json()) as { defs: unknown[] };
+    expect(col.defs.length).toBeGreaterThan(0);
+    const lb = (await boards.json()) as {
+      current: { boards: unknown[] };
+    };
+    expect(lb.current.boards).toHaveLength(2);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});

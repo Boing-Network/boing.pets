@@ -21,6 +21,8 @@ function classify(pathname: string): { name: string; limit: number } {
   return { name: "other", limit: 180 };
 }
 
+let lastPurgeWindow = 0;
+
 export async function enforceIpRateLimit(
   req: Request,
   env: Env,
@@ -31,14 +33,20 @@ export async function enforceIpRateLimit(
   const windowStart = Math.floor(now / 60_000) * 60_000;
   const ip = clientIp(req);
   const bucketKey = `${ip}:${name}:${windowStart}`;
-  try {
-    await env.DB.prepare(
-      "DELETE FROM rate_limit_buckets WHERE window_start < ?",
-    )
-      .bind(windowStart - 5 * 60_000)
-      .run();
-  } catch {
-    /* table may be missing until migration 0017 */
+  // Avoid a write-lock on every request (this was starving content GETs
+  // when a pasture enrich held the local D1). Purge stale buckets at most
+  // once a minute.
+  if (windowStart !== lastPurgeWindow) {
+    lastPurgeWindow = windowStart;
+    try {
+      await env.DB.prepare(
+        "DELETE FROM rate_limit_buckets WHERE window_start < ?",
+      )
+        .bind(windowStart - 5 * 60_000)
+        .run();
+    } catch {
+      /* table may be missing until migration 0017 */
+    }
   }
   try {
     await env.DB.prepare(

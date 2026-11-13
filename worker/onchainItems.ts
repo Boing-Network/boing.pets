@@ -39,6 +39,7 @@ import {
   storageWordQty,
 } from "../src/content/onchainItems";
 import { hex32 } from "../src/core";
+import { mapPool, rpc as rpcCall, RpcRejected } from "./rpc";
 
 const CHAIN_ID = 6913;
 /** Resubmit unresolved signed withdrawal txs at most this often. */
@@ -48,16 +49,6 @@ class HttpError extends Error {
   constructor(
     public status: number,
     message: string,
-  ) {
-    super(message);
-  }
-}
-
-class RpcRejected extends Error {
-  constructor(
-    public code: number,
-    message: string,
-    public data: unknown,
   ) {
     super(message);
   }
@@ -109,29 +100,12 @@ export async function onchainConfig(env: Env): Promise<Config | null> {
 }
 
 async function rpc<T>(env: Env, method: string, params: unknown[]): Promise<T> {
-  let body: {
-    result?: T;
-    error?: { code?: number; message?: string; data?: unknown };
-  };
   try {
-    const r = await fetch(env.RPC_URL, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-      signal: AbortSignal.timeout(15_000),
-    });
-    if (!r.ok) throw new Error("HTTP error");
-    body = (await r.json()) as typeof body;
-  } catch {
+    return await rpcCall<T>(env, method, params);
+  } catch (error) {
+    if (error instanceof RpcRejected) throw error;
     throw new HttpError(503, "Testnet RPC is unavailable. Retry later.");
   }
-  if (body.error)
-    throw new RpcRejected(
-      Number(body.error.code ?? 0),
-      String(body.error.message ?? "RPC rejected request"),
-      body.error.data,
-    );
-  return body.result as T;
 }
 
 async function onchainBalance(
@@ -733,21 +707,19 @@ export async function onchainItemsGet(
     .bind(owner)
     .all<{ item_id: string; qty: number }>();
   const offchain = new Map(inv.results.map((r) => [r.item_id, Number(r.qty)]));
-  const items = await Promise.all(
-    ONCHAIN_ITEMS.map(async (def) => {
-      let onchain: number | null = null;
-      try {
-        onchain = await onchainBalance(env, cfg, owner, def.itemId);
-      } catch {
-        onchain = null;
-      }
-      return {
-        ...def,
-        offchain_qty: offchain.get(def.gameItemId) || 0,
-        onchain_qty: onchain,
-      };
-    }),
-  );
+  const items = await mapPool(ONCHAIN_ITEMS, 4, async (def) => {
+    let onchain: number | null = null;
+    try {
+      onchain = await onchainBalance(env, cfg, owner, def.itemId);
+    } catch {
+      onchain = null;
+    }
+    return {
+      ...def,
+      offchain_qty: offchain.get(def.gameItemId) || 0,
+      onchain_qty: onchain,
+    };
+  });
   const recent = await env.DB.prepare(
     "SELECT * FROM onchain_withdrawals WHERE owner=? ORDER BY created_at DESC LIMIT 10",
   )

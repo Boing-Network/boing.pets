@@ -67,6 +67,7 @@ import {
 } from "./cosmetics";
 import { verifyProof, type Receipt, type RpcBlock } from "./proof";
 import { enforceIpRateLimit, rateLimitError } from "./rateLimit";
+import { mapPool, rpc as rpcCall } from "./rpc";
 export { PlazaRoom } from "./plaza";
 interface Challenge {
   id: string;
@@ -95,43 +96,15 @@ const json = (data: unknown, status = 200) =>
       "X-Content-Type-Options": "nosniff",
     },
   });
-async function readRpcJson(response: Response): Promise<unknown> {
-  const reader = response.body?.getReader();
-  if (!reader) throw new Error("Empty RPC response");
-  const decoder = new TextDecoder();
-  let text = "",
-    size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > 4 * 1024 * 1024) {
-      await reader.cancel();
-      throw new Error("RPC response exceeds 4 MiB");
-    }
-    text += decoder.decode(value, { stream: true });
-  }
-  text += decoder.decode();
-  return JSON.parse(text);
-}
 async function rpc<T>(
   env: Env,
   method: string,
   params: unknown[] = [],
 ): Promise<T> {
   try {
-    const r = await fetch(env.RPC_URL, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-      signal: AbortSignal.timeout(15_000),
-    });
-    if (!r.ok) throw new Error("HTTP error");
-    const body = (await readRpcJson(r)) as { result: T; error?: unknown };
-    if (body.error || body.result === undefined)
-      throw new Error("RPC rejected request");
-    return body.result;
-  } catch {
+    return await rpcCall<T>(env, method, params);
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
     throw new HttpError(
       503,
       "Testnet RPC is unavailable. No pet state was changed; retry later.",
@@ -374,8 +347,8 @@ async function api(
     )
       .bind(offset)
       .all<Pet>();
-    const enriched = await Promise.all(
-      pets.results.slice(0, 24).map((p) => enrich(env, p, now)),
+    const enriched = await mapPool(pets.results.slice(0, 24), 4, (p) =>
+      enrich(env, p, now),
     );
     return json({
       pets: await attachCosmetics(env, enriched),

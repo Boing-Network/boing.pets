@@ -2,6 +2,7 @@
 
 import { hex32 } from "../src/core";
 import { MARKET_ESCROW_ADDRESS } from "../src/market";
+import { rpc as rpcCall, RpcRejected } from "./rpc";
 
 export type NativeTransfer = {
   sender: string;
@@ -94,15 +95,10 @@ async function rpcJson<T>(
   method: string,
   params: unknown[],
 ): Promise<T> {
-  const r = await fetch(env.RPC_URL, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-    signal: AbortSignal.timeout(15_000),
-  });
-  if (!r.ok) throw new Error("Testnet RPC is unavailable");
-  const body = (await r.json()) as { result?: T; error?: unknown };
-  if (body.error || body.result === undefined)
-    throw new Error("RPC rejected request");
-  return body.result;
+  try {
+    return await rpcCall<T>(env, method, params);
+  } catch (error) {
+    if (error instanceof RpcRejected) throw new Error("RPC rejected request");
+    throw new Error("Testnet RPC is unavailable");
+  }
 }
