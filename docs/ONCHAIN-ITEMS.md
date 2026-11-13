@@ -135,9 +135,15 @@ contract admin, withdrawals pause with 503 and no inventory is touched.
 New mapped ids fill reserved gaps in each band: ores 4-5, fish 13-14, loot
 23-24, crops 33-34, food 43-44, tools 63, cosmetics 77-79. Reserved ids 50-52
 and 60 stay unused. JSON drafts for the new ids are in `docs/metadata/items/`,
-including name, description, planned image path, and Category/Rarity
-attributes.
+including name, description, the hosted image URL
+(`https://boing-pets.nico-chikuji.workers.dev/items/<gameItemId>.svg`),
+and Category/Rarity attributes. Unique SVG art also lives in `public/items/`
+and in the in-game icon set. Prepared, unsent `set_item_metadata` calldata
+(BLAKE3 of each JSON file's exact UTF-8 bytes) is in
+`docs/metadata/pending-set-metadata.json`. Rebuild it with
+`node scripts/prepare-item-metadata.mjs`. That script never signs, never
+reads the operator key, and exits if asked to `--send`.
 
 Do **not** run `boing items set-metadata` or any other on-chain metadata
-transaction until Nico approves the new token ids and art. Existing mapped ids
-are unchanged.
+transaction until Nico approves the new token ids, art, and a deploy that
+serves the SVG image URLs. Existing mapped ids are unchanged.

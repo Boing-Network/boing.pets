@@ -136,6 +136,52 @@ const ITEM_ICONS: Record<string, string> = {
   "tool-pick-crystal": svg(
     '<rect width="64" height="64" rx="16" fill="#1a1630"/><path d="M24 48L44 20" stroke="#c9e7ff" stroke-width="5" stroke-linecap="round"/><path d="M36 14l16 10-8 8z" fill="#8fd4ff"/>',
   ),
+
+  "ore-emberite": svg(
+    '<rect width="64" height="64" rx="16" fill="#2a1810"/><path d="M14 42l10-18 16-6 14 16-8 14H22z" fill="#c4622d"/><path d="M28 28l8 4 4 10-10 6-8-8z" fill="#e08a3c"/><path d="M32 22l2 8 8 2-6 6 2 8-8-4-6 6 2-8-8-4 8-2z" fill="#ffd27a"/>',
+  ),
+  "ore-aetherite": svg(
+    '<rect width="64" height="64" rx="16" fill="#161028"/><path d="M32 8l16 22-16 28L16 30z" fill="#9b7dff"/><path d="M32 8l8 22-8 28V8z" fill="#c9a8ff"/><circle cx="32" cy="30" r="4" fill="#fff6c8"/>',
+  ),
+  "fish-copperfin": svg(
+    '<rect width="64" height="64" rx="16" fill="#2a1c12"/><path d="M10 36c12-14 28-12 38-2-4 12-18 18-30 14-10-2-14-6-8-12z" fill="#e08a3c"/><path d="M48 32l10-10v22z" fill="#c4622d"/><circle cx="24" cy="32" r="2.5" fill="#2a1c12"/><path d="M20 28h8" stroke="#ffd27a" stroke-width="2"/>',
+  ),
+  "fish-starfin": svg(
+    '<rect width="64" height="64" rx="16" fill="#101428"/><path d="M8 36c14-16 32-14 40 0-4 12-20 18-32 14-10-2-14-6-8-14z" fill="#7fa7ff"/><path d="M48 32l12-10v22z" fill="#ffd27a"/><circle cx="22" cy="32" r="2.5" fill="#09122c"/><path d="M30 20l2 5 5 1-4 3 1 5-4-3-4 3 1-5-4-3 5-1z" fill="#fff6c8"/>',
+  ),
+  "loot-wind-bell": svg(
+    '<rect width="64" height="64" rx="16" fill="#1c2430"/><path d="M24 18h16l2 6H22z" fill="#8aa0b8"/><path d="M18 24h28c0 14-6 22-14 24-8-2-14-10-14-24z" fill="#c9e7ff"/><circle cx="32" cy="40" r="3" fill="#ffd27a"/><path d="M12 20c6 4 8 10 6 16M52 18c-6 4-8 10-6 16" fill="none" stroke="#9ad7c2" stroke-width="2" stroke-linecap="round"/>',
+  ),
+  "loot-comet-bead": svg(
+    '<rect width="64" height="64" rx="16" fill="#121830"/><path d="M12 48c8-6 18-16 28-28 4 6 8 12 8 16-10 6-24 10-36 12z" fill="#8fd4ff"/><circle cx="44" cy="18" r="8" fill="#ffd27a"/><circle cx="44" cy="18" r="3" fill="#fff6c8"/>',
+  ),
+  "crop-honeyroot": svg(
+    '<rect width="64" height="64" rx="16" fill="#1c2410"/><path d="M32 12c8 8 6 16 0 22-6-6-8-14 0-22z" fill="#7ddea0"/><path d="M32 32c-8 4-12 16-6 24 8-2 14-10 16-18-4 0-8-2-10-6z" fill="#e0a06a"/><path d="M32 34c6 2 10 10 8 18" fill="none" stroke="#c4923a" stroke-width="2"/>',
+  ),
+  "crop-starglider": svg(
+    '<rect width="64" height="64" rx="16" fill="#121830"/><path d="M32 50V28" stroke="#8b5a2b" stroke-width="4"/><path d="M32 8l6 14 16 6-16 6-6 16-6-16-16-6 16-6z" fill="#c9e7ff"/><circle cx="32" cy="28" r="4" fill="#ffd27a"/>',
+  ),
+  "food-honey-tart": svg(
+    '<rect width="64" height="64" rx="16" fill="#2a1c16"/><ellipse cx="32" cy="42" rx="18" ry="8" fill="#8a6a50"/><path d="M16 40c4-14 28-14 32 0v4H16z" fill="#e0a06a"/><ellipse cx="32" cy="34" rx="12" ry="6" fill="#ffd27a"/><circle cx="28" cy="32" r="2" fill="#c45b7a"/>',
+  ),
+  "food-starlit": svg(
+    '<rect width="64" height="64" rx="16" fill="#121830"/><ellipse cx="32" cy="46" rx="18" ry="7" fill="#3a2a50"/><path d="M16 40c6-12 26-12 32 0l-4 8H20z" fill="#5a4a80"/><path d="M24 32l2 5 5 1-4 3 1 5-4-3-4 3 1-5-4-3 5-1z" fill="#ffd27a"/><circle cx="40" cy="30" r="2" fill="#fff6c8"/>',
+  ),
+  "tool-pick-wood": svg(
+    '<rect width="64" height="64" rx="16" fill="#2a2014"/><path d="M24 48L44 20" stroke="#8b5a2b" stroke-width="5" stroke-linecap="round"/><path d="M36 14l16 10-8 8z" fill="#c4923a"/>',
+  ),
+  "tool-pick-aether": svg(
+    '<rect width="64" height="64" rx="16" fill="#161028"/><path d="M24 48L44 20" stroke="#9b7dff" stroke-width="5" stroke-linecap="round"/><path d="M36 14l16 10-8 8z" fill="#c9a8ff"/><circle cx="48" cy="18" r="3" fill="#fff6c8"/>',
+  ),
+  "hat-leaf": svg(
+    '<rect width="64" height="64" rx="16" fill="#16321c"/><ellipse cx="32" cy="42" rx="16" ry="9" fill="#3d5a3a"/><path d="M20 30c8-16 24-16 24 2-8 2-16 2-24-2z" fill="#7ddea0"/><path d="M32 16v20" stroke="#16321c" stroke-width="2"/>',
+  ),
+  "hat-comet": svg(
+    '<rect width="64" height="64" rx="16" fill="#121830"/><ellipse cx="32" cy="42" rx="14" ry="8" fill="#7fa7ff"/><path d="M18 30c8-8 16-14 22-16 2 6 2 12-2 16-8 2-16 2-20 0z" fill="#8fd4ff"/><circle cx="42" cy="16" r="5" fill="#ffd27a"/>',
+  ),
+  "furn-lantern": svg(
+    '<rect width="64" height="64" rx="16" fill="#1a2030"/><path d="M32 10v8" stroke="#8aa0b8" stroke-width="3" stroke-linecap="round"/><rect x="22" y="18" width="20" height="6" rx="2" fill="#8aa0b8"/><path d="M24 24h16l4 22H20z" fill="#ffd27a"/><path d="M26 30h12" stroke="#fff6c8" stroke-width="2"/><rect x="20" y="46" width="24" height="4" rx="2" fill="#8aa0b8"/>',
+  ),
 };
 
 const SPECIES_COLORS: Record<string, [string, string]> = {

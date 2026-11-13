@@ -9,9 +9,15 @@ activity drop tables: **Common**, **Uncommon**, **Rare**, **Epic**, **Legendary*
 Legendary matches the existing care-drop "premium" pity and weekly cap
 (Stardust Halo, Aurora Frame).
 
-On-chain metadata JSON for **new** ids lives in `docs/metadata/items/`. Those
-files are prepared only. Do **not** broadcast `boing items set-metadata`
-transactions until Nico approves the new token ids and art.
+On-chain metadata JSON for **new** ids lives in `docs/metadata/items/`. Each
+file's `image` URL is `https://boing-pets.nico-chikuji.workers.dev/items/<gameItemId>.svg`,
+matching the unique SVG in `public/items/` (and the in-game icon). Those files
+and the prepared calldata in `docs/metadata/pending-set-metadata.json` are
+unsent. Do **not** broadcast `boing items set-metadata` transactions until
+Nico approves the new token ids, art, and a deploy that hosts the SVGs.
+Regenerate the pending file with `node scripts/prepare-item-metadata.mjs`
+(the script refuses `--send` / `--broadcast` / `--submit` / `--sign` and never
+touches the operator key).
 
 ## Item table
 

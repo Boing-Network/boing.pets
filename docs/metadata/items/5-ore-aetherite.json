@@ -3,7 +3,7 @@
   "gameItemId": "ore-aetherite",
   "name": "Aetherite",
   "description": "A pale, sky-blue ore that only opens to a Crystal Pick or better.",
-  "image": "(planned, not hosted yet) /items/ore-aetherite.svg",
+  "image": "https://boing-pets.nico-chikuji.workers.dev/items/ore-aetherite.svg",
   "attributes": [
     {
       "trait_type": "Category",
@@ -13,6 +13,5 @@
       "trait_type": "Rarity",
       "value": "Epic"
     }
-  ],
-  "note": "Prepared for boing items set-metadata. Do not broadcast until Nico approves the new token ids and images."
+  ]
 }

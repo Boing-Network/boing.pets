@@ -1,0 +1,150 @@
+{
+  "status": "unsent",
+  "approval": "Needs Nico's approval. Do not sign or broadcast.",
+  "note": "Image URLs point at APP_ORIGIN /items/<gameItemId>.svg and go live only after a future deploy. This file is prepared calldata only.",
+  "contract": "0x616c23d0c04015f72c3a3f63dcac1c734ce2151320a75a4fa99f318dd76b4451",
+  "origin": "https://boing-pets.nico-chikuji.workers.dev",
+  "hash": "BLAKE3 of the exact UTF-8 bytes of each metadata JSON file (including trailing newline).",
+  "writes": [
+    {
+      "itemId": 13,
+      "gameItemId": "fish-copperfin",
+      "name": "Copperfin",
+      "metadataFile": "docs/metadata/items/13-fish-copperfin.json",
+      "image": "https://boing-pets.nico-chikuji.workers.dev/items/fish-copperfin.svg",
+      "metadataHash": "0x00560fa010a8ef69ef7ebe29e39d929011fd3d77c98251c6ef22382cb011d842",
+      "calldata": "0x0000000000000000000000000000000000000000000000000000000000000023000000000000000000000000000000000000000000000000000000000000000d00560fa010a8ef69ef7ebe29e39d929011fd3d77c98251c6ef22382cb011d842",
+      "command": "boing items set-metadata --item 13 --file docs/metadata/items/13-fish-copperfin.json"
+    },
+    {
+      "itemId": 14,
+      "gameItemId": "fish-starfin",
+      "name": "Starfin",
+      "metadataFile": "docs/metadata/items/14-fish-starfin.json",
+      "image": "https://boing-pets.nico-chikuji.workers.dev/items/fish-starfin.svg",
+      "metadataHash": "0xafb5fd479add1b3bf0cc30f0e19c70b54822a5e5372b6146c80b98ef3a5b7b1a",
+      "calldata": "0x0000000000000000000000000000000000000000000000000000000000000023000000000000000000000000000000000000000000000000000000000000000eafb5fd479add1b3bf0cc30f0e19c70b54822a5e5372b6146c80b98ef3a5b7b1a",
+      "command": "boing items set-metadata --item 14 --file docs/metadata/items/14-fish-starfin.json"
+    },
+    {
+      "itemId": 23,
+      "gameItemId": "loot-wind-bell",
+      "name": "Wind Bell",
+      "metadataFile": "docs/metadata/items/23-loot-wind-bell.json",
+      "image": "https://boing-pets.nico-chikuji.workers.dev/items/loot-wind-bell.svg",
+      "metadataHash": "0x816f0efae82fc56a7ddf7ba621d24783d1ad1f7c799c5e64e69f87be8abee139",
+      "calldata": "0x00000000000000000000000000000000000000000000000000000000000000230000000000000000000000000000000000000000000000000000000000000017816f0efae82fc56a7ddf7ba621d24783d1ad1f7c799c5e64e69f87be8abee139",
+      "command": "boing items set-metadata --item 23 --file docs/metadata/items/23-loot-wind-bell.json"
+    },
+    {
+      "itemId": 24,
+      "gameItemId": "loot-comet-bead",
+      "name": "Comet Bead",
+      "metadataFile": "docs/metadata/items/24-loot-comet-bead.json",
+      "image": "https://boing-pets.nico-chikuji.workers.dev/items/loot-comet-bead.svg",
+      "metadataHash": "0x072484ff40ed4f224a4fdd5018a95f6616e015228d80050d8218ce19d5fd9b6b",
+      "calldata": "0x00000000000000000000000000000000000000000000000000000000000000230000000000000000000000000000000000000000000000000000000000000018072484ff40ed4f224a4fdd5018a95f6616e015228d80050d8218ce19d5fd9b6b",
+      "command": "boing items set-metadata --item 24 --file docs/metadata/items/24-loot-comet-bead.json"
+    },
+    {
+      "itemId": 33,
+      "gameItemId": "crop-honeyroot",
+      "name": "Honeyroot",
+      "metadataFile": "docs/metadata/items/33-crop-honeyroot.json",
+      "image": "https://boing-pets.nico-chikuji.workers.dev/items/crop-honeyroot.svg",
+      "metadataHash": "0x0297f9d15214e745b10b8ef62c16b614b6d4f97a4dc5736a959923449c8a5331",
+      "calldata": "0x000000000000000000000000000000000000000000000000000000000000002300000000000000000000000000000000000000000000000000000000000000210297f9d15214e745b10b8ef62c16b614b6d4f97a4dc5736a959923449c8a5331",
+      "command": "boing items set-metadata --item 33 --file docs/metadata/items/33-crop-honeyroot.json"
+    },
+    {
+      "itemId": 34,
+      "gameItemId": "crop-starglider",
+      "name": "Starglider Bloom",
+      "metadataFile": "docs/metadata/items/34-crop-starglider.json",
+      "image": "https://boing-pets.nico-chikuji.workers.dev/items/crop-starglider.svg",
+      "metadataHash": "0x8f0e11390129611e36045e2948d40ed110792df6c7593b4d3f5690987cde629a",
+      "calldata": "0x000000000000000000000000000000000000000000000000000000000000002300000000000000000000000000000000000000000000000000000000000000228f0e11390129611e36045e2948d40ed110792df6c7593b4d3f5690987cde629a",
+      "command": "boing items set-metadata --item 34 --file docs/metadata/items/34-crop-starglider.json"
+    },
+    {
+      "itemId": 4,
+      "gameItemId": "ore-emberite",
+      "name": "Emberite",
+      "metadataFile": "docs/metadata/items/4-ore-emberite.json",
+      "image": "https://boing-pets.nico-chikuji.workers.dev/items/ore-emberite.svg",
+      "metadataHash": "0x0c45f67489f24bb286fa35c24a2324ec895402b1f20785c16729e9bd4d217027",
+      "calldata": "0x000000000000000000000000000000000000000000000000000000000000002300000000000000000000000000000000000000000000000000000000000000040c45f67489f24bb286fa35c24a2324ec895402b1f20785c16729e9bd4d217027",
+      "command": "boing items set-metadata --item 4 --file docs/metadata/items/4-ore-emberite.json"
+    },
+    {
+      "itemId": 43,
+      "gameItemId": "food-honey-tart",
+      "name": "Honeyroot Tart",
+      "metadataFile": "docs/metadata/items/43-food-honey-tart.json",
+      "image": "https://boing-pets.nico-chikuji.workers.dev/items/food-honey-tart.svg",
+      "metadataHash": "0x75d99520863e456348d3ec9d451d154b5743147103a45ac5d9483c79d3f44fe3",
+      "calldata": "0x0000000000000000000000000000000000000000000000000000000000000023000000000000000000000000000000000000000000000000000000000000002b75d99520863e456348d3ec9d451d154b5743147103a45ac5d9483c79d3f44fe3",
+      "command": "boing items set-metadata --item 43 --file docs/metadata/items/43-food-honey-tart.json"
+    },
+    {
+      "itemId": 44,
+      "gameItemId": "food-starlit",
+      "name": "Starlit Broth",
+      "metadataFile": "docs/metadata/items/44-food-starlit.json",
+      "image": "https://boing-pets.nico-chikuji.workers.dev/items/food-starlit.svg",
+      "metadataHash": "0x975ca2dc6c338d5b5d280bd358462eadc25177697a5d594248754864ccde3123",
+      "calldata": "0x0000000000000000000000000000000000000000000000000000000000000023000000000000000000000000000000000000000000000000000000000000002c975ca2dc6c338d5b5d280bd358462eadc25177697a5d594248754864ccde3123",
+      "command": "boing items set-metadata --item 44 --file docs/metadata/items/44-food-starlit.json"
+    },
+    {
+      "itemId": 5,
+      "gameItemId": "ore-aetherite",
+      "name": "Aetherite",
+      "metadataFile": "docs/metadata/items/5-ore-aetherite.json",
+      "image": "https://boing-pets.nico-chikuji.workers.dev/items/ore-aetherite.svg",
+      "metadataHash": "0xd443434cc08e04f2cb79cc4d45dbc6e89f10ffb775164e986becf403ce9a0e6e",
+      "calldata": "0x00000000000000000000000000000000000000000000000000000000000000230000000000000000000000000000000000000000000000000000000000000005d443434cc08e04f2cb79cc4d45dbc6e89f10ffb775164e986becf403ce9a0e6e",
+      "command": "boing items set-metadata --item 5 --file docs/metadata/items/5-ore-aetherite.json"
+    },
+    {
+      "itemId": 63,
+      "gameItemId": "tool-pick-aether",
+      "name": "Aether Pick",
+      "metadataFile": "docs/metadata/items/63-tool-pick-aether.json",
+      "image": "https://boing-pets.nico-chikuji.workers.dev/items/tool-pick-aether.svg",
+      "metadataHash": "0x41f551d6cf5b8c08af9df0ea676e5ee8ef09b433ea7cb2e3a60411fd921c81f2",
+      "calldata": "0x0000000000000000000000000000000000000000000000000000000000000023000000000000000000000000000000000000000000000000000000000000003f41f551d6cf5b8c08af9df0ea676e5ee8ef09b433ea7cb2e3a60411fd921c81f2",
+      "command": "boing items set-metadata --item 63 --file docs/metadata/items/63-tool-pick-aether.json"
+    },
+    {
+      "itemId": 77,
+      "gameItemId": "hat-leaf",
+      "name": "Leaf Cap",
+      "metadataFile": "docs/metadata/items/77-hat-leaf.json",
+      "image": "https://boing-pets.nico-chikuji.workers.dev/items/hat-leaf.svg",
+      "metadataHash": "0x5e0ee113ff8ed0c8ee998d1b5f7e92e42121e3035abb680032669bf8dbb10051",
+      "calldata": "0x0000000000000000000000000000000000000000000000000000000000000023000000000000000000000000000000000000000000000000000000000000004d5e0ee113ff8ed0c8ee998d1b5f7e92e42121e3035abb680032669bf8dbb10051",
+      "command": "boing items set-metadata --item 77 --file docs/metadata/items/77-hat-leaf.json"
+    },
+    {
+      "itemId": 78,
+      "gameItemId": "furn-lantern",
+      "name": "Glow Lantern",
+      "metadataFile": "docs/metadata/items/78-furn-lantern.json",
+      "image": "https://boing-pets.nico-chikuji.workers.dev/items/furn-lantern.svg",
+      "metadataHash": "0xb45c9f3fc27d9de9f6d537d0f30f061b47e0d00aae6f36de9441920beb88f5c2",
+      "calldata": "0x0000000000000000000000000000000000000000000000000000000000000023000000000000000000000000000000000000000000000000000000000000004eb45c9f3fc27d9de9f6d537d0f30f061b47e0d00aae6f36de9441920beb88f5c2",
+      "command": "boing items set-metadata --item 78 --file docs/metadata/items/78-furn-lantern.json"
+    },
+    {
+      "itemId": 79,
+      "gameItemId": "hat-comet",
+      "name": "Comet Pin",
+      "metadataFile": "docs/metadata/items/79-hat-comet.json",
+      "image": "https://boing-pets.nico-chikuji.workers.dev/items/hat-comet.svg",
+      "metadataHash": "0xf378ed9fbd1c675caea54508230945d4ade743b40a12e07fe6627db990494474",
+      "calldata": "0x0000000000000000000000000000000000000000000000000000000000000023000000000000000000000000000000000000000000000000000000000000004ff378ed9fbd1c675caea54508230945d4ade743b40a12e07fe6627db990494474",
+      "command": "boing items set-metadata --item 79 --file docs/metadata/items/79-hat-comet.json"
+    }
+  ]
+}

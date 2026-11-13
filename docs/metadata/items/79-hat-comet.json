@@ -3,7 +3,7 @@
   "gameItemId": "hat-comet",
   "name": "Comet Pin",
   "description": "A comet-bead pin. Cosmetics only, no power.",
-  "image": "(planned, not hosted yet) /items/hat-comet.svg",
+  "image": "https://boing-pets.nico-chikuji.workers.dev/items/hat-comet.svg",
   "attributes": [
     {
       "trait_type": "Category",
@@ -13,6 +13,5 @@
       "trait_type": "Rarity",
       "value": "Epic"
     }
-  ],
-  "note": "Prepared for boing items set-metadata. Do not broadcast until Nico approves the new token ids and images."
+  ]
 }

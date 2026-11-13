@@ -3,7 +3,7 @@
   "gameItemId": "loot-wind-bell",
   "name": "Wind Bell",
   "description": "A tiny bell unearthed in the pasture.",
-  "image": "(planned, not hosted yet) /items/loot-wind-bell.svg",
+  "image": "https://boing-pets.nico-chikuji.workers.dev/items/loot-wind-bell.svg",
   "attributes": [
     {
       "trait_type": "Category",
@@ -13,6 +13,5 @@
       "trait_type": "Rarity",
       "value": "Uncommon"
     }
-  ],
-  "note": "Prepared for boing items set-metadata. Do not broadcast until Nico approves the new token ids and images."
+  ]
 }

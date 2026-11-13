@@ -3,7 +3,7 @@
   "gameItemId": "hat-leaf",
   "name": "Leaf Cap",
   "description": "A leafy cap for a buddy. Purely cosmetic.",
-  "image": "(planned, not hosted yet) /items/hat-leaf.svg",
+  "image": "https://boing-pets.nico-chikuji.workers.dev/items/hat-leaf.svg",
   "attributes": [
     {
       "trait_type": "Category",
@@ -13,6 +13,5 @@
       "trait_type": "Rarity",
       "value": "Uncommon"
     }
-  ],
-  "note": "Prepared for boing items set-metadata. Do not broadcast until Nico approves the new token ids and images."
+  ]
 }

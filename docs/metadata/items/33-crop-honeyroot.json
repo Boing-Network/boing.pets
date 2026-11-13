@@ -3,7 +3,7 @@
   "gameItemId": "crop-honeyroot",
   "name": "Honeyroot",
   "description": "A sweet root grown in the garden.",
-  "image": "(planned, not hosted yet) /items/crop-honeyroot.svg",
+  "image": "https://boing-pets.nico-chikuji.workers.dev/items/crop-honeyroot.svg",
   "attributes": [
     {
       "trait_type": "Category",
@@ -13,6 +13,5 @@
       "trait_type": "Rarity",
       "value": "Uncommon"
     }
-  ],
-  "note": "Prepared for boing items set-metadata. Do not broadcast until Nico approves the new token ids and images."
+  ]
 }

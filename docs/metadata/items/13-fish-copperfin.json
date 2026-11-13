@@ -3,7 +3,7 @@
   "gameItemId": "fish-copperfin",
   "name": "Copperfin",
   "description": "A copper-scaled pond fish.",
-  "image": "(planned, not hosted yet) /items/fish-copperfin.svg",
+  "image": "https://boing-pets.nico-chikuji.workers.dev/items/fish-copperfin.svg",
   "attributes": [
     {
       "trait_type": "Category",
@@ -13,6 +13,5 @@
       "trait_type": "Rarity",
       "value": "Uncommon"
     }
-  ],
-  "note": "Prepared for boing items set-metadata. Do not broadcast until Nico approves the new token ids and images."
+  ]
 }

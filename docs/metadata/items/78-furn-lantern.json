@@ -3,7 +3,7 @@
   "gameItemId": "furn-lantern",
   "name": "Glow Lantern",
   "description": "A warm lantern for a cottage grid.",
-  "image": "(planned, not hosted yet) /items/furn-lantern.svg",
+  "image": "https://boing-pets.nico-chikuji.workers.dev/items/furn-lantern.svg",
   "attributes": [
     {
       "trait_type": "Category",
@@ -13,6 +13,5 @@
       "trait_type": "Rarity",
       "value": "Rare"
     }
-  ],
-  "note": "Prepared for boing items set-metadata. Do not broadcast until Nico approves the new token ids and images."
+  ]
 }

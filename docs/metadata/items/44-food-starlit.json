@@ -3,7 +3,7 @@
   "gameItemId": "food-starlit",
   "name": "Starlit Broth",
   "description": "A rich broth of starglider bloom and starfin.",
-  "image": "(planned, not hosted yet) /items/food-starlit.svg",
+  "image": "https://boing-pets.nico-chikuji.workers.dev/items/food-starlit.svg",
   "attributes": [
     {
       "trait_type": "Category",
@@ -13,6 +13,5 @@
       "trait_type": "Rarity",
       "value": "Epic"
     }
-  ],
-  "note": "Prepared for boing items set-metadata. Do not broadcast until Nico approves the new token ids and images."
+  ]
 }

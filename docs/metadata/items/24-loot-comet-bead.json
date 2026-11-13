@@ -3,7 +3,7 @@
   "gameItemId": "loot-comet-bead",
   "name": "Comet Bead",
   "description": "A glassy bead that catches comet light.",
-  "image": "(planned, not hosted yet) /items/loot-comet-bead.svg",
+  "image": "https://boing-pets.nico-chikuji.workers.dev/items/loot-comet-bead.svg",
   "attributes": [
     {
       "trait_type": "Category",
@@ -13,6 +13,5 @@
       "trait_type": "Rarity",
       "value": "Epic"
     }
-  ],
-  "note": "Prepared for boing items set-metadata. Do not broadcast until Nico approves the new token ids and images."
+  ]
 }
