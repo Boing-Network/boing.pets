@@ -73,6 +73,7 @@ import {
 } from "./pastureFocus";
 import { PastureAudioControls } from "./PastureAudioControls";
 import { WalkthroughCard } from "../onboarding/WalkthroughCard";
+import { DailyQuestChip } from "./DailyQuestChip";
 import {
   isWalkthroughVisible,
   loadWalkthrough,
@@ -551,6 +552,7 @@ export function PastureApp({
           Growing the meadow…
         </div>
       ) : null}
+      <DailyQuestChip owner={owner} />
       <WalkthroughCard
         scene="pasture"
         openMenuKind={stationMenu}

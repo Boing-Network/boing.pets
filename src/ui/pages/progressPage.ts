@@ -134,6 +134,23 @@ export async function claimQuest(questId: string) {
   notice("Quest reward claimed!");
 }
 
+export async function claimDailyStreak() {
+  await assertWallet();
+  notice("Approve today's streak bonus in Express…");
+  const challenge = await api<{ id: string; message: string }>(
+    "/api/content/dailies/challenge",
+    { owner: app.owner },
+  );
+  const signature = await app.provider!.request({
+    method: "boing_signMessage",
+    params: [challenge.message, app.owner],
+  });
+  await api("/api/content/dailies/confirm", { id: challenge.id, signature });
+  await refreshEconomy();
+  await refreshQuests();
+  notice("Streak bonus claimed!");
+}
+
 export async function refreshCollections() {
   const data = await api<{
     defs: Array<{
@@ -210,10 +227,97 @@ export async function refreshQuests() {
       complete: boolean;
       claimed: boolean;
     }>;
+    dailies?: {
+      dayKey: string;
+      completeCount: number;
+      allComplete: boolean;
+      streak: number;
+      goals: Array<{
+        id: string;
+        activity: string;
+        title: string;
+        description: string;
+        href: string;
+        complete: boolean;
+      }>;
+      bonus: {
+        title: string;
+        rewardBoinglets: number;
+        cosmeticId: string | null;
+        eligible: boolean;
+        claimed: boolean;
+      };
+    };
   }>("/api/content/quests" + (app.owner ? `?owner=${app.owner}` : ""));
   $("#season-summary").textContent = data.activeEvents.length
     ? `Live now: ${data.activeEvents.map((e) => e.name).join(", ")}`
     : "No seasonal event active — check back for festivals.";
+  const dailyHost = $maybe("#daily-quest-list");
+  const dailySummary = $maybe("#daily-streak-summary");
+  if (dailyHost && data.dailies) {
+    const dailies = data.dailies;
+    if (dailySummary) {
+      const streakText = dailies.streak
+        ? "Care streak: " +
+          dailies.streak +
+          " day" +
+          (dailies.streak === 1 ? "" : "s") +
+          "."
+        : "Complete all three activity goals in a UTC day to start a streak.";
+      dailySummary.textContent =
+        "Today's activity goals: " +
+        dailies.completeCount +
+        "/3. " +
+        streakText;
+    }
+    const cards = dailies.goals.map((g) => {
+      const el = document.createElement("article");
+      el.className =
+        "market-card daily-quest-card" + (g.complete ? " is-complete" : "");
+      el.innerHTML =
+        "<h3>" +
+        g.title +
+        '</h3><p class="subtle">Daily activity · ' +
+        (g.complete ? "Done" : "Open") +
+        '</p><p class="small">' +
+        g.description +
+        "</p>";
+      const link = document.createElement("a");
+      link.className = "button secondary";
+      link.href = g.href;
+      link.textContent = g.complete ? "Completed" : "Play";
+      el.append(link);
+      return el;
+    });
+    const bonus = document.createElement("article");
+    bonus.className = "market-card daily-quest-card daily-streak-card";
+    const cosmetic = dailies.bonus.cosmeticId ? " plus a ribbon hat" : "";
+    bonus.innerHTML =
+      "<h3>" +
+      dailies.bonus.title +
+      '</h3><p class="subtle">' +
+      dailies.bonus.rewardBoinglets +
+      " Boinglets" +
+      cosmetic +
+      '</p><p class="small">Claim once per UTC day after finishing all three goals. Seven-day streaks also unlock the ribbon hat.</p>';
+    const btn = document.createElement("button");
+    btn.className = "secondary";
+    if (dailies.bonus.claimed) {
+      btn.textContent = "Claimed ✓";
+      btn.disabled = true;
+    } else if (dailies.bonus.eligible && app.owner) {
+      btn.textContent = "Claim · sign";
+      btn.disabled = app.busy;
+      btn.onclick = () => void run(() => claimDailyStreak());
+    } else {
+      btn.textContent = dailies.allComplete
+        ? "Connect to claim"
+        : "Keep the streak going";
+      btn.disabled = true;
+    }
+    bonus.append(btn);
+    dailyHost.replaceChildren(...cards, bonus);
+  }
   $("#quest-list").replaceChildren(
     ...data.quests.map((q) => {
       const el = document.createElement("article");

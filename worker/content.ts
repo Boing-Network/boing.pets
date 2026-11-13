@@ -11,8 +11,18 @@ import {
   questPeriodKey,
   QUESTS,
 } from "../src/content/quests";
+import {
+  buildDailyQuestView,
+  collectClaimedActivitiesByDay,
+  DAILY_QUEST_LOOKBACK_DAYS,
+  DAILY_STREAK_BONUS_ID,
+  DAILY_STREAK_RIBBON_ID,
+  dayKeyForDay,
+  STREAK_COSMETIC_ID,
+  type DailyQuestView,
+} from "../src/content/dailyQuests";
 import { activeEvents } from "../src/content/seasons";
-import { hex32, traits, type CareEvent, type Pet } from "../src/core";
+import { dayOf, hex32, traits, type CareEvent, type Pet } from "../src/core";
 import { ledgerCreditPair } from "./ledger";
 
 class HttpError extends Error {
@@ -39,6 +49,50 @@ async function verifySignature(
   if (!ok) throw new HttpError(403, "Signature does not match");
 }
 
+async function loadDailyQuestView(
+  env: Env,
+  owner: string | null,
+  now: number,
+): Promise<DailyQuestView> {
+  if (!owner) {
+    return buildDailyQuestView({
+      now,
+      claimedByDay: new Map(),
+      bonusClaimedForDay: false,
+      ribbonAlreadyOwned: false,
+    });
+  }
+  const minKey = dayKeyForDay(dayOf(now) - DAILY_QUEST_LOOKBACK_DAYS);
+  const rows = await env.DB.prepare(
+    "SELECT activity, day_key FROM activity_attempts WHERE owner=? AND status='claimed' AND day_key>=?",
+  )
+    .bind(owner, minKey)
+    .all<{ activity: string; day_key: string }>();
+  const claims = await env.DB.prepare(
+    "SELECT quest_id, period_key FROM quest_claims WHERE owner=? AND quest_id IN (?, ?)",
+  )
+    .bind(owner, DAILY_STREAK_BONUS_ID, DAILY_STREAK_RIBBON_ID)
+    .all<{ quest_id: string; period_key: string }>();
+  const ribbonRow = await env.DB.prepare(
+    "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
+  )
+    .bind(owner, STREAK_COSMETIC_ID)
+    .first<{ qty: number }>();
+  const dayKey = dayKeyForDay(dayOf(now));
+  const bonusClaimedForDay = claims.results.some(
+    (c) => c.quest_id === DAILY_STREAK_BONUS_ID && c.period_key === dayKey,
+  );
+  const ribbonClaimed = claims.results.some(
+    (c) => c.quest_id === DAILY_STREAK_RIBBON_ID,
+  );
+  return buildDailyQuestView({
+    now,
+    claimedByDay: collectClaimedActivitiesByDay(rows.results),
+    bonusClaimedForDay,
+    ribbonAlreadyOwned: ribbonClaimed || (ribbonRow?.qty || 0) > 0,
+  });
+}
+
 export async function contentGet(
   req: Request,
   env: Env,
@@ -58,6 +112,7 @@ export async function contentGet(
     if (!ownerParam) {
       return Response.json({
         quests: QUESTS.map((q) => ({ ...q, complete: false, claimed: false })),
+        dailies: await loadDailyQuestView(env, null, now),
         activeEvents: active,
         now,
       });
@@ -94,6 +149,15 @@ export async function contentGet(
         };
       }),
       activeEvents: active,
+      dailies: await loadDailyQuestView(env, owner, now),
+      now,
+    });
+  }
+  if (url.pathname === "/api/content/dailies") {
+    const ownerParam = url.searchParams.get("owner");
+    const owner = ownerParam ? hex32(ownerParam) : null;
+    return Response.json({
+      dailies: await loadDailyQuestView(env, owner, now),
       now,
     });
   }
@@ -285,6 +349,146 @@ export async function contentPost(
       .bind(c.id)
       .run();
     return Response.json({ ok: true, reward: payload.reward });
+  }
+
+  if (url.pathname === "/api/content/dailies/challenge") {
+    const owner = hex32(body.owner);
+    const view = await loadDailyQuestView(env, owner, now);
+    if (!view.bonus.eligible)
+      throw new HttpError(409, "Daily streak bonus is not ready to claim");
+    const id = crypto.randomUUID();
+    const expires = now + 10 * 60_000;
+    const payload = {
+      quest_id: DAILY_STREAK_BONUS_ID,
+      period: view.dayKey,
+      reward: view.bonus.rewardBoinglets,
+      cosmeticId: view.bonus.cosmeticId,
+      streak: view.streak,
+    };
+    const message = [
+      "Boing Pets daily streak v1",
+      "Origin: " + env.APP_ORIGIN,
+      "Chain: 6913",
+      "Owner: " + owner,
+      "Quest: " + payload.quest_id,
+      "Period: " + payload.period,
+      "Reward: " + String(payload.reward),
+      "Cosmetic: " + (payload.cosmeticId || "none"),
+      "Streak: " + String(payload.streak),
+      "Nonce: " + id,
+      "Expires: " + String(expires),
+    ].join("\n");
+    await env.DB.prepare(
+      "INSERT INTO content_challenges(id,owner,kind,payload,message,created_at,expires_at) VALUES(?,?,?,?,?,?,?)",
+    )
+      .bind(
+        id,
+        owner,
+        "quest_claim",
+        JSON.stringify(payload),
+        message,
+        now,
+        expires,
+      )
+      .run();
+    return Response.json({
+      id,
+      message,
+      expires_at: expires,
+      ...payload,
+    });
+  }
+
+  if (url.pathname === "/api/content/dailies/confirm") {
+    if (typeof body.id !== "string" || body.id.length > 64)
+      throw new HttpError(400, "Invalid daily streak challenge");
+    const c = await env.DB.prepare(
+      "SELECT * FROM content_challenges WHERE id=?",
+    )
+      .bind(body.id)
+      .first<{
+        id: string;
+        owner: string;
+        kind: string;
+        payload: string;
+        message: string;
+        expires_at: number;
+      }>();
+    if (!c || c.kind !== "quest_claim")
+      throw new HttpError(404, "Daily streak challenge not found");
+    if (c.expires_at < now)
+      throw new HttpError(410, "Daily streak challenge expired");
+    await verifySignature(c.owner, c.message, body.signature);
+    const payload = JSON.parse(c.payload) as {
+      quest_id: string;
+      period: string;
+      reward: number;
+      cosmeticId: string | null;
+      streak: number;
+    };
+    const view = await loadDailyQuestView(env, c.owner, now);
+    if (!view.allComplete || view.bonus.claimed)
+      throw new HttpError(409, "Daily streak bonus is not claimable");
+    if (
+      payload.quest_id !== DAILY_STREAK_BONUS_ID ||
+      payload.period !== view.dayKey ||
+      payload.reward !== view.bonus.rewardBoinglets ||
+      (payload.cosmeticId || null) !== (view.bonus.cosmeticId || null)
+    )
+      throw new HttpError(409, "Daily streak bonus changed; retry");
+    const statements = [
+      env.DB.prepare(
+        "INSERT INTO quest_claims(owner,quest_id,period_key,claimed_at) VALUES(?,?,?,?)",
+      ).bind(c.owner, DAILY_STREAK_BONUS_ID, payload.period, now),
+      ...ledgerCreditPair(
+        env,
+        c.id,
+        c.owner,
+        "boinglets",
+        payload.reward,
+        "daily_streak_bonus",
+        payload.period,
+        now,
+      ),
+    ];
+    if (payload.cosmeticId === STREAK_COSMETIC_ID) {
+      statements.push(
+        env.DB.prepare(
+          "INSERT OR IGNORE INTO quest_claims(owner,quest_id,period_key,claimed_at) VALUES(?,?,?,?)",
+        ).bind(c.owner, DAILY_STREAK_RIBBON_ID, "once", now),
+        env.DB.prepare(
+          "INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,1) ON CONFLICT(owner,item_id) DO UPDATE SET qty=qty+1",
+        ).bind(c.owner, STREAK_COSMETIC_ID),
+        env.DB.prepare(
+          "INSERT INTO inventory_acquisitions(id,owner,item_id,qty,source,from_owner,created_at) VALUES(?,?,?,?,?,?,?)",
+        ).bind(
+          c.id + ":ribbon",
+          c.owner,
+          STREAK_COSMETIC_ID,
+          1,
+          "daily_streak",
+          null,
+          now,
+        ),
+      );
+    }
+    try {
+      await env.DB.batch(statements);
+    } catch {
+      throw new HttpError(
+        409,
+        "Daily streak bonus already claimed or ledger busy",
+      );
+    }
+    await env.DB.prepare("DELETE FROM content_challenges WHERE id=?")
+      .bind(c.id)
+      .run();
+    return Response.json({
+      ok: true,
+      reward: payload.reward,
+      cosmeticId: payload.cosmeticId,
+      streak: payload.streak,
+    });
   }
 
   return null;

@@ -109,6 +109,7 @@ beforeEach(async () => {
     "../migrations/0017_security_hardening.sql",
     "../migrations/0018_pet_care_rollup.sql",
     "../migrations/0019_party_bonuses.sql",
+    "../migrations/0020_activity_attempts.sql",
     "../migrations/0023_pet_cosmetics.sql",
     "../migrations/0025_market_boing_and_drops.sql",
     "../migrations/0026_market_payouts_auto.sql",
