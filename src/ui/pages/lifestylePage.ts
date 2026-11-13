@@ -1,3 +1,4 @@
+import { playSfx, type SfxName } from "../../audio";
 import { api, app, $, notice } from "../appRuntime";
 import { assertWallet, run } from "../careActions";
 import { refreshEconomy } from "./progressPage";
@@ -98,6 +99,12 @@ export async function gardenAct(
       ? `Harvest complete.${rewardExtrasNotice(result.party_bonus, result.variety_awarded)}`
       : "Garden updated.",
   );
+  const gardenSfx: Record<string, SfxName> = {
+    plant: "plant",
+    water: "water",
+    harvest: "harvest",
+  };
+  playSfx(gardenSfx[kind] || "plant");
 }
 
 export async function refreshGarden() {
@@ -210,11 +217,15 @@ export async function kitchenAct(
   }>("/api/cook/confirm", { id: challenge.id, signature });
   await refreshKitchen();
   await refreshEconomy().catch(() => undefined);
-  if (kind === "serve") notice("Snack served — vitals boosted.");
-  else
+  if (kind === "serve") {
+    notice("Snack served — vitals boosted.");
+    playSfx("care");
+  } else {
     notice(
       `Dish cooked.${rewardExtrasNotice(result.party_bonus, result.variety_awarded)}`,
     );
+    playSfx("cook");
+  }
 }
 
 export async function refreshKitchen() {

@@ -1,3 +1,4 @@
+import { playSfx } from "../audio";
 import { hex32, isSignatureAction, type Action } from "../core";
 import {
   api,
@@ -96,6 +97,7 @@ export async function confirmPending() {
     msg += ` You found a ${confirmed.drop.tier} drop: ${confirmed.drop.name}!`;
   }
   notice(msg);
+  playSfx("care");
 }
 export async function act(action: Action) {
   await assertWallet();
@@ -139,6 +141,7 @@ export async function act(action: Action) {
       msg += ` You found a ${confirmed.drop.tier} drop: ${confirmed.drop.name}!`;
     }
     notice(msg);
+    playSfx("care");
     return;
   }
   notice(

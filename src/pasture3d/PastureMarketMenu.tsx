@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { playSfx } from "../audio";
 import { itemDisplayName, itemRarity } from "../content/items";
 import {
   ITEM_RARITIES,
@@ -172,6 +173,9 @@ export function PastureMarketMenu({ onClose }: { onClose: () => void }) {
       await economyAct(kind, extra);
       await reload();
       setFlash(done);
+      if (kind === "buy_listing") playSfx("market-buy");
+      else if (kind === "list") playSfx("market-list");
+      else playSfx("ui-click");
     }).catch((err: unknown) => {
       const msg = err instanceof Error ? err.message : "Market action failed";
       setError(msg);

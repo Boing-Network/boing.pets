@@ -5,6 +5,7 @@ import {
   missingIngredients,
   type CraftRecipe,
 } from "../content/crafting";
+import { playSfx } from "../audio";
 import { app, notice } from "../ui/appRuntime";
 import { run } from "../ui/careActions";
 import {
@@ -45,6 +46,7 @@ export function PastureCraftMenu({ onClose }: { onClose: () => void }) {
       const msg = `Crafted ${recipe.outputQty}x ${label}.`;
       setFlash(msg);
       notice(msg);
+      playSfx("craft");
     })
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : "Craft failed";

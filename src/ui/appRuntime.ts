@@ -7,6 +7,8 @@ import {
 } from "../core";
 import type { EquippedCosmetics } from "../content/cosmetics";
 import { apiFetch } from "./apiClient";
+import { isCapMessage } from "../audio/settings";
+import { playSfx } from "../audio";
 import {
   clearSocialSession,
   loadSocialSession,
@@ -76,9 +78,11 @@ export function on(
 
 export function notice(text: string, error = false) {
   const el = $maybe("#notice");
-  if (!el) return;
-  el.textContent = text;
-  el.classList.toggle("error", error);
+  if (el) {
+    el.textContent = text;
+    el.classList.toggle("error", error);
+  }
+  if (error) playSfx(isCapMessage(text) ? "cap" : "error");
 }
 
 export async function api<T>(

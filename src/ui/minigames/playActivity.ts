@@ -1,3 +1,4 @@
+import { playSfx, popMusicDuck, pushMusicDuck } from "../../audio";
 import { api, app, notice } from "../appRuntime";
 import { assertWallet, run } from "../careActions";
 import { sessionApi } from "../socialSession";
@@ -48,6 +49,7 @@ type PlaySession = {
   rafs: number[];
   onAbort: Array<() => void>;
   keydown: ((event: KeyboardEvent) => void) | null;
+  ducked: boolean;
 };
 
 const activePlays = new Set<PlaySession>();
@@ -59,8 +61,10 @@ function beginPlay(): PlaySession {
     rafs: [],
     onAbort: [],
     keydown: null,
+    ducked: true,
   };
   activePlays.add(play);
+  pushMusicDuck();
   return play;
 }
 
@@ -78,6 +82,10 @@ function clearPlayHandles(play: PlaySession) {
 function endPlay(play: PlaySession) {
   clearPlayHandles(play);
   activePlays.delete(play);
+  if (play.ducked) {
+    popMusicDuck();
+    play.ducked = false;
+  }
 }
 
 /** Stop in-progress minigames and hide any leftover reward modal. */
@@ -87,6 +95,10 @@ export function resetActivityOverlayState() {
     clearPlayHandles(play);
     for (const fn of play.onAbort) fn();
     play.onAbort.length = 0;
+    if (play.ducked) {
+      popMusicDuck();
+      play.ducked = false;
+    }
   }
   activePlays.clear();
   closeRewardModal();
@@ -166,6 +178,7 @@ async function claimAttempt(
   const shown = claimResultForActivity(result, activity);
   showRewardModal(shown);
   notice(`Claimed ${shown.reward.name}.`);
+  playSfx("reward");
   await refreshEconomy().catch(() => undefined);
 }
 
@@ -221,6 +234,7 @@ export async function playFishing(root: HTMLElement, onDone: () => void) {
     const reel = document.createElement("button");
     reel.textContent = "Reel!";
     root.append(reel);
+    playSfx("fish-cast");
     const started = performance.now();
     const tick = () => {
       if (play.aborted) return;
@@ -239,6 +253,7 @@ export async function playFishing(root: HTMLElement, onDone: () => void) {
     await new Promise<void>((resolve, reject) => {
       play.onAbort.push(resolve);
       reel.onclick = () => {
+        playSfx("fish-reel");
         if (play.aborted) {
           resolve();
           return;
@@ -380,7 +395,10 @@ export async function playMining(root: HTMLElement, onDone: () => void) {
         b.type = "button";
         b.className = "secondary";
         b.textContent = label.toUpperCase();
-        b.onclick = () => pushKey(label);
+        b.onclick = () => {
+          playSfx("mine-hit");
+          pushKey(label);
+        };
         touchRow.append(b);
       }
       root.append(touchRow);
@@ -419,6 +437,7 @@ export async function playMining(root: HTMLElement, onDone: () => void) {
 export async function playRacing(root: HTMLElement, onDone: () => void) {
   const play = beginPlay();
   try {
+    playSfx("race-start");
     const start = await sessionApi<StartResponse>(
       "/api/activity/attempt/start",
       {
@@ -476,6 +495,7 @@ export async function playRacing(root: HTMLElement, onDone: () => void) {
                 notice(finish.message || "Off-beat — no signature.", true);
               else if (finish.claim_message) {
                 notice(finish.message || "Photo finish!");
+                playSfx("race-finish");
                 try {
                   await claimAttempt(
                     start.id,
@@ -544,6 +564,7 @@ export async function playTreasure(root: HTMLElement, onDone: () => void) {
       play.onAbort.push(resolve);
       buttons.forEach((b, guess) => {
         b.onclick = () => {
+          playSfx("dig");
           if (play.aborted) return;
           buttons.forEach((x) => (x.disabled = true));
           void sessionApi<FinishResponse>("/api/activity/attempt/finish", {
@@ -645,6 +666,7 @@ export async function playGarden(root: HTMLElement, onDone: () => void) {
           .catch(reject);
       };
       btn.onpointerdown = (e) => {
+        playSfx("water");
         e.preventDefault();
         down = performance.now();
         btn.textContent = "Watering…";
@@ -695,6 +717,7 @@ export async function playCook(root: HTMLElement, onDone: () => void) {
         b.className = "secondary";
         b.textContent = name;
         b.onclick = () => {
+          playSfx("cook");
           if (play.aborted) return;
           picked.push(name);
           pickElapsedMs.push(Math.round(performance.now() - started));

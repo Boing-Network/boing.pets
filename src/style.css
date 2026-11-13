@@ -1882,3 +1882,47 @@ a:hover {
     max-height: calc(100dvh - 2.5rem);
   }
 }
+.pasture-audio-controls {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.pasture-audio-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 14;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 196px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid #2a5a46;
+  background: #0c1c14f2;
+  color: #eef8ff;
+  box-shadow: 0 8px 24px #0005;
+}
+.pasture-audio-row {
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  gap: 8px;
+  align-items: center;
+}
+.pasture-audio-row button {
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 6px;
+  font-size: 0.72rem;
+}
+.pasture-cam-controls button.is-muted,
+.pasture-audio-row button.is-muted {
+  color: #c9d6cc;
+  opacity: 0.72;
+}
+.pasture-audio-row input[type="range"] {
+  width: 100%;
+  margin: 0;
+  accent-color: #fff4b8;
+}

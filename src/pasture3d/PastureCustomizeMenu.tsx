@@ -8,6 +8,7 @@ import {
 } from "../content/cosmetics";
 import { itemRarity } from "../content/items";
 import { CATALOG, catalogItem } from "../economy";
+import { playSfx } from "../audio";
 import { app, notice, api } from "../ui/appRuntime";
 import { run } from "../ui/careActions";
 import { sessionApi } from "../ui/socialSession";
@@ -98,6 +99,7 @@ export function PastureCustomizeMenu({ onClose }: { onClose: () => void }) {
       const msg = itemId ? `Equipped ${label}.` : `Unequipped ${label}.`;
       setFlash(msg);
       notice(msg);
+      playSfx("equip");
     })
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : "Could not equip";

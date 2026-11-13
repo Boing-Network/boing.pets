@@ -66,6 +66,17 @@ import {
   zoomFromWheel,
 } from "./camera";
 import { pasturePetLabel } from "./labels";
+import { PastureAudioControls } from "./PastureAudioControls";
+import {
+  armAudioUnlock,
+  onAudioUnlocked,
+  playHopSfx,
+  playSfx,
+  popMusicDuck,
+  pushMusicDuck,
+  startPastureMusic,
+  stopPastureMusic,
+} from "../audio";
 
 ensureWorldFontConfig();
 
@@ -271,6 +282,7 @@ export function PastureApp({
   const closeStationMenu = useCallback(() => {
     stationMenuRef.current = null;
     setStationMenu(null);
+    playSfx("close-station");
   }, []);
 
   const openStationMenu = useCallback(
@@ -279,6 +291,7 @@ export function PastureApp({
       stationMenuRef.current = kind;
       setStationMenu(kind);
       dismissHint();
+      playSfx("open-station");
     },
     [dismissHint],
   );
@@ -425,6 +438,24 @@ export function PastureApp({
   }, [applyZoom, dismissHint, resetCamera, closeStationMenu, openStationMenu]);
 
   useEffect(() => {
+    const disarm = armAudioUnlock();
+    const stop = onAudioUnlocked(() => {
+      startPastureMusic();
+    });
+    return () => {
+      disarm();
+      stop();
+      stopPastureMusic();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!stationMenu) return undefined;
+    pushMusicDuck();
+    return () => popMusicDuck();
+  }, [stationMenu]);
+
+  useEffect(() => {
     const debug: PastureDebug = {
       getPetCount: () =>
         Math.max(
@@ -524,6 +555,7 @@ export function PastureApp({
           onClick={() => {
             applyZoom(zoomBySteps(zoomRef.current, -1));
             dismissHint();
+            playSfx("ui-click");
           }}
         >
           +
@@ -534,6 +566,7 @@ export function PastureApp({
           onClick={() => {
             applyZoom(zoomBySteps(zoomRef.current, 1));
             dismissHint();
+            playSfx("ui-click");
           }}
         >
           -
@@ -541,6 +574,7 @@ export function PastureApp({
         <button type="button" aria-label="Reset camera" onClick={resetCamera}>
           Reset
         </button>
+        <PastureAudioControls />
       </div>
       {nearbyStation && !stationMenu ? (
         <div className="pasture-station-prompt" role="status">
@@ -908,6 +942,7 @@ function LocalPet({
         node.rotation.y = yaw.current;
       }
       moving.current = !stepped.arrived;
+      if (!stepped.arrived) playHopSfx();
       if (stepped.arrived) {
         walkTarget.current = null;
         speed.current = 0;
