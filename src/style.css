@@ -2132,3 +2132,17 @@ a:hover {
     max-width: calc(100% - 24px);
   }
 }
+
+.weekly-leaderboards {
+  margin: 0 0 22px;
+}
+.weekly-leaderboards h3 {
+  margin: 0 0 6px;
+}
+.leaderboard-card ol {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+.leaderboard-card li {
+  margin: 0 0 4px;
+}

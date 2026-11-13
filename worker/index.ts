@@ -27,6 +27,11 @@ import { ledgerCreditPair } from "./ledger";
 import { STREAK_MILESTONE_SPARKLES } from "../src/partyBonus";
 import { WORLD_CONFIG } from "../src/world/config/zones";
 import { contentError, contentGet, contentPost } from "./content";
+import {
+  leaderboardsError,
+  leaderboardsGet,
+  leaderboardsPost,
+} from "./leaderboards";
 import { economyError, economyGet, economyPost } from "./economy";
 import { dropsGet, maybeGrantCareDrop } from "./drops";
 import {
@@ -238,6 +243,14 @@ async function api(
       if (mapped) return mapped;
       throw error;
     }
+    try {
+      const boards = await leaderboardsGet(req, env, now);
+      if (boards) return boards;
+    } catch (error) {
+      const mapped = leaderboardsError(error);
+      if (mapped) return mapped;
+      throw error;
+    }
     const content = await contentGet(req, env, now);
     if (content) return content;
     try {
@@ -419,10 +432,12 @@ async function api(
     throw error;
   }
   try {
+    const boards = await leaderboardsPost(url, env, body, now);
+    if (boards) return boards;
     const content = await contentPost(url, env, body, now);
     if (content) return content;
   } catch (error) {
-    const mapped = contentError(error);
+    const mapped = leaderboardsError(error) || contentError(error);
     if (mapped) return mapped;
     throw error;
   }

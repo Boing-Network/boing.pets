@@ -152,6 +152,26 @@ export async function claimDailyStreak() {
   notice("Streak bonus claimed!");
 }
 
+export async function claimWeeklyBoard(boardId: string) {
+  await assertWallet();
+  notice("Approve last week's board reward in Express…");
+  const challenge = await api<{ id: string; message: string }>(
+    "/api/content/leaderboards/challenge",
+    { owner: app.owner, board_id: boardId },
+  );
+  const signature = await app.provider!.request({
+    method: "boing_signMessage",
+    params: [challenge.message, app.owner],
+  });
+  await api("/api/content/leaderboards/confirm", {
+    id: challenge.id,
+    signature,
+  });
+  await refreshEconomy();
+  await refreshQuests();
+  notice("Weekly board reward claimed!");
+}
+
 export async function refreshCollections() {
   const data = await api<{
     defs: Array<{
@@ -354,6 +374,104 @@ export async function refreshQuests() {
       return el;
     }),
   );
+  await refreshLeaderboards();
+}
+
+async function refreshLeaderboards() {
+  const host = $maybe("#leaderboard-list");
+  const summary = $maybe("#leaderboard-summary");
+  if (!host || !summary) return;
+  const data = await api<{
+    current: { key: string; boards: BoardView[] };
+    previous: { key: string; boards: BoardView[] };
+  }>("/api/content/leaderboards" + (app.owner ? "?owner=" + app.owner : ""));
+  type BoardView = {
+    id: string;
+    title: string;
+    description: string;
+    unit: string;
+    entries: Array<{
+      rank: number;
+      label: string;
+      score: number;
+      detail: string | null;
+    }>;
+    you: { score: number; rank: number } | null;
+    bonus: {
+      rewardBoinglets: number;
+      cosmeticId: string;
+      claimed: boolean;
+      eligible: boolean;
+    };
+  };
+  summary.textContent =
+    "Live this week (" +
+    data.current.key +
+    "). Last week's first place can claim a cosmetic after the UTC week rolls over.";
+  const sections: HTMLElement[] = [];
+  for (const board of data.current.boards) {
+    const prior = data.previous.boards.find((row) => row.id === board.id);
+    const section = document.createElement("article");
+    section.className = "market-card leaderboard-card";
+    const rows = board.entries.length
+      ? board.entries
+          .map((entry) => {
+            const detail = entry.detail ? " · " + entry.detail : "";
+            return (
+              "<li><strong>#" +
+              entry.rank +
+              "</strong> " +
+              entry.label +
+              " — " +
+              entry.score +
+              " " +
+              board.unit +
+              detail +
+              "</li>"
+            );
+          })
+          .join("")
+      : "<li>No claimed runs yet this week.</li>";
+    const you = board.you
+      ? '<p class="small">Your best: #' +
+        board.you.rank +
+        " · " +
+        board.you.score +
+        " " +
+        board.unit +
+        "</p>"
+      : '<p class="small">Connect and claim a run to appear on the board.</p>';
+    section.innerHTML =
+      "<h3>" +
+      board.title +
+      '</h3><p class="subtle">' +
+      board.description +
+      '</p><ol class="leaderboard-rows">' +
+      rows +
+      "</ol>" +
+      you;
+    if (prior) {
+      const btn = document.createElement("button");
+      btn.className = "secondary";
+      if (prior.bonus.claimed) {
+        btn.textContent = "Last week claimed ✓";
+        btn.disabled = true;
+      } else if (prior.bonus.eligible && app.owner) {
+        btn.textContent =
+          "Claim last week · " +
+          prior.bonus.rewardBoinglets +
+          " Boinglets + cosmetic";
+        btn.disabled = app.busy;
+        btn.onclick = () => void run(() => claimWeeklyBoard(board.id));
+      } else {
+        btn.textContent = "Last week's prize awaits first place";
+        btn.disabled = true;
+      }
+      section.append(btn);
+    }
+    sections.push(section);
+  }
+  host.replaceChildren(...sections);
 }
 
 export async function refreshEconomy() {

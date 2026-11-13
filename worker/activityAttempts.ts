@@ -14,6 +14,7 @@ import { pickFish } from "../src/content/fishing";
 import { pickOre } from "../src/content/mining";
 import { pickTreasure } from "../src/content/treasure";
 import { ribbonByPlace } from "../src/content/racing";
+import { attemptLeaderboardScore } from "../src/content/leaderboards";
 import { hex32 } from "../src/core";
 import {
   makeFishingSecret,
@@ -491,7 +492,9 @@ export async function activityAttemptsPost(
           "Missed it — no signature needed. Try again if you have attempts left.",
       });
     }
-    const reward = pickReward(activity, id);
+    const baseReward = pickReward(activity, id);
+    const score = attemptLeaderboardScore(activity, input, baseReward);
+    const reward = score === null ? baseReward : { ...baseReward, score };
     const claimExpires = now + ACTIVITY_CLAIM_WINDOW_MS;
     const claimMessage = `Boing Pets claim v1\nOrigin: ${env.APP_ORIGIN}\nChain: 6913\nOwner: ${owner}\nAttempt: ${id}\nActivity: ${activity}\nIssued: ${now}`;
     await env.DB.prepare(
