@@ -27,6 +27,11 @@ import {
   petMoodKind,
   type CareVitals,
 } from "../../pasture3d/petMood";
+import {
+  nudgeRectOutOfHud,
+  pastureHudCollisionRects,
+} from "../../pasture3d/hudSafeLabel";
+import { readPastureTouchPrefs } from "../../pasture3d/mobileControls";
 
 const _worldPos = new Vector3();
 
@@ -71,12 +76,16 @@ export function PetMesh({
   const root = useRef<Group>(null);
   const nameRef = useRef<HTMLButtonElement>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
+  const stackRef = useRef<HTMLDivElement>(null);
   const model = useMemo(() => petModelParams(look), [look]);
   const moodKind = petMoodKind(care);
   const motion = moodMotion(moodKind, reducedMotion);
 
-  useFrame(({ camera, clock }) => {
-    if (root.current && (nameRef.current || bubbleRef.current)) {
+  useFrame(({ camera, clock, size, gl }) => {
+    if (
+      root.current &&
+      (nameRef.current || bubbleRef.current || stackRef.current)
+    ) {
       root.current.getWorldPosition(_worldPos);
       const dist = camera.position.distanceTo(_worldPos);
       if (nameRef.current) {
@@ -88,6 +97,28 @@ export function PetMesh({
         bubbleRef.current.style.visibility = pastureBubbleVisible(dist)
           ? "visible"
           : "hidden";
+      }
+      const stack = stackRef.current;
+      if (stack) {
+        stack.style.transform = "translate(0px, 0px)";
+        const box = stack.getBoundingClientRect();
+        const canvas = gl.domElement.getBoundingClientRect();
+        const rect = {
+          left: box.left - canvas.left,
+          top: box.top - canvas.top,
+          right: box.right - canvas.left,
+          bottom: box.bottom - canvas.top,
+        };
+        const { dx, dy } = nudgeRectOutOfHud(
+          rect,
+          pastureHudCollisionRects(
+            size.width,
+            size.height,
+            readPastureTouchPrefs().touchControls,
+          ),
+          size,
+        );
+        stack.style.transform = `translate(${dx}px, ${dy}px)`;
       }
     }
     if (!hop.current) return;
@@ -262,7 +293,7 @@ export function PetMesh({
           style={{ pointerEvents: "none" }}
           zIndexRange={[5, 0]}
         >
-          <div className="pasture-label-stack">
+          <div ref={stackRef} className="pasture-label-stack">
             {bubble ? (
               <div ref={bubbleRef} className="pasture-bubble">
                 {worldSafeText(bubble)}

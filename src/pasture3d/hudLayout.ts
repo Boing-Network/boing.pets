@@ -52,23 +52,23 @@ export const PASTURE_MINIMAP_HEIGHT_PX =
   PASTURE_MINIMAP_TITLE_PX + PASTURE_MINIMAP_SIZE_PX;
 export const PASTURE_MINIMAP_Z_INDEX = 15;
 
-/** Compact wallet/tx toast, top-center, clear of buddy chip and camera controls. */
-export const PASTURE_TX_TOAST_TOP_PX = 12;
+/** Wallet/tx banner sits below the buddy chip, in the gap between the mini-map and camera. */
+export const PASTURE_TX_TOAST_TOP_PX = PASTURE_MINIMAP_TOP_PX;
 export const PASTURE_TX_TOAST_SIDE_CLEAR_PX = 110;
 export const PASTURE_TX_TOAST_MAX_WIDTH_PX = 360;
-export const PASTURE_TX_TOAST_HEIGHT_PX = 72;
+export const PASTURE_TX_TOAST_HEIGHT_PX = 64;
 export const PASTURE_TX_TOAST_Z_INDEX = 20;
-/** On touch, the toast wraps onto a second row, so reserve a taller hit target. */
-export const PASTURE_TX_TOAST_TOUCH_SIDE_CLEAR_PX =
-  PASTURE_TX_TOAST_SIDE_CLEAR_PX;
-export const PASTURE_TX_TOAST_TOUCH_MAX_WIDTH_PX =
-  PASTURE_TX_TOAST_MAX_WIDTH_PX;
-export const PASTURE_TX_TOAST_TOUCH_HEIGHT_PX = 108;
+export const PASTURE_TX_TOAST_DESKTOP_LEFT_PX =
+  PASTURE_MINIMAP_LEFT_PX + PASTURE_MINIMAP_SIZE_PX + PASTURE_HUD_GAP_PX;
+export const PASTURE_TX_TOAST_DESKTOP_RIGHT_PX = 120;
+/** On touch, a full-width banner sits under the bag button and above the daily chip. */
+export const PASTURE_TX_TOAST_TOUCH_SIDE_CLEAR_PX = 16;
+export const PASTURE_TX_TOAST_TOUCH_HEIGHT_PX = 88;
 
-export function pastureTxToastSideClear(touchControls: boolean): number {
+export function pastureTxToastTop(touchControls: boolean): number {
   return touchControls
-    ? PASTURE_TX_TOAST_TOUCH_SIDE_CLEAR_PX
-    : PASTURE_TX_TOAST_SIDE_CLEAR_PX;
+    ? PASTURE_TX_TOAST_TOUCH_TOP_PX
+    : PASTURE_TX_TOAST_TOP_PX;
 }
 
 export function pastureTxToastHeight(touchControls: boolean): number {
@@ -77,15 +77,20 @@ export function pastureTxToastHeight(touchControls: boolean): number {
     : PASTURE_TX_TOAST_HEIGHT_PX;
 }
 
-export function pastureTxToastMaxWidth(
+export function pastureTxToastRect(
   width: number,
   touchControls: boolean,
-): number {
-  const side = pastureTxToastSideClear(touchControls);
-  const cap = touchControls
-    ? PASTURE_TX_TOAST_TOUCH_MAX_WIDTH_PX
-    : PASTURE_TX_TOAST_MAX_WIDTH_PX;
-  return Math.min(cap, Math.max(0, width - side * 2));
+): { left: number; right: number; top: number; bottom: number } {
+  const top = pastureTxToastTop(touchControls);
+  const height = pastureTxToastHeight(touchControls);
+  if (touchControls) {
+    const left = PASTURE_TX_TOAST_TOUCH_SIDE_CLEAR_PX;
+    const right = Math.max(left, width - PASTURE_TX_TOAST_TOUCH_SIDE_CLEAR_PX);
+    return { left, right, top, bottom: top + height };
+  }
+  const left = PASTURE_TX_TOAST_DESKTOP_LEFT_PX;
+  const right = Math.max(left, width - PASTURE_TX_TOAST_DESKTOP_RIGHT_PX);
+  return { left, right, top, bottom: top + height };
 }
 
 /** Bag button sits under the mini-map on the left. */
@@ -98,6 +103,10 @@ export const PASTURE_INVENTORY_BTN_TOP_PX =
 export const PASTURE_INVENTORY_BTN_WIDTH_PX = PASTURE_MINIMAP_SIZE_PX;
 export const PASTURE_INVENTORY_BTN_HEIGHT_PX = 36;
 export const PASTURE_INVENTORY_BTN_Z_INDEX = 15;
+export const PASTURE_TX_TOAST_TOUCH_TOP_PX =
+  PASTURE_INVENTORY_BTN_TOP_PX +
+  PASTURE_INVENTORY_BTN_HEIGHT_PX +
+  PASTURE_HUD_GAP_PX;
 
 export function pastureProgressChipBottom(touchControls: boolean): number {
   return (
@@ -204,14 +213,13 @@ export function pastureHudRects(opts: {
     top: PASTURE_MINIMAP_TOP_PX,
     bottom: PASTURE_MINIMAP_TOP_PX + PASTURE_MINIMAP_HEIGHT_PX,
   };
-  const toastWidth = pastureTxToastMaxWidth(width, touchControls);
-  const toastHeight = pastureTxToastHeight(touchControls);
+  const toastBox = pastureTxToastRect(width, touchControls);
   const txToast: HudRect = {
     id: "tx-toast",
-    left: (width - toastWidth) / 2,
-    right: (width + toastWidth) / 2,
-    top: PASTURE_TX_TOAST_TOP_PX,
-    bottom: PASTURE_TX_TOAST_TOP_PX + toastHeight,
+    left: toastBox.left,
+    right: toastBox.right,
+    top: toastBox.top,
+    bottom: toastBox.bottom,
   };
   const inventory: HudRect = {
     id: "inventory",

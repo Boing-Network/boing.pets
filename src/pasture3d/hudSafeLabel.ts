@@ -85,6 +85,41 @@ export function pastureHudSafeRects(
   return rects;
 }
 
+/** Tight HUD boxes used to keep pet mood labels visible, without the fade pad. */
+export function pastureHudCollisionRects(
+  width: number,
+  height: number,
+  touchControls = false,
+): Rect[] {
+  const w = Math.max(1, width);
+  const h = Math.max(1, height);
+  const hud = pastureHudRects({ width: w, height: h, touchControls });
+  const asRect = (rect: {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+  }): Rect => ({
+    left: rect.left,
+    top: rect.top,
+    right: rect.right,
+    bottom: rect.bottom,
+  });
+  const rects: Rect[] = [
+    { left: 0, top: 0, right: Math.min(w, 188), bottom: Math.min(h, 108) },
+    { left: Math.max(0, w - 120), top: 0, right: w, bottom: Math.min(h, 248) },
+    asRect(hud.emote),
+    asRect(hud.prompt),
+    asRect(hud.progress),
+    asRect(hud.minimap),
+    asRect(hud.inventory),
+    asRect(hud.chat),
+  ];
+  if (hud.joystick) rects.push(asRect(hud.joystick));
+  if (hud.interact) rects.push(asRect(hud.interact));
+  return rects;
+}
+
 /** Approximate screen-space box of a centered billboard label. */
 export function labelScreenRect(
   centerX: number,
@@ -227,4 +262,62 @@ export function labelHudOpacity(
 export function labelDistanceScale(distance: number): number {
   if (!Number.isFinite(distance) || distance <= 0) return 1;
   return Math.max(0.55, Math.min(1, distance / 14));
+}
+
+/**
+ * Shift a screen-space box off reserved HUD chrome, preferring an upward
+ * move so a pet mood bubble stays visible under the daily chip.
+ */
+export function nudgeRectOutOfHud(
+  rect: Rect,
+  hud: Rect[],
+  viewport: { width: number; height: number },
+  gap = 6,
+): { dx: number; dy: number } {
+  const box: Rect = { ...rect };
+  let dx = 0;
+  let dy = 0;
+  const view: Rect = {
+    left: LABEL_EDGE_PAD,
+    top: LABEL_EDGE_PAD,
+    right: viewport.width - LABEL_EDGE_PAD,
+    bottom: viewport.height - LABEL_EDGE_PAD,
+  };
+  for (let pass = 0; pass < 6; pass++) {
+    let moved = false;
+    for (const region of hud) {
+      const inflated = inflateRect(region, gap);
+      if (!rectsOverlap(box, inflated)) continue;
+      const options = [
+        { dx: 0, dy: -(box.bottom - inflated.top + gap) },
+        { dx: -(box.right - inflated.left + gap), dy: 0 },
+        { dx: inflated.right - box.left + gap, dy: 0 },
+        { dx: 0, dy: inflated.bottom - box.top + gap },
+      ];
+      options.sort(
+        (a, b) =>
+          Math.abs(a.dx) + Math.abs(a.dy) - (Math.abs(b.dx) + Math.abs(b.dy)),
+      );
+      const pick = options[0]!;
+      box.left += pick.dx;
+      box.right += pick.dx;
+      box.top += pick.dy;
+      box.bottom += pick.dy;
+      dx += pick.dx;
+      dy += pick.dy;
+      moved = true;
+    }
+    if (!moved) break;
+  }
+  const clampX = Math.min(
+    view.right - (box.right - box.left),
+    Math.max(view.left, box.left),
+  );
+  const clampY = Math.min(
+    view.bottom - (box.bottom - box.top),
+    Math.max(view.top, box.top),
+  );
+  dx += clampX - box.left;
+  dy += clampY - box.top;
+  return { dx, dy };
 }

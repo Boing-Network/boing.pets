@@ -625,6 +625,14 @@ export function PastureApp({
     walkToAndOpen,
   ]);
 
+  useEffect(() => {
+    const canvas = document.getElementById("pasture-canvas");
+    canvas?.classList.toggle("is-station-menu-open", !!stationMenu);
+    return () => {
+      canvas?.classList.remove("is-station-menu-open");
+    };
+  }, [stationMenu]);
+
   const dailyProgress = useDailyProgress(owner);
   const nearbyProgress = nearbyStation
     ? areaProgressForStation(dailyProgress, nearbyStation.kind)
@@ -635,6 +643,7 @@ export function PastureApp({
       className={
         "pasture-3d-stage" +
         (stationMenu ? " is-station-menu-open" : "") +
+        (inventoryOpen ? " is-inventory-open" : "") +
         (touchControls && mine ? " is-touch-controls" : "")
       }
       ref={stageRef}

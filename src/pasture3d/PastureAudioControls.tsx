@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   getAudioSettings,
   playSfx,
@@ -14,41 +15,74 @@ import {
   type CookHintPalette,
   type TextSize,
 } from "../ui/a11ySettings";
+import { readPastureTouchPrefs } from "./mobileControls";
 
 export function PastureAudioControls() {
   const [settings, setSettings] = useState<AudioSettings>(getAudioSettings);
   const [a11y, setA11y] = useState<A11ySettings>(getA11ySettings);
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<"audio" | "access">("audio");
+  const [touchSheet, setTouchSheet] = useState(
+    () => readPastureTouchPrefs().touchControls,
+  );
   const panelId = useId();
 
   useEffect(() => subscribeAudioSettings(setSettings), []);
   useEffect(() => subscribeA11ySettings(setA11y), []);
+  useEffect(() => {
+    const sync = () => setTouchSheet(readPastureTouchPrefs().touchControls);
+    sync();
+    window.addEventListener("resize", sync);
+    return () => window.removeEventListener("resize", sync);
+  }, []);
+  useEffect(() => {
+    const stage = document.querySelector(".pasture-3d-stage");
+    stage?.classList.toggle("is-settings-open", open);
+    return () => {
+      stage?.classList.remove("is-settings-open");
+    };
+  }, [open]);
 
   const muted = settings.musicMuted && settings.sfxMuted;
   const label = muted ? "Unmute audio" : "Audio and accessibility settings";
 
-  return (
-    <div className="pasture-audio-controls">
-      <button
-        type="button"
-        aria-label={label}
-        aria-expanded={open}
-        aria-controls={panelId}
-        className={muted ? "is-muted" : undefined}
-        onClick={() => {
-          playSfx("ui-click");
-          setOpen((value) => !value);
-        }}
+  const panel = open ? (
+    <div
+      id={panelId}
+      className="pasture-audio-panel pasture-settings-panel"
+      role="group"
+      aria-label="Audio and accessibility"
+    >
+      <div
+        className="pasture-settings-tabs"
+        role="tablist"
+        aria-label="Settings sections"
       >
-        Settings
-      </button>
-      {open ? (
-        <div
-          id={panelId}
-          className="pasture-audio-panel pasture-settings-panel"
-          role="group"
-          aria-label="Audio and accessibility"
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "audio"}
+          onClick={() => {
+            playSfx("ui-click");
+            setTab("audio");
+          }}
         >
+          Audio
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "access"}
+          onClick={() => {
+            playSfx("ui-click");
+            setTab("access");
+          }}
+        >
+          Access
+        </button>
+      </div>
+      {tab === "audio" ? (
+        <>
           <AudioSlider
             label="Music"
             volume={settings.musicVolume}
@@ -63,6 +97,9 @@ export function PastureAudioControls() {
             onVolume={(sfxVolume) => updateAudioSettings({ sfxVolume })}
             onMuted={(sfxMuted) => updateAudioSettings({ sfxMuted })}
           />
+        </>
+      ) : (
+        <>
           <label className="pasture-audio-row">
             <span>Camera</span>
             <input
@@ -118,8 +155,33 @@ export function PastureAudioControls() {
               <option value="colorblind">Colorblind-safe + shapes</option>
             </select>
           </label>
-        </div>
-      ) : null}
+        </>
+      )}
+    </div>
+  ) : null;
+
+  const stage =
+    typeof document !== "undefined"
+      ? document.querySelector(".pasture-3d-stage")
+      : null;
+
+  return (
+    <div className="pasture-audio-controls">
+      <button
+        type="button"
+        aria-label={label}
+        aria-expanded={open}
+        aria-controls={panelId}
+        className={muted ? "is-muted" : undefined}
+        onClick={() => {
+          playSfx("ui-click");
+          setOpen((value) => !value);
+          setTab("audio");
+        }}
+      >
+        Settings
+      </button>
+      {panel && touchSheet && stage ? createPortal(panel, stage) : panel}
     </div>
   );
 }

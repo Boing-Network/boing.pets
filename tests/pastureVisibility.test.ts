@@ -14,6 +14,8 @@ import {
   labelDistanceScale,
   labelHudOpacity,
   labelScreenRect,
+  nudgeRectOutOfHud,
+  pastureHudCollisionRects,
   pastureHudSafeRects,
   rectsOverlap,
 } from "../src/pasture3d/hudSafeLabel";
@@ -182,7 +184,7 @@ describe("HUD-safe labels", () => {
     const rects = pastureHudSafeRects(desktop.width, desktop.height, false);
     const minimap = { left: 20, top: 110, right: 140, bottom: 230 };
     const bag = { left: 20, top: 270, right: 140, bottom: 300 };
-    const toast = { left: 640, top: 16, right: 760, bottom: 70 };
+    const toast = { left: 200, top: 100, right: 900, bottom: 150 };
     const progress = { left: 1220, top: 620, right: 1380, bottom: 670 };
     expect(rects.some((r) => rectsOverlap(r, minimap))).toBe(true);
     expect(rects.some((r) => rectsOverlap(r, bag))).toBe(true);
@@ -204,5 +206,26 @@ describe("HUD-safe labels", () => {
     expect(
       labelHudOpacity(labelScreenRect(300, 450, 22, 14), touchRects, touch),
     ).toBe(0);
+  });
+
+  it("nudges a mood bubble off the daily chip instead of hiding it", () => {
+    const touch = { width: 390, height: 844 };
+    const hud = pastureHudCollisionRects(touch.width, touch.height, true);
+    const underChip = {
+      left: 230,
+      top: 430,
+      right: 260,
+      bottom: 460,
+    };
+    expect(hud.some((r) => rectsOverlap(r, underChip))).toBe(true);
+    const { dx, dy } = nudgeRectOutOfHud(underChip, hud, touch);
+    const moved = {
+      left: underChip.left + dx,
+      top: underChip.top + dy,
+      right: underChip.right + dx,
+      bottom: underChip.bottom + dy,
+    };
+    expect(hud.some((r) => rectsOverlap(r, moved))).toBe(false);
+    expect(Math.abs(dx) + Math.abs(dy)).toBeGreaterThan(0);
   });
 });

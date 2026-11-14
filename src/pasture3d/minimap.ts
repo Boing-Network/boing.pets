@@ -99,7 +99,7 @@ export function miniMapStations(): MiniMapMarker[] {
 }
 
 /** Minimum pixel gap between station icons after the layout pass. */
-export const MINIMAP_ICON_MIN_DIST_PX = 16;
+export const MINIMAP_ICON_MIN_DIST_PX = 22;
 /** Keep spread icons inside the board instead of hanging off the edge. */
 export const MINIMAP_ICON_MARGIN_PX = 8;
 
