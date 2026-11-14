@@ -2193,6 +2193,76 @@ a:hover {
   font-size: 0.8rem;
   opacity: 0.9;
 }
+
+.pasture-minimap {
+  position: absolute;
+  left: 12px;
+  top: 96px;
+  z-index: 15;
+  width: 140px;
+  pointer-events: auto;
+}
+.pasture-minimap-title {
+  margin: 0 0 4px;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #d7ebdd;
+  text-shadow: 0 1px 2px #000a;
+  line-height: 14px;
+  height: 14px;
+}
+.pasture-minimap-board {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: 1px solid #2a5a46;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 50% 50%, #1a3a28 0%, #0c1c14ee 70%), #0c1c14ee;
+  box-shadow: 0 8px 24px #0005;
+  overflow: hidden;
+  cursor: pointer;
+  color: inherit;
+}
+.pasture-minimap-board:focus-visible {
+  outline: 2px solid #fff4b8;
+  outline-offset: 1px;
+}
+.pasture-minimap-station {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  margin-left: -8px;
+  margin-top: -8px;
+  border-radius: 50%;
+  border: 1px solid #0c1c14;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0c1c14;
+  pointer-events: none;
+}
+.pasture-minimap-player {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: #fff4b8;
+  box-shadow:
+    0 0 0 2px #1b3a28,
+    0 0 8px #fff4b8aa;
+  pointer-events: none;
+  z-index: 2;
+}
+
 .pasture-3d-stage.is-touch-controls .pasture-dailies-chip {
   right: 16px;
   top: auto;

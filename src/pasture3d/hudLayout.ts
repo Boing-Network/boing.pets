@@ -43,6 +43,15 @@ export const PASTURE_PROGRESS_CHIP_GAP_PX = PASTURE_HUD_GAP_PX;
 export const PASTURE_PROGRESS_CHIP_Z_INDEX = 15;
 export const PASTURE_PROGRESS_CHIP_RIGHT_PX = 16;
 
+/** Compact pasture mini-map, top-left under the buddy chip and presence line. */
+export const PASTURE_MINIMAP_LEFT_PX = 12;
+export const PASTURE_MINIMAP_TOP_PX = 96;
+export const PASTURE_MINIMAP_SIZE_PX = 140;
+export const PASTURE_MINIMAP_TITLE_PX = 18;
+export const PASTURE_MINIMAP_HEIGHT_PX =
+  PASTURE_MINIMAP_TITLE_PX + PASTURE_MINIMAP_SIZE_PX;
+export const PASTURE_MINIMAP_Z_INDEX = 15;
+
 export function pastureProgressChipBottom(touchControls: boolean): number {
   return (
     pastureStationPromptBottom(touchControls) +
@@ -89,6 +98,7 @@ export function pastureHudRects(opts: {
   emote: HudRect;
   prompt: HudRect;
   progress: HudRect;
+  minimap: HudRect;
   joystick: HudRect | null;
   interact: HudRect | null;
 } {
@@ -138,8 +148,23 @@ export function pastureHudRects(opts: {
     top: height - progressBottom - PASTURE_PROGRESS_CHIP_HEIGHT_PX,
     bottom: height - progressBottom,
   };
+  const minimap: HudRect = {
+    id: "minimap",
+    left: PASTURE_MINIMAP_LEFT_PX,
+    right: PASTURE_MINIMAP_LEFT_PX + PASTURE_MINIMAP_SIZE_PX,
+    top: PASTURE_MINIMAP_TOP_PX,
+    bottom: PASTURE_MINIMAP_TOP_PX + PASTURE_MINIMAP_HEIGHT_PX,
+  };
   if (!touchControls) {
-    return { chat, emote, prompt, progress, joystick: null, interact: null };
+    return {
+      chat,
+      emote,
+      prompt,
+      progress,
+      minimap,
+      joystick: null,
+      interact: null,
+    };
   }
   const joy = PASTURE_TOUCH_JOYSTICK_SIZE_PX;
   const joyBottom = PASTURE_TOUCH_CONTROLS_BOTTOM_PX;
@@ -158,7 +183,7 @@ export function pastureHudRects(opts: {
     top: height - joyBottom - interactHeight,
     bottom: height - joyBottom,
   };
-  return { chat, emote, prompt, progress, joystick, interact };
+  return { chat, emote, prompt, progress, minimap, joystick, interact };
 }
 
 /**
@@ -169,12 +194,21 @@ export function hitHudTarget(
   rects: ReturnType<typeof pastureHudRects>,
   x: number,
   y: number,
-): "chat" | "prompt" | "progress" | "emote" | "joystick" | "interact" | null {
+):
+  | "chat"
+  | "prompt"
+  | "progress"
+  | "minimap"
+  | "emote"
+  | "joystick"
+  | "interact"
+  | null {
   // Chat is a sibling of #pasture-3d and paints above the stage if they overlap.
   if (contains(rects.chat, x, y)) return "chat";
   // Inside the stage, the station prompt stacks above the emote bar.
   if (contains(rects.prompt, x, y)) return "prompt";
   if (contains(rects.progress, x, y)) return "progress";
+  if (contains(rects.minimap, x, y)) return "minimap";
   if (rects.interact && contains(rects.interact, x, y)) return "interact";
   if (rects.joystick && contains(rects.joystick, x, y)) return "joystick";
   if (contains(rects.emote, x, y)) return "emote";

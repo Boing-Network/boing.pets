@@ -75,6 +75,7 @@ import {
 import { PastureAudioControls } from "./PastureAudioControls";
 import { WalkthroughCard } from "../onboarding/WalkthroughCard";
 import { DailyQuestChip, useDailyProgress } from "./DailyQuestChip";
+import { PastureMinimap } from "./PastureMinimap";
 import { areaProgressForStation, formatAreaLine } from "./dailyProgress";
 import { PastureTouchControls } from "./PastureTouchControls";
 import { PastureEmoteBar } from "./PastureEmoteBar";
@@ -600,6 +601,7 @@ export function PastureApp({
         </div>
       ) : null}
       <DailyQuestChip progress={dailyProgress} nearby={nearbyProgress} />
+      <PastureMinimap poseRef={livePose} onWalk={(x, z) => walkTo(x, z)} />
       <WalkthroughCard
         scene="pasture"
         openMenuKind={stationMenu}

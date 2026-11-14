@@ -16,6 +16,10 @@ import {
   PASTURE_TOUCH_CHAT_CLEARANCE_PX,
   pastureHudRects,
   pastureProgressChipBottom,
+  PASTURE_MINIMAP_HEIGHT_PX,
+  PASTURE_MINIMAP_LEFT_PX,
+  PASTURE_MINIMAP_SIZE_PX,
+  PASTURE_MINIMAP_TOP_PX,
   PASTURE_PROGRESS_CHIP_GAP_PX,
   PASTURE_PROGRESS_CHIP_HEIGHT_PX,
   PASTURE_STATION_PROMPT_HEIGHT_PX,
@@ -160,5 +164,45 @@ describe("pasture chat stays clear of emotes and touch controls", () => {
     }
     expect(rectsOverlap(mobile.progress, mobile.joystick!)).toBe(false);
     expect(rectsOverlap(mobile.progress, mobile.interact!)).toBe(false);
+  });
+
+  it("keeps the mini-map under the buddy chip and clear of other HUD", () => {
+    const desktop = pastureHudRects({
+      width: 1280,
+      height: 800,
+      touchControls: false,
+    });
+    const mobile = pastureHudRects({
+      width: 390,
+      height: 844,
+      touchControls: true,
+    });
+    expect(PASTURE_MINIMAP_TOP_PX).toBe(96);
+    expect(PASTURE_MINIMAP_LEFT_PX).toBe(12);
+    expect(PASTURE_MINIMAP_SIZE_PX).toBe(140);
+    expect(css).toMatch(/\.pasture-minimap\s*\{[^}]*top:\s*96px/s);
+    expect(css).toMatch(/\.pasture-minimap\s*\{[^}]*left:\s*12px/s);
+    for (const layout of [desktop, mobile]) {
+      expect(layout.minimap.top).toBe(PASTURE_MINIMAP_TOP_PX);
+      expect(layout.minimap.left).toBe(PASTURE_MINIMAP_LEFT_PX);
+      expect(layout.minimap.right - layout.minimap.left).toBe(
+        PASTURE_MINIMAP_SIZE_PX,
+      );
+      expect(layout.minimap.bottom - layout.minimap.top).toBe(
+        PASTURE_MINIMAP_HEIGHT_PX,
+      );
+      for (const other of [
+        layout.prompt,
+        layout.emote,
+        layout.chat,
+        layout.progress,
+      ]) {
+        expect(rectsOverlap(layout.minimap, other)).toBe(false);
+      }
+      const mid = hudRectCenter(layout.minimap);
+      expect(hitHudTarget(layout, mid.x, mid.y)).toBe("minimap");
+    }
+    expect(rectsOverlap(mobile.minimap, mobile.joystick!)).toBe(false);
+    expect(rectsOverlap(mobile.minimap, mobile.interact!)).toBe(false);
   });
 });
