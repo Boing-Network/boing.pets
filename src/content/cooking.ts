@@ -94,8 +94,35 @@ export function recipeByFoodId(foodId: string): RecipeDef | undefined {
   return RECIPES.find((r) => r.foodId === foodId);
 }
 
+/** Care boosts for foods that can be served from the bag, including activity snacks. */
+export type FoodBoost = {
+  foodId: string;
+  hungerBoost: number;
+  energyBoost: number;
+};
+
+export const SNACK_BOOSTS: readonly FoodBoost[] = [
+  { foodId: "food-snack", hungerBoost: 12, energyBoost: 4 },
+];
+
+export function foodBoostFor(foodId: string): FoodBoost | undefined {
+  const recipe = recipeByFoodId(foodId);
+  if (recipe) {
+    return {
+      foodId: recipe.foodId,
+      hungerBoost: recipe.hungerBoost,
+      energyBoost: recipe.energyBoost,
+    };
+  }
+  return SNACK_BOOSTS.find((snack) => snack.foodId === foodId);
+}
+
 export function isFoodItem(itemId: string): boolean {
   return itemId.startsWith("food-");
+}
+
+export function isServableFood(itemId: string): boolean {
+  return !!foodBoostFor(itemId);
 }
 
 export function isCookKind(value: unknown): value is CookKind {
@@ -116,10 +143,10 @@ export function applyFoodBoosts<T extends { hunger: number; energy: number }>(
   let hunger = base.hunger;
   let energy = base.energy;
   for (const serving of servings) {
-    const recipe = recipeByFoodId(serving.food_id);
-    if (!recipe) continue;
-    hunger = Math.min(100, hunger + recipe.hungerBoost);
-    energy = Math.min(100, energy + recipe.energyBoost);
+    const boost = foodBoostFor(serving.food_id);
+    if (!boost) continue;
+    hunger = Math.min(100, hunger + boost.hungerBoost);
+    energy = Math.min(100, energy + boost.energyBoost);
   }
   return { ...base, hunger, energy, snacksToday: servings.length };
 }

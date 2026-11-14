@@ -3,10 +3,12 @@ import { unlockedCollections } from "../src/content/collections";
 import {
   applyFoodBoosts,
   COOK_DAILY_CAP,
+  foodBoostFor,
   formatKitchenCounts,
   formatKitchenSummary,
   isCookKind,
   isFoodItem,
+  isServableFood,
   recipeById,
   RECIPES,
   SERVE_DAILY_CAP,
@@ -30,6 +32,21 @@ describe("cooking content", () => {
     expect(boosted.hunger).toBe(90);
     expect(boosted.energy).toBe(50);
     expect(boosted.snacksToday).toBe(2);
+  });
+
+  it("applies a care boost when serving a pasture snack", () => {
+    expect(isServableFood("food-snack")).toBe(true);
+    expect(foodBoostFor("food-snack")).toEqual({
+      foodId: "food-snack",
+      hungerBoost: 12,
+      energyBoost: 4,
+    });
+    const boosted = applyFoodBoosts({ hunger: 50, energy: 40 }, [
+      { food_id: "food-snack" },
+    ]);
+    expect(boosted.hunger).toBe(62);
+    expect(boosted.energy).toBe(44);
+    expect(boosted.snacksToday).toBe(1);
   });
 
   it("unlocks cookbook discoveries from recipe ids", () => {

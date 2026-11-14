@@ -1,6 +1,6 @@
 /** Inventory grouping and quick actions for the in-pasture bag. */
 
-import { RECIPES, type RecipeDef } from "../content/cooking";
+import { foodBoostFor, RECIPES, type RecipeDef } from "../content/cooking";
 import { itemDisplayName, itemMarketCategory } from "../content/items";
 import { isSellableItem, MARKET_MIN_BOING } from "../market";
 
@@ -24,6 +24,7 @@ export type InventoryEntry = {
   tab: InventoryTab;
   sellable: boolean;
   useArea: InventoryUseArea | null;
+  consumable: "serve" | null;
   iconId: string;
   ready?: boolean;
 };
@@ -39,13 +40,17 @@ export function inventoryTabFor(itemId: string): InventoryTab {
 }
 
 export function inventoryUseArea(itemId: string): InventoryUseArea | null {
+  if (foodBoostFor(itemId)) return null;
   const tab = inventoryTabFor(itemId);
   if (tab === "recipes" || tab === "crops" || tab === "fish") return "cook";
-  if (itemId.startsWith("food-")) return "cook";
   const category = itemMarketCategory(itemId);
   if (category === "cosmetics") return "customize";
   if (category === "furniture") return "home";
   return null;
+}
+
+export function inventoryConsumable(itemId: string): "serve" | null {
+  return foodBoostFor(itemId) ? "serve" : null;
 }
 
 export function recipeIsReady(
@@ -71,6 +76,7 @@ export function buildInventoryEntries(
     tab: inventoryTabFor(id),
     sellable: isSellableItem(id),
     useArea: inventoryUseArea(id),
+    consumable: inventoryConsumable(id),
     iconId: id,
   }));
   const recipeEntries: InventoryEntry[] = recipes.map((recipe) => ({
@@ -80,6 +86,7 @@ export function buildInventoryEntries(
     tab: "recipes" as const,
     sellable: false,
     useArea: "cook" as const,
+    consumable: null,
     iconId: recipe.foodId,
     ready: recipeIsReady(recipe, qtyById),
   }));

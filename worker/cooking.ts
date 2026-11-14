@@ -4,7 +4,7 @@ import { hexToBytes } from "@noble/hashes/utils";
 import {
   COOK_DAILY_CAP,
   isCookKind,
-  recipeByFoodId,
+  foodBoostFor,
   recipeById,
   RECIPES,
   SERVE_DAILY_CAP,
@@ -192,8 +192,8 @@ export async function cookingPost(
 
     if (kind === "serve") {
       const foodId = String(body.food_id || "");
-      const recipe = recipeByFoodId(foodId);
-      if (!recipe) throw new HttpError(404, "Unknown dish");
+      const boost = foodBoostFor(foodId);
+      if (!boost) throw new HttpError(404, "Unknown dish");
       const served = await env.DB.prepare(
         "SELECT COUNT(*) AS n FROM snack_log WHERE owner=? AND day=?",
       )
@@ -209,9 +209,9 @@ export async function cookingPost(
           owner,
           kind,
           {
-            food_id: recipe.foodId,
-            hunger_boost: recipe.hungerBoost,
-            energy_boost: recipe.energyBoost,
+            food_id: boost.foodId,
+            hunger_boost: boost.hungerBoost,
+            energy_boost: boost.energyBoost,
           },
           now,
         ),
@@ -301,11 +301,11 @@ export async function cookingPost(
 
     if (c.kind === "serve") {
       const foodId = String(payload.food_id);
-      const recipe = recipeByFoodId(foodId);
+      const boost = foodBoostFor(foodId);
       if (
-        !recipe ||
-        recipe.hungerBoost !== Number(payload.hunger_boost) ||
-        recipe.energyBoost !== Number(payload.energy_boost)
+        !boost ||
+        boost.hungerBoost !== Number(payload.hunger_boost) ||
+        boost.energyBoost !== Number(payload.energy_boost)
       )
         throw new HttpError(409, "Dish config changed; retry");
       const served = await env.DB.prepare(

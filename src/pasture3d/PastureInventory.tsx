@@ -3,6 +3,7 @@ import { itemIconSvg } from "../ui/itemIcons";
 import { api, app } from "../ui/appRuntime";
 import { run } from "../ui/careActions";
 import { economyAct } from "../ui/pages/progressPage";
+import { kitchenAct } from "../ui/pages/lifestylePage";
 import {
   buildInventoryEntries,
   entriesForTab,
@@ -53,6 +54,14 @@ export function PastureInventory({
   }, [open, reload]);
 
   const visible = entriesForTab(entries, tab);
+
+  const serve = (entry: InventoryEntry) => {
+    void run(async () => {
+      await kitchenAct("serve", { food_id: entry.id });
+      await reload();
+      setFlash(`Fed 1 ${entry.name}. Hunger and energy are up.`);
+    });
+  };
 
   const sell = (entry: InventoryEntry) => {
     void run(async () => {
@@ -146,7 +155,16 @@ export function PastureInventory({
                     </span>
                   </div>
                   <div className="pasture-inventory-actions">
-                    {entry.useArea ? (
+                    {entry.consumable === "serve" ? (
+                      <button
+                        type="button"
+                        className="quiet"
+                        disabled={!app.owner}
+                        onClick={() => serve(entry)}
+                      >
+                        Use
+                      </button>
+                    ) : entry.useArea ? (
                       <button
                         type="button"
                         className="quiet"

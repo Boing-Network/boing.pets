@@ -1014,6 +1014,45 @@ describe("Pets API", () => {
     expect(body.pet.state.snacksToday).toBe(1);
     expect(body.pet.state.hunger).toBeGreaterThanOrEqual(15);
   });
+  it("serves a pasture snack from inventory for a care boost", async () => {
+    await hatch();
+    db.prepare("INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,2)").run(
+      owner,
+      "food-snack",
+    );
+    const before = (
+      (await (await request("/api/pet?owner=" + owner)).json()) as {
+        pet: { state: { hunger: number; energy: number } };
+      }
+    ).pet.state;
+    const serve = await request("/api/cook/challenge", {
+      owner,
+      kind: "serve",
+      food_id: "food-snack",
+    });
+    expect(serve.status).toBe(200);
+    const sb = (await serve.json()) as { id: string; message: string };
+    expect(
+      (
+        await request("/api/cook/confirm", {
+          id: sb.id,
+          signature: await signConfirm(sb.message),
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      db
+        .prepare("SELECT qty FROM inventory WHERE owner=? AND item_id=?")
+        .get(owner, "food-snack")?.qty,
+    ).toBe(1);
+    const pet = await request("/api/pet?owner=" + owner);
+    const body = (await pet.json()) as {
+      pet: { state: { hunger: number; energy: number; snacksToday: number } };
+    };
+    expect(body.pet.state.snacksToday).toBe(1);
+    expect(body.pet.state.hunger).toBe(Math.min(100, before.hunger + 12));
+    expect(body.pet.state.energy).toBe(Math.min(100, before.energy + 4));
+  });
   it("digs treasure from a clue and awards loot on a hit", async () => {
     await hatch();
     const start = await request("/api/treasure/challenge", { owner });
