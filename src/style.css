@@ -1,13 +1,28 @@
-@import url("https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap");
+@import "./fonts.css";
 :root {
-  font-family: Comfortaa, "Segoe UI", sans-serif;
-  color: #e8eeff;
-  background: #050a1a;
+  --ink: #0a0a0a;
+  --ink-2: #111111;
+  --ink-3: #1a1a1a;
+  --paper: #f5f5f0;
+  --paper-dim: #d6d6d0;
+  --muted: #a3a3a3;
+  --line: #2a2a2a;
+  --accent: #ff4d00;
+  --accent-2: #ff7a18;
+  --panel: rgba(10, 10, 10, 0.92);
+  --shadow: 4px 4px 0 #0a0a0a;
+  --shadow-accent: 4px 4px 0 #ff4d00;
+  --radius: 2px;
+  --font-display: "Archivo Black", "Anton", Impact, sans-serif;
+  --font-condensed: "Bebas Neue", "Anton", sans-serif;
+  --font-ui: "Space Grotesk", "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  font-family: var(--font-ui), "Segoe UI", sans-serif;
+  color: var(--paper);
+  background: var(--ink);
   font-synthesis: none;
-  line-height: 1.65;
+  line-height: 1.5;
   font-weight: 500;
-  --muted: #a5b4d4;
-  --accent: #6f9bff;
 }
 * {
   box-sizing: border-box;
@@ -18,8 +33,9 @@ html {
 }
 body {
   margin: 0;
-  background:
-    radial-gradient(ellipse at 85% 15%, #182951 0, transparent 45%), #050a1a;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-ui), "Segoe UI", sans-serif;
 }
 a {
   color: inherit;

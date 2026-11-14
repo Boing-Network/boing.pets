@@ -1,5 +1,6 @@
 import { petSvg, traits, type Action } from "./core";
 import "./style.css";
+import "./streetwear.css";
 import { FOOTER_HTML, PAGE_BODIES } from "./ui/pageBodies";
 import { PAGE_META, renderHeader, type PageId } from "./ui/nav";
 import {
