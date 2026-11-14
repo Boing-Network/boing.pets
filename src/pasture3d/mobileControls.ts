@@ -1,5 +1,7 @@
 /** Camera-relative stick movement and mobile quality helpers for the pasture. */
 
+import { getA11ySettings } from "../ui/a11ySettings";
+
 export const STICK_DEADZONE = 0.12;
 
 export function stickWorldDelta(
@@ -27,9 +29,9 @@ export function readPastureTouchPrefs(
   if (!win) {
     return { preferPerf: true, reducedMotion: false, touchControls: false };
   }
-  const reducedMotion = win.matchMedia(
-    "(prefers-reduced-motion: reduce)",
-  ).matches;
+  const reducedMotion =
+    win.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+    getA11ySettings().reducedMotion;
   const coarse = win.matchMedia("(pointer: coarse)").matches;
   const narrow = win.matchMedia("(max-width: 900px)").matches;
   return {

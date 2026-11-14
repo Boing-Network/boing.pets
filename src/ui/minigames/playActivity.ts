@@ -2,6 +2,7 @@ import { playSfx, popMusicDuck, pushMusicDuck } from "../../audio";
 import { api, app, notice } from "../appRuntime";
 import { assertWallet, run } from "../careActions";
 import { noticeWalletError } from "../appRuntime";
+import { COOK_HINT_SHAPES, prefersReducedMotion } from "../a11ySettings";
 import { sessionApi } from "../socialSession";
 import { bindDisablePopover, type DisableReason } from "../disableReason";
 import type { ActivityId } from "../../content/attempts";
@@ -135,10 +136,6 @@ function trackRaf(play: PlaySession, fn: FrameRequestCallback) {
 function trackKeydown(play: PlaySession, fn: (event: KeyboardEvent) => void) {
   play.keydown = fn;
   window.addEventListener("keydown", fn);
-}
-
-function prefersReducedMotion() {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 export function reasonForActivity(
@@ -742,6 +739,14 @@ function showCookFeedback(
     if (!button) return;
     button.dataset.marked = "1";
     button.classList.add(`cook-spot-${mark}`);
+    if (!button.querySelector(".cook-spot-shape")) {
+      const shape = document.createElement("span");
+      shape.className = "cook-spot-shape";
+      shape.setAttribute("aria-hidden", "true");
+      shape.textContent =
+        COOK_HINT_SHAPES[mark as keyof typeof COOK_HINT_SHAPES] ?? "";
+      button.prepend(shape);
+    }
   });
   let line = root.querySelector(".cook-feedback");
   if (!line) {

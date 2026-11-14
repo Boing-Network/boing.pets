@@ -34,11 +34,13 @@ export function zoomFromWheel(
   distance: number,
   deltaY: number,
   deltaMode = 0,
+  sensitivity = 1,
 ): number {
   let dy = deltaY;
   if (deltaMode === 1) dy *= 16;
   if (deltaMode === 2) dy *= 800;
-  const factor = Math.exp(Math.max(-80, Math.min(80, dy)) * 0.0016);
+  const scale = Math.min(2, Math.max(0.4, sensitivity || 1));
+  const factor = Math.exp(Math.max(-80, Math.min(80, dy)) * 0.0016 * scale);
   return clampZoom(distance * factor);
 }
 
@@ -46,8 +48,10 @@ export function zoomBySteps(
   distance: number,
   steps: number,
   step = 1.18,
+  sensitivity = 1,
 ): number {
-  return clampZoom(distance * Math.pow(step, steps));
+  const scale = Math.min(2, Math.max(0.4, sensitivity || 1));
+  return clampZoom(distance * Math.pow(step, steps * scale));
 }
 
 export function cameraMinHeight(

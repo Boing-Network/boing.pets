@@ -2570,3 +2570,53 @@ a:hover {
   display: flex;
   gap: 4px;
 }
+
+#pasture-canvas,
+#app {
+  font-size: calc(1rem * var(--pasture-text-scale, 1));
+}
+.cook-spot-shape {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+html[data-cook-hint="colorblind"] .cook-spot-correct {
+  border-color: #3b82f6 !important;
+  background: #163056 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.45);
+}
+html[data-cook-hint="colorblind"] .cook-spot-present {
+  border-color: #f59e0b !important;
+  background: #3a2a10 !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.45);
+}
+html[data-cook-hint="colorblind"] .cook-spot-absent {
+  border-color: #9ca3af !important;
+  background: #2a2d33 !important;
+  box-shadow: 0 0 0 2px rgba(156, 163, 175, 0.4);
+}
+.pasture-settings-panel {
+  min-width: 220px;
+}
+.pasture-settings-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 0.78rem;
+}
+.pasture-audio-row select {
+  flex: 1;
+  min-width: 0;
+  border-radius: 8px;
+  border: 1px solid #2a5a46;
+  background: #0c1c14;
+  color: inherit;
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 2px 4px;
+}

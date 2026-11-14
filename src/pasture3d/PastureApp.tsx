@@ -76,6 +76,7 @@ import { PastureAudioControls } from "./PastureAudioControls";
 import { WalkthroughCard } from "../onboarding/WalkthroughCard";
 import { DailyQuestChip, useDailyProgress } from "./DailyQuestChip";
 import { noticeWalletError } from "../ui/appRuntime";
+import { getA11ySettings } from "../ui/a11ySettings";
 import { PastureMinimap } from "./PastureMinimap";
 import { PastureInventory } from "./PastureInventory";
 import { areaProgressForStation, formatAreaLine } from "./dailyProgress";
@@ -410,7 +411,14 @@ export function PastureApp({
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
       event.stopPropagation();
-      applyZoom(zoomFromWheel(zoomRef.current, event.deltaY, event.deltaMode));
+      applyZoom(
+        zoomFromWheel(
+          zoomRef.current,
+          event.deltaY,
+          event.deltaMode,
+          getA11ySettings().cameraSensitivity,
+        ),
+      );
       dismissHint();
     };
     const pointers = new Map<number, { x: number; y: number }>();
@@ -433,7 +441,13 @@ export function PastureApp({
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       if (pointers.size === 2 && pinchStart > 1) {
         event.preventDefault();
-        applyZoom(zoomStart * (pinchStart / pinchDistance()));
+        applyZoom(
+          zoomStart *
+            Math.pow(
+              pinchStart / pinchDistance(),
+              getA11ySettings().cameraSensitivity,
+            ),
+        );
         dismissHint();
       }
     };
@@ -468,11 +482,25 @@ export function PastureApp({
         return;
       if (event.key === "+" || event.key === "=") {
         event.preventDefault();
-        applyZoom(zoomBySteps(zoomRef.current, -1));
+        applyZoom(
+          zoomBySteps(
+            zoomRef.current,
+            -1,
+            1.18,
+            getA11ySettings().cameraSensitivity,
+          ),
+        );
         dismissHint();
       } else if (event.key === "-" || event.key === "_") {
         event.preventDefault();
-        applyZoom(zoomBySteps(zoomRef.current, 1));
+        applyZoom(
+          zoomBySteps(
+            zoomRef.current,
+            1,
+            1.18,
+            getA11ySettings().cameraSensitivity,
+          ),
+        );
         dismissHint();
       } else if (event.key === "0") {
         event.preventDefault();
@@ -542,7 +570,15 @@ export function PastureApp({
       sendCosmetics: presence.sendCosmetics,
       getZoom: () => zoomRef.current,
       setZoom: (distance) => applyZoom(distance),
-      zoomBy: (steps) => applyZoom(zoomBySteps(zoomRef.current, steps)),
+      zoomBy: (steps) =>
+        applyZoom(
+          zoomBySteps(
+            zoomRef.current,
+            steps,
+            1.18,
+            getA11ySettings().cameraSensitivity,
+          ),
+        ),
       resetCamera,
       setOcclusionLook: (look) => setPastureLookOverride(look),
       setTimeOfDay: (hours) => {
@@ -670,7 +706,14 @@ export function PastureApp({
           type="button"
           aria-label="Zoom in"
           onClick={() => {
-            applyZoom(zoomBySteps(zoomRef.current, -1));
+            applyZoom(
+              zoomBySteps(
+                zoomRef.current,
+                -1,
+                1.18,
+                getA11ySettings().cameraSensitivity,
+              ),
+            );
             dismissHint();
             playSfx("ui-click");
           }}
@@ -681,7 +724,14 @@ export function PastureApp({
           type="button"
           aria-label="Zoom out"
           onClick={() => {
-            applyZoom(zoomBySteps(zoomRef.current, 1));
+            applyZoom(
+              zoomBySteps(
+                zoomRef.current,
+                1,
+                1.18,
+                getA11ySettings().cameraSensitivity,
+              ),
+            );
             dismissHint();
             playSfx("ui-click");
           }}

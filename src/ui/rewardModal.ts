@@ -1,4 +1,5 @@
 import { activityIconSvg, collectionIconSvg, itemIconSvg } from "./itemIcons";
+import { prefersReducedMotion } from "./a11ySettings";
 import {
   chainStatusDescription,
   chainStatusLabel,
@@ -19,10 +20,6 @@ function esc(value: string) {
 
 const FOCUSABLE =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-
-function prefersReducedMotion() {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
 
 function burstConfetti(canvas: HTMLCanvasElement) {
   if (prefersReducedMotion()) {
