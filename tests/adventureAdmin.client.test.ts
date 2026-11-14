@@ -76,5 +76,14 @@ describe("adventure admin stays off the client", () => {
     expect(html).not.toMatch(/<script/i);
     expect(html).not.toMatch(/<form/i);
     expect(html).not.toMatch(/<input/i);
+    expect(html).not.toMatch(/<style/i);
+    expect(html).toMatch(
+      /<link\s+rel=["']stylesheet["']\s+href=["']\/admin-adventures\.css["']\s*\/>/i,
+    );
+    expect(existsSync(join(root, "public", "admin-adventures.css"))).toBe(true);
+    expect(existsSync(join(dist, "admin-adventures.css"))).toBe(true);
+    const css = readFileSync(join(dist, "admin-adventures.css"), "utf8");
+    expect(css).toMatch(/color-scheme:\s*dark/);
+    expect(css).toMatch(/background:\s*#0a0a0a/);
   });
 });

@@ -13,6 +13,7 @@ import {
   bindMarketFilterForm,
   readMarketFilterForm,
 } from "../marketFiltersDom";
+import { marketLoadedNotice } from "../marketNotice";
 
 import {
   COLLECTION_CATEGORY_LABELS,
@@ -422,7 +423,7 @@ async function refreshLeaderboards() {
 
 export async function refreshEconomy() {
   mountSkeletons($maybe("#listings"), "market-card", "Loading listings");
-  const catalog = await api<{
+  const catalogPromise = api<{
     catalog: Array<{
       id: string;
       name: string;
@@ -432,7 +433,7 @@ export async function refreshEconomy() {
       description: string;
     }>;
   }>("/api/economy/catalog");
-  const market = await api<{
+  const marketPromise = api<{
     listings: Array<{
       id: string;
       seller: string;
@@ -472,6 +473,7 @@ export async function refreshEconomy() {
       floorBoing: string;
     };
   }>("/api/marketplace" + (app.owner ? `?owner=${app.owner}` : ""));
+  const [catalog, market] = await Promise.all([catalogPromise, marketPromise]);
   let summary = `Connect to claim care rewards and daily testnet ${currencyLabel("sparkles")}, then browse cosmetics or list items in testnet BOING.`;
   if (!$maybe("#economy-summary") || !$maybe("#catalog")) return;
   const claimBtn = $("#claim") as HTMLButtonElement;
@@ -775,4 +777,6 @@ export async function refreshEconomy() {
   } else if (historyEl) {
     historyEl.textContent = "Connect to see your auditable drop history.";
   }
+
+  notice(marketLoadedNotice(app.owner));
 }

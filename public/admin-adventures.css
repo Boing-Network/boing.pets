@@ -1,0 +1,53 @@
+/* Static styles for /admin-adventures.html. Kept off the HTML so production CSP (style-src 'self') can apply them. */
+
+:root {
+  color-scheme: dark;
+}
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #0a0a0a;
+  color: #f4f1ea;
+  font:
+    16px/1.5 Inter,
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+}
+main {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 3rem 1.25rem 4rem;
+}
+.eyebrow {
+  margin: 0 0 0.5rem;
+  color: #ff5a1f;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+h1 {
+  margin: 0 0 1rem;
+  font:
+    800 2.4rem/0.95 "Arial Black",
+    "Arial Narrow",
+    Impact,
+    sans-serif;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+p {
+  margin: 0 0 1rem;
+}
+code,
+pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+pre {
+  padding: 1rem 1.1rem;
+  overflow: auto;
+  background: #141414;
+  border: 2px solid #f4f1ea;
+  color: #f4f1ea;
+}
