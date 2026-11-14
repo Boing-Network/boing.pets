@@ -12,7 +12,7 @@ export const SPARKLES_DAILY = 10;
 export const CATALOG = [
   {
     id: "hat-ribbon",
-    name: "Pasture Ribbon",
+    name: "Street Ribbon",
     kind: "pet_skin",
     priceBoinglets: 40,
     priceSparkles: 0,
@@ -28,7 +28,7 @@ export const CATALOG = [
   },
   {
     id: "furn-cushion",
-    name: "Bounce Cushion",
+    name: "Stoop Cushion",
     kind: "furniture",
     priceBoinglets: 60,
     priceSparkles: 0,
@@ -36,7 +36,7 @@ export const CATALOG = [
   },
   {
     id: "furn-lamp",
-    name: "Meadow Lamp",
+    name: "Alley Lamp",
     kind: "furniture",
     priceBoinglets: 90,
     priceSparkles: 0,
@@ -52,7 +52,7 @@ export const CATALOG = [
   },
   {
     id: "hat-stardust",
-    name: "Stardust Halo",
+    name: "Neon Halo",
     kind: "pet_skin",
     priceBoinglets: 0,
     priceSparkles: 8,
@@ -60,7 +60,7 @@ export const CATALOG = [
   },
   {
     id: "frame-aurora",
-    name: "Aurora Frame",
+    name: "Night Frame",
     kind: "profile",
     priceBoinglets: 0,
     priceSparkles: 12,
@@ -85,7 +85,7 @@ export const CATALOG = [
   },
   {
     id: "hat-leaf",
-    name: "Leaf Cap",
+    name: "Fern Cap",
     kind: "pet_skin",
     priceBoinglets: 50,
     priceSparkles: 0,

@@ -17,14 +17,14 @@ export interface FishDef {
 export const FISH: FishDef[] = [
   {
     id: "fish-ripple",
-    name: "Ripple Minnow",
+    name: "Curb Minnow",
     rarity: "common",
     rewardBoinglets: 4,
     weight: 48,
   },
   {
     id: "fish-boingfin",
-    name: "Boingfin",
+    name: "Alleyfin",
     rarity: "uncommon",
     rewardBoinglets: 10,
     weight: 24,
@@ -38,7 +38,7 @@ export const FISH: FishDef[] = [
   },
   {
     id: "fish-moonkoi",
-    name: "Moon Koi",
+    name: "Night Koi",
     rarity: "rare",
     rewardBoinglets: 22,
     weight: 9,

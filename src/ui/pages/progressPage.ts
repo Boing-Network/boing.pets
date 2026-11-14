@@ -39,6 +39,7 @@ function itemName(id: string): string {
 }
 
 import { economyAct } from "../economyAct";
+import { currencyLabel } from "../../content/currencyLabels";
 export { economyAct };
 
 export async function claimQuest(questId: string) {
@@ -274,7 +275,7 @@ export async function refreshQuests() {
       dailies.bonus.title +
       '</h3><p class="subtle">' +
       dailies.bonus.rewardBoinglets +
-      " Boinglets" +
+      ` ${currencyLabel("boinglets")}` +
       cosmetic +
       '</p><p class="small">Claim once per UTC day after finishing all three goals. Seven-day streaks also unlock the ribbon hat.</p>';
     const btn = document.createElement("button");
@@ -299,7 +300,7 @@ export async function refreshQuests() {
     ...data.quests.map((q) => {
       const el = document.createElement("article");
       el.className = "market-card";
-      el.innerHTML = `<h3>${q.title}</h3><p class="subtle">${q.kind} · ${q.rewardBoinglets} Boinglets</p><p class="small">${q.description}</p>`;
+      el.innerHTML = `<h3>${q.title}</h3><p class="subtle">${q.kind} · ${q.rewardBoinglets} ${currencyLabel("boinglets")}</p><p class="small">${q.description}</p>`;
       const btn = document.createElement("button");
       btn.className = "secondary";
       if (q.claimed) {
@@ -405,7 +406,7 @@ async function refreshLeaderboards() {
         btn.textContent =
           "Claim last week · " +
           prior.bonus.rewardBoinglets +
-          " Boinglets + cosmetic";
+          ` ${currencyLabel("boinglets")} + cosmetic`;
         btn.disabled = app.busy;
         btn.onclick = () => void run(() => claimWeeklyBoard(board.id));
       } else {
@@ -471,8 +472,7 @@ export async function refreshEconomy() {
       floorBoing: string;
     };
   }>("/api/marketplace" + (app.owner ? `?owner=${app.owner}` : ""));
-  let summary =
-    "Connect to claim care rewards and daily testnet Sparkles, then browse cosmetics or list items in testnet BOING.";
+  let summary = `Connect to claim care rewards and daily testnet ${currencyLabel("sparkles")}, then browse cosmetics or list items in testnet BOING.`;
   if (!$maybe("#economy-summary") || !$maybe("#catalog")) return;
   const claimBtn = $("#claim") as HTMLButtonElement;
   const sparklesBtn = $("#claim-sparkles") as HTMLButtonElement;
@@ -485,19 +485,19 @@ export async function refreshEconomy() {
       inventory: Array<{ item_id: string; qty: number }>;
     }>("/api/economy/balance?owner=" + app.owner);
     inventory = bal.inventory;
-    summary = `${bal.balances.boinglets} Boinglets · ${bal.balances.sparkles} Sparkles · ${bal.care.claimable} care claimable · ${bal.inventory.length} inventory stacks`;
+    summary = `${bal.balances.boinglets} ${currencyLabel("boinglets")} · ${bal.balances.sparkles} ${currencyLabel("sparkles")} · ${bal.care.claimable} care claimable · ${bal.inventory.length} inventory stacks`;
     claimBtn.hidden = false;
     claimBtn.disabled = app.busy || bal.care.claimable <= 0;
     claimBtn.textContent =
       bal.care.claimable > 0
-        ? `Claim ${bal.care.claimable} Boinglets`
+        ? `Claim ${bal.care.claimable} ${currencyLabel("boinglets")}`
         : "Care rewards claimed ✓";
     sparklesBtn.hidden = false;
     sparklesBtn.disabled = app.busy || bal.sparklesFaucet.claimable <= 0;
     sparklesBtn.textContent =
       bal.sparklesFaucet.claimable > 0
-        ? `Claim ${bal.sparklesFaucet.daily} Sparkles · sign`
-        : "Sparkles claimed today ✓";
+        ? `Claim ${bal.sparklesFaucet.daily} ${currencyLabel("sparkles")} · sign`
+        : `${currencyLabel("sparkles")} claimed today ✓`;
   } else {
     claimBtn.hidden = true;
     sparklesBtn.hidden = true;
@@ -507,8 +507,8 @@ export async function refreshEconomy() {
     ...catalog.catalog.map((item) => {
       const priceLabel =
         item.priceSparkles > 0
-          ? `${item.priceSparkles} Sparkles`
-          : `${item.priceBoinglets} Boinglets`;
+          ? `${item.priceSparkles} ${currencyLabel("sparkles")}`
+          : `${item.priceBoinglets} ${currencyLabel("boinglets")}`;
       const el = document.createElement("article");
       el.className = "market-card";
       const rarity = itemRarity(item.id);

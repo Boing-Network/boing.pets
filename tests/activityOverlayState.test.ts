@@ -54,7 +54,7 @@ describe("activity overlay result isolation", () => {
       ["treasure", "Treasure", "Shiny Charm", "charm-shiny", 6],
       ["racing", "Racing", "Finish Ribbon", "ribbon-finish", 5],
       ["garden", "Garden", "Meadow Sprout", "crop-sprout", 3],
-      ["cook", "Cooking", "Sprout Salad", "food-snack", 8],
+      ["cook", "Cooking", "Curb Salad", "food-snack", 8],
     ];
     for (const [activity, title, name, itemId, amount] of cases) {
       const result: ClaimRewardResult = {

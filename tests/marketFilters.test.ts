@@ -67,7 +67,7 @@ const listings: MarketListingView[] = [
 
 describe("market listing filters", () => {
   it("searches by name and item id, case-insensitive", () => {
-    const byName = filterMarketListings(listings, { q: "pasture pebble" });
+    const byName = filterMarketListings(listings, { q: "lot pebble" });
     expect(byName.map((row) => row.id)).toEqual(["a"]);
     const byId = filterMarketListings(listings, { q: "HAT-STARDUST" });
     expect(byId.map((row) => row.id)).toEqual(["b"]);

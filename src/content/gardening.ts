@@ -16,7 +16,7 @@ export interface CropDef {
 export const CROPS: CropDef[] = [
   {
     id: "crop-sprout",
-    name: "Bounce Sprout",
+    name: "Curb Sprout",
     growMs: 60_000,
     wateredGrowMs: 30_000,
     rewardBoinglets: 6,
@@ -24,7 +24,7 @@ export const CROPS: CropDef[] = [
   },
   {
     id: "crop-berry",
-    name: "Pasture Berry",
+    name: "Lot Berry",
     growMs: 90_000,
     wateredGrowMs: 45_000,
     rewardBoinglets: 10,
@@ -40,7 +40,7 @@ export const CROPS: CropDef[] = [
   },
   {
     id: "crop-moonbloom",
-    name: "Moonbloom",
+    name: "Nightbloom",
     growMs: 120_000,
     wateredGrowMs: 60_000,
     rewardBoinglets: 16,
@@ -48,7 +48,7 @@ export const CROPS: CropDef[] = [
   },
   {
     id: "crop-starglider",
-    name: "Starglider Bloom",
+    name: "Highrise Bloom",
     growMs: 180_000,
     wateredGrowMs: 90_000,
     rewardBoinglets: 24,

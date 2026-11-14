@@ -73,6 +73,11 @@ const RARITY: Record<string, ItemRarity> = {
   "ribbon-gold": "rare",
   "ribbon-silver": "uncommon",
   "ribbon-bronze": "common",
+  "grail-tag": "mythic",
+  "vaulted-jacket": "iconic",
+  "mat-scrap": "common",
+  "mat-thread": "rare",
+  "mat-resin": "legendary",
 };
 
 const SOURCE: Record<string, string> = {
@@ -122,12 +127,17 @@ const SOURCE: Record<string, string> = {
 };
 
 const EXTRA_NAMES: Record<string, string> = {
-  "crop-forage": "Foraged Greens",
+  "crop-forage": "Lot Greens",
   "tool-pick-wood": "Wood Pick",
   "ribbon-gold": "Gold Ribbon",
   "ribbon-silver": "Silver Ribbon",
   "ribbon-bronze": "Bronze Ribbon",
-  "food-snack": "Pasture Snack",
+  "food-snack": "Corner Snack",
+  "grail-tag": "Grail Tag",
+  "vaulted-jacket": "Vaulted Jacket",
+  "mat-scrap": "Street Scrap",
+  "mat-thread": "Wire Thread",
+  "mat-resin": "Night Resin",
 };
 
 export function itemDisplayName(gameItemId: string): string {

@@ -15,7 +15,7 @@ export interface TreasureDef {
 export const TREASURES: TreasureDef[] = [
   {
     id: "loot-pebble",
-    name: "Lucky Pebble",
+    name: "Alley Pebble",
     rarity: "common",
     rewardBoinglets: 5,
     weight: 46,
@@ -29,21 +29,21 @@ export const TREASURES: TreasureDef[] = [
   },
   {
     id: "loot-wind-bell",
-    name: "Wind Bell",
+    name: "Chain Bell",
     rarity: "uncommon",
     rewardBoinglets: 14,
     weight: 16,
   },
   {
     id: "loot-sun-shard",
-    name: "Sun Shard",
+    name: "Flare Shard",
     rarity: "rare",
     rewardBoinglets: 28,
     weight: 10,
   },
   {
     id: "loot-comet-bead",
-    name: "Comet Bead",
+    name: "Signal Bead",
     rarity: "epic",
     rewardBoinglets: 40,
     weight: 4,

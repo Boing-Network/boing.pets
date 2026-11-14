@@ -10,6 +10,7 @@ import {
   type Challenge,
   type Provider,
 } from "./appRuntime";
+import { currencyLabel } from "../content/currencyLabels";
 import {
   clearWalletSession,
   ensurePreferredProvider,
@@ -133,7 +134,7 @@ export async function act(action: Action) {
           ? "Playtime logged. Energy up!"
           : "All fresh. Hygiene restored.";
     if (confirmed.streak_milestone?.sparkles) {
-      msg += ` Streak day ${confirmed.streak_milestone.streak}: +${confirmed.streak_milestone.sparkles} Sparkles!`;
+      msg += ` Streak day ${confirmed.streak_milestone.streak}: +${confirmed.streak_milestone.sparkles} ${currencyLabel("sparkles")}!`;
     }
     if (confirmed.drop?.name) {
       msg += ` You found a ${confirmed.drop.tier} drop: ${confirmed.drop.name}!`;

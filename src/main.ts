@@ -32,7 +32,7 @@ function showOnboardingTip() {
     "Tip: Hatch once with a tiny self-transfer, then say hello daily for streaks.",
     "Tip: Play and Groom are free signatures once per UTC day.",
     "Tip: Form a party with friends — shared activities earn a Party bonus.",
-    "Tip: Try fishing, mining, racing, and cooking for variety-day Boinglets.",
+    "Tip: Try fishing, mining, racing, and cooking for variety-day Cred.",
   ];
   const tip = tips[Math.floor(Date.now() / 60_000) % tips.length];
   const el = document.querySelector("#onboarding-tip");

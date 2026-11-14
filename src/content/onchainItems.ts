@@ -51,14 +51,14 @@ export const ONCHAIN_ITEMS: readonly OnchainItemDef[] = [
   {
     gameItemId: "ore-pebble",
     itemId: 1,
-    name: "Pasture Pebble",
+    name: "Lot Pebble",
     category: "ore",
   },
   { gameItemId: "ore-spark", itemId: 2, name: "Spark Ore", category: "ore" },
   {
     gameItemId: "ore-crystal",
     itemId: 3,
-    name: "Boing Crystal",
+    name: "Yard Crystal",
     category: "ore",
   },
   { gameItemId: "ore-emberite", itemId: 4, name: "Emberite", category: "ore" },
@@ -71,19 +71,19 @@ export const ONCHAIN_ITEMS: readonly OnchainItemDef[] = [
   {
     gameItemId: "fish-ripple",
     itemId: 10,
-    name: "Ripple Minnow",
+    name: "Curb Minnow",
     category: "fish",
   },
   {
     gameItemId: "fish-boingfin",
     itemId: 11,
-    name: "Boingfin",
+    name: "Alleyfin",
     category: "fish",
   },
   {
     gameItemId: "fish-moonkoi",
     itemId: 12,
-    name: "Moon Koi",
+    name: "Night Koi",
     category: "fish",
   },
   {
@@ -101,7 +101,7 @@ export const ONCHAIN_ITEMS: readonly OnchainItemDef[] = [
   {
     gameItemId: "loot-pebble",
     itemId: 20,
-    name: "Lucky Pebble",
+    name: "Alley Pebble",
     category: "treasure",
   },
   {
@@ -113,37 +113,37 @@ export const ONCHAIN_ITEMS: readonly OnchainItemDef[] = [
   {
     gameItemId: "loot-sun-shard",
     itemId: 22,
-    name: "Sun Shard",
+    name: "Flare Shard",
     category: "treasure",
   },
   {
     gameItemId: "loot-wind-bell",
     itemId: 23,
-    name: "Wind Bell",
+    name: "Chain Bell",
     category: "treasure",
   },
   {
     gameItemId: "loot-comet-bead",
     itemId: 24,
-    name: "Comet Bead",
+    name: "Signal Bead",
     category: "treasure",
   },
   {
     gameItemId: "crop-sprout",
     itemId: 30,
-    name: "Bounce Sprout",
+    name: "Curb Sprout",
     category: "crop",
   },
   {
     gameItemId: "crop-berry",
     itemId: 31,
-    name: "Pasture Berry",
+    name: "Lot Berry",
     category: "crop",
   },
   {
     gameItemId: "crop-moonbloom",
     itemId: 32,
-    name: "Moonbloom",
+    name: "Nightbloom",
     category: "crop",
   },
   {
@@ -155,37 +155,37 @@ export const ONCHAIN_ITEMS: readonly OnchainItemDef[] = [
   {
     gameItemId: "crop-starglider",
     itemId: 34,
-    name: "Starglider Bloom",
+    name: "Highrise Bloom",
     category: "crop",
   },
   {
     gameItemId: "food-sprout-salad",
     itemId: 40,
-    name: "Sprout Salad",
+    name: "Curb Salad",
     category: "food",
   },
   {
     gameItemId: "food-berry-glaze",
     itemId: 41,
-    name: "Berry Glaze Fish",
+    name: "Lot-Glaze Fish",
     category: "food",
   },
   {
     gameItemId: "food-moon-feast",
     itemId: 42,
-    name: "Moon Feast",
+    name: "Night Feast",
     category: "food",
   },
   {
     gameItemId: "food-honey-tart",
     itemId: 43,
-    name: "Honeyroot Tart",
+    name: "Block Tart",
     category: "food",
   },
   {
     gameItemId: "food-starlit",
     itemId: 44,
-    name: "Starlit Broth",
+    name: "After-Hours Broth",
     category: "food",
   },
   {
@@ -209,7 +209,7 @@ export const ONCHAIN_ITEMS: readonly OnchainItemDef[] = [
   {
     gameItemId: "hat-ribbon",
     itemId: 70,
-    name: "Pasture Ribbon",
+    name: "Street Ribbon",
     category: "cosmetic",
   },
   {
@@ -221,7 +221,7 @@ export const ONCHAIN_ITEMS: readonly OnchainItemDef[] = [
   {
     gameItemId: "hat-stardust",
     itemId: 72,
-    name: "Stardust Halo",
+    name: "Neon Halo",
     category: "cosmetic",
   },
   {
@@ -233,25 +233,25 @@ export const ONCHAIN_ITEMS: readonly OnchainItemDef[] = [
   {
     gameItemId: "frame-aurora",
     itemId: 74,
-    name: "Aurora Frame",
+    name: "Night Frame",
     category: "cosmetic",
   },
   {
     gameItemId: "furn-cushion",
     itemId: 75,
-    name: "Bounce Cushion",
+    name: "Stoop Cushion",
     category: "cosmetic",
   },
   {
     gameItemId: "furn-lamp",
     itemId: 76,
-    name: "Meadow Lamp",
+    name: "Alley Lamp",
     category: "cosmetic",
   },
   {
     gameItemId: "hat-leaf",
     itemId: 77,
-    name: "Leaf Cap",
+    name: "Fern Cap",
     category: "cosmetic",
   },
   {

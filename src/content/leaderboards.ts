@@ -13,6 +13,8 @@ export const RARITY_RANK: Record<ItemRarity, number> = {
   rare: 3,
   epic: 4,
   legendary: 5,
+  mythic: 6,
+  iconic: 7,
 };
 
 export type LeaderboardDef = {

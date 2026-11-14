@@ -32,7 +32,7 @@ export const PICKAXES: PickaxeDef[] = [
 export const ORES: OreDef[] = [
   {
     id: "ore-pebble",
-    name: "Pasture Pebble",
+    name: "Lot Pebble",
     rarity: "common",
     rewardBoinglets: 4,
     staminaCost: 1,
@@ -59,7 +59,7 @@ export const ORES: OreDef[] = [
   },
   {
     id: "ore-crystal",
-    name: "Boing Crystal",
+    name: "Yard Crystal",
     rarity: "rare",
     rewardBoinglets: 22,
     staminaCost: 3,

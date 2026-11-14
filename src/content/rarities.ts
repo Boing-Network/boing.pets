@@ -6,6 +6,8 @@ export const ITEM_RARITIES = [
   "rare",
   "epic",
   "legendary",
+  "mythic",
+  "iconic",
 ] as const;
 
 export type ItemRarity = (typeof ITEM_RARITIES)[number];
@@ -16,6 +18,8 @@ export const ITEM_RARITY_LABELS: Record<ItemRarity, string> = {
   rare: "Rare",
   epic: "Epic",
   legendary: "Legendary",
+  mythic: "Grail",
+  iconic: "Vaulted",
 };
 
 /** Care-drop "premium" pity and weekly caps apply to legendary cosmetics. */
@@ -75,9 +79,12 @@ export function marketCategoryFromGameId(
   if (
     gameItemId.startsWith("hat-") ||
     gameItemId.startsWith("frame-") ||
-    gameItemId.startsWith("ribbon-")
+    gameItemId.startsWith("ribbon-") ||
+    gameItemId === "grail-tag" ||
+    gameItemId === "vaulted-jacket"
   )
     return "cosmetics";
+  if (gameItemId.startsWith("mat-")) return "tools";
   if (fallback === "ore") return "ores";
   if (fallback === "fish") return "fish";
   if (fallback === "treasure") return "loot";

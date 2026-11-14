@@ -1,5 +1,6 @@
 /** Pure formatting for the post-claim reward modal. */
 
+import { currencyLabel } from "../content/currencyLabels";
 import { activityTitle } from "./itemIcons";
 
 export type ClaimRewardResult = {
@@ -76,14 +77,14 @@ export function formatRewardBreakdown(result: ClaimRewardResult): {
   if (sparkles > 0) {
     lines.push({
       key: "sparkles",
-      label: "Streak Sparkles",
-      value: `+${sparkles} Sparkles`,
+      label: `Streak ${currencyLabel("sparkles")}`,
+      value: `+${sparkles} ${currencyLabel("sparkles")}`,
     });
   }
   if (totalBoinglets !== base || lines.length > 1) {
     lines.push({
       key: "total",
-      label: "Total Boinglets",
+      label: `Total ${currencyLabel("boinglets")}`,
       value: `+${totalBoinglets}ℬ`,
     });
   }
@@ -105,8 +106,9 @@ export function formatRewardBreakdown(result: ClaimRewardResult): {
   const itemName = result.reward?.name || "Reward";
   const title = activityTitle(result.activity);
   const summaryParts = [`Claimed ${itemName}`];
-  if (totalBoinglets) summaryParts.push(`+${totalBoinglets} Boinglets`);
-  if (sparkles) summaryParts.push(`+${sparkles} Sparkles`);
+  if (totalBoinglets)
+    summaryParts.push(`+${totalBoinglets} ${currencyLabel("boinglets")}`);
+  if (sparkles) summaryParts.push(`+${sparkles} ${currencyLabel("sparkles")}`);
   if (xp) summaryParts.push(`+${xp} XP`);
   if (remaining !== null) {
     summaryParts.push(

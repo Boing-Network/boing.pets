@@ -11,7 +11,7 @@ describe("formatRewardBreakdown", () => {
     const view = formatRewardBreakdown({
       activity: "fishing",
       reward: {
-        name: "Ripple Minnow",
+        name: "Curb Minnow",
         rarity: "common",
         rewardBoinglets: 4,
         itemId: "fish-ripple",
@@ -19,13 +19,13 @@ describe("formatRewardBreakdown", () => {
       remaining: 2,
     });
     expect(view.activityTitle).toBe("Fishing");
-    expect(view.itemName).toBe("Ripple Minnow");
+    expect(view.itemName).toBe("Curb Minnow");
     expect(view.totalBoinglets).toBe(4);
     expect(view.lines).toEqual([{ key: "base", label: "Base", value: "+4ℬ" }]);
     expect(view.extras).toEqual([
       { key: "remaining", label: "Attempts left today", value: "2" },
     ]);
-    expect(view.summary).toContain("Ripple Minnow");
+    expect(view.summary).toContain("Curb Minnow");
     expect(view.summary).toContain("2 attempts remaining");
   });
 
@@ -50,12 +50,12 @@ describe("formatRewardBreakdown", () => {
       { key: "base", label: "Base", value: "+10ℬ" },
       { key: "party", label: "Party +20%", value: "+2ℬ" },
       { key: "variety", label: "Variety day", value: "+5ℬ" },
-      { key: "sparkles", label: "Streak Sparkles", value: "+3 Sparkles" },
-      { key: "total", label: "Total Boinglets", value: "+17ℬ" },
+      { key: "sparkles", label: "Streak Laces", value: "+3 Laces" },
+      { key: "total", label: "Total Cred", value: "+17ℬ" },
     ]);
     expect(view.extras.map((e) => e.key)).toEqual(["xp", "remaining"]);
-    expect(view.summary).toContain("+17 Boinglets");
-    expect(view.summary).toContain("+3 Sparkles");
+    expect(view.summary).toContain("+17 Cred");
+    expect(view.summary).toContain("+3 Laces");
     expect(view.summary).toContain("+8 XP");
     expect(view.summary).toContain("1 attempt remaining");
   });
@@ -64,7 +64,7 @@ describe("formatRewardBreakdown", () => {
     const view = formatRewardBreakdown({
       activity: "cook",
       reward: {
-        name: "Sprout Salad",
+        name: "Curb Salad",
         rewardBoinglets: 8,
         itemId: "food-snack",
       },

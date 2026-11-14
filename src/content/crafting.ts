@@ -97,7 +97,7 @@ export const CRAFT_RECIPES: CraftRecipe[] = [
   },
   {
     id: "craft-leaf-cap",
-    name: "Weave a Leaf Cap",
+    name: "Weave a Fern Cap",
     description: "Stitch sprouts, honeyroot, and a wind bell into a leafy cap.",
     inputs: [
       { itemId: "crop-sprout", qty: 2 },
@@ -110,7 +110,7 @@ export const CRAFT_RECIPES: CraftRecipe[] = [
   {
     id: "craft-aether-pick",
     name: "Forge an Aether Pick",
-    description: "Bind an Aetherite core and a Comet Bead to a Crystal Pick.",
+    description: "Bind an Aetherite core and a Signal Bead to a Crystal Pick.",
     inputs: [
       { itemId: "tool-pick-crystal", qty: 1 },
       { itemId: "ore-aetherite", qty: 2 },
@@ -122,7 +122,7 @@ export const CRAFT_RECIPES: CraftRecipe[] = [
   {
     id: "craft-comet-pin",
     name: "Set a Comet Pin",
-    description: "Mount a Comet Bead on aetherite and starglider silk.",
+    description: "Mount a Signal Bead on aetherite and starglider silk.",
     inputs: [
       { itemId: "loot-comet-bead", qty: 1 },
       { itemId: "ore-aetherite", qty: 1 },

@@ -45,6 +45,7 @@ import { housingError, housingGet, housingPost } from "./housing";
 import { treasureError, treasureGet, treasurePost } from "./treasure";
 import { gardeningError, gardeningGet, gardeningPost } from "./gardening";
 import { cookingError, cookingGet, cookingPost } from "./cooking";
+import { adventuresError, adventuresGet, adventuresPost } from "./adventures";
 import { craftingError, craftingGet, craftingPost } from "./crafting";
 import { miningError, miningGet, miningPost } from "./mining";
 import {
@@ -271,6 +272,14 @@ async function api(
       throw error;
     }
     try {
+      const adventures = await adventuresGet(req, env, now);
+      if (adventures) return adventures;
+    } catch (error) {
+      const mapped = adventuresError(error);
+      if (mapped) return mapped;
+      throw error;
+    }
+    try {
       const craft = await craftingGet(req, env, now);
       if (craft) return craft;
     } catch (error) {
@@ -455,6 +464,14 @@ async function api(
     if (cook) return cook;
   } catch (error) {
     const mapped = cookingError(error);
+    if (mapped) return mapped;
+    throw error;
+  }
+  try {
+    const adventures = await adventuresPost(req, url, env, body, now);
+    if (adventures) return adventures;
+  } catch (error) {
+    const mapped = adventuresError(error);
     if (mapped) return mapped;
     throw error;
   }

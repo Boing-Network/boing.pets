@@ -69,7 +69,7 @@ describe("wide public pasture layout", () => {
       stage: "teen",
     });
     expect(equippedSummary({ hat: "hat-leaf", accessory: "frame-gold" })).toBe(
-      "Hat: Leaf Cap · Accessory: Gold Card Frame",
+      "Hat: Fern Cap · Accessory: Gold Card Frame",
     );
     expect(equippedSummary({})).toBe("Nothing equipped yet.");
     expect(
