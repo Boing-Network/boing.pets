@@ -314,7 +314,10 @@ describe("pasture chat stays clear of emotes and touch controls", () => {
     );
     expect(css).toMatch(/\.pasture-audio-panel\s*\{[^}]*max-height:/s);
     expect(css).toMatch(
-      /\.pasture-3d-stage\.is-touch-controls \.pasture-audio-panel\s*\{[^}]*max-height:/s,
+      /\.pasture-3d-stage\.is-touch-controls \.pasture-audio-panel[^{]*\{[^}]*max-height:/s,
+    );
+    expect(css).toMatch(
+      /\.pasture-3d-stage\.is-touch-controls \.pasture-settings-panel[^{]*\{[^}]*min-width:\s*0/s,
     );
   });
 });

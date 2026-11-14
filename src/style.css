@@ -2106,8 +2106,10 @@ a:hover {
   color: #eef8ff;
   box-shadow: 0 8px 24px #0005;
 }
-.pasture-3d-stage.is-touch-controls .pasture-audio-panel {
+.pasture-3d-stage.is-touch-controls .pasture-audio-panel,
+.pasture-3d-stage.is-touch-controls .pasture-settings-panel {
   width: 156px;
+  min-width: 0;
   max-height: 150px;
 }
 .pasture-audio-row {
