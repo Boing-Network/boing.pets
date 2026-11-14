@@ -200,58 +200,59 @@ export function PetMesh({
       {pastureHudOverlaysVisible(hideHudOverlays) ? (
         <Html
           position={[0, STREET_BODY_LABEL_Y, 0]}
-          center
           sprite
           style={{ pointerEvents: "none" }}
           zIndexRange={[5, 0]}
         >
-          <div ref={stackRef} className="pasture-label-stack">
-            {bubble ? (
-              <div ref={bubbleRef} className="pasture-bubble">
-                {worldSafeText(bubble)}
-              </div>
-            ) : null}
-            <div
-              className={
-                "pasture-mood-bubble" + (motion.sparkle ? " is-sparkle" : "")
-              }
-              data-mood={motion.kind}
-              title={motion.label}
-              aria-label={`Mood: ${motion.label}`}
-            >
-              <span className="pasture-mood-icon" aria-hidden="true">
-                {motion.icon}
-              </span>
-              {motion.sparkle ? (
-                <span className="pasture-mood-sparkle" aria-hidden="true">
-                  *
-                </span>
+          <div className="pasture-label-anchor">
+            <div ref={stackRef} className="pasture-label-stack">
+              {bubble ? (
+                <div ref={bubbleRef} className="pasture-bubble">
+                  {worldSafeText(bubble)}
+                </div>
               ) : null}
-            </div>
-            {emote && emote.id === "heart" ? (
-              <div className="pasture-emote-heart" aria-hidden="true">
-                ♥
+              <div
+                className={
+                  "pasture-mood-bubble" + (motion.sparkle ? " is-sparkle" : "")
+                }
+                data-mood={motion.kind}
+                title={motion.label}
+                aria-label={`Mood: ${motion.label}`}
+              >
+                <span className="pasture-mood-icon" aria-hidden="true">
+                  {motion.icon}
+                </span>
+                {motion.sparkle ? (
+                  <span className="pasture-mood-sparkle" aria-hidden="true">
+                    *
+                  </span>
+                ) : null}
               </div>
-            ) : null}
-            <button
-              ref={nameRef}
-              type="button"
-              className={
-                "pasture-pet-hit" +
-                (yours ? " yours" : "") +
-                (selected ? " is-selected" : "")
-              }
-              data-owner-label={label}
-              data-species={model.species}
-              data-feature={model.featureKind}
-              style={{ pointerEvents: "auto" }}
-              onClick={(event) => {
-                event.stopPropagation();
-                onClick?.();
-              }}
-            >
-              {label}
-            </button>
+              {emote && emote.id === "heart" ? (
+                <div className="pasture-emote-heart" aria-hidden="true">
+                  ♥
+                </div>
+              ) : null}
+              <button
+                ref={nameRef}
+                type="button"
+                className={
+                  "pasture-pet-hit" +
+                  (yours ? " yours" : "") +
+                  (selected ? " is-selected" : "")
+                }
+                data-owner-label={label}
+                data-species={model.species}
+                data-feature={model.featureKind}
+                style={{ pointerEvents: "auto" }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onClick?.();
+                }}
+              >
+                {label}
+              </button>
+            </div>
           </div>
         </Html>
       ) : null}

@@ -300,7 +300,9 @@ export function cityBuildingFootprints(): {
     ...cityStreetwearBuildings().map((item) => ({
       x: item.position[0],
       z: item.position[2],
-      r: Math.max(item.halfW, item.halfD) + 0.4,
+      // Tight circle so the long facade does not block the avenue;
+      // the AABB in cityDressingSolids covers the rest of the wall.
+      r: Math.min(item.halfW, item.halfD) + 0.35,
     })),
   ];
 }
@@ -478,9 +480,11 @@ export function cityDressingSolids(): CitySolid[] {
     });
   }
   for (const [i, prop] of cityStreetwearProps().entries()) {
-    if (prop.kind !== "clutter") continue;
     solids.push({
-      id: "streetwear-prop-" + i,
+      id:
+        prop.kind === "building"
+          ? "streetwear-building-" + i
+          : "streetwear-prop-" + i,
       x: prop.position[0],
       z: prop.position[2],
       halfW: prop.halfW,
@@ -506,9 +510,9 @@ export function cityBuildingCameraSolids(): CitySolid[] {
       id: "streetwear-building-cam-" + i,
       x: item.position[0],
       z: item.position[2],
-      halfW: Math.max(item.halfW, 3.35),
-      halfD: Math.max(item.halfD, 3.35),
-      height: Math.max(item.height, 7.4),
+      halfW: item.halfW + 0.25,
+      halfD: item.halfD + 0.25,
+      height: item.height,
     })),
   ];
 }

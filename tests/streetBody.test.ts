@@ -139,6 +139,15 @@ describe("Nico streetwear props", () => {
       ).toBe(true);
     }
     const dressing = cityDressingSolids();
+    expect(
+      dressing.some(
+        (s) =>
+          s.id.startsWith("streetwear-building-") &&
+          marks.some(
+            (b) => Math.hypot(s.x - b.position[0], s.z - b.position[2]) < 0.2,
+          ),
+      ),
+    ).toBe(true);
     for (const item of cityStreetwearProps().filter(
       (p) => p.kind === "clutter",
     )) {
@@ -150,5 +159,26 @@ describe("Nico streetwear props", () => {
         item.name,
       ).toBe(true);
     }
+  });
+});
+
+describe("cartoon polish layout", () => {
+  it("places Walk-Up and Corner Store on the central avenue in camera view", () => {
+    const marks = Object.fromEntries(
+      cityStreetwearBuildings().map((b) => [b.name, b]),
+    );
+    const walk = marks["walk-up"]!;
+    const store = marks["corner-store"]!;
+    // West and east of the N-S avenue, south of spawn, inside the district.
+    expect(walk.position[0]).toBeLessThan(-4.4);
+    expect(walk.position[0]).toBeGreaterThan(-8);
+    expect(store.position[0]).toBeGreaterThan(4.4);
+    expect(store.position[0]).toBeLessThan(8);
+    for (const b of [walk, store]) {
+      expect(b.position[2]).toBeLessThan(-6);
+      expect(b.position[2]).toBeGreaterThan(-16);
+    }
+    expect(walk.rotationY).toBeCloseTo(Math.PI / 2);
+    expect(store.rotationY).toBeCloseTo(-Math.PI / 2);
   });
 });

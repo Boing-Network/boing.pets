@@ -32,6 +32,10 @@ function isMesh(obj: THREE.Object3D): obj is THREE.Mesh {
   return (obj as THREE.Mesh).isMesh;
 }
 
+function isSkinnedMesh(obj: THREE.Object3D): obj is THREE.SkinnedMesh {
+  return (obj as THREE.SkinnedMesh).isSkinnedMesh;
+}
+
 function isBone(obj: THREE.Object3D): obj is THREE.Bone {
   return (obj as THREE.Bone).isBone;
 }
@@ -46,13 +50,124 @@ function tintSlotForMesh(
   return "body";
 }
 
-function cloneMaterials(root: THREE.Object3D): void {
+const TOON_STEPS = [72, 110, 170, 255];
+
+function makeToonRamp(): THREE.DataTexture {
+  const data = new Uint8Array(TOON_STEPS.length * 4);
+  for (let i = 0; i < TOON_STEPS.length; i++) {
+    const v = TOON_STEPS[i]!;
+    data[i * 4] = v;
+    data[i * 4 + 1] = v;
+    data[i * 4 + 2] = v;
+    data[i * 4 + 3] = 255;
+  }
+  const tex = new THREE.DataTexture(
+    data,
+    TOON_STEPS.length,
+    1,
+    THREE.RGBAFormat,
+  );
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function colorOf(mat: THREE.Material): THREE.Color {
+  if ("color" in mat && mat.color instanceof THREE.Color) return mat.color;
+  return new THREE.Color("#888888");
+}
+
+function toonFrom(
+  mat: THREE.Material,
+  ramp: THREE.DataTexture,
+  name: string,
+): THREE.Material {
+  if (/^Catch_/.test(name)) {
+    return new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      toneMapped: false,
+    });
+  }
+  if (/^Pupil_/.test(name)) {
+    return new THREE.MeshToonMaterial({
+      color: 0x141018,
+      gradientMap: ramp,
+    });
+  }
+  const src = mat as THREE.MeshStandardMaterial;
+  const toon = new THREE.MeshToonMaterial({
+    color: colorOf(mat).clone(),
+    map: "map" in src ? src.map : null,
+    gradientMap: ramp,
+    transparent: src.transparent,
+    opacity: src.opacity,
+    side: src.side,
+  });
+  return toon;
+}
+
+function stylizeMaterials(root: THREE.Object3D, ramp: THREE.DataTexture): void {
   root.traverse((obj) => {
     if (!isMesh(obj)) return;
+    if (obj.name.endsWith("_Outline")) return;
     obj.material = Array.isArray(obj.material)
-      ? obj.material.map((mat) => mat.clone())
-      : obj.material.clone();
+      ? obj.material.map((mat) => toonFrom(mat, ramp, obj.name))
+      : toonFrom(obj.material, ramp, obj.name);
   });
+}
+
+const OUTLINE_SKIP = /^(Pupil_|Catch_)/;
+const OUTLINE_INFLATE = 0.016;
+
+function inflateGeometry(source: THREE.BufferGeometry): THREE.BufferGeometry {
+  const geom = source.clone();
+  const pos = geom.getAttribute("position");
+  const nrm = geom.getAttribute("normal");
+  if (!pos || !nrm) return geom;
+  for (let i = 0; i < pos.count; i++) {
+    pos.setXYZ(
+      i,
+      pos.getX(i) + nrm.getX(i) * OUTLINE_INFLATE,
+      pos.getY(i) + nrm.getY(i) * OUTLINE_INFLATE,
+      pos.getZ(i) + nrm.getZ(i) * OUTLINE_INFLATE,
+    );
+  }
+  pos.needsUpdate = true;
+  return geom;
+}
+
+function addInvertedHullOutlines(root: THREE.Object3D): void {
+  const pending: Array<{ parent: THREE.Object3D; outline: THREE.Object3D }> =
+    [];
+  const outlineMat = new THREE.MeshBasicMaterial({
+    color: 0x1a0c08,
+    side: THREE.BackSide,
+  });
+  root.traverse((obj) => {
+    if (!isMesh(obj)) return;
+    if (OUTLINE_SKIP.test(obj.name)) return;
+    if (obj.name.endsWith("_Outline")) return;
+    const parent = obj.parent;
+    if (!parent) return;
+    const geom = inflateGeometry(obj.geometry);
+    const mat = outlineMat.clone();
+    let outline: THREE.Mesh | THREE.SkinnedMesh;
+    if (isSkinnedMesh(obj)) {
+      const skinned = new THREE.SkinnedMesh(geom, mat);
+      skinned.bind(obj.skeleton, obj.bindMatrix);
+      outline = skinned;
+    } else {
+      outline = new THREE.Mesh(geom, mat);
+    }
+    outline.name = `${obj.name}_Outline`;
+    outline.frustumCulled = false;
+    outline.position.copy(obj.position);
+    outline.quaternion.copy(obj.quaternion);
+    outline.scale.copy(obj.scale);
+    pending.push({ parent, outline });
+  });
+  for (const item of pending) item.parent.add(item.outline);
 }
 
 function tintStreetBody(root: THREE.Object3D, look: PetModelLook): void {
@@ -61,11 +176,12 @@ function tintStreetBody(root: THREE.Object3D, look: PetModelLook): void {
   const dark = body.clone().lerp(new THREE.Color("#2a1810"), 0.35);
   root.traverse((obj) => {
     if (!isMesh(obj)) return;
+    if (obj.name.endsWith("_Outline")) return;
     const slot = tintSlotForMesh(obj.name);
     if (slot === "face") return;
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     for (const mat of mats) {
-      if (!(mat instanceof THREE.MeshStandardMaterial)) continue;
+      if (!(mat instanceof THREE.MeshToonMaterial)) continue;
       if (slot === "body") mat.color.copy(body);
       else if (slot === "accent-surface") mat.color.copy(dark);
       else mat.color.copy(accent);
@@ -156,7 +272,9 @@ export function StreetBodyModel({
       .then((gltf) => {
         if (!live) return;
         const clone = SkeletonUtils.clone(gltf.scene) as THREE.Group;
-        cloneMaterials(clone);
+        const ramp = makeToonRamp();
+        stylizeMaterials(clone, ramp);
+        addInvertedHullOutlines(clone);
         clone.position.y = STREET_BODY_GROUND_LIFT;
         const bones = collectBones(clone);
         attachAnchors(clone, bones);

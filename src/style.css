@@ -1246,16 +1246,19 @@ a:hover {
 .pasture-presence-status {
   position: absolute;
   z-index: 8;
-  top: 58px;
+  top: 72px;
   left: 12px;
   max-width: min(420px, calc(100% - 120px));
   margin: 0;
-  padding: 4px 8px;
+  padding: 2px 8px;
   border-radius: 10px;
   background: #0c1c1488;
   color: #e8f6ee;
   font-size: 0.68rem;
-  z-index: 4;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   pointer-events: none;
 }
 .pasture-equip {
@@ -1343,11 +1346,15 @@ a:hover {
 .pasture-hint p {
   margin: 0;
 }
+.pasture-label-anchor {
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+}
 .pasture-label-stack {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   pointer-events: none;
 }
 .pasture-3d-stage.is-station-menu-open .pasture-label-stack,
@@ -1361,9 +1368,10 @@ a:hover {
   background: #0c1c14cc;
   color: #eef8ff;
   font: inherit;
-  font-size: 11px;
+  font-size: 10px;
   letter-spacing: 0.2px;
-  padding: 2px 7px;
+  padding: 1px 6px;
+  line-height: 1.2;
   border-radius: 999px;
   cursor: pointer;
   white-space: nowrap;
@@ -2929,15 +2937,15 @@ html[data-cook-hint="colorblind"] .cook-spot-absent {
   align-items: center;
   justify-content: center;
   gap: 1px;
-  min-width: 22px;
-  height: 22px;
-  margin: 0 auto 4px;
-  padding: 0 5px;
+  min-width: 16px;
+  height: 16px;
+  margin: 0 auto;
+  padding: 0 4px;
   border-radius: 999px;
   border: 1px solid #3a4454;
   background: #0c1c14ee;
   color: #fff8e0;
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   line-height: 1;
   pointer-events: none;
   box-shadow: 0 4px 12px #0005;

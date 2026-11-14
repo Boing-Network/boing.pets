@@ -17,24 +17,26 @@ export type StreetPropSpec = {
 
 /**
  * Authored meter-scale props, already pivoted to a y=0 base.
- * Walk-Up / Corner Store sit on leftover lots as buildings; the Night Cart
+ * Walk-Up and Corner Store front the central avenue inside the district,
+ * where the default and follow cameras actually see them. The Night Cart
  * stands just outside The Drop; the rest is mid-block street clutter.
+ * halfW / halfD are world-axis AABB halves at the chosen rotation.
  */
 export const STREETWEAR_PROPS: readonly StreetPropSpec[] = [
   {
     name: "walk-up",
     kind: "building",
-    position: [-23.35, 0, -6],
+    position: [-5.2, 0, -10.4],
     rotationY: Math.PI / 2,
-    scale: 1,
-    halfW: 0.62,
-    halfD: 3.9,
-    height: 7.4,
+    scale: 0.9,
+    halfW: 0.558,
+    halfD: 3.51,
+    height: 6.66,
   },
   {
     name: "corner-store",
     kind: "building",
-    position: [23.51, 0, 24.6],
+    position: [4.55, 0, -11.5],
     rotationY: -Math.PI / 2,
     scale: 1,
     halfW: 0.66,
@@ -44,7 +46,7 @@ export const STREETWEAR_PROPS: readonly StreetPropSpec[] = [
   {
     name: "night-cart",
     kind: "clutter",
-    position: [4.6, 0, -11.8],
+    position: [4.8, 0, -4.6],
     rotationY: Math.PI / 2,
     scale: 1,
     halfW: 0.6,
@@ -124,7 +126,7 @@ export const STREETWEAR_PROPS: readonly StreetPropSpec[] = [
   {
     name: "tagged-cone",
     kind: "clutter",
-    position: [3.6, 0, -11.5],
+    position: [3.8, 0, -8.0],
     rotationY: 0,
     scale: 1,
     halfW: 0.18,

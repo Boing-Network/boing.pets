@@ -2,14 +2,14 @@
 
 export const STREET_BODY_URL = "/characters/street-body.glb";
 
-/** Feet sit at y=0; the authored mesh dips ~2.8 cm below the origin. */
-export const STREET_BODY_GROUND_LIFT = 0.028;
+/** Feet sit at y=0 after the stylize pass lifts any leftover sole dip. */
+export const STREET_BODY_GROUND_LIFT = 0;
 
-/** Nameplate / existing procedural cosmetic heights on the 1.58 m body. */
-export const STREET_BODY_HAT_Y = 1.66;
-export const STREET_BODY_ACCESSORY_Y = 1.12;
-export const STREET_BODY_ACCESSORY_RADIUS = 0.28;
-export const STREET_BODY_LABEL_Y = 1.82;
+/** Nameplate / existing procedural cosmetic heights on the stylized body. */
+export const STREET_BODY_HAT_Y = 1.72;
+export const STREET_BODY_ACCESSORY_Y = 1.14;
+export const STREET_BODY_ACCESSORY_RADIUS = 0.3;
+export const STREET_BODY_LABEL_Y = 1.7;
 
 export const STREET_BODY_ANCHOR_SLOTS = [
   "head",
@@ -45,11 +45,11 @@ export type StreetBodyAnchorDef = {
  * authored for a T-pose body facing +Z with feet at y=0.
  */
 export const STREET_BODY_ANCHORS: readonly StreetBodyAnchorDef[] = [
-  { id: "head", bone: "Head", offset: [0, 0.14, 0.02] },
-  { id: "hair", bone: "Head", offset: [0, 0.2, -0.02] },
-  { id: "eyes", bone: "Head", offset: [0, 0.08, 0.1] },
-  { id: "face", bone: "Head", offset: [0, 0.04, 0.1] },
-  { id: "ears", bone: "Head", offset: [0, 0.08, 0], pair: ["Head", "Head"] },
+  { id: "head", bone: "Head", offset: [0, 0.17, 0.02] },
+  { id: "hair", bone: "Head", offset: [0, 0.24, -0.02] },
+  { id: "eyes", bone: "Head", offset: [0, 0.09, 0.11] },
+  { id: "face", bone: "Head", offset: [0, 0.05, 0.11] },
+  { id: "ears", bone: "Head", offset: [0, 0.09, 0], pair: ["Head", "Head"] },
   { id: "neck", bone: "Neck", offset: [0, 0.03, 0.02] },
   { id: "top", bone: "Chest", offset: [0, 0.04, 0.08] },
   { id: "outerwear", bone: "Chest", offset: [0, 0.02, 0.1] },
