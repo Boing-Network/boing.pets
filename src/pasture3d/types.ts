@@ -17,6 +17,9 @@ export type PasturePet = {
     stage?: string;
     streak?: number;
     xp?: number;
+    hunger?: number;
+    happiness?: number;
+    energy?: number;
   };
   cosmetics?: EquippedCosmetics;
   mind?: { mood: string; suggestion: string; cues?: string[] };

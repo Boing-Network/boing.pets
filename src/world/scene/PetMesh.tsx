@@ -21,6 +21,12 @@ import {
 import { CosmeticAttachments } from "./CosmeticAttachments";
 import { EMOTE_DURATION_MS, emoteActive, type EmoteId } from "../lib/emotes";
 import { PetFeatureMesh } from "./PetFeatureMesh";
+import { playMoodSfx } from "../../audio";
+import {
+  moodMotion,
+  petMoodKind,
+  type CareVitals,
+} from "../../pasture3d/petMood";
 
 const _worldPos = new Vector3();
 
@@ -40,6 +46,8 @@ export function PetMesh({
   scale = 1,
   hideHudOverlays = false,
   emote = null,
+  care,
+  moodId,
   children,
 }: {
   look: PetMeshLook;
@@ -55,6 +63,8 @@ export function PetMesh({
   scale?: number;
   hideHudOverlays?: boolean;
   emote?: { id: EmoteId; at: number } | null;
+  care?: CareVitals;
+  moodId?: string;
   children?: ReactNode;
 }) {
   const hop = useRef<Group>(null);
@@ -62,6 +72,8 @@ export function PetMesh({
   const nameRef = useRef<HTMLButtonElement>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
   const model = useMemo(() => petModelParams(look), [look]);
+  const moodKind = petMoodKind(care);
+  const motion = moodMotion(moodKind, reducedMotion);
 
   useFrame(({ camera, clock }) => {
     if (root.current && (nameRef.current || bubbleRef.current)) {
@@ -78,7 +90,14 @@ export function PetMesh({
           : "hidden";
       }
     }
-    if (!hop.current || reducedMotion) return;
+    if (!hop.current) return;
+    if (reducedMotion) {
+      hop.current.position.y = 0;
+      hop.current.rotation.y = 0;
+      hop.current.rotation.z = 0;
+      hop.current.scale.set(1, 1, 1);
+      return;
+    }
     const isMoving = movingRef?.current ?? moving;
     const baseY = pastureHopOffset(clock.elapsedTime, isMoving, reducedMotion);
     const now = Date.now();
@@ -110,12 +129,21 @@ export function PetMesh({
       }
       return;
     }
-    hop.current.position.y = baseY;
+    const extra = motion.bounceAmp
+      ? (Math.sin(clock.elapsedTime * motion.bounceSpeed) * 0.5 + 0.5) *
+        motion.bounceAmp
+      : 0;
+    hop.current.position.y = baseY + extra;
     hop.current.rotation.y = 0;
-    hop.current.scale.set(1, 1, 1);
+    hop.current.scale.set(
+      1 + motion.droop * 0.05,
+      1 - motion.droop * 0.18,
+      1 + motion.droop * 0.05,
+    );
     hop.current.rotation.z = isMoving
       ? Math.sin(clock.elapsedTime * 11) * 0.06
-      : Math.sin(clock.elapsedTime * 2.4) * 0.02;
+      : Math.sin(clock.elapsedTime * 2.4) * 0.02 - motion.droop * 0.25;
+    if (moodId) playMoodSfx(moodKind, moodId, reducedMotion);
   });
 
   const label = pasturePetLabel({ species: look.species, fallback: name });
@@ -240,6 +268,23 @@ export function PetMesh({
                 {worldSafeText(bubble)}
               </div>
             ) : null}
+            <div
+              className={
+                "pasture-mood-bubble" + (motion.sparkle ? " is-sparkle" : "")
+              }
+              data-mood={motion.kind}
+              title={motion.label}
+              aria-label={`Mood: ${motion.label}`}
+            >
+              <span className="pasture-mood-icon" aria-hidden="true">
+                {motion.icon}
+              </span>
+              {motion.sparkle ? (
+                <span className="pasture-mood-sparkle" aria-hidden="true">
+                  *
+                </span>
+              ) : null}
+            </div>
             {emote && emote.id === "heart" ? (
               <div className="pasture-emote-heart" aria-hidden="true">
                 ♥

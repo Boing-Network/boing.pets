@@ -76,6 +76,7 @@ import { PastureAudioControls } from "./PastureAudioControls";
 import { WalkthroughCard } from "../onboarding/WalkthroughCard";
 import { DailyQuestChip, useDailyProgress } from "./DailyQuestChip";
 import { noticeWalletError } from "../ui/appRuntime";
+import { careVitalsFromPet } from "./petMood";
 import { getA11ySettings } from "../ui/a11ySettings";
 import { PastureMinimap } from "./PastureMinimap";
 import { PastureInventory } from "./PastureInventory";
@@ -1260,6 +1261,8 @@ function LocalPet({
         bubble={bubble}
         hideHudOverlays={hideHudOverlays}
         emote={emote}
+        care={careVitalsFromPet(pet)}
+        moodId={pet.owner}
         onClick={onInspect}
       />
     </group>
@@ -1348,6 +1351,8 @@ function WanderingPet({
         bubble={bubble}
         hideHudOverlays={hideHudOverlays}
         emote={emote}
+        care={careVitalsFromPet(pet)}
+        moodId={pet.owner}
         onClick={onInspect}
       />
     </group>
@@ -1433,6 +1438,8 @@ function RemotePet({
         bubble={bubble}
         hideHudOverlays={hideHudOverlays}
         emote={emote}
+        care={careVitalsFromPet(pet)}
+        moodId={pet.owner}
         onClick={onInspect}
       />
     </group>

@@ -2620,3 +2620,52 @@ html[data-cook-hint="colorblind"] .cook-spot-absent {
   font-size: 0.75rem;
   padding: 2px 4px;
 }
+
+.pasture-mood-bubble {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-width: 22px;
+  height: 22px;
+  margin: 0 auto 4px;
+  padding: 0 5px;
+  border-radius: 999px;
+  border: 1px solid #2a5a46;
+  background: #0c1c14ee;
+  color: #fff8e0;
+  font-size: 0.78rem;
+  line-height: 1;
+  pointer-events: none;
+  box-shadow: 0 4px 12px #0005;
+}
+.pasture-mood-icon {
+  display: inline-block;
+}
+.pasture-mood-sparkle {
+  display: inline-block;
+  font-size: 0.7rem;
+  color: #fff4b8;
+  animation: pasture-mood-twinkle 1.6s ease-in-out infinite;
+}
+@keyframes pasture-mood-twinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0) scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1);
+  }
+}
+html[data-reduced-motion="true"] .pasture-mood-sparkle {
+  display: none;
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pasture-mood-sparkle {
+    display: none;
+    animation: none;
+  }
+}

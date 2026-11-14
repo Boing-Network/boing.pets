@@ -20,6 +20,7 @@ export {
   onAudioUnlocked,
   playFootstepSfx,
   playHopSfx,
+  playMoodSfx,
   playSfx,
   popMusicDuck,
   pushMusicDuck,

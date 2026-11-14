@@ -13,6 +13,11 @@ import {
   type AudioSettings,
 } from "./settings";
 import {
+  moodSfxName,
+  shouldPlayMoodSfx,
+  type PetMoodKind,
+} from "../pasture3d/petMood";
+import {
   MUSIC_BAR,
   planPastureMusicBar,
   type MusicEvent,
@@ -49,7 +54,10 @@ export type SfxName =
   | "market-list"
   | "craft"
   | "equip"
-  | "care";
+  | "care"
+  | "mood-happy"
+  | "mood-hungry"
+  | "mood-sleepy";
 
 type Listener = (settings: AudioSettings) => void;
 
@@ -66,6 +74,7 @@ const settingsListeners = new Set<Listener>();
 const unlockListeners = new Set<() => void>();
 const hopGate = { at: 0 };
 const stepGate = { at: 0 };
+const moodGate = { at: 0, pets: new Map<string, number>() };
 
 export function getAudioSettings(): AudioSettings {
   return { ...settings };
@@ -412,6 +421,34 @@ function playRecipe(name: SfxName, audio: AudioContext, dest: AudioNode): void {
       tone(audio, dest, { freq: 392, dur: 0.12, gain: 0.12, at: t + 0.09 });
       tone(audio, dest, { freq: 494, dur: 0.16, gain: 0.12, at: t + 0.18 });
       break;
+    case "mood-happy":
+      tone(audio, dest, { freq: 659, dur: 0.07, gain: 0.07, type: "sine" });
+      tone(audio, dest, {
+        freq: 784,
+        dur: 0.1,
+        gain: 0.06,
+        at: t + 0.06,
+        type: "sine",
+      });
+      break;
+    case "mood-hungry":
+      tone(audio, dest, {
+        freq: 120,
+        slide: 90,
+        dur: 0.16,
+        gain: 0.07,
+        type: "triangle",
+      });
+      break;
+    case "mood-sleepy":
+      tone(audio, dest, {
+        freq: 280,
+        slide: 200,
+        dur: 0.22,
+        gain: 0.06,
+        type: "sine",
+      });
+      break;
   }
 }
 
@@ -440,6 +477,27 @@ export function playFootstepSfx(now = performance.now()): boolean {
   if (now - stepGate.at < 280) return false;
   stepGate.at = now;
   return playSfx("footstep");
+}
+
+/** Soft mood cue, rate-limited so a crowded pasture stays quiet. */
+export function playMoodSfx(
+  kind: PetMoodKind,
+  petId: string,
+  reducedMotion = false,
+  now = performance.now(),
+): boolean {
+  const lastPet = moodGate.pets.get(petId) ?? 0;
+  if (!shouldPlayMoodSfx(kind, reducedMotion, now, lastPet, moodGate.at)) {
+    return false;
+  }
+  const name = moodSfxName(kind);
+  if (!name) return false;
+  const played = playSfx(name);
+  if (played) {
+    moodGate.at = now;
+    moodGate.pets.set(petId, now);
+  }
+  return played;
 }
 
 function playMusicEvent(
@@ -540,6 +598,8 @@ export function resetAudioEngineForTests(next?: AudioSettings): void {
   musicBar = 0;
   musicStarted = false;
   hopGate.at = 0;
+  moodGate.at = 0;
+  moodGate.pets.clear();
   stepGate.at = 0;
   settings = next ? saveAudioSettings(next) : loadAudioSettings();
 }
