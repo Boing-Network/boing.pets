@@ -2760,6 +2760,16 @@ a:hover {
 .pasture-inventory-empty {
   margin: 6px 0;
   font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pasture-inventory-empty strong {
+  font-weight: 650;
+}
+.pasture-inventory-empty span {
+  opacity: 0.88;
+  line-height: 1.35;
 }
 .pasture-inventory-error {
   color: #ffcebe;
@@ -2918,5 +2928,59 @@ html[data-reduced-motion="true"] .pasture-mood-sparkle {
   .pasture-mood-sparkle {
     display: none;
     animation: none;
+  }
+}
+
+.empty-state {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  opacity: 0.9;
+}
+.ui-skeleton-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ui-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+.ui-skeleton {
+  display: block;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #16261c 0%, #2a4638 45%, #16261c 90%);
+  background-size: 200% 100%;
+  animation: ui-skeleton-shimmer 1.2s ease-in-out infinite;
+}
+.ui-skeleton-row {
+  height: 48px;
+}
+.ui-skeleton-card {
+  height: 112px;
+}
+.ui-skeleton-board {
+  height: 148px;
+}
+.ui-skeleton-tile {
+  height: 96px;
+}
+@keyframes ui-skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+html[data-reduced-motion="true"] .ui-skeleton {
+  animation: none;
+  background: #1a2c22;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ui-skeleton {
+    animation: none;
+    background: #1a2c22;
   }
 }

@@ -14,6 +14,11 @@ import {
   type InventoryTab,
   type InventoryUseArea,
 } from "./inventoryPanel";
+import {
+  bagEmptyCopy,
+  SKELETON_COUNTS,
+  skeletonClass,
+} from "../ui/emptyStates";
 
 export function PastureInventory({
   owner,
@@ -30,13 +35,16 @@ export function PastureInventory({
   const [entries, setEntries] = useState<InventoryEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const reload = useCallback(async () => {
     if (!owner) {
       setEntries(buildInventoryEntries([]));
       setError("Connect Boing Express to see your bag.");
+      setLoading(false);
       return;
     }
+    setLoading(true);
     try {
       const bal = await api<{ inventory: InventoryRow[] }>(
         "/api/economy/balance?owner=" + owner,
@@ -46,6 +54,8 @@ export function PastureInventory({
     } catch (err) {
       setEntries(buildInventoryEntries([]));
       setError(err instanceof Error ? err.message : "Bag unavailable.");
+    } finally {
+      setLoading(false);
     }
   }, [owner]);
 
@@ -127,12 +137,19 @@ export function PastureInventory({
               </button>
             ))}
           </div>
-          <ul className="pasture-inventory-list">
-            {visible.length === 0 ? (
+          <ul className="pasture-inventory-list" aria-busy={loading}>
+            {loading ? (
+              Array.from({ length: SKELETON_COUNTS["bag-row"] }, (_, index) => (
+                <li
+                  key={index}
+                  className={skeletonClass("bag-row")}
+                  aria-hidden="true"
+                />
+              ))
+            ) : visible.length === 0 ? (
               <li className="pasture-inventory-empty">
-                {owner
-                  ? "Nothing in this pocket yet."
-                  : "Connect to load your bag."}
+                <strong>{bagEmptyCopy(tab, !!owner).title}</strong>
+                <span>{bagEmptyCopy(tab, !!owner).hint}</span>
               </li>
             ) : (
               visible.map((entry) => (

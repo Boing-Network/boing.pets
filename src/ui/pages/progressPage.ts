@@ -24,6 +24,12 @@ import {
 import { collectionIconSvg } from "../itemIcons";
 import { api, app, $, $maybe, notice } from "../appRuntime";
 import { assertWallet, run } from "../careActions";
+import {
+  COLLECTION_EMPTY_COPY,
+  LEADERBOARD_EMPTY_COPY,
+  MARKET_EMPTY_COPY,
+  mountSkeletons,
+} from "../emptyStates";
 
 function itemName(id: string): string {
   return (
@@ -173,6 +179,10 @@ export async function claimWeeklyBoard(boardId: string) {
 }
 
 export async function refreshCollections() {
+  const list = $maybe("#collections-list");
+  const summaryEl = $maybe("#collections-summary");
+  if (summaryEl) summaryEl.textContent = "Loading collections...";
+  mountSkeletons(list, "collection-tile", "Loading collections");
   const data = await api<{
     defs: Array<{
       id: string;
@@ -185,6 +195,13 @@ export async function refreshCollections() {
   const unlocked = new Set(data.unlocked.map((u) => u.entry_id));
   const total = data.defs.length;
   const found = data.defs.filter((d) => unlocked.has(d.id)).length;
+  if (!total) {
+    if (summaryEl) summaryEl.textContent = "No collection entries yet.";
+    if (list) {
+      list.innerHTML = `<p class="empty-state">${COLLECTION_EMPTY_COPY}</p>`;
+    }
+    return;
+  }
   $("#collections-summary").textContent = app.owner
     ? `${found}/${total} unlocked across ${COLLECTION_CATEGORY_ORDER.length} categories`
     : `Browse ${total} collection entries — connect to track unlocks.`;
@@ -381,6 +398,8 @@ async function refreshLeaderboards() {
   const host = $maybe("#leaderboard-list");
   const summary = $maybe("#leaderboard-summary");
   if (!host || !summary) return;
+  summary.textContent = "Loading weekly boards...";
+  mountSkeletons(host, "leaderboard-card", "Loading leaderboards");
   const data = await api<{
     current: { key: string; boards: BoardView[] };
     previous: { key: string; boards: BoardView[] };
@@ -431,7 +450,7 @@ async function refreshLeaderboards() {
             );
           })
           .join("")
-      : "<li>No claimed runs yet this week.</li>";
+      : "<li>" + LEADERBOARD_EMPTY_COPY + "</li>";
     const you = board.you
       ? '<p class="small">Your best: #' +
         board.you.rank +
@@ -475,6 +494,7 @@ async function refreshLeaderboards() {
 }
 
 export async function refreshEconomy() {
+  mountSkeletons($maybe("#listings"), "market-card", "Loading listings");
   const catalog = await api<{
     catalog: Array<{
       id: string;
@@ -655,11 +675,9 @@ export async function refreshEconomy() {
   }
 
   if (!(market.listings || []).length) {
-    $("#listings").textContent =
-      "No player listings yet. Buy from the catalog or earn a drop, then list it here in testnet BOING.";
+    $("#listings").textContent = MARKET_EMPTY_COPY.none;
   } else if (!visibleListings.length) {
-    $("#listings").textContent =
-      "No listings match these filters. Clear filters to see every open listing.";
+    $("#listings").textContent = MARKET_EMPTY_COPY.filters;
   } else {
     $("#listings").replaceChildren(
       ...visibleListings.map((listing) => {

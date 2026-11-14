@@ -29,6 +29,11 @@ import {
   type MarketFilterQuery,
   type MarketListingView,
 } from "../marketFilters";
+import {
+  MARKET_EMPTY_COPY,
+  SKELETON_COUNTS,
+  skeletonClass,
+} from "../ui/emptyStates";
 import { api, app, notice } from "../ui/appRuntime";
 import { run } from "../ui/careActions";
 import { economyAct } from "../ui/pages/progressPage";
@@ -379,12 +384,20 @@ export function PastureMarketMenu({ onClose }: { onClose: () => void }) {
               ? "No listings match these filters."
               : "No player listings yet."}
       </p>
-      <div className="pasture-station-list">
-        {!market ? null : !visibleListings.length ? (
+      <div className="pasture-station-list" aria-busy={!market}>
+        {!market ? (
+          Array.from({ length: SKELETON_COUNTS["market-card"] }, (_, index) => (
+            <article
+              key={index}
+              className={skeletonClass("market-card")}
+              aria-hidden="true"
+            />
+          ))
+        ) : !visibleListings.length ? (
           <p className="small market-empty-state">
             {marketFiltersAreActive(filters)
-              ? "Try clearing a filter or searching a different name."
-              : "When players list resources or cosmetics, they will show up here."}
+              ? MARKET_EMPTY_COPY.filters
+              : MARKET_EMPTY_COPY.none}
           </p>
         ) : (
           visibleListings.map((listing) => {
