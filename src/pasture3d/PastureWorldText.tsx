@@ -2,6 +2,12 @@ import { useFrame } from "@react-three/fiber";
 import { useRef, type ComponentProps } from "react";
 import { Group, Vector3 } from "three";
 import { WorldText } from "../world/scene/WorldText";
+import { YARD_LABEL_FONT_URL } from "../world/lib/worldFont";
+import {
+  YARD_LABEL_FILL,
+  YARD_LABEL_STROKE,
+  YARD_LABEL_TAG_FILL,
+} from "./yardLabels";
 import {
   clampLabelToViewport,
   labelDistanceScale,
@@ -12,7 +18,7 @@ import {
 } from "./hudSafeLabel";
 import { readPastureTouchPrefs } from "./mobileControls";
 
-type Props = ComponentProps<typeof WorldText>;
+type Props = ComponentProps<typeof WorldText> & { tag?: string };
 
 type LabelMesh = {
   fillOpacity: number;
@@ -31,17 +37,24 @@ const TEXT_BOUNDS_PAD = 0.03;
 
 export function PastureWorldText({
   position,
-  fontSize = 0.35,
+  fontSize = 0.42,
+  tag,
   children,
+  color = YARD_LABEL_FILL,
+  outlineColor = YARD_LABEL_STROKE,
+  outlineWidth = 0.07,
+  font = YARD_LABEL_FONT_URL,
   ...props
 }: Props) {
   const group = useRef<Group>(null);
   const offset = useRef<Group>(null);
   const text = useRef<LabelMesh | null>(null);
-  const length =
+  const tagText = useRef<LabelMesh | null>(null);
+  const title =
     typeof children === "string" || typeof children === "number"
-      ? String(children).length
-      : 12;
+      ? String(children)
+      : "";
+  const length = Math.max(title.length, tag?.length ?? 0, 8);
 
   useFrame(({ camera, size }) => {
     const node = group.current;
@@ -60,6 +73,7 @@ export function PastureWorldText({
     _world.project(camera);
     if (_world.z < -1 || _world.z > 1) {
       label.visible = false;
+      if (tagText.current) tagText.current.visible = false;
       return;
     }
     const sx = (_world.x * 0.5 + 0.5) * size.width;
@@ -69,7 +83,7 @@ export function PastureWorldText({
       (Number(fontSize) / Math.max(distance, 0.2)) * size.height * 0.58,
     );
     const bounds = label.textRenderInfo?.blockBounds;
-    const rect = bounds
+    let rect = bounds
       ? projectLocalBoxToScreen(
           label.matrixWorld,
           bounds[0] - TEXT_BOUNDS_PAD,
@@ -80,9 +94,14 @@ export function PastureWorldText({
           size,
         )
       : labelScreenRect(sx, sy, fontPx, length);
+    if (tag) {
+      const tagH = (rect.bottom - rect.top) * 0.55;
+      rect = { ...rect, bottom: rect.bottom + tagH };
+    }
     const clamped = clampLabelToViewport(rect, size);
     if (!clamped) {
       label.visible = false;
+      if (tagText.current) tagText.current.visible = false;
       return;
     }
     if (clamped.dx !== 0 || clamped.dy !== 0) {
@@ -109,19 +128,45 @@ export function PastureWorldText({
     label.fillOpacity = opacity;
     label.outlineOpacity = opacity;
     label.visible = opacity > 0.04;
+    if (tagText.current) {
+      tagText.current.fillOpacity = opacity;
+      tagText.current.outlineOpacity = opacity;
+      tagText.current.visible = opacity > 0.04;
+    }
   });
+
+  const tagSize = Number(fontSize) * 0.4;
 
   return (
     <group ref={group} position={position}>
       <group ref={offset}>
         <WorldText
           ref={text}
+          font={font}
           fontSize={fontSize}
+          color={color}
+          outlineColor={outlineColor}
+          outlineWidth={outlineWidth}
           position={[0, 0, 0]}
           {...props}
         >
           {children}
         </WorldText>
+        {tag ? (
+          <WorldText
+            ref={tagText}
+            font={font}
+            fontSize={tagSize}
+            color={YARD_LABEL_TAG_FILL}
+            outlineColor={outlineColor}
+            outlineWidth={0.05}
+            position={[0, -Number(fontSize) * 0.82, 0]}
+            anchorX={props.anchorX ?? "center"}
+            anchorY={props.anchorY ?? "middle"}
+          >
+            {tag}
+          </WorldText>
+        ) : null}
       </group>
     </group>
   );

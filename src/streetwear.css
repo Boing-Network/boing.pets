@@ -1392,3 +1392,124 @@ button.btn-accent,
   border: 2px solid var(--line);
   box-shadow: none;
 }
+
+/* Phase 1 leftovers: pet-card mood, market list fields, concrete mini-map. */
+.mind,
+.pet-card .mind {
+  color: #3a3a3a;
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1.45;
+}
+
+.mind b,
+.pet-card .mind b {
+  color: var(--ink);
+  font-family: var(--font-condensed);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+}
+
+.market-list-form,
+.market-filters,
+.market-station-menu,
+.market-station-menu .market-list-form,
+.market-station-menu .market-filters {
+  --market-field-bg: var(--ink-2);
+  --market-field-border: var(--line);
+  --market-field-text: var(--paper);
+}
+
+.market-list-form label,
+.market-filters label {
+  color: var(--muted);
+  font-family: var(--font-condensed);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.market-list-form input,
+.market-list-form select,
+.market-filters input,
+.market-filters select,
+.pasture-station-menu input,
+.pasture-station-menu select,
+#list-form input,
+#list-form select {
+  background: var(--ink-2);
+  color: var(--paper);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: none;
+}
+
+.market-list-form select,
+.market-filters select,
+.pasture-station-menu select,
+#list-form select {
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--paper) 50%),
+    linear-gradient(135deg, var(--paper) 50%, transparent 50%);
+  background-position:
+    calc(100% - 16px) 50%,
+    calc(100% - 11px) 50%;
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+  background-color: var(--ink-2);
+}
+
+.market-list-form input:focus,
+.market-list-form select:focus,
+.market-filters input:focus,
+.market-filters select:focus,
+.pasture-station-menu input:focus,
+.pasture-station-menu select:focus,
+#list-form input:focus,
+#list-form select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-color: var(--accent);
+}
+
+.pasture-minimap-board {
+  border: 2px solid var(--paper);
+  border-radius: var(--radius);
+  background-color: #3a3a34;
+  background-image:
+    linear-gradient(#2a2a28 1px, transparent 1px),
+    linear-gradient(90deg, #2a2a28 1px, transparent 1px),
+    linear-gradient(#ff4d0088 1px, transparent 1px),
+    linear-gradient(90deg, #ff4d0088 1px, transparent 1px);
+  background-size:
+    20px 20px,
+    20px 20px,
+    70px 70px,
+    70px 70px;
+  background-position:
+    0 0,
+    0 0,
+    10px 10px,
+    10px 10px;
+  box-shadow: var(--shadow);
+}
+
+.pasture-minimap-station {
+  border-radius: var(--radius);
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  font-family: var(--font-mono);
+}
+
+.pasture-minimap-player {
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow:
+    0 0 0 2px var(--ink),
+    0 0 0 3px var(--accent);
+}

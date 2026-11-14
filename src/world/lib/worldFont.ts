@@ -17,3 +17,6 @@ export function worldSafeText(value: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+/** Self-hosted Bebas Neue (OFL) for stencil / street-sign world labels. */
+export const YARD_LABEL_FONT_URL = "/fonts/BebasNeue-Regular.ttf";

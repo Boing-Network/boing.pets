@@ -10,6 +10,7 @@ import {
 
 type Props = Omit<TextProps, "font" | "children"> & {
   children: ReactNode;
+  font?: string;
 };
 
 /**
@@ -19,7 +20,7 @@ type Props = Omit<TextProps, "font" | "children"> & {
  * mirrored copy of the name.
  */
 export const WorldText = forwardRef<unknown, Props>(function WorldText(
-  { children, position, ...props },
+  { children, position, font = WORLD_FONT_URL, ...props },
   ref,
 ) {
   useLayoutEffect(() => {
@@ -35,7 +36,7 @@ export const WorldText = forwardRef<unknown, Props>(function WorldText(
     <Billboard follow position={position}>
       <Text
         ref={ref as never}
-        font={WORLD_FONT_URL}
+        font={font}
         // troika reads this on the mesh even though drei's types omit it
         {...{ unicodeFontsURL: WORLD_UNICODE_FONTS_URL }}
         characters="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,!?-+'#:_/()[]"

@@ -1,10 +1,19 @@
-@import url("https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap");
+@import "../fonts.css";
 
 :root {
-  font-family: Comfortaa, "Segoe UI", sans-serif;
-  color: #e8eeff;
-  --muted: #a5b4d4;
-  --accent: #6f9bff;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  color: #f5f5f0;
+  --ink: #0a0a0a;
+  --ink-2: #111111;
+  --paper: #f5f5f0;
+  --muted: #a3a3a3;
+  --line: #2a2a2a;
+  --accent: #ff4d00;
+  --radius: 2px;
+  --shadow: 4px 4px 0 #0a0a0a;
+  --font-display: "Archivo Black", "Anton", Impact, sans-serif;
+  --font-condensed: "Bebas Neue", "Anton", sans-serif;
+  --font-ui: "Space Grotesk", "Segoe UI", sans-serif;
 }
 
 * {
@@ -19,7 +28,7 @@ body,
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #07111f;
+  background: var(--ink);
 }
 
 .world-shell {
@@ -64,11 +73,13 @@ body,
 }
 
 .world-brand {
-  color: inherit;
+  color: var(--paper);
   text-decoration: none;
+  font-family: var(--font-display);
   font-size: 1.35rem;
-  font-weight: 700;
-  letter-spacing: -1.5px;
+  font-weight: 400;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
 }
 
 .world-brand span {
@@ -77,25 +88,30 @@ body,
 
 .world-title {
   text-align: center;
-  text-shadow: 0 2px 12px #041018aa;
 }
 
 .world-title .eyebrow {
   margin: 0;
-  font-size: 0.62rem;
-  letter-spacing: 1.5px;
-  color: #b7ccf0;
+  font-family: var(--font-condensed);
+  font-size: 0.95rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
 }
 
 .world-title h1 {
   margin: 4px 0;
-  font-size: 1.45rem;
-  letter-spacing: -1px;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  color: var(--paper);
 }
 
 .world-title p {
   margin: 0;
   color: var(--muted);
+  font-family: var(--font-ui);
   font-size: 0.78rem;
 }
 
@@ -107,15 +123,17 @@ body,
 }
 
 .world-exit {
-  font: inherit;
-  color: #d7e4ff;
+  font-family: var(--font-condensed);
+  color: var(--paper);
   text-decoration: none;
-  border: 1px solid #344568;
-  border-radius: 999px;
-  padding: 10px 14px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  background: #0d1730cc;
+  border: 2px solid var(--paper);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--ink);
+  box-shadow: var(--shadow);
   cursor: pointer;
 }
 
@@ -128,9 +146,10 @@ body,
   align-self: center;
   min-width: min(420px, 92vw);
   max-width: 520px;
-  background: #0b1528e6;
-  border: 1px solid #314868;
-  border-radius: 18px;
+  background: rgba(10, 10, 10, 0.92);
+  border: 2px solid var(--paper);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
   padding: 14px 16px;
   display: grid;
   gap: 6px;
@@ -147,13 +166,19 @@ body,
 }
 
 .prompt strong {
-  font-size: 0.95rem;
+  font-family: var(--font-condensed);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 1.15rem;
+  color: var(--paper);
 }
 
 .prompt span {
   color: var(--muted);
-  font-size: 0.78rem;
+  font-family: var(--font-mono, "JetBrains Mono", ui-monospace, monospace);
+  font-size: 0.75rem;
   line-height: 1.45;
+  text-transform: none;
 }
 
 .prompt-cta {
@@ -161,18 +186,22 @@ body,
   display: inline-flex;
   width: fit-content;
   text-decoration: none;
-  color: #09122c;
-  background: #7fa7ff;
-  border-radius: 999px;
+  color: var(--ink);
+  background: var(--accent);
+  border-radius: var(--radius);
   padding: 8px 12px;
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-family: var(--font-condensed);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.95rem;
+  box-shadow: 4px 4px 0 var(--accent);
 }
 
 .prompt-cta.muted {
-  background: transparent;
-  color: var(--muted);
-  border: 1px solid #344568;
+  background: var(--ink);
+  color: var(--paper);
+  border: 2px solid var(--paper);
+  box-shadow: var(--shadow);
 }
 
 .world-controls {
@@ -187,33 +216,36 @@ body,
   width: 118px;
   height: 118px;
   border-radius: 50%;
-  border: 1px solid #3a547a;
-  background: #101c35aa;
+  border: 2px solid var(--paper);
+  background: rgba(10, 10, 10, 0.55);
   position: relative;
   touch-action: none;
+  box-shadow: var(--shadow);
 }
 
 .joystick-knob {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: #7fa7ff;
+  background: var(--accent);
+  border: 2px solid var(--ink);
   position: absolute;
   left: 35px;
   top: 35px;
-  box-shadow: 0 4px 12px #0005;
 }
 
 .interact-btn {
-  font: inherit;
-  font-weight: 700;
-  font-size: 0.8rem;
-  border: 0;
-  border-radius: 999px;
-  background: #7fa7ff;
-  color: #09122c;
+  font-family: var(--font-condensed);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 1.05rem;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--ink);
   padding: 16px 22px;
   min-width: 112px;
+  box-shadow: 4px 4px 0 var(--accent);
 }
 
 .world-help {
@@ -221,8 +253,9 @@ body,
   flex-wrap: wrap;
   gap: 12px;
   justify-content: center;
-  font-size: 0.62rem;
-  color: #9db0d2;
+  font-family: var(--font-mono, "JetBrains Mono", ui-monospace, monospace);
+  font-size: 0.7rem;
+  color: var(--muted);
 }
 
 @media (min-width: 900px) {
