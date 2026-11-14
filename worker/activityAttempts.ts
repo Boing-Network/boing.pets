@@ -465,8 +465,26 @@ export async function activityAttemptsPost(
       .bind(id, owner)
       .first<AttemptRow>();
     if (!row) throw new HttpError(404, "Attempt not found");
-    if (row.status !== "open")
+    if (row.status !== "open") {
+      if (row.status === "success_pending") {
+        const pub = JSON.parse(row.public_json) as { claimMessage?: string };
+        return Response.json({
+          ok: true,
+          status: "success_pending",
+          claim_expires_at: row.claim_expires_at,
+          claim_message: pub.claimMessage,
+          message: "Nice! Sign to keep your reward (or let it expire).",
+        });
+      }
+      if (row.status === "claimed") {
+        return Response.json({
+          ok: true,
+          status: "claimed",
+          message: "Reward already claimed.",
+        });
+      }
       throw new HttpError(409, "Attempt already resolved");
+    }
     if (row.expires_at < now) {
       await env.DB.prepare(
         "UPDATE activity_attempts SET status='expired', resolved_at=? WHERE id=?",

@@ -6,6 +6,7 @@ import { COOK_HINT_SHAPES, prefersReducedMotion } from "../a11ySettings";
 import { sessionApi } from "../socialSession";
 import { bindDisablePopover, type DisableReason } from "../disableReason";
 import type { ActivityId } from "../../content/attempts";
+import { isStaleAttemptError } from "./attemptConflicts";
 import { needleAt } from "../../minigames/fishingGame";
 import {
   COOK_FLASH_MS,
@@ -213,6 +214,7 @@ async function claimOrNotice(
   try {
     await claimAttempt(id, claimMessage, activity, play);
   } catch (error) {
+    if (isStaleAttemptError(error)) return;
     noticeWalletError(error, () =>
       claimOrNotice(id, claimMessage, activity, play),
     );
@@ -326,7 +328,13 @@ export async function playFishing(root: HTMLElement, onDone: () => void) {
             }
             resolve();
           })
-          .catch(reject);
+          .catch((error) => {
+            if (isStaleAttemptError(error)) {
+              resolve();
+              return;
+            }
+            reject(error);
+          });
       };
     });
   } finally {
@@ -405,7 +413,13 @@ export async function playMining(root: HTMLElement, onDone: () => void) {
               }
               resolve();
             })
-            .catch(reject);
+            .catch((error) => {
+              if (isStaleAttemptError(error)) {
+                resolve();
+                return;
+              }
+              reject(error);
+            });
         }
       };
       const onKey = (event: KeyboardEvent) => {
@@ -448,7 +462,13 @@ export async function playMining(root: HTMLElement, onDone: () => void) {
               notice(finish.message || "Too slow — attempt used.", true);
               resolve();
             })
-            .catch(reject);
+            .catch((error) => {
+              if (isStaleAttemptError(error)) {
+                resolve();
+                return;
+              }
+              reject(error);
+            });
         },
         pub.timeLimitMs + 50,
       );
@@ -529,7 +549,13 @@ export async function playRacing(root: HTMLElement, onDone: () => void) {
               }
               resolve();
             })
-            .catch(reject);
+            .catch((error) => {
+              if (isStaleAttemptError(error)) {
+                resolve();
+                return;
+              }
+              reject(error);
+            });
         }
       };
     });
@@ -613,7 +639,13 @@ export async function playTreasure(root: HTMLElement, onDone: () => void) {
               }
               resolve();
             })
-            .catch(reject);
+            .catch((error) => {
+              if (isStaleAttemptError(error)) {
+                resolve();
+                return;
+              }
+              reject(error);
+            });
         };
       });
     });
@@ -642,6 +674,7 @@ export async function playGarden(root: HTMLElement, onDone: () => void) {
     btn.textContent = "Hold to water";
     root.append(btn);
     let down = 0;
+    let submitted = false;
     await new Promise<void>((resolve, reject) => {
       play.onAbort.push(resolve);
       const end = (holdMs: number) => {
@@ -649,6 +682,8 @@ export async function playGarden(root: HTMLElement, onDone: () => void) {
           resolve();
           return;
         }
+        if (submitted) return;
+        submitted = true;
         void sessionApi<FinishResponse>("/api/activity/attempt/finish", {
           id: start.id,
           owner: app.owner,
@@ -675,7 +710,13 @@ export async function playGarden(root: HTMLElement, onDone: () => void) {
             }
             resolve();
           })
-          .catch(reject);
+          .catch((error) => {
+            if (isStaleAttemptError(error)) {
+              resolve();
+              return;
+            }
+            reject(error);
+          });
       };
       btn.onpointerdown = (e) => {
         playSfx("water");
@@ -839,7 +880,13 @@ export async function playCook(root: HTMLElement, onDone: () => void) {
             }
             resolve();
           })
-          .catch(reject);
+          .catch((error) => {
+            if (isStaleAttemptError(error)) {
+              resolve();
+              return;
+            }
+            reject(error);
+          });
       };
       pub.scrambled.forEach((name) => {
         const b = cookChip(name) as HTMLButtonElement;

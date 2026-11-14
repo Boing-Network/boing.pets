@@ -470,4 +470,84 @@ describe("activity attempts API", () => {
     expect(fin.claim_message).toBeTruthy();
     expect(fin.feedback).toBeUndefined();
   });
+
+  it("treats a late finish after success as already resolved by this client", async () => {
+    const ow = await hatchOwner(fixtureKey, "0x" + "44".repeat(32));
+    const token = await sessionToken();
+    const auth = { Authorization: `Bearer ${token}` };
+
+    const start = await request(
+      "/api/activity/attempt/start",
+      { owner: ow, activity: "garden" },
+      origin,
+      auth,
+    );
+    expect(start.status).toBe(200);
+    const started = (await start.json()) as {
+      id: string;
+      public: { targetHoldMs: number };
+    };
+    const body = {
+      id: started.id,
+      owner: ow,
+      input: { holdMs: started.public.targetHoldMs },
+    };
+    const finish = await request(
+      "/api/activity/attempt/finish",
+      body,
+      origin,
+      auth,
+    );
+    expect(finish.status).toBe(200);
+    const fin = (await finish.json()) as {
+      ok: boolean;
+      status?: string;
+      claim_message?: string;
+    };
+    expect(fin.ok).toBe(true);
+    expect(fin.claim_message).toBeTruthy();
+
+    const replay = await request(
+      "/api/activity/attempt/finish",
+      body,
+      origin,
+      auth,
+    );
+    expect(replay.status).toBe(200);
+    const replayed = (await replay.json()) as {
+      ok: boolean;
+      status?: string;
+      claim_message?: string;
+      error?: string;
+    };
+    expect(replayed.ok).toBe(true);
+    expect(replayed.status).toBe("success_pending");
+    expect(replayed.claim_message).toBe(fin.claim_message);
+    expect(replayed.error).toBeUndefined();
+
+    const claim = await request("/api/activity/attempt/claim", {
+      id: started.id,
+      owner: ow,
+      signature: await signConfirm(fin.claim_message!),
+    });
+    expect(claim.status).toBe(200);
+
+    const afterClaim = await request(
+      "/api/activity/attempt/finish",
+      body,
+      origin,
+      auth,
+    );
+    expect(afterClaim.status).toBe(200);
+    const claimed = (await afterClaim.json()) as {
+      ok: boolean;
+      status?: string;
+      claim_message?: string;
+      error?: string;
+    };
+    expect(claimed.ok).toBe(true);
+    expect(claimed.status).toBe("claimed");
+    expect(claimed.claim_message).toBeUndefined();
+    expect(claimed.error).toBeUndefined();
+  });
 });
