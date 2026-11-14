@@ -1,6 +1,7 @@
 import { playSfx, popMusicDuck, pushMusicDuck } from "../../audio";
 import { api, app, notice } from "../appRuntime";
 import { assertWallet, run } from "../careActions";
+import { noticeWalletError } from "../appRuntime";
 import { sessionApi } from "../socialSession";
 import { bindDisablePopover, type DisableReason } from "../disableReason";
 import type { ActivityId } from "../../content/attempts";
@@ -206,6 +207,21 @@ async function claimAttempt(
   }
 }
 
+async function claimOrNotice(
+  id: string,
+  claimMessage: string,
+  activity: ActivityId,
+  play: PlaySession,
+) {
+  try {
+    await claimAttempt(id, claimMessage, activity, play);
+  } catch (error) {
+    noticeWalletError(error, () =>
+      claimOrNotice(id, claimMessage, activity, play),
+    );
+  }
+}
+
 function mountShell(root: HTMLElement, title: string) {
   root.innerHTML = "";
   root.hidden = false;
@@ -304,21 +320,12 @@ export async function playFishing(root: HTMLElement, onDone: () => void) {
             }
             notice(finish.message || "Success!");
             if (finish.claim_message) {
-              try {
-                await claimAttempt(
-                  start.id,
-                  finish.claim_message,
-                  "fishing",
-                  play,
-                );
-              } catch (e) {
-                notice(
-                  e instanceof Error
-                    ? e.message
-                    : "Claim failed — you can retry claim from the summary.",
-                  true,
-                );
-              }
+              await claimOrNotice(
+                start.id,
+                finish.claim_message,
+                "fishing",
+                play,
+              );
             }
             resolve();
           })
@@ -392,16 +399,12 @@ export async function playMining(root: HTMLElement, onDone: () => void) {
                 notice(finish.message || "Combo failed — no signature.", true);
               } else if (finish.claim_message) {
                 notice(finish.message || "Vein cracked!");
-                try {
-                  await claimAttempt(
-                    start.id,
-                    finish.claim_message,
-                    "mining",
-                    play,
-                  );
-                } catch (e) {
-                  notice(e instanceof Error ? e.message : "Claim failed", true);
-                }
+                await claimOrNotice(
+                  start.id,
+                  finish.claim_message,
+                  "mining",
+                  play,
+                );
               }
               resolve();
             })
@@ -520,16 +523,12 @@ export async function playRacing(root: HTMLElement, onDone: () => void) {
               else if (finish.claim_message) {
                 notice(finish.message || "Photo finish!");
                 playSfx("race-finish");
-                try {
-                  await claimAttempt(
-                    start.id,
-                    finish.claim_message,
-                    "racing",
-                    play,
-                  );
-                } catch (e) {
-                  notice(e instanceof Error ? e.message : "Claim failed", true);
-                }
+                await claimOrNotice(
+                  start.id,
+                  finish.claim_message,
+                  "racing",
+                  play,
+                );
               }
               resolve();
             })
@@ -608,16 +607,12 @@ export async function playTreasure(root: HTMLElement, onDone: () => void) {
                 notice(finish.message || "Empty dirt — no signature.", true);
               else if (finish.claim_message) {
                 notice(finish.message || "Something sparkled!");
-                try {
-                  await claimAttempt(
-                    start.id,
-                    finish.claim_message,
-                    "treasure",
-                    play,
-                  );
-                } catch (e) {
-                  notice(e instanceof Error ? e.message : "Claim failed", true);
-                }
+                await claimOrNotice(
+                  start.id,
+                  finish.claim_message,
+                  "treasure",
+                  play,
+                );
               }
               resolve();
             })
@@ -674,16 +669,12 @@ export async function playGarden(root: HTMLElement, onDone: () => void) {
               );
             else if (finish.claim_message) {
               notice(finish.message || "Fresh greens!");
-              try {
-                await claimAttempt(
-                  start.id,
-                  finish.claim_message,
-                  "garden",
-                  play,
-                );
-              } catch (e) {
-                notice(e instanceof Error ? e.message : "Claim failed", true);
-              }
+              await claimOrNotice(
+                start.id,
+                finish.claim_message,
+                "garden",
+                play,
+              );
             }
             resolve();
           })
@@ -839,16 +830,7 @@ export async function playCook(root: HTMLElement, onDone: () => void) {
               }
             } else if (finish.claim_message) {
               notice(finish.message || "Dish ready!");
-              try {
-                await claimAttempt(
-                  start.id,
-                  finish.claim_message,
-                  "cook",
-                  play,
-                );
-              } catch (e) {
-                notice(e instanceof Error ? e.message : "Claim failed", true);
-              }
+              await claimOrNotice(start.id, finish.claim_message, "cook", play);
             }
             resolve();
           })

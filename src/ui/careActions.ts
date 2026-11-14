@@ -4,6 +4,7 @@ import {
   api,
   app,
   notice,
+  noticeWalletError,
   pending,
   clearSocialSession,
   type Challenge,
@@ -49,10 +50,7 @@ export async function run(task: () => Promise<void>) {
   try {
     await task();
   } catch (e) {
-    notice(
-      e instanceof Error ? e.message : "Something went wrong. Please retry.",
-      true,
-    );
+    noticeWalletError(e, () => void run(task));
   } finally {
     app.busy = false;
     controls();

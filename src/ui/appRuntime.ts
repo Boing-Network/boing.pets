@@ -8,6 +8,7 @@ import {
 import type { EquippedCosmetics } from "../content/cosmetics";
 import { apiFetch } from "./apiClient";
 import { isCapMessage } from "../audio/settings";
+import { classifyWalletError } from "../wallet/txFeedback";
 import { playSfx } from "../audio";
 import {
   clearSocialSession,
@@ -76,13 +77,73 @@ export function on(
   $maybe(selector)?.addEventListener(event, handler);
 }
 
-export function notice(text: string, error = false) {
+export function notice(
+  text: string,
+  error = false,
+  opts?: { retry?: () => void },
+) {
+  const retry = opts?.retry;
   const el = $maybe("#notice");
-  if (el) {
-    el.textContent = text;
-    el.classList.toggle("error", error);
-  }
+  if (el) fillNotice(el, text, error, retry);
+  showPastureTxToast(text, error, retry);
   if (error) playSfx(isCapMessage(text) ? "cap" : "error");
+}
+
+function fillNotice(
+  el: HTMLElement,
+  text: string,
+  error: boolean,
+  retry?: () => void,
+) {
+  el.classList.toggle("error", error);
+  el.hidden = false;
+  el.replaceChildren();
+  const message = document.createElement("span");
+  message.className = "notice-text";
+  message.textContent = text;
+  el.append(message);
+  if (retry) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "notice-retry";
+    button.textContent = "Retry";
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      retry();
+    });
+    el.append(button);
+  }
+}
+
+function showPastureTxToast(text: string, error: boolean, retry?: () => void) {
+  const canvas = $maybe("#pasture-canvas");
+  let toast = document.querySelector(".pasture-tx-toast") as HTMLElement | null;
+  if (!error && !retry) {
+    if (toast && !document.querySelector("#notice")) {
+      fillNotice(toast, text, false);
+    } else if (toast) {
+      toast.hidden = true;
+    }
+    return;
+  }
+  if (!canvas) return;
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.className = "pasture-tx-toast";
+    toast.setAttribute("role", "status");
+    toast.setAttribute("aria-live", "polite");
+    toast.setAttribute("data-hud", "tx-toast");
+    canvas.append(toast);
+  }
+  fillNotice(toast, text, error, retry);
+}
+
+export function noticeWalletError(error: unknown, retry?: () => void) {
+  const feedback = classifyWalletError(error);
+  notice(feedback.message, true, {
+    retry: feedback.retryable ? retry : undefined,
+  });
+  return feedback;
 }
 
 export async function api<T>(

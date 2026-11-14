@@ -52,6 +52,13 @@ export const PASTURE_MINIMAP_HEIGHT_PX =
   PASTURE_MINIMAP_TITLE_PX + PASTURE_MINIMAP_SIZE_PX;
 export const PASTURE_MINIMAP_Z_INDEX = 15;
 
+/** Compact wallet/tx toast, top-center, clear of buddy chip and camera controls. */
+export const PASTURE_TX_TOAST_TOP_PX = 12;
+export const PASTURE_TX_TOAST_SIDE_CLEAR_PX = 110;
+export const PASTURE_TX_TOAST_MAX_WIDTH_PX = 360;
+export const PASTURE_TX_TOAST_HEIGHT_PX = 72;
+export const PASTURE_TX_TOAST_Z_INDEX = 20;
+
 export function pastureProgressChipBottom(touchControls: boolean): number {
   return (
     pastureStationPromptBottom(touchControls) +
@@ -99,6 +106,7 @@ export function pastureHudRects(opts: {
   prompt: HudRect;
   progress: HudRect;
   minimap: HudRect;
+  txToast: HudRect;
   joystick: HudRect | null;
   interact: HudRect | null;
 } {
@@ -155,6 +163,17 @@ export function pastureHudRects(opts: {
     top: PASTURE_MINIMAP_TOP_PX,
     bottom: PASTURE_MINIMAP_TOP_PX + PASTURE_MINIMAP_HEIGHT_PX,
   };
+  const toastWidth = Math.min(
+    PASTURE_TX_TOAST_MAX_WIDTH_PX,
+    Math.max(0, width - PASTURE_TX_TOAST_SIDE_CLEAR_PX * 2),
+  );
+  const txToast: HudRect = {
+    id: "tx-toast",
+    left: (width - toastWidth) / 2,
+    right: (width + toastWidth) / 2,
+    top: PASTURE_TX_TOAST_TOP_PX,
+    bottom: PASTURE_TX_TOAST_TOP_PX + PASTURE_TX_TOAST_HEIGHT_PX,
+  };
   if (!touchControls) {
     return {
       chat,
@@ -162,6 +181,7 @@ export function pastureHudRects(opts: {
       prompt,
       progress,
       minimap,
+      txToast,
       joystick: null,
       interact: null,
     };
@@ -183,7 +203,16 @@ export function pastureHudRects(opts: {
     top: height - joyBottom - interactHeight,
     bottom: height - joyBottom,
   };
-  return { chat, emote, prompt, progress, minimap, joystick, interact };
+  return {
+    chat,
+    emote,
+    prompt,
+    progress,
+    minimap,
+    txToast,
+    joystick,
+    interact,
+  };
 }
 
 /**
@@ -199,6 +228,7 @@ export function hitHudTarget(
   | "prompt"
   | "progress"
   | "minimap"
+  | "tx-toast"
   | "emote"
   | "joystick"
   | "interact"
@@ -209,6 +239,7 @@ export function hitHudTarget(
   if (contains(rects.prompt, x, y)) return "prompt";
   if (contains(rects.progress, x, y)) return "progress";
   if (contains(rects.minimap, x, y)) return "minimap";
+  if (contains(rects.txToast, x, y)) return "tx-toast";
   if (rects.interact && contains(rects.interact, x, y)) return "interact";
   if (rects.joystick && contains(rects.joystick, x, y)) return "joystick";
   if (contains(rects.emote, x, y)) return "emote";

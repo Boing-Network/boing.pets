@@ -75,6 +75,7 @@ import {
 import { PastureAudioControls } from "./PastureAudioControls";
 import { WalkthroughCard } from "../onboarding/WalkthroughCard";
 import { DailyQuestChip, useDailyProgress } from "./DailyQuestChip";
+import { noticeWalletError } from "../ui/appRuntime";
 import { PastureMinimap } from "./PastureMinimap";
 import { areaProgressForStation, formatAreaLine } from "./dailyProgress";
 import { PastureTouchControls } from "./PastureTouchControls";
@@ -128,6 +129,7 @@ export type PastureDebug = {
   openStationMenu: (kind: PastureStationKind) => void;
   closeStationMenu: () => void;
   walkToAndOpen: (kind: PastureStationKind) => void;
+  showTxFeedback: (error: unknown, retry?: () => void) => void;
   getNearbyStation: () => { id: string; kind: string } | null;
   setOcclusionLook: (look: { x: number; y: number; z: number } | null) => void;
 };
@@ -548,6 +550,7 @@ export function PastureApp({
       openStationMenu,
       closeStationMenu,
       walkToAndOpen,
+      showTxFeedback: noticeWalletError,
       getNearbyStation: () => {
         const near = nearbyInteractStation(
           { x: livePose.current.x, z: livePose.current.z },

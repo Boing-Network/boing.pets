@@ -259,6 +259,27 @@ h3 {
   font-size: 0.78rem;
   min-height: 52px;
   margin-bottom: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+#notice .notice-text,
+.pasture-tx-toast .notice-text {
+  flex: 1;
+  min-width: 0;
+}
+.notice-retry {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #e8c27a;
+  background: #fff4b8;
+  color: #1b3a28;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 #notice.error {
   border-color: #b97867;
@@ -2261,6 +2282,35 @@ a:hover {
     0 0 8px #fff4b8aa;
   pointer-events: none;
   z-index: 2;
+}
+
+.pasture-tx-toast {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  width: min(360px, calc(100% - 220px));
+  min-height: 52px;
+  max-height: 72px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid #b97867;
+  background: #1a1210ee;
+  color: #ffcebe;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  box-shadow: 0 8px 24px #0006;
+  pointer-events: auto;
+}
+.pasture-tx-toast:not(.error) {
+  border-color: #2a5a46;
+  background: #0c1c14ee;
+  color: #e8f6ee;
 }
 
 .pasture-3d-stage.is-touch-controls .pasture-dailies-chip {

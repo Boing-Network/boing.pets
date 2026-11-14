@@ -20,6 +20,9 @@ import {
   PASTURE_MINIMAP_LEFT_PX,
   PASTURE_MINIMAP_SIZE_PX,
   PASTURE_MINIMAP_TOP_PX,
+  PASTURE_TX_TOAST_HEIGHT_PX,
+  PASTURE_TX_TOAST_SIDE_CLEAR_PX,
+  PASTURE_TX_TOAST_TOP_PX,
   PASTURE_PROGRESS_CHIP_GAP_PX,
   PASTURE_PROGRESS_CHIP_HEIGHT_PX,
   PASTURE_STATION_PROMPT_HEIGHT_PX,
@@ -204,5 +207,42 @@ describe("pasture chat stays clear of emotes and touch controls", () => {
     }
     expect(rectsOverlap(mobile.minimap, mobile.joystick!)).toBe(false);
     expect(rectsOverlap(mobile.minimap, mobile.interact!)).toBe(false);
+  });
+
+  it("keeps the wallet toast clear of reserved HUD chrome", () => {
+    const desktop = pastureHudRects({
+      width: 1280,
+      height: 800,
+      touchControls: false,
+    });
+    const mobile = pastureHudRects({
+      width: 390,
+      height: 844,
+      touchControls: true,
+    });
+    expect(PASTURE_TX_TOAST_TOP_PX).toBe(12);
+    expect(css).toMatch(/\.pasture-tx-toast\s*\{[^}]*top:\s*12px/s);
+    for (const layout of [desktop, mobile]) {
+      expect(layout.txToast.top).toBe(PASTURE_TX_TOAST_TOP_PX);
+      expect(layout.txToast.bottom - layout.txToast.top).toBe(
+        PASTURE_TX_TOAST_HEIGHT_PX,
+      );
+      expect(layout.txToast.left).toBeGreaterThanOrEqual(
+        PASTURE_TX_TOAST_SIDE_CLEAR_PX - 0.01,
+      );
+      for (const other of [
+        layout.minimap,
+        layout.progress,
+        layout.prompt,
+        layout.emote,
+        layout.chat,
+      ]) {
+        expect(rectsOverlap(layout.txToast, other)).toBe(false);
+      }
+      const mid = hudRectCenter(layout.txToast);
+      expect(hitHudTarget(layout, mid.x, mid.y)).toBe("tx-toast");
+    }
+    expect(rectsOverlap(mobile.txToast, mobile.joystick!)).toBe(false);
+    expect(rectsOverlap(mobile.txToast, mobile.interact!)).toBe(false);
   });
 });
