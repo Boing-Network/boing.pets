@@ -201,37 +201,42 @@ export function StarterTown({
           />
         ))}
 
-      {zone.stations
-        .filter((station) => !isPastureStationKind(station.kind))
-        .map((station) => (
-          <Float
-            key={station.id}
-            speed={1.4}
-            rotationIntensity={0.2}
-            floatIntensity={0.5}
-          >
-            <mesh
-              position={[
-                station.position.x,
-                0.35 + yAt(station.position.x, station.position.z),
-                station.position.z,
-              ]}
-            >
-              <cylinderGeometry args={[0.55, 0.7, 0.25, 12]} />
-              <meshStandardMaterial
-                color={
-                  station.kind === "care"
-                    ? "#7fa7ff"
-                    : station.kind === "portal"
-                      ? "#e0b15a"
-                      : "#9ad7c2"
-                }
-                emissive={station.kind === "care" ? "#355f9a" : "#224433"}
-                emissiveIntensity={0.35}
-              />
-            </mesh>
-          </Float>
-        ))}
+      {/* Yard already has buildings for real stations. The leftover
+          pasture-welcome info puck sat on the spawn camera axis and
+          read as a sage disc behind the character's head. */}
+      {hideTrees
+        ? null
+        : zone.stations
+            .filter((station) => !isPastureStationKind(station.kind))
+            .map((station) => (
+              <Float
+                key={station.id}
+                speed={1.4}
+                rotationIntensity={0.2}
+                floatIntensity={0.5}
+              >
+                <mesh
+                  position={[
+                    station.position.x,
+                    0.35 + yAt(station.position.x, station.position.z),
+                    station.position.z,
+                  ]}
+                >
+                  <cylinderGeometry args={[0.55, 0.7, 0.25, 12]} />
+                  <meshStandardMaterial
+                    color={
+                      station.kind === "care"
+                        ? "#7fa7ff"
+                        : station.kind === "portal"
+                          ? "#e0b15a"
+                          : "#9ad7c2"
+                    }
+                    emissive={station.kind === "care" ? "#355f9a" : "#224433"}
+                    emissiveIntensity={0.35}
+                  />
+                </mesh>
+              </Float>
+            ))}
 
       {hideTrees
         ? null

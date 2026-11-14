@@ -42,12 +42,14 @@ function isBone(obj: THREE.Object3D): obj is THREE.Bone {
 
 function tintSlotForMesh(
   name: string,
-): "body" | "accent-surface" | "drip" | "face" | "sole" {
+): "body" | "accent-surface" | "drip" | "face" | "sole" | "limb" {
   if (/FootSole_/.test(name)) return "sole";
   if (/ChestDrip/.test(name)) return "drip";
   if (/^(Nose|Ear_L|Ear_R|Neck|Elbow_|Knee_)/.test(name))
     return "accent-surface";
   if (/^(Eye_|Pupil_|Catch_|Brow_|Mouth|Cheek)/.test(name)) return "face";
+  if (/^(Shoulder_|UpperArm_|Forearm_|Wrist_|Palm_|Thumb_|Finger_)/.test(name))
+    return "limb";
   return "body";
 }
 
@@ -152,15 +154,36 @@ function inflateGeometry(
   const pos = geom.getAttribute("position");
   const nrm = geom.getAttribute("normal");
   if (!pos || !nrm) return geom;
+  if (!geom.boundingBox) geom.computeBoundingBox();
+  const box = geom.boundingBox;
+  const sx = box ? box.max.x - box.min.x : 0;
+  const sy = box ? box.max.y - box.min.y : 0;
+  const sz = box ? box.max.z - box.min.z : 0;
+  const axis = sy >= sx && sy >= sz ? 1 : sz >= sx ? 2 : 0;
   for (let i = 0; i < pos.count; i++) {
-    pos.setXYZ(
-      i,
-      pos.getX(i) + nrm.getX(i) * inflate,
-      pos.getY(i) + nrm.getY(i) * inflate,
-      pos.getZ(i) + nrm.getZ(i) * inflate,
-    );
+    let nx = nrm.getX(i);
+    let ny = nrm.getY(i);
+    let nz = nrm.getZ(i);
+    const len = Math.hypot(nx, ny, nz) || 1;
+    nx /= len;
+    ny /= len;
+    nz /= len;
+    const nAxis = axis === 0 ? nx : axis === 1 ? ny : nz;
+    const cap = Math.abs(nAxis) > 0.62;
+    const scale = cap ? inflate * 0.12 : inflate;
+    let ix = nx * scale;
+    let iy = ny * scale;
+    let iz = nz * scale;
+    if (cap) {
+      if (axis === 0) ix *= 0.05;
+      if (axis === 1) iy *= 0.05;
+      if (axis === 2) iz *= 0.05;
+    }
+    pos.setXYZ(i, pos.getX(i) + ix, pos.getY(i) + iy, pos.getZ(i) + iz);
   }
   pos.needsUpdate = true;
+  geom.computeVertexNormals();
+  geom.computeBoundingBox();
   return geom;
 }
 
@@ -175,6 +198,7 @@ function addInvertedHullOutlines(root: THREE.Object3D): void {
     if (!isMesh(obj)) return;
     if (OUTLINE_SKIP.test(obj.name)) return;
     if (obj.name.endsWith("_Outline")) return;
+    if (/^(Elbow_|Knee_|Wrist_)/.test(obj.name)) return;
     const parent = obj.parent;
     if (!parent) return;
     const face = /^(Eye_|Brow_|Nose|Mouth|Ear_|Cheek|Skull)/.test(obj.name);
@@ -212,9 +236,11 @@ function tintStreetBody(root: THREE.Object3D, look: PetModelLook): void {
     if (slot === "face") return;
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     const sole = body.clone().lerp(new THREE.Color("#0c0a09"), 0.82);
+    const limb = body.clone().lerp(new THREE.Color("#2a1810"), 0.22);
     for (const mat of mats) {
       if (!(mat instanceof THREE.MeshToonMaterial)) continue;
       if (slot === "body") mat.color.copy(body);
+      else if (slot === "limb") mat.color.copy(limb);
       else if (slot === "accent-surface") mat.color.copy(dark);
       else if (slot === "sole") mat.color.copy(sole);
       else mat.color.copy(accent);
