@@ -33,15 +33,16 @@ describe("pasture day cycle", () => {
   });
 });
 
-it("locks the public pasture to mid-morning even at wall-clock night", () => {
+it("locks the public pasture to late afternoon even at wall-clock night", () => {
   const locked = publicPastureDay();
-  expect(PUBLIC_PASTURE_HOUR).toBeGreaterThanOrEqual(10);
-  expect(PUBLIC_PASTURE_HOUR).toBeLessThanOrEqual(10.5);
+  expect(PUBLIC_PASTURE_HOUR).toBeGreaterThanOrEqual(16.5);
+  expect(PUBLIC_PASTURE_HOUR).toBeLessThanOrEqual(17.5);
   expect(locked.hour).toBe(PUBLIC_PASTURE_HOUR);
   expect(locked.showFireflies).toBe(false);
   expect(locked.isNight).toBe(false);
-  expect(locked.sunIntensity).toBeGreaterThan(1);
-  expect(locked.exposure).toBeGreaterThan(0.95);
+  expect(locked.sunIntensity).toBeGreaterThan(0.9);
+  expect(locked.exposure).toBeGreaterThan(0.85);
+  expect(locked.exposure).toBeLessThan(1);
 
   const evening = new Date(2026, 10, 11, 21, 51, 0).getTime();
   const ifClockFollowed = samplePastureDay(evening);

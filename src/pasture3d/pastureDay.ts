@@ -1,13 +1,13 @@
 /** Public pasture lighting.
 
-The plaza stays locked to mid-morning so every visitor sees a bright,
-readable meadow. Hours are 0-24. `samplePastureDay` still understands a
-wall-clock timestamp for tests and for the debug override, but the public
-default must not follow dusk or night.
+The Yard stays locked to one shared late-afternoon hour so every visitor
+sees the same dusk rooftop. Hours are 0-24. `samplePastureDay` still
+understands a wall-clock timestamp for tests and for the debug override,
+but the public default must not follow the visitor's clock.
 */
 
-/** Pleasant mid-morning, matching the earlier realism-pass daylight shots. */
-export const PUBLIC_PASTURE_HOUR = 10.25;
+/** Late afternoon / dusk, matching The Yard mockups (hard west sun). */
+export const PUBLIC_PASTURE_HOUR = 17;
 
 export function publicPastureDay() {
   return samplePastureDay(PUBLIC_PASTURE_HOUR, true);
@@ -61,7 +61,7 @@ const KEYS: readonly Key[] = [
     fillIntensity: 0.12,
     ambient: 0.1,
     hemiSky: "#1a2748",
-    hemiGround: "#1c2a22",
+    hemiGround: "#1a1816",
     hemiIntensity: 0.22,
     fogColor: "#1b2438",
     fogNear: 28,
@@ -77,7 +77,7 @@ const KEYS: readonly Key[] = [
     fillIntensity: 0.18,
     ambient: 0.16,
     hemiSky: "#f3c4a0",
-    hemiGround: "#4a5a40",
+    hemiGround: "#5a4a3a",
     hemiIntensity: 0.32,
     fogColor: "#d9b6a0",
     fogNear: 32,
@@ -93,12 +93,12 @@ const KEYS: readonly Key[] = [
     fillIntensity: 0.22,
     ambient: 0.28,
     hemiSky: "#cfe4ff",
-    hemiGround: "#7a9a5c",
+    hemiGround: "#7a6a58",
     hemiIntensity: 0.5,
-    fogColor: "#d4e0c4",
+    fogColor: "#d2c4b0",
     fogNear: 40,
     fogFar: 140,
-    background: "#b9d7ef",
+    background: "#c9b8a8",
     exposure: 1.02,
   },
   {
@@ -109,29 +109,29 @@ const KEYS: readonly Key[] = [
     fillIntensity: 0.22,
     ambient: 0.32,
     hemiSky: "#cfe4ff",
-    hemiGround: "#7a9a5c",
+    hemiGround: "#7a6a58",
     hemiIntensity: 0.55,
-    fogColor: "#c9d9b8",
+    fogColor: "#cbbba4",
     fogNear: 40,
     fogFar: 140,
-    background: "#b9d7ef",
+    background: "#c9b8a8",
     exposure: 1.05,
   },
   {
     hour: 17,
-    sunColor: "#ffc484",
-    sunIntensity: 1.15,
-    fillColor: "#8aa0d0",
-    fillIntensity: 0.2,
-    ambient: 0.26,
-    hemiSky: "#f0c9a0",
-    hemiGround: "#6a8a50",
-    hemiIntensity: 0.48,
-    fogColor: "#e2c9a4",
+    sunColor: "#ffb36a",
+    sunIntensity: 1.12,
+    fillColor: "#6a7a9a",
+    fillIntensity: 0.22,
+    ambient: 0.2,
+    hemiSky: "#f0c4a0",
+    hemiGround: "#6a5a48",
+    hemiIntensity: 0.4,
+    fogColor: "#c4a888",
     fogNear: 36,
     fogFar: 130,
-    background: "#e8c9a0",
-    exposure: 1.0,
+    background: "#d4a878",
+    exposure: 0.92,
   },
   {
     hour: 19.5,
@@ -141,7 +141,7 @@ const KEYS: readonly Key[] = [
     fillIntensity: 0.18,
     ambient: 0.16,
     hemiSky: "#c48aaa",
-    hemiGround: "#3a4a38",
+    hemiGround: "#2a2420",
     hemiIntensity: 0.34,
     fogColor: "#6a5470",
     fogNear: 30,
@@ -157,7 +157,7 @@ const KEYS: readonly Key[] = [
     fillIntensity: 0.12,
     ambient: 0.1,
     hemiSky: "#1a2748",
-    hemiGround: "#1c2a22",
+    hemiGround: "#1a1816",
     hemiIntensity: 0.22,
     fogColor: "#1b2438",
     fogNear: 28,
@@ -173,7 +173,7 @@ const KEYS: readonly Key[] = [
     fillIntensity: 0.12,
     ambient: 0.1,
     hemiSky: "#1a2748",
-    hemiGround: "#1c2a22",
+    hemiGround: "#1a1816",
     hemiIntensity: 0.22,
     fogColor: "#1b2438",
     fogNear: 28,

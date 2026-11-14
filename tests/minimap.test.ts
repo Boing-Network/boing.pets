@@ -53,7 +53,7 @@ describe("pasture mini-map projection", () => {
       expect(kinds.has(kind)).toBe(true);
     }
     const kitchen = stations.find((station) => station.kind === "cook");
-    expect(kitchen?.title).toBe("Pasture Kitchen");
+    expect(kitchen?.title).toBe("STREET KITCHEN");
     expect(kitchen?.icon).toBe("K");
     expect(kitchen?.x).toBe(-22);
     expect(kitchen?.z).toBe(26);

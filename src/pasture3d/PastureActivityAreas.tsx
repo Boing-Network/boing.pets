@@ -1,10 +1,13 @@
 import type { ThreeEvent } from "@react-three/fiber";
 import { POND_PIER_LABEL_LOCAL } from "./meadowFootprints";
 import { PastureWorldText } from "./PastureWorldText";
+import { yardLabelForLandmark } from "./yardLabels";
 import type { WorldLandmark, WorldStation } from "../world/config/zones";
 import { PASTURE_ZONE } from "../world/config/zones";
 import { meadowHeight } from "./meadowHeight";
 import type { ActivityStationKind } from "./stationInteract";
+import { NeonHalo, YARD } from "./yardChrome";
+import * as THREE from "three";
 
 function landmarkFor(id: string): WorldLandmark | undefined {
   return PASTURE_ZONE.landmarks.find((item) => item.id === id);
@@ -33,6 +36,7 @@ function hoverHandlers() {
 }
 
 function CrystalQuarry({ x, z, y, onInteract }: SitProps) {
+  const label = yardLabelForLandmark("crystal-quarry");
   const rocks: Array<[number, number, number, number, number, number]> = [
     [-0.9, 0.45, -0.6, 1.3, 0.9, 1.1],
     [0.85, 0.35, 0.55, 1.1, 0.7, 0.95],
@@ -42,8 +46,12 @@ function CrystalQuarry({ x, z, y, onInteract }: SitProps) {
   return (
     <group position={[x, y, z]} onPointerDown={onInteract} {...hoverHandlers()}>
       <mesh position={[0, 0.03, 0]} receiveShadow>
-        <cylinderGeometry args={[2.1, 2.15, 0.08, 8]} />
-        <meshStandardMaterial color="#6d6560" roughness={1} />
+        <boxGeometry args={[4.2, 0.08, 4.0]} />
+        <meshStandardMaterial color={YARD.concreteDark} roughness={1} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.045, 0]}>
+        <ringGeometry args={[1.7, 1.85, 4]} />
+        <meshStandardMaterial color={YARD.paper} roughness={0.7} />
       </mesh>
       {rocks.map(([px, py, pz, w, h, d], i) => (
         <mesh
@@ -75,56 +83,43 @@ function CrystalQuarry({ x, z, y, onInteract }: SitProps) {
         >
           <octahedronGeometry args={[0.22 + i * 0.04, 0]} />
           <meshStandardMaterial
-            color="#9fd4e8"
-            roughness={0.2}
+            color="#c8f4ff"
+            roughness={0.15}
             metalness={0.35}
-            emissive="#6fb8d0"
-            emissiveIntensity={0.35}
+            emissive="#7ad8f0"
+            emissiveIntensity={0.55}
           />
         </mesh>
       ))}
-      <mesh position={[-1.15, 0.55, 0.7]} rotation={[0.2, 0.4, 0.6]} castShadow>
-        <cylinderGeometry args={[0.05, 0.07, 0.9, 6]} />
-        <meshStandardMaterial color="#6d4a32" roughness={0.85} />
-      </mesh>
-      <mesh
-        position={[-1.15, 1.05, 0.55]}
-        rotation={[0.1, 0.2, 1.1]}
-        castShadow
-      >
-        <boxGeometry args={[0.28, 0.08, 0.18]} />
-        <meshStandardMaterial
-          color="#8a8f96"
-          roughness={0.45}
-          metalness={0.3}
-        />
+      <mesh position={[-1.4, 0.45, 1.1]} castShadow>
+        <boxGeometry args={[0.7, 0.9, 0.12]} />
+        <meshStandardMaterial color={YARD.ink} roughness={0.8} />
       </mesh>
       <PastureWorldText
         position={[0, 2.45, 0]}
         fontSize={0.34}
-        color="#123055"
         anchorX="center"
         anchorY="middle"
-        outlineWidth={0.02}
-        outlineColor="#ffffff"
+        tag={label.tag}
       >
-        Crystal Quarry
+        {label.title}
       </PastureWorldText>
     </group>
   );
 }
 
 function PondPier({ x, z, y, onInteract }: SitProps) {
+  const label = yardLabelForLandmark("pond-pier");
   return (
     <group position={[x, y, z]} onPointerDown={onInteract} {...hoverHandlers()}>
       <mesh position={[0, 0.08, 0]} receiveShadow>
         <boxGeometry args={[2.6, 0.12, 2.0]} />
-        <meshStandardMaterial color="#c4a06a" roughness={0.85} />
+        <meshStandardMaterial color={YARD.concrete} roughness={0.9} />
       </mesh>
       {[-0.7, 0, 0.7].map((px) => (
         <mesh key={px} position={[px, 0.14, 0]} receiveShadow>
-          <boxGeometry args={[0.18, 0.04, 1.95]} />
-          <meshStandardMaterial color="#8d6a3c" roughness={0.9} />
+          <boxGeometry args={[0.1, 0.04, 1.95]} />
+          <meshStandardMaterial color={YARD.ink} roughness={0.8} />
         </mesh>
       ))}
       {(
@@ -136,17 +131,21 @@ function PondPier({ x, z, y, onInteract }: SitProps) {
         ] as const
       ).map(([px, pz]) => (
         <mesh key={`${px}:${pz}`} position={[px, 0.45, pz]} castShadow>
-          <cylinderGeometry args={[0.08, 0.1, 0.9, 6]} />
-          <meshStandardMaterial color="#6d4a32" roughness={0.9} />
+          <cylinderGeometry args={[0.07, 0.09, 0.9, 6]} />
+          <meshStandardMaterial
+            color={YARD.metal}
+            roughness={0.45}
+            metalness={0.35}
+          />
         </mesh>
       ))}
       <mesh position={[-0.9, 0.7, 0]} rotation={[0, 0, 0.15]} castShadow>
         <cylinderGeometry args={[0.03, 0.035, 1.5, 6]} />
-        <meshStandardMaterial color="#7a5134" roughness={0.85} />
+        <meshStandardMaterial color={YARD.ink} roughness={0.85} />
       </mesh>
-      <mesh position={[-0.95, 0.15, 0.15]} castShadow>
-        <boxGeometry args={[0.22, 0.08, 0.28]} />
-        <meshStandardMaterial color="#6f9b5a" roughness={0.8} />
+      <mesh position={[-0.95, 0.18, 0.15]} castShadow>
+        <boxGeometry args={[0.28, 0.1, 0.22]} />
+        <meshStandardMaterial color={YARD.accent} roughness={0.7} />
       </mesh>
       <PastureWorldText
         position={[
@@ -155,24 +154,23 @@ function PondPier({ x, z, y, onInteract }: SitProps) {
           POND_PIER_LABEL_LOCAL.z,
         ]}
         fontSize={0.32}
-        color="#123055"
         anchorX="center"
         anchorY="middle"
-        outlineWidth={0.02}
-        outlineColor="#ffffff"
+        tag={label.tag}
       >
-        Pond Pier
+        {label.title}
       </PastureWorldText>
     </group>
   );
 }
 
 function TreasureDig({ x, z, y, onInteract }: SitProps) {
+  const label = yardLabelForLandmark("treasure-dig");
   return (
     <group position={[x, y, z]} onPointerDown={onInteract} {...hoverHandlers()}>
-      <mesh position={[0, 0.04, 0]} receiveShadow>
-        <cylinderGeometry args={[1.7, 1.75, 0.08, 12]} />
-        <meshStandardMaterial color="#c9a66b" roughness={1} />
+      <mesh position={[0, 0.06, 0]} receiveShadow>
+        <cylinderGeometry args={[1.75, 1.85, 0.14, 12]} />
+        <meshStandardMaterial color={YARD.sand} roughness={1} />
       </mesh>
       <mesh
         position={[0.15, 0.22, -0.1]}
@@ -182,9 +180,26 @@ function TreasureDig({ x, z, y, onInteract }: SitProps) {
         <sphereGeometry args={[0.7, 10, 8]} />
         <meshStandardMaterial color="#b8925a" roughness={1} />
       </mesh>
+      {(
+        [
+          [-1.5, -1.1],
+          [1.5, -1.1],
+          [-1.5, 1.1],
+          [1.5, 1.1],
+        ] as const
+      ).map(([px, pz]) => (
+        <mesh key={`${px}:${pz}`} position={[px, 0.4, pz]} castShadow>
+          <boxGeometry args={[0.12, 0.8, 0.7]} />
+          <meshStandardMaterial color="#c4b48a" roughness={0.85} />
+        </mesh>
+      ))}
       <mesh position={[-0.7, 0.35, 0.5]} rotation={[0.5, 0.4, 0.2]} castShadow>
         <cylinderGeometry args={[0.05, 0.06, 1.1, 6]} />
-        <meshStandardMaterial color="#6d4a32" roughness={0.85} />
+        <meshStandardMaterial
+          color={YARD.metal}
+          roughness={0.45}
+          metalness={0.3}
+        />
       </mesh>
       <mesh
         position={[-0.55, 0.85, 0.35]}
@@ -193,35 +208,34 @@ function TreasureDig({ x, z, y, onInteract }: SitProps) {
       >
         <boxGeometry args={[0.32, 0.06, 0.22]} />
         <meshStandardMaterial
-          color="#8a8f96"
+          color={YARD.metal}
           roughness={0.45}
           metalness={0.3}
         />
       </mesh>
       <mesh position={[0.65, 0.28, 0.55]} castShadow>
         <boxGeometry args={[0.5, 0.28, 0.36]} />
-        <meshStandardMaterial color="#8a5a2b" roughness={0.75} />
+        <meshStandardMaterial color={YARD.ink} roughness={0.75} />
       </mesh>
       <mesh position={[0.65, 0.44, 0.55]} castShadow>
         <boxGeometry args={[0.52, 0.06, 0.38]} />
-        <meshStandardMaterial color="#e6c36a" roughness={0.4} metalness={0.4} />
+        <meshStandardMaterial color={YARD.accent} roughness={0.4} />
       </mesh>
       <PastureWorldText
         position={[0, 2.45, 0]}
         fontSize={0.32}
-        color="#123055"
         anchorX="center"
         anchorY="middle"
-        outlineWidth={0.02}
-        outlineColor="#ffffff"
+        tag={label.tag}
       >
-        Treasure Dig
+        {label.title}
       </PastureWorldText>
     </group>
   );
 }
 
 function GardenBeds({ x, z, y, onInteract }: SitProps) {
+  const label = yardLabelForLandmark("garden-beds");
   const beds: Array<[number, number]> = [
     [-1.05, 0],
     [0, 0],
@@ -231,102 +245,118 @@ function GardenBeds({ x, z, y, onInteract }: SitProps) {
     <group position={[x, y, z]} onPointerDown={onInteract} {...hoverHandlers()}>
       <mesh position={[0, 0.02, 0]} receiveShadow>
         <boxGeometry args={[3.6, 0.06, 3.0]} />
-        <meshStandardMaterial color="#7a8f58" roughness={1} />
+        <meshStandardMaterial color={YARD.concreteDark} roughness={1} />
       </mesh>
       {beds.map(([px, pz]) => (
         <group key={px} position={[px, 0, pz]}>
-          <mesh position={[0, 0.16, 0]} castShadow receiveShadow>
-            <boxGeometry args={[0.9, 0.22, 2.1]} />
-            <meshStandardMaterial color="#6d4a32" roughness={0.9} />
+          <mesh position={[0, 0.22, 0]} castShadow receiveShadow>
+            <boxGeometry args={[0.9, 0.36, 2.1]} />
+            <meshStandardMaterial color={YARD.concrete} roughness={0.9} />
           </mesh>
-          <mesh position={[0, 0.28, 0]} receiveShadow>
+          <mesh position={[0, 0.42, 0]} receiveShadow>
             <boxGeometry args={[0.74, 0.1, 1.9]} />
-            <meshStandardMaterial color="#5a3a22" roughness={1} />
+            <meshStandardMaterial color={YARD.soil} roughness={1} />
           </mesh>
           {[-0.5, 0, 0.5].map((dz) => (
-            <mesh key={dz} position={[0, 0.48, dz]} castShadow>
+            <mesh key={dz} position={[0, 0.62, dz]} castShadow>
               <sphereGeometry args={[0.12, 8, 8]} />
-              <meshStandardMaterial color="#6f9b5a" roughness={0.8} />
+              <meshStandardMaterial color={YARD.foliage} roughness={0.8} />
             </mesh>
           ))}
         </group>
       ))}
       <mesh position={[1.4, 0.22, 1.1]} rotation={[0.2, 0.4, 0.3]} castShadow>
         <cylinderGeometry args={[0.05, 0.06, 0.55, 6]} />
-        <meshStandardMaterial color="#8a8f96" roughness={0.4} metalness={0.3} />
+        <meshStandardMaterial
+          color={YARD.metal}
+          roughness={0.4}
+          metalness={0.3}
+        />
       </mesh>
       <PastureWorldText
         position={[0, 2.4, 0]}
         fontSize={0.32}
-        color="#123055"
         anchorX="center"
         anchorY="middle"
-        outlineWidth={0.02}
-        outlineColor="#ffffff"
+        tag={label.tag}
       >
-        Garden Beds
+        {label.title}
       </PastureWorldText>
     </group>
   );
 }
 
 function KitchenHut({ x, z, y, onInteract }: SitProps) {
+  const label = yardLabelForLandmark("kitchen-hut");
   return (
     <group position={[x, y, z]} onPointerDown={onInteract} {...hoverHandlers()}>
       <mesh position={[0, 0.03, 0]} receiveShadow>
         <boxGeometry args={[3.4, 0.08, 2.8]} />
-        <meshStandardMaterial color="#8d7a58" roughness={1} />
+        <meshStandardMaterial color={YARD.concreteDark} roughness={1} />
       </mesh>
-      <mesh position={[0, 0.95, 0]} castShadow receiveShadow>
-        <boxGeometry args={[2.6, 1.8, 2.1]} />
-        <meshStandardMaterial color="#d9896b" roughness={0.85} />
+      <mesh position={[0, 0.7, 0]} castShadow receiveShadow>
+        <boxGeometry args={[2.6, 1.3, 1.6]} />
+        <meshStandardMaterial color={YARD.ink} roughness={0.85} />
       </mesh>
-      <mesh position={[0, 2.15, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
-        <coneGeometry args={[2.05, 1.1, 4]} />
-        <meshStandardMaterial color="#8a4a3a" roughness={0.8} />
+      <mesh position={[0, 1.48, 0.15]} rotation={[0.22, 0, 0]} castShadow>
+        <boxGeometry args={[3.0, 0.08, 2.2]} />
+        <meshStandardMaterial color={YARD.paper} roughness={0.75} />
       </mesh>
-      <mesh position={[0.7, 2.55, -0.2]} castShadow>
-        <boxGeometry args={[0.32, 0.7, 0.32]} />
-        <meshStandardMaterial color="#7a5a52" roughness={0.9} />
-      </mesh>
-      <mesh position={[0, 0.55, 1.08]} castShadow>
-        <boxGeometry args={[0.7, 1.05, 0.1]} />
-        <meshStandardMaterial color="#6d4a32" roughness={0.85} />
-      </mesh>
-      <mesh position={[-0.7, 1.15, 1.07]} castShadow>
-        <boxGeometry args={[0.42, 0.36, 0.08]} />
+      {[-1.1, -0.35, 0.4, 1.15].map((px, i) => (
+        <mesh key={px} position={[px, 1.5, 0.15]} rotation={[0.22, 0, 0]}>
+          <boxGeometry args={[0.28, 0.1, 2.22]} />
+          <meshStandardMaterial
+            color={i % 2 ? YARD.accent : YARD.ink}
+            roughness={0.7}
+          />
+        </mesh>
+      ))}
+      <mesh position={[0, 1.62, -0.9]}>
+        <boxGeometry args={[1.6, 0.1, 0.12]} />
         <meshStandardMaterial
-          color="#c5e8f4"
-          roughness={0.15}
-          metalness={0.15}
-          emissive="#9fd4e8"
-          emissiveIntensity={0.12}
+          color={YARD.accent}
+          emissive={YARD.accent}
+          emissiveIntensity={0.8}
         />
       </mesh>
-      <mesh position={[0.85, 0.28, 0.9]} castShadow>
-        <cylinderGeometry args={[0.28, 0.3, 0.35, 10]} />
+      <NeonHalo position={[0, 1.7, -0.7]} width={2} height={0.4} />
+      <mesh position={[0, 0.85, 0.95]} castShadow>
+        <boxGeometry args={[2.0, 0.16, 0.6]} />
         <meshStandardMaterial
-          color="#8a8f96"
+          color={YARD.metal}
+          roughness={0.45}
+          metalness={0.3}
+        />
+      </mesh>
+      <mesh position={[0.7, 1.05, 0.7]} castShadow>
+        <cylinderGeometry args={[0.18, 0.2, 0.28, 10]} />
+        <meshStandardMaterial
+          color={YARD.metal}
           roughness={0.4}
-          metalness={0.35}
+          metalness={0.4}
         />
       </mesh>
+      {[-0.7, 0.7].map((px) => (
+        <mesh key={px} position={[px, 0.35, 1.15]} castShadow>
+          <cylinderGeometry args={[0.16, 0.16, 0.7, 10]} />
+          <meshStandardMaterial color={YARD.ink} roughness={0.8} />
+        </mesh>
+      ))}
       <PastureWorldText
         position={[0, 3.15, 0]}
         fontSize={0.32}
-        color="#123055"
         anchorX="center"
         anchorY="middle"
-        outlineWidth={0.02}
-        outlineColor="#ffffff"
+        tag={label.tag}
       >
-        Pasture Kitchen
+        {label.title}
       </PastureWorldText>
     </group>
   );
 }
 
 function RaceGate({ x, z, y, onInteract }: SitProps) {
+  const label = yardLabelForLandmark("race-gate");
   const posts: Array<[number, number]> = [
     [-1.3, 0],
     [1.3, 0],
@@ -335,43 +365,66 @@ function RaceGate({ x, z, y, onInteract }: SitProps) {
     <group position={[x, y, z]} onPointerDown={onInteract} {...hoverHandlers()}>
       <mesh position={[0, 0.03, 0]} receiveShadow>
         <boxGeometry args={[3.4, 0.06, 2.0]} />
-        <meshStandardMaterial color="#8d7a58" roughness={1} />
+        <meshStandardMaterial color={YARD.concreteDark} roughness={1} />
       </mesh>
       {posts.map(([px]) => (
         <mesh key={px} position={[px, 1.15, 0]} castShadow>
-          <cylinderGeometry args={[0.09, 0.11, 2.3, 8]} />
-          <meshStandardMaterial color="#6d4a32" roughness={0.85} />
+          <boxGeometry args={[0.16, 2.3, 0.16]} />
+          <meshStandardMaterial color={YARD.ink} roughness={0.7} />
         </mesh>
       ))}
       <mesh position={[0, 2.15, 0]} castShadow>
-        <boxGeometry args={[2.8, 0.55, 0.1]} />
-        <meshStandardMaterial color="#e8c27a" roughness={0.75} />
+        <boxGeometry args={[2.8, 0.45, 0.12]} />
+        <meshStandardMaterial color={YARD.paper} roughness={0.75} />
       </mesh>
-      <mesh position={[0, 2.15, 0.06]} castShadow>
-        <boxGeometry args={[2.6, 0.12, 0.04]} />
-        <meshStandardMaterial color="#c45c4a" roughness={0.7} />
+      <mesh position={[0, 2.15, 0.08]}>
+        <boxGeometry args={[2.6, 0.1, 0.04]} />
+        <meshStandardMaterial
+          color={YARD.accent}
+          emissive={YARD.accent}
+          emissiveIntensity={0.7}
+        />
       </mesh>
+      <NeonHalo position={[0, 2.15, 0.2]} width={2.8} height={0.45} />
       {/* Visual-only track markings; collision stays on the gate landmark. */}
       {[2.4, 4.8, 7.2, 9.6].map((pz) => (
         <mesh key={pz} position={[0, 0.03, pz]} receiveShadow>
-          <boxGeometry args={[2.2, 0.04, 0.28]} />
-          <meshStandardMaterial color="#f4efe4" roughness={1} />
+          <boxGeometry args={[2.2, 0.04, 0.22]} />
+          <meshStandardMaterial color={YARD.paper} roughness={1} />
         </mesh>
       ))}
       <mesh position={[0, 0.02, 6]} receiveShadow>
-        <boxGeometry args={[0.18, 0.03, 12]} />
-        <meshStandardMaterial color="#e8c27a" roughness={1} />
+        <boxGeometry args={[0.16, 0.03, 12]} />
+        <meshStandardMaterial color={YARD.accent} roughness={1} />
+      </mesh>
+      {[-1.25, 1.25].map((px) =>
+        [3, 6, 9].map((pz) => (
+          <mesh key={`${px}:${pz}`} position={[px, 0.22, pz]}>
+            <coneGeometry args={[0.16, 0.42, 8]} />
+            <meshStandardMaterial color={YARD.accent} roughness={0.7} />
+          </mesh>
+        )),
+      )}
+      <mesh position={[-2.3, 0.02, 1.4]} rotation={[0, 0.3, 0]} receiveShadow>
+        <cylinderGeometry args={[1.6, 1.6, 0.08, 20]} />
+        <meshStandardMaterial color={YARD.concrete} roughness={0.9} />
+      </mesh>
+      <mesh position={[-2.3, -0.15, 1.4]} rotation={[0, 0.3, 0]}>
+        <cylinderGeometry args={[1.15, 1.15, 0.35, 20, 1, true]} />
+        <meshStandardMaterial
+          color={YARD.concreteDark}
+          roughness={0.92}
+          side={THREE.DoubleSide}
+        />
       </mesh>
       <PastureWorldText
         position={[0, 2.85, 0]}
         fontSize={0.32}
-        color="#123055"
         anchorX="center"
         anchorY="middle"
-        outlineWidth={0.02}
-        outlineColor="#ffffff"
+        tag={label.tag}
       >
-        Race Track
+        {label.title}
       </PastureWorldText>
     </group>
   );

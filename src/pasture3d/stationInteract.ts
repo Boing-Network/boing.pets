@@ -41,6 +41,9 @@ export const CUSTOM_PASTURE_LANDMARK_IDS = [
   "kitchen-hut",
   "race-gate",
   "home-plot",
+  "old-oak",
+  "lily-pond",
+  "wildflowers",
 ] as const;
 
 export function isDeskStationKind(

@@ -1,12 +1,8 @@
 /** Mini-map projection and station markers for the public pasture. */
 
 import { PASTURE_ZONE } from "../world/config/zones";
-import { ACTIVITY_AREA_META } from "./activityAreas";
-import {
-  interactStations,
-  isActivityStationKind,
-  type PastureStationKind,
-} from "./stationInteract";
+import { yardLabelForKind } from "./yardLabels";
+import { interactStations, type PastureStationKind } from "./stationInteract";
 
 export const MINIMAP_STATION_ICON: Record<PastureStationKind, string> = {
   craft: "C",
@@ -22,16 +18,16 @@ export const MINIMAP_STATION_ICON: Record<PastureStationKind, string> = {
 };
 
 export const MINIMAP_STATION_COLOR: Record<PastureStationKind, string> = {
-  craft: "#c4a574",
-  market: "#e8b86d",
-  customize: "#c9b8d9",
-  mine: "#8ab0c8",
+  craft: "#F5F5F0",
+  market: "#FF4D00",
+  customize: "#F5F5F0",
+  mine: "#9fd4e8",
   fish: "#4a8fb5",
-  treasure: "#c9a66b",
-  garden: "#7eab62",
-  cook: "#d9896b",
-  race: "#e8c27a",
-  home: "#e8d5b0",
+  treasure: "#c4a56a",
+  garden: "#3f7d4a",
+  cook: "#FF4D00",
+  race: "#F5F5F0",
+  home: "#A3A3A3",
 };
 
 export type MiniMapBounds = {
@@ -90,9 +86,7 @@ export function miniMapStations(): MiniMapMarker[] {
       kind,
       icon: MINIMAP_STATION_ICON[kind] ?? "•",
       color: MINIMAP_STATION_COLOR[kind] ?? "#e8f6ee",
-      title: isActivityStationKind(kind)
-        ? ACTIVITY_AREA_META[kind].title
-        : station.label,
+      title: yardLabelForKind(kind, station.label).title,
       x: station.position.x,
       z: station.position.z,
       radius: station.radius,

@@ -2,6 +2,7 @@ import { Float } from "@react-three/drei";
 import { PastureWorldText } from "../../pasture3d/PastureWorldText";
 import { WorldText } from "./WorldText";
 import type { WorldLandmark, WorldZoneConfig } from "../config/zones";
+import { yardLabelForLandmark } from "../../pasture3d/yardLabels";
 import {
   isCustomPastureLandmark,
   isPastureStationKind,
@@ -16,7 +17,6 @@ function Landmark({
   y?: number;
   hudSafeLabels?: boolean;
 }) {
-  const Label = hudSafeLabels ? PastureWorldText : WorldText;
   const isBuilding = item.height >= 1;
   const roofY = item.height + 0.35;
   const labelY = isBuilding ? item.height + 1.8 : 1.15;
@@ -24,34 +24,66 @@ function Landmark({
   return (
     <group position={[item.position.x, item.position.y + y, item.position.z]}>
       {isBuilding ? (
-        <>
-          <mesh position={[0, item.height / 2, 0]} castShadow receiveShadow>
-            <boxGeometry args={[item.width, item.height, item.depth]} />
-            <meshStandardMaterial color={item.color} roughness={0.85} />
-          </mesh>
-          <mesh
-            position={[0, roofY, 0]}
-            rotation={[0, Math.PI / 4, 0]}
-            castShadow
-          >
-            <coneGeometry
-              args={[Math.max(item.width, item.depth) * 0.72, 1.4, 4]}
-            />
-            <meshStandardMaterial color="#5d7eb8" roughness={0.7} />
-          </mesh>
-        </>
+        hudSafeLabels ? (
+          <>
+            <mesh position={[0, item.height / 2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[item.width, item.height, item.depth]} />
+              <meshStandardMaterial color={item.color} roughness={0.85} />
+            </mesh>
+            <mesh position={[0, item.height + 0.08, 0]} castShadow>
+              <boxGeometry
+                args={[item.width + 0.12, 0.16, item.depth + 0.12]}
+              />
+              <meshStandardMaterial color="#111111" roughness={0.7} />
+            </mesh>
+            <mesh position={[0, item.height + 0.22, 0]}>
+              <boxGeometry args={[item.width * 0.55, 0.08, 0.12]} />
+              <meshStandardMaterial
+                color="#FF4D00"
+                emissive="#FF4D00"
+                emissiveIntensity={0.65}
+              />
+            </mesh>
+          </>
+        ) : (
+          <>
+            <mesh position={[0, item.height / 2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[item.width, item.height, item.depth]} />
+              <meshStandardMaterial color={item.color} roughness={0.85} />
+            </mesh>
+            <mesh
+              position={[0, roofY, 0]}
+              rotation={[0, Math.PI / 4, 0]}
+              castShadow
+            >
+              <coneGeometry
+                args={[Math.max(item.width, item.depth) * 0.72, 1.4, 4]}
+              />
+              <meshStandardMaterial color="#5d7eb8" roughness={0.7} />
+            </mesh>
+          </>
+        )
       ) : null}
-      <Label
-        position={[labelOff.x, labelY + labelOff.y, labelOff.z]}
-        fontSize={isBuilding ? 0.45 : 0.32}
-        color="#123055"
-        anchorX="center"
-        anchorY="middle"
-        outlineWidth={0.02}
-        outlineColor="#ffffff"
-      >
-        {item.label}
-      </Label>
+      {hudSafeLabels ? (
+        <PastureWorldText
+          position={[labelOff.x, labelY + labelOff.y, labelOff.z]}
+          fontSize={isBuilding ? 0.45 : 0.32}
+          anchorX="center"
+          anchorY="middle"
+          tag={yardLabelForLandmark(item.id, item.label).tag}
+        >
+          {yardLabelForLandmark(item.id, item.label).title}
+        </PastureWorldText>
+      ) : (
+        <WorldText
+          position={[labelOff.x, labelY + labelOff.y, labelOff.z]}
+          fontSize={isBuilding ? 0.45 : 0.32}
+          anchorX="center"
+          anchorY="middle"
+        >
+          {item.label}
+        </WorldText>
+      )}
     </group>
   );
 }

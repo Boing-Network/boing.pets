@@ -3,9 +3,22 @@ import { PastureWorldText } from "./PastureWorldText";
 import type { WorldLandmark, WorldStation } from "../world/config/zones";
 import { PASTURE_ZONE } from "../world/config/zones";
 import { meadowHeight } from "./meadowHeight";
+import { NeonHalo, YARD } from "./yardChrome";
+import { yardLabelForLandmark } from "./yardLabels";
 
 function landmarkFor(id: string): WorldLandmark | undefined {
   return PASTURE_ZONE.landmarks.find((item) => item.id === id);
+}
+
+function hoverHandlers() {
+  return {
+    onPointerOver: () => {
+      document.body.style.cursor = "pointer";
+    },
+    onPointerOut: () => {
+      document.body.style.cursor = "";
+    },
+  };
 }
 
 function Workbench({
@@ -19,24 +32,16 @@ function Workbench({
   y: number;
   onInteract: (event: ThreeEvent<PointerEvent>) => void;
 }) {
+  const label = yardLabelForLandmark("crafting-station");
   return (
-    <group
-      position={[x, y, z]}
-      onPointerDown={onInteract}
-      onPointerOver={() => {
-        document.body.style.cursor = "pointer";
-      }}
-      onPointerOut={() => {
-        document.body.style.cursor = "";
-      }}
-    >
+    <group position={[x, y, z]} onPointerDown={onInteract} {...hoverHandlers()}>
       <mesh position={[0, 0.02, 0]} receiveShadow>
         <boxGeometry args={[3.4, 0.06, 2.4]} />
-        <meshStandardMaterial color="#8d7a58" roughness={1} />
+        <meshStandardMaterial color={YARD.concreteDark} roughness={1} />
       </mesh>
       <mesh position={[0, 0.72, 0]} castShadow receiveShadow>
-        <boxGeometry args={[2.8, 0.14, 1.7]} />
-        <meshStandardMaterial color="#c4a06a" roughness={0.7} />
+        <boxGeometry args={[2.8, 0.16, 1.6]} />
+        <meshStandardMaterial color={YARD.ink} roughness={0.7} />
       </mesh>
       {(
         [
@@ -45,38 +50,53 @@ function Workbench({
           [-1.2, 0.7],
           [1.2, 0.7],
         ] as const
-      ).map(([x, z]) => (
-        <mesh key={`${x}:${z}`} position={[x, 0.36, z]} castShadow>
+      ).map(([px, pz]) => (
+        <mesh key={`${px}:${pz}`} position={[px, 0.36, pz]} castShadow>
           <boxGeometry args={[0.16, 0.72, 0.16]} />
-          <meshStandardMaterial color="#6d4a32" roughness={0.9} />
+          <meshStandardMaterial
+            color={YARD.metal}
+            roughness={0.55}
+            metalness={0.3}
+          />
         </mesh>
       ))}
-      <mesh position={[-0.7, 0.86, 0.15]} rotation={[0, 0.4, 0.15]} castShadow>
-        <boxGeometry args={[0.7, 0.08, 0.18]} />
+      <mesh position={[-0.7, 0.92, 0.1]} rotation={[0, 0.2, 0]} castShadow>
+        <boxGeometry args={[0.9, 0.12, 0.7]} />
+        <meshStandardMaterial color={YARD.paper} roughness={0.85} />
+      </mesh>
+      <mesh position={[0.7, 0.95, -0.15]} rotation={[0.1, -0.2, 0]} castShadow>
+        <cylinderGeometry args={[0.16, 0.16, 0.28, 12]} />
+        <meshStandardMaterial color={YARD.accent} roughness={0.45} />
+      </mesh>
+      <mesh position={[0, 1.7, -1.0]} castShadow>
+        <boxGeometry args={[2.2, 1.2, 0.1]} />
+        <meshStandardMaterial color={YARD.ink2} roughness={0.8} />
+      </mesh>
+      <mesh position={[-0.45, 1.75, -0.94]} castShadow>
+        <boxGeometry args={[0.7, 0.9, 0.04]} />
+        <meshStandardMaterial color={YARD.paper} roughness={0.8} />
+      </mesh>
+      <mesh position={[0.45, 1.7, -0.94]} castShadow>
+        <boxGeometry args={[0.7, 0.9, 0.04]} />
+        <meshStandardMaterial color={YARD.accent} roughness={0.7} />
+      </mesh>
+      <mesh position={[0, 2.38, -1.0]}>
+        <boxGeometry args={[2.2, 0.1, 0.12]} />
         <meshStandardMaterial
-          color="#8a8f96"
-          roughness={0.45}
-          metalness={0.25}
+          color={YARD.accent}
+          emissive={YARD.accent}
+          emissiveIntensity={0.7}
         />
       </mesh>
-      <mesh position={[0.55, 0.95, -0.2]} rotation={[0.5, 0.2, 0.1]} castShadow>
-        <cylinderGeometry args={[0.05, 0.07, 0.7, 6]} />
-        <meshStandardMaterial color="#7a5134" roughness={0.85} />
-      </mesh>
-      <mesh position={[0, 1.55, -1.05]} castShadow>
-        <boxGeometry args={[1.7, 0.7, 0.12]} />
-        <meshStandardMaterial color="#a67c4e" roughness={0.8} />
-      </mesh>
+      <NeonHalo position={[0, 2.38, -0.85]} width={2.4} height={0.4} />
       <PastureWorldText
         position={[0, 2.35, 0]}
         fontSize={0.36}
-        color="#123055"
         anchorX="center"
         anchorY="middle"
-        outlineWidth={0.02}
-        outlineColor="#ffffff"
+        tag={label.tag}
       >
-        Crafting Station
+        {label.title}
       </PastureWorldText>
     </group>
   );
@@ -93,69 +113,70 @@ function MarketStall({
   y: number;
   onInteract: (event: ThreeEvent<PointerEvent>) => void;
 }) {
+  const label = yardLabelForLandmark("market-stall");
   return (
-    <group
-      position={[x, y, z]}
-      onPointerDown={onInteract}
-      onPointerOver={() => {
-        document.body.style.cursor = "pointer";
-      }}
-      onPointerOut={() => {
-        document.body.style.cursor = "";
-      }}
-    >
+    <group position={[x, y, z]} onPointerDown={onInteract} {...hoverHandlers()}>
       <mesh position={[0, 0.02, 0]} receiveShadow>
         <boxGeometry args={[4.0, 0.06, 3.0]} />
-        <meshStandardMaterial color="#8d7a58" roughness={1} />
+        <meshStandardMaterial color={YARD.concreteDark} roughness={1} />
+      </mesh>
+      <mesh position={[0, 1.25, -0.35]} castShadow receiveShadow>
+        <boxGeometry args={[3.4, 2.5, 1.8]} />
+        <meshStandardMaterial color={YARD.ink} roughness={0.8} />
+      </mesh>
+      <mesh position={[0, 2.58, -0.35]}>
+        <boxGeometry args={[3.5, 0.16, 1.9]} />
+        <meshStandardMaterial color={YARD.paper} roughness={0.7} />
+      </mesh>
+      <mesh position={[0, 2.78, -0.2]}>
+        <boxGeometry args={[2.4, 0.12, 0.18]} />
+        <meshStandardMaterial
+          color={YARD.accent}
+          emissive={YARD.accent}
+          emissiveIntensity={0.85}
+        />
+      </mesh>
+      <NeonHalo position={[0, 2.78, 0.15]} width={2.8} height={0.5} />
+      <mesh position={[0, 1.2, 0.58]} castShadow>
+        <boxGeometry args={[2.2, 1.4, 0.08]} />
+        <meshStandardMaterial
+          color="#1a3040"
+          emissive="#ff9a4a"
+          emissiveIntensity={0.22}
+          roughness={0.2}
+          metalness={0.15}
+        />
+      </mesh>
+      <mesh position={[0, 0.7, 0.7]} castShadow receiveShadow>
+        <boxGeometry args={[3.0, 0.14, 0.8]} />
+        <meshStandardMaterial
+          color={YARD.metal}
+          roughness={0.5}
+          metalness={0.3}
+        />
       </mesh>
       {(
         [
-          [-1.5, -1.0],
-          [1.5, -1.0],
-          [-1.5, 1.0],
-          [1.5, 1.0],
+          [-1.2, 0.55],
+          [1.2, 0.55],
         ] as const
-      ).map(([x, z]) => (
-        <mesh key={`${x}:${z}`} position={[x, 1.15, z]} castShadow>
-          <cylinderGeometry args={[0.08, 0.1, 2.3, 6]} />
-          <meshStandardMaterial color="#6d4a32" roughness={0.9} />
+      ).map(([px, pz], i) => (
+        <mesh key={i} position={[px, 0.4, pz]} castShadow>
+          <boxGeometry args={[0.55, 0.5, 0.45]} />
+          <meshStandardMaterial
+            color={i ? YARD.paper : YARD.accent}
+            roughness={0.8}
+          />
         </mesh>
       ))}
-      <mesh position={[0, 0.85, 0.15]} castShadow receiveShadow>
-        <boxGeometry args={[3.1, 0.16, 1.3]} />
-        <meshStandardMaterial color="#d7b07a" roughness={0.7} />
-      </mesh>
-      <mesh position={[0, 0.48, 0.15]} castShadow>
-        <boxGeometry args={[2.9, 0.6, 1.1]} />
-        <meshStandardMaterial color="#a36b3a" roughness={0.8} />
-      </mesh>
-      <mesh
-        position={[0, 2.35, 0]}
-        rotation={[0.18, 0, 0]}
-        castShadow
-        receiveShadow
-      >
-        <boxGeometry args={[3.6, 0.08, 2.6]} />
-        <meshStandardMaterial color="#e8b86d" roughness={0.75} />
-      </mesh>
-      <mesh position={[0, 2.42, 0]} rotation={[0.18, 0, 0]}>
-        <boxGeometry args={[3.62, 0.02, 0.55]} />
-        <meshStandardMaterial color="#c45c4a" roughness={0.7} />
-      </mesh>
-      <mesh position={[0, 1.7, -1.25]} castShadow>
-        <boxGeometry args={[1.85, 0.7, 0.1]} />
-        <meshStandardMaterial color="#f3d9a4" roughness={0.8} />
-      </mesh>
       <PastureWorldText
         position={[0, 3.15, 0]}
         fontSize={0.38}
-        color="#123055"
         anchorX="center"
         anchorY="middle"
-        outlineWidth={0.02}
-        outlineColor="#ffffff"
+        tag={label.tag}
       >
-        Market Stall
+        {label.title}
       </PastureWorldText>
     </group>
   );
@@ -172,105 +193,67 @@ function DressingStand({
   y: number;
   onInteract: (event: ThreeEvent<PointerEvent>) => void;
 }) {
+  const label = yardLabelForLandmark("customization-station");
   return (
-    <group
-      position={[x, y, z]}
-      onPointerDown={onInteract}
-      onPointerOver={() => {
-        document.body.style.cursor = "pointer";
-      }}
-      onPointerOut={() => {
-        document.body.style.cursor = "";
-      }}
-    >
+    <group position={[x, y, z]} onPointerDown={onInteract} {...hoverHandlers()}>
       <mesh position={[0, 0.02, 0]} receiveShadow>
-        <cylinderGeometry args={[1.55, 1.55, 0.06, 20]} />
-        <meshStandardMaterial color="#8f6f9a" roughness={1} />
+        <boxGeometry args={[3.2, 0.06, 2.6]} />
+        <meshStandardMaterial color={YARD.concreteDark} roughness={1} />
       </mesh>
-      <mesh position={[0, 0.07, 0]} receiveShadow>
-        <cylinderGeometry args={[1.25, 1.25, 0.05, 20]} />
-        <meshStandardMaterial color="#d7c6e4" roughness={0.95} />
+      <mesh position={[-0.15, 1.2, -0.4]} castShadow receiveShadow>
+        <boxGeometry args={[2.2, 2.4, 1.1]} />
+        <meshStandardMaterial color={YARD.ink} roughness={0.8} />
       </mesh>
-      <mesh position={[-0.85, 1.15, -0.15]} castShadow receiveShadow>
-        <boxGeometry args={[0.95, 2.2, 0.7]} />
-        <meshStandardMaterial color="#5d3b4c" roughness={0.75} />
+      <mesh position={[-0.15, 1.2, 0.16]} castShadow>
+        <boxGeometry args={[0.9, 2.0, 0.08]} />
+        <meshStandardMaterial color={YARD.paper} roughness={0.7} />
       </mesh>
-      <mesh position={[-1.08, 1.2, 0.22]} castShadow>
-        <boxGeometry args={[0.42, 1.9, 0.08]} />
-        <meshStandardMaterial color="#7a5164" roughness={0.7} />
+      <mesh position={[-0.55, 2.15, 0.18]} castShadow>
+        <boxGeometry args={[0.16, 0.16, 0.08]} />
+        <meshStandardMaterial color={YARD.accent} roughness={0.4} />
       </mesh>
-      <mesh position={[-0.62, 1.2, 0.22]} castShadow>
-        <boxGeometry args={[0.42, 1.9, 0.08]} />
-        <meshStandardMaterial color="#7a5164" roughness={0.7} />
-      </mesh>
-      <mesh position={[-0.95, 1.2, 0.28]} castShadow>
-        <sphereGeometry args={[0.05, 8, 8]} />
+      <mesh position={[1.15, 1.15, 0.1]} castShadow>
+        <boxGeometry args={[0.08, 2.1, 0.7]} />
         <meshStandardMaterial
-          color="#e6c36a"
-          roughness={0.35}
-          metalness={0.55}
-        />
-      </mesh>
-      <mesh position={[-0.75, 1.2, 0.28]} castShadow>
-        <sphereGeometry args={[0.05, 8, 8]} />
-        <meshStandardMaterial
-          color="#e6c36a"
-          roughness={0.35}
-          metalness={0.55}
-        />
-      </mesh>
-      <mesh position={[0.7, 0.15, 0.15]} castShadow>
-        <cylinderGeometry args={[0.16, 0.22, 0.28, 10]} />
-        <meshStandardMaterial
-          color="#c9d0d8"
-          roughness={0.4}
-          metalness={0.35}
-        />
-      </mesh>
-      <mesh position={[0.7, 0.7, 0.15]} castShadow>
-        <cylinderGeometry args={[0.07, 0.07, 0.9, 8]} />
-        <meshStandardMaterial color="#b7bec6" roughness={0.4} metalness={0.4} />
-      </mesh>
-      <mesh position={[0.7, 1.55, 0.15]} castShadow>
-        <cylinderGeometry args={[0.48, 0.48, 0.08, 20]} />
-        <meshStandardMaterial color="#dfe6ee" roughness={0.3} metalness={0.5} />
-      </mesh>
-      <mesh position={[0.7, 1.55, 0.16]} rotation={[0.05, 0, 0]} castShadow>
-        <cylinderGeometry args={[0.4, 0.4, 0.05, 20]} />
-        <meshStandardMaterial
-          color="#c5e8f4"
+          color="#c5d0d8"
           roughness={0.12}
-          metalness={0.2}
-          emissive="#9fd4e8"
-          emissiveIntensity={0.18}
+          metalness={0.25}
+          emissive="#f5f5f0"
+          emissiveIntensity={0.12}
         />
       </mesh>
-      <mesh position={[0.15, 0.28, 0.55]} castShadow>
-        <cylinderGeometry args={[0.22, 0.24, 0.12, 10]} />
-        <meshStandardMaterial color="#6d4a32" roughness={0.85} />
+      <mesh position={[1.15, 2.25, 0.1]}>
+        <boxGeometry args={[0.12, 0.08, 0.7]} />
+        <meshStandardMaterial
+          color={YARD.accent}
+          emissive={YARD.accent}
+          emissiveIntensity={0.55}
+        />
       </mesh>
-      <mesh position={[0.15, 0.48, 0.55]} castShadow>
-        <boxGeometry args={[0.42, 0.08, 0.42]} />
-        <meshStandardMaterial color="#c4a06a" roughness={0.7} />
+      <mesh position={[0.55, 0.55, 0.7]} castShadow>
+        <boxGeometry args={[0.7, 1.1, 0.14]} />
+        <meshStandardMaterial
+          color={YARD.metal}
+          roughness={0.5}
+          metalness={0.3}
+        />
       </mesh>
-      <mesh
-        position={[-0.85, 2.05, 0.2]}
-        rotation={[0.2, 0.1, 0.15]}
-        castShadow
-      >
-        <boxGeometry args={[0.34, 0.16, 0.28]} />
-        <meshStandardMaterial color="#6f9b5a" roughness={0.8} />
+      <mesh position={[0.55, 0.9, 0.62]} rotation={[0, 0.2, 0]} castShadow>
+        <boxGeometry args={[0.28, 0.7, 0.08]} />
+        <meshStandardMaterial color={YARD.paper} roughness={0.8} />
+      </mesh>
+      <mesh position={[0.55, 0.85, 0.78]} rotation={[0, -0.3, 0]} castShadow>
+        <boxGeometry args={[0.28, 0.7, 0.08]} />
+        <meshStandardMaterial color={YARD.accent} roughness={0.8} />
       </mesh>
       <PastureWorldText
         position={[0, 2.95, 0]}
         fontSize={0.3}
-        color="#123055"
         anchorX="center"
         anchorY="middle"
-        outlineWidth={0.022}
-        outlineColor="#ffffff"
+        tag={label.tag}
       >
-        Customization Station
+        {label.title}
       </PastureWorldText>
     </group>
   );
@@ -287,6 +270,7 @@ function HomePlot({
   y: number;
   onInteract: (event: ThreeEvent<PointerEvent>) => void;
 }) {
+  const label = yardLabelForLandmark("home-plot");
   return (
     <group position={[x, y, z]} onPointerDown={onInteract}>
       <mesh
@@ -295,44 +279,35 @@ function HomePlot({
         receiveShadow
       >
         <planeGeometry args={[5.2, 5.2]} />
-        <meshStandardMaterial color="#e8d5b0" roughness={0.9} />
+        <meshStandardMaterial color={YARD.concreteLight} roughness={0.92} />
       </mesh>
-      {[-1.5, -0.5, 0.5, 1.5].flatMap((gx) =>
-        [-1.5, -0.5, 0.5, 1.5].map((gz) => (
-          <mesh
-            key={gx + ":" + gz}
-            rotation={[-Math.PI / 2, 0, 0]}
-            position={[gx, 0.04, gz]}
-          >
-            <planeGeometry args={[0.88, 0.88]} />
-            <meshStandardMaterial
-              color="#f3e6c8"
-              roughness={0.85}
-              transparent
-              opacity={0.85}
-            />
-          </mesh>
-        )),
-      )}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
+        <ringGeometry args={[2.35, 2.55, 4]} />
+        <meshStandardMaterial color={YARD.paper} roughness={0.7} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.045, 0]}>
+        <ringGeometry args={[1.1, 1.2, 4]} />
+        <meshStandardMaterial color={YARD.accent} roughness={0.6} />
+      </mesh>
       {[
         [-2.4, -2.4],
         [2.4, -2.4],
         [-2.4, 2.4],
         [2.4, 2.4],
       ].map(([px, pz]) => (
-        <mesh key={px + ":" + pz} position={[px, 0.35, pz]}>
-          <boxGeometry args={[0.16, 0.7, 0.16]} />
-          <meshStandardMaterial color="#8b5a2b" roughness={0.7} />
+        <mesh key={px + ":" + pz} position={[px, 0.28, pz]}>
+          <boxGeometry args={[0.18, 0.56, 0.18]} />
+          <meshStandardMaterial color={YARD.ink} roughness={0.7} />
         </mesh>
       ))}
       <PastureWorldText
         position={[0, 1.15, 0]}
         fontSize={0.32}
-        color="#5a3a1c"
-        outlineWidth={0.022}
-        outlineColor="#ffffff"
+        anchorX="center"
+        anchorY="middle"
+        tag={label.tag}
       >
-        Home Plot
+        {label.title}
       </PastureWorldText>
     </group>
   );
