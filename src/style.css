@@ -2312,6 +2312,61 @@ a:hover {
 .pasture-dailies-item.is-complete {
   color: #b7e3c2;
 }
+.pasture-session-recap {
+  position: absolute;
+  left: 164px;
+  top: 96px;
+  z-index: 16;
+  width: min(300px, calc(100% - 176px));
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(16, 28, 22, 0.94);
+  color: #f4fff6;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  pointer-events: auto;
+}
+.pasture-session-recap-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pasture-session-recap h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.pasture-session-recap-streak,
+.pasture-session-recap-bonus {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  opacity: 0.88;
+}
+.pasture-session-recap-goals,
+.pasture-session-recap-sales ul {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.8rem;
+}
+.pasture-session-recap-goals .is-complete {
+  color: #b7e3c2;
+}
+.pasture-session-recap-sales {
+  margin-top: 8px;
+}
+.pasture-3d-stage.is-touch-controls .pasture-session-recap {
+  left: 12px;
+  right: 12px;
+  width: auto;
+}
+.pasture-3d-stage.is-touch-controls.is-recap-open .pasture-minimap,
+.pasture-3d-stage.is-touch-controls.is-recap-open .pasture-inventory-btn {
+  visibility: hidden;
+  pointer-events: none;
+}
 .pasture-station-progress {
   margin: 0;
   font-size: 0.8rem;

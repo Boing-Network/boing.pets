@@ -75,6 +75,7 @@ import {
 import { PastureAudioControls } from "./PastureAudioControls";
 import { WalkthroughCard } from "../onboarding/WalkthroughCard";
 import { DailyQuestChip, useDailyProgress } from "./DailyQuestChip";
+import { PastureSessionRecap } from "./PastureSessionRecap";
 import { noticeWalletError } from "../ui/appRuntime";
 import { careVitalsFromPet } from "./petMood";
 import { getA11ySettings } from "../ui/a11ySettings";
@@ -226,6 +227,7 @@ export function PastureApp({
     null,
   );
   const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [recapOpen, setRecapOpen] = useState(false);
   const [nearbyStation, setNearbyStation] = useState<WorldStation | null>(null);
   const [localEmotes, setLocalEmotes] = useState<
     Array<{ id: string; emote: EmoteId; at: number }>
@@ -644,6 +646,7 @@ export function PastureApp({
         "pasture-3d-stage" +
         (stationMenu ? " is-station-menu-open" : "") +
         (inventoryOpen ? " is-inventory-open" : "") +
+        (recapOpen ? " is-recap-open" : "") +
         (touchControls && mine ? " is-touch-controls" : "")
       }
       ref={stageRef}
@@ -653,6 +656,7 @@ export function PastureApp({
           Growing the meadow…
         </div>
       ) : null}
+      <PastureSessionRecap owner={owner} onOpenChange={setRecapOpen} />
       <DailyQuestChip progress={dailyProgress} nearby={nearbyProgress} />
       <PastureMinimap poseRef={livePose} onWalk={(x, z) => walkTo(x, z)} />
       <PastureInventory

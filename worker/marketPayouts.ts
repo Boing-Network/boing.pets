@@ -62,6 +62,7 @@ export type PublicPayout = {
   tx_url: string | null;
   attempts: number;
   last_error: string | null;
+  created_at: number;
   updated_at: number;
 };
 
@@ -132,6 +133,7 @@ export function publicPayout(row: MarketPayoutRow): PublicPayout {
     tx_url: marketPayoutTxUrl(row.payout_tx),
     attempts: row.attempts,
     last_error: row.last_error,
+    created_at: row.created_at,
     updated_at: row.updated_at,
   };
 }
