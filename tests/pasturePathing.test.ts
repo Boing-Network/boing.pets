@@ -152,13 +152,19 @@ describe("pasture pathing", () => {
   });
 
   it("walks from Pond Pier to Treasure Dig around the lily pond", () => {
+    const pier = PASTURE_ZONE.landmarks.find(
+      (item) => item.id === "pond-pier",
+    )!;
+    const dig = PASTURE_ZONE.landmarks.find(
+      (item) => item.id === "treasure-dig",
+    )!;
     const starts = [
-      { x: 29, z: -13 },
-      { x: 27, z: -12.5 },
-      { x: 30, z: -16 },
-      { x: 26.45, z: -14.33 },
+      { x: pier.position.x + 3, z: pier.position.z + 3 },
+      { x: pier.position.x + 2, z: pier.position.z + 4 },
+      { x: pier.position.x + 4, z: pier.position.z },
+      { x: pier.position.x + 2.5, z: pier.position.z + 2.5 },
     ];
-    const goal = { x: 8, z: -28 };
+    const goal = { x: dig.position.x, z: dig.position.z };
     for (const start of starts) {
       let pos = resolveClickTarget(start, PASTURE_ZONE, obstacles);
       let arrived = false;
@@ -212,7 +218,13 @@ describe("pasture route audit", () => {
   const obstacles = obstaclesForZone(PASTURE_ZONE);
   const pois = [
     { id: "spawn", ...PASTURE_ZONE.spawn },
-    { id: "old-oak", x: -18, z: -20 },
+    {
+      id: "old-oak",
+      x: PASTURE_ZONE.landmarks.find((item) => item.id === "old-oak")!.position
+        .x,
+      z: PASTURE_ZONE.landmarks.find((item) => item.id === "old-oak")!.position
+        .z,
+    },
     ...PASTURE_ZONE.stations
       .filter((station) => station.kind !== "info")
       .map((station) => ({
@@ -223,20 +235,35 @@ describe("pasture route audit", () => {
   ];
 
   it("snaps a walk into the Old Oak onto a reachable rim", () => {
-    const rim = resolveClickTarget({ x: -18, z: -20 }, PASTURE_ZONE, obstacles);
+    const oak = PASTURE_ZONE.landmarks.find((item) => item.id === "old-oak")!;
+    const rim = resolveClickTarget(
+      { x: oak.position.x, z: oak.position.z },
+      PASTURE_ZONE,
+      obstacles,
+    );
     expect(blocked(rim, obstacles)).toBeNull();
-    expect(Math.hypot(rim.x + 18, rim.z + 20)).toBeGreaterThan(1);
+    expect(
+      Math.hypot(rim.x - oak.position.x, rim.z - oak.position.z),
+    ).toBeGreaterThan(1);
   });
 
   it("walks from spawn and Treasure Dig to the Old Oak without stalling mid-south", () => {
+    const oak = PASTURE_ZONE.landmarks.find((item) => item.id === "old-oak")!;
+    const dig = PASTURE_ZONE.landmarks.find(
+      (item) => item.id === "treasure-dig",
+    )!;
     for (const start of [
-      { x: 0, z: 6 },
-      { x: 8, z: -28 },
+      { x: PASTURE_ZONE.spawn.x, z: PASTURE_ZONE.spawn.z },
+      { x: dig.position.x, z: dig.position.z },
     ]) {
-      const pos = walkToGoal(start, { x: -18, z: -20 }, obstacles);
-      // The previous greedy detour could pin a walker around (2.35, -21.99).
-      expect(Math.hypot(pos.x - 2.35, pos.z + 21.99)).toBeGreaterThan(8);
-      expect(Math.hypot(pos.x + 18, pos.z + 20)).toBeLessThan(2.5);
+      const pos = walkToGoal(
+        start,
+        { x: oak.position.x, z: oak.position.z },
+        obstacles,
+      );
+      expect(
+        Math.hypot(pos.x - oak.position.x, pos.z - oak.position.z),
+      ).toBeLessThan(2.5);
     }
   });
 

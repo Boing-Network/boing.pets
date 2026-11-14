@@ -1,8 +1,10 @@
 /** Rooftop plaza dressing: parapet, chain-link, skyline, instanced street decor. */
 
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { PASTURE_ZONE } from "../world/config/zones";
+import { YardSkylineKits } from "./YardKits";
+import { loadYardGltf } from "./yardKitLoader";
 import { mulberry } from "./meadowDecor";
 import { meadowHeight } from "./meadowHeight";
 import {
@@ -382,7 +384,7 @@ export function YardPlaza({ preferPerf }: { preferPerf: boolean }) {
     <group>
       <Parapet />
       <ChainLink preferPerf={preferPerf} />
-      <Skyline preferPerf={preferPerf} />
+      <SkylineOrKits preferPerf={preferPerf} />
       <StickerWalls preferPerf={preferPerf} />
       <InstancedBoxes items={decor.cones} color={YARD.accent} geometry="cone" />
       <InstancedBoxes items={decor.crates} color="#d2b48a" />
@@ -404,5 +406,19 @@ export function YardPlaza({ preferPerf }: { preferPerf: boolean }) {
         geometry="foliage"
       />
     </group>
+  );
+}
+
+function SkylineOrKits({ preferPerf }: { preferPerf: boolean }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    loadYardGltf("sky-low-a")
+      .then(() => setReady(true))
+      .catch(() => {});
+  }, []);
+  return ready ? (
+    <YardSkylineKits preferPerf={preferPerf} />
+  ) : (
+    <Skyline preferPerf={preferPerf} />
   );
 }

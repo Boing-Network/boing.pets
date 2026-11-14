@@ -24,9 +24,9 @@ describe("public pasture stations", () => {
   const customize = stationByKind(PASTURE_ZONE, "customize");
 
   it("places labeled craft, market, and customize landmarks around spawn", () => {
-    expect(craft?.position).toEqual({ x: -16, y: 0, z: 12 });
-    expect(market?.position).toEqual({ x: 16, y: 0, z: 12 });
-    expect(customize?.position).toEqual({ x: 16, y: 0, z: -8 });
+    expect(craft?.position).toEqual({ x: 16, y: 0, z: -16 });
+    expect(market?.position).toEqual({ x: 16, y: 0, z: -6 });
+    expect(customize?.position).toEqual({ x: 16, y: 0, z: 8 });
     expect(craft?.radius).toBe(3.4);
     expect(market?.radius).toBe(3.4);
     expect(customize?.radius).toBe(3.4);
@@ -87,7 +87,7 @@ describe("public pasture stations", () => {
 
   it("adds a walk-in home plot with the 2D housing page as a fallback", () => {
     const home = stationByKind(PASTURE_ZONE, "home");
-    expect(home?.position).toEqual({ x: 28, y: 0, z: 4 });
+    expect(home?.position).toEqual({ x: 24, y: 0, z: 8 });
     expect(home?.careHref).toBe("/home.html");
     expect(stationActionLabel(home!)).toMatch(/home/i);
     const land = PASTURE_ZONE.landmarks.find(
@@ -95,40 +95,71 @@ describe("public pasture stations", () => {
     )!;
     expect(land.height).toBeLessThan(1);
     expect(isCustomPastureLandmark("home-plot")).toBe(true);
-    expect(PASTURE_FLATTEN.some((spot) => spot.x === 28 && spot.z === 4)).toBe(
-      true,
-    );
+    expect(
+      PASTURE_FLATTEN.some(
+        (spot) => spot.x === home!.position.x && spot.z === home!.position.z,
+      ),
+    ).toBe(true);
     const blocked = obstacles.some(
       (item) =>
-        Math.hypot(item.x - 28, item.z - 4) < 1.2 &&
-        ("solid" in item ? item.solid : true),
+        Math.hypot(item.x - home!.position.x, item.z - home!.position.z) <
+          1.2 && ("solid" in item ? item.solid : true),
     );
     // The patio must stay walkable (low landmark, not a solid obstacle).
     const resolved = resolveClickTarget(
-      { x: 28, z: 4 },
+      { x: home!.position.x, z: home!.position.z },
       PASTURE_ZONE,
       obstacles,
     );
-    expect(Math.hypot(resolved.x - 28, resolved.z - 4)).toBeLessThan(0.6);
+    expect(
+      Math.hypot(resolved.x - home!.position.x, resolved.z - home!.position.z),
+    ).toBeLessThan(0.6);
     expect(blocked).toBe(false);
   });
 
   it("opens only when the player is inside the interact radius", () => {
-    expect(nearbyInteractStation({ x: 0, z: 6 }, PASTURE_ZONE)).toBeNull();
     expect(
-      nearbyInteractStation({ x: -16, z: 12 + 3.3 }, PASTURE_ZONE)?.kind,
+      nearbyInteractStation(
+        { x: PASTURE_ZONE.spawn.x, z: PASTURE_ZONE.spawn.z },
+        PASTURE_ZONE,
+      ),
+    ).toBeNull();
+    expect(
+      nearbyInteractStation(
+        { x: craft!.position.x, z: craft!.position.z + 3.3 },
+        PASTURE_ZONE,
+      )?.kind,
     ).toBe("craft");
     expect(
-      nearbyInteractStation({ x: -16, z: 12 + 3.5 }, PASTURE_ZONE),
+      nearbyInteractStation(
+        { x: craft!.position.x, z: craft!.position.z + 3.5 },
+        PASTURE_ZONE,
+      ),
     ).toBeNull();
-    expect(isWithinStationRadius({ x: 16, z: 12 }, market!)).toBe(true);
     expect(
-      nearbyInteractStation({ x: 16, z: -8 + 3.3 }, PASTURE_ZONE)?.kind,
+      isWithinStationRadius(
+        { x: market!.position.x, z: market!.position.z },
+        market!,
+      ),
+    ).toBe(true);
+    expect(
+      nearbyInteractStation(
+        { x: customize!.position.x, z: customize!.position.z + 3.3 },
+        PASTURE_ZONE,
+      )?.kind,
     ).toBe("customize");
     expect(
-      nearbyInteractStation({ x: 16, z: -8 + 3.5 }, PASTURE_ZONE),
+      nearbyInteractStation(
+        { x: customize!.position.x, z: customize!.position.z + 3.5 },
+        PASTURE_ZONE,
+      ),
     ).toBeNull();
-    expect(isWithinStationRadius({ x: 16, z: -8 }, customize!)).toBe(true);
+    expect(
+      isWithinStationRadius(
+        { x: customize!.position.x, z: customize!.position.z },
+        customize!,
+      ),
+    ).toBe(true);
     expect(stationPrompt(craft!)).toMatch(/craft/i);
     expect(stationActionLabel(market!)).toMatch(/market/i);
     expect(stationPrompt(customize!)).toMatch(/customize/i);

@@ -5,6 +5,7 @@ import {
   MEADOW_FENCES,
   MEADOW_TREE_SPOTS,
 } from "./meadowLayout";
+import { yardKitObstacles } from "./yardKitObstacles";
 
 export type Vec2 = { x: number; z: number };
 
@@ -74,6 +75,7 @@ export function obstaclesForZone(zone: WorldZoneConfig): Obstacle[] {
         shape: "aabb",
       });
     }
+    list.push(...yardKitObstacles());
   }
   return list;
 }

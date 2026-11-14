@@ -1,0 +1,281 @@
+{
+  "total": 465984,
+  "count": 55,
+  "files": [
+    {
+      "out": "shop-wide.glb",
+      "pack": "commercial",
+      "size": 24156
+    },
+    {
+      "out": "pizza.glb",
+      "pack": "food",
+      "size": 21028
+    },
+    {
+      "out": "sky-tower-a.glb",
+      "pack": "commercial",
+      "size": 20828
+    },
+    {
+      "out": "shop-narrow.glb",
+      "pack": "commercial",
+      "size": 20260
+    },
+    {
+      "out": "shop-mid.glb",
+      "pack": "commercial",
+      "size": 19948
+    },
+    {
+      "out": "shop-small.glb",
+      "pack": "commercial",
+      "size": 19128
+    },
+    {
+      "out": "sky-tower-e.glb",
+      "pack": "commercial",
+      "size": 18824
+    },
+    {
+      "out": "fries.glb",
+      "pack": "food",
+      "size": 14844
+    },
+    {
+      "out": "stove.glb",
+      "pack": "furniture",
+      "size": 12556
+    },
+    {
+      "out": "container-b.glb",
+      "pack": "industrial",
+      "size": 10800
+    },
+    {
+      "out": "container-a.glb",
+      "pack": "industrial",
+      "size": 10776
+    },
+    {
+      "out": "tank.glb",
+      "pack": "industrial",
+      "size": 10248
+    },
+    {
+      "out": "tree-detailed.glb",
+      "pack": "nature",
+      "size": 9624
+    },
+    {
+      "out": "hotdog.glb",
+      "pack": "food",
+      "size": 8948
+    },
+    {
+      "out": "skate-bench.glb",
+      "pack": "skate",
+      "size": 8660
+    },
+    {
+      "out": "barrel.glb",
+      "pack": "food",
+      "size": 8648
+    },
+    {
+      "out": "planter.glb",
+      "pack": "suburban",
+      "size": 8356
+    },
+    {
+      "out": "burger.glb",
+      "pack": "food",
+      "size": 8220
+    },
+    {
+      "out": "fence-low.glb",
+      "pack": "suburban",
+      "size": 7792
+    },
+    {
+      "out": "sky-low-wide-b.glb",
+      "pack": "commercial",
+      "size": 7468
+    },
+    {
+      "out": "skate-fence.glb",
+      "pack": "skate",
+      "size": 7412
+    },
+    {
+      "out": "rail-low.glb",
+      "pack": "skate",
+      "size": 7372
+    },
+    {
+      "out": "bowl-corner-outer.glb",
+      "pack": "skate",
+      "size": 7352
+    },
+    {
+      "out": "bowl-corner-inner.glb",
+      "pack": "skate",
+      "size": 7328
+    },
+    {
+      "out": "soda.glb",
+      "pack": "food",
+      "size": 7268
+    },
+    {
+      "out": "sky-low-b.glb",
+      "pack": "commercial",
+      "size": 7040
+    },
+    {
+      "out": "sky-low-a.glb",
+      "pack": "commercial",
+      "size": 6820
+    },
+    {
+      "out": "fridge.glb",
+      "pack": "furniture",
+      "size": 6820
+    },
+    {
+      "out": "sky-low-wide-a.glb",
+      "pack": "commercial",
+      "size": 6700
+    },
+    {
+      "out": "skate-ramp.glb",
+      "pack": "skate",
+      "size": 6512
+    },
+    {
+      "out": "sky-low-i.glb",
+      "pack": "commercial",
+      "size": 6496
+    },
+    {
+      "out": "sky-low-g.glb",
+      "pack": "commercial",
+      "size": 6468
+    },
+    {
+      "out": "sky-low-e.glb",
+      "pack": "commercial",
+      "size": 5976
+    },
+    {
+      "out": "coffee.glb",
+      "pack": "food",
+      "size": 5916
+    },
+    {
+      "out": "tree-large.glb",
+      "pack": "suburban",
+      "size": 5900
+    },
+    {
+      "out": "bowl-side.glb",
+      "pack": "skate",
+      "size": 5696
+    },
+    {
+      "out": "overhang-wide.glb",
+      "pack": "commercial",
+      "size": 5684
+    },
+    {
+      "out": "rock-tall.glb",
+      "pack": "nature",
+      "size": 5636
+    },
+    {
+      "out": "awning-wide.glb",
+      "pack": "commercial",
+      "size": 5576
+    },
+    {
+      "out": "tree-oak.glb",
+      "pack": "nature",
+      "size": 5328
+    },
+    {
+      "out": "desk.glb",
+      "pack": "furniture",
+      "size": 5176
+    },
+    {
+      "out": "potted-plant.glb",
+      "pack": "furniture",
+      "size": 5164
+    },
+    {
+      "out": "lily.glb",
+      "pack": "nature",
+      "size": 5024
+    },
+    {
+      "out": "bowl-platform.glb",
+      "pack": "skate",
+      "size": 4924
+    },
+    {
+      "out": "mirror.glb",
+      "pack": "furniture",
+      "size": 4892
+    },
+    {
+      "out": "stone-tall.glb",
+      "pack": "nature",
+      "size": 4884
+    },
+    {
+      "out": "kitchen-bar.glb",
+      "pack": "furniture",
+      "size": 4704
+    },
+    {
+      "out": "stool.glb",
+      "pack": "furniture",
+      "size": 4572
+    },
+    {
+      "out": "flower-red.glb",
+      "pack": "nature",
+      "size": 3916
+    },
+    {
+      "out": "flower-yellow.glb",
+      "pack": "nature",
+      "size": 3912
+    },
+    {
+      "out": "coat-rack.glb",
+      "pack": "furniture",
+      "size": 3900
+    },
+    {
+      "out": "pot-large.glb",
+      "pack": "nature",
+      "size": 3696
+    },
+    {
+      "out": "bush.glb",
+      "pack": "nature",
+      "size": 3644
+    },
+    {
+      "out": "box-closed.glb",
+      "pack": "furniture",
+      "size": 3624
+    },
+    {
+      "out": "lamp-wall.glb",
+      "pack": "furniture",
+      "size": 3540
+    }
+  ]
+}

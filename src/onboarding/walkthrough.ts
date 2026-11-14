@@ -49,7 +49,7 @@ export const WALKTHROUGH_STEPS: readonly WalkthroughStep[] = [
   {
     id: "visit-area",
     title: "Visit an activity area",
-    body: "Daily play happens in themed areas. Walk west to the Crystal Quarry to peek at mining — one of the pasture's activity spots.",
+    body: "Daily play happens in themed areas. Walk ahead and left from spawn to the Crystal Quarry to peek at mining — one of the yard's activity spots.",
     scene: "pasture",
     guide: { kind: "mine" },
     primaryLabel: "Take me there",
@@ -57,7 +57,7 @@ export const WALKTHROUGH_STEPS: readonly WalkthroughStep[] = [
   {
     id: "visit-station",
     title: "Visit a station",
-    body: "Stations are where you craft, trade, and customize. Head northwest to the Crafting Station and open it when you arrive.",
+    body: "Stations are where you craft, trade, and customize. Head ahead and right along the shop row to the Print Shop and open it when you arrive.",
     scene: "pasture",
     guide: { kind: "craft" },
     primaryLabel: "Take me there",

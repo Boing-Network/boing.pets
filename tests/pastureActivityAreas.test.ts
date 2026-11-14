@@ -31,12 +31,17 @@ const EXPECTED: Record<
   ActivityStationKind,
   { x: number; z: number; landmarkId: string; label: string }
 > = {
-  mine: { x: -30, z: 6, landmarkId: "crystal-quarry", label: "Crystal Quarry" },
-  fish: { x: 27, z: -16, landmarkId: "pond-pier", label: "Pond Pier" },
-  treasure: { x: 8, z: -28, landmarkId: "treasure-dig", label: "Treasure Dig" },
-  garden: { x: 12, z: 28, landmarkId: "garden-beds", label: "Garden Beds" },
-  cook: { x: -22, z: 26, landmarkId: "kitchen-hut", label: "Pasture Kitchen" },
-  race: { x: -12, z: -32, landmarkId: "race-gate", label: "Race Track" },
+  mine: {
+    x: -10,
+    z: -6,
+    landmarkId: "crystal-quarry",
+    label: "Crystal Quarry",
+  },
+  fish: { x: 13, z: -24, landmarkId: "pond-pier", label: "Pond Pier" },
+  treasure: { x: 8, z: -6, landmarkId: "treasure-dig", label: "Treasure Dig" },
+  garden: { x: 22, z: -20, landmarkId: "garden-beds", label: "Garden Beds" },
+  cook: { x: -16, z: -8, landmarkId: "kitchen-hut", label: "Pasture Kitchen" },
+  race: { x: -12, z: 8, landmarkId: "race-gate", label: "Race Track" },
 };
 
 const REQUIRED_IDS: Record<string, string[]> = {
@@ -133,17 +138,31 @@ describe("public pasture activity areas", () => {
   });
 
   it("opens only inside the interact radius and uses a Press E prompt", () => {
-    expect(nearbyInteractStation({ x: 0, z: 6 }, PASTURE_ZONE)).toBeNull();
+    expect(
+      nearbyInteractStation(
+        { x: PASTURE_ZONE.spawn.x, z: PASTURE_ZONE.spawn.z },
+        PASTURE_ZONE,
+      ),
+    ).toBeNull();
     const quarry = stationByKind(PASTURE_ZONE, "mine")!;
     expect(
-      nearbyInteractStation({ x: -30, z: 6 + 3.3 }, PASTURE_ZONE)?.kind,
+      nearbyInteractStation(
+        { x: quarry.position.x, z: quarry.position.z + 3.3 },
+        PASTURE_ZONE,
+      )?.kind,
     ).toBe("mine");
     expect(
-      nearbyInteractStation({ x: -30, z: 6 + 3.5 }, PASTURE_ZONE),
+      nearbyInteractStation(
+        { x: quarry.position.x, z: quarry.position.z + 3.5 },
+        PASTURE_ZONE,
+      ),
     ).toBeNull();
     expect(
       isWithinStationRadius(
-        { x: 27, z: -16 },
+        {
+          x: stationByKind(PASTURE_ZONE, "fish")!.position.x,
+          z: stationByKind(PASTURE_ZONE, "fish")!.position.z,
+        },
         stationByKind(PASTURE_ZONE, "fish")!,
       ),
     ).toBe(true);

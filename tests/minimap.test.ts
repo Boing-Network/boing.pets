@@ -37,13 +37,14 @@ describe("pasture mini-map projection", () => {
     const mid = mapToWorld({ x: SIZE / 2, y: SIZE / 2 }, bounds, SIZE);
     expect(mid.x).toBeCloseTo((bounds.minX + bounds.maxX) / 2);
     expect(mid.z).toBeCloseTo((bounds.minZ + bounds.maxZ) / 2);
+    const sample = { x: PASTURE_ZONE.spawn.x, z: PASTURE_ZONE.spawn.z };
     const roundTrip = mapToWorld(
-      worldToMap({ x: -22, z: 26 }, bounds, SIZE),
+      worldToMap(sample, bounds, SIZE),
       bounds,
       SIZE,
     );
-    expect(roundTrip.x).toBeCloseTo(-22);
-    expect(roundTrip.z).toBeCloseTo(26);
+    expect(roundTrip.x).toBeCloseTo(sample.x);
+    expect(roundTrip.z).toBeCloseTo(sample.z);
   });
 
   it("places a labeled icon for every pasture activity area", () => {
@@ -53,10 +54,11 @@ describe("pasture mini-map projection", () => {
       expect(kinds.has(kind)).toBe(true);
     }
     const kitchen = stations.find((station) => station.kind === "cook");
+    const cook = stationByKind(PASTURE_ZONE, "cook")!;
     expect(kitchen?.title).toBe("STREET KITCHEN");
     expect(kitchen?.icon).toBe("K");
-    expect(kitchen?.x).toBe(-22);
-    expect(kitchen?.z).toBe(26);
+    expect(kitchen?.x).toBe(cook.position.x);
+    expect(kitchen?.z).toBe(cook.position.z);
   });
 
   it("spreads clustered station icons so letters stay readable", () => {

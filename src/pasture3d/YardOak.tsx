@@ -5,6 +5,7 @@ import { meadowHeight } from "./meadowHeight";
 import { PastureWorldText } from "./PastureWorldText";
 import { YARD } from "./yardChrome";
 import { yardLabelForLandmark } from "./yardLabels";
+import { YardOakKit } from "./YardKits";
 import * as THREE from "three";
 
 export function YardOak({ preferPerf = false }: { preferPerf?: boolean }) {
@@ -53,38 +54,44 @@ export function YardOak({ preferPerf = false }: { preferPerf?: boolean }) {
         <ringGeometry args={[2.5, 2.74, 24]} />
         <meshStandardMaterial color={YARD.accent} roughness={0.5} />
       </mesh>
-      <mesh position={[0, 1.35, 0]} castShadow>
-        <cylinderGeometry args={[0.22, 0.4, 2.6, sides]} />
-        <meshStandardMaterial color={YARD.trunk} roughness={0.9} />
-      </mesh>
-      <mesh position={[0, 3.25, 0]} castShadow={!preferPerf}>
-        <icosahedronGeometry args={[1.65, 0]} />
-        <meshStandardMaterial
-          color={YARD.foliage}
-          roughness={0.85}
-          flatShading
-        />
-      </mesh>
-      {preferPerf ? null : (
-        <>
-          <mesh position={[0.7, 2.85, 0.25]} castShadow>
-            <icosahedronGeometry args={[1.05, 0]} />
-            <meshStandardMaterial
-              color="#4e8d55"
-              roughness={0.85}
-              flatShading
-            />
-          </mesh>
-          <mesh position={[-0.55, 3.0, -0.35]} castShadow>
-            <icosahedronGeometry args={[0.9, 0]} />
-            <meshStandardMaterial
-              color="#3a6e44"
-              roughness={0.85}
-              flatShading
-            />
-          </mesh>
-        </>
-      )}
+      <YardOakKit
+        fallback={
+          <>
+            <mesh position={[0, 1.35, 0]} castShadow>
+              <cylinderGeometry args={[0.22, 0.4, 2.6, sides]} />
+              <meshStandardMaterial color={YARD.trunk} roughness={0.9} />
+            </mesh>
+            <mesh position={[0, 3.25, 0]} castShadow={!preferPerf}>
+              <icosahedronGeometry args={[1.65, 0]} />
+              <meshStandardMaterial
+                color={YARD.foliage}
+                roughness={0.85}
+                flatShading
+              />
+            </mesh>
+            {preferPerf ? null : (
+              <>
+                <mesh position={[0.7, 2.85, 0.25]} castShadow>
+                  <icosahedronGeometry args={[1.05, 0]} />
+                  <meshStandardMaterial
+                    color="#4e8d55"
+                    roughness={0.85}
+                    flatShading
+                  />
+                </mesh>
+                <mesh position={[-0.55, 3.0, -0.35]} castShadow>
+                  <icosahedronGeometry args={[0.9, 0]} />
+                  <meshStandardMaterial
+                    color="#3a6e44"
+                    roughness={0.85}
+                    flatShading
+                  />
+                </mesh>
+              </>
+            )}
+          </>
+        }
+      />
       <PastureWorldText
         position={[0, 5.15, 0]}
         fontSize={0.36}

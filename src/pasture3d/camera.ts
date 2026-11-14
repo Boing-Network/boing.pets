@@ -1,5 +1,6 @@
 import type { WorldZoneConfig } from "../world/config/zones";
 import { MEADOW_TREE_SPOTS } from "./meadowLayout";
+import { yardKitCameraOccluders } from "./yardKitObstacles";
 
 /** Pure camera helpers for pasture zoom, ground clearance, and landmark occlusion. */
 
@@ -7,7 +8,7 @@ export const PASTURE_ZOOM_MIN = 6;
 export const PASTURE_ZOOM_MAX = 58;
 export const PASTURE_ZOOM_DEFAULT = 18;
 export const PASTURE_CAM_CLEARANCE = 1.25;
-export const PASTURE_CAM_PITCH = 0.64;
+export const PASTURE_CAM_PITCH = 0.52;
 
 export type Vec3 = { x: number; y: number; z: number };
 
@@ -251,6 +252,7 @@ export function cameraOccludersForZone(
         maxY: 3.2,
       });
     }
+    boxes.push(...yardKitCameraOccluders(groundY));
   }
   return boxes;
 }

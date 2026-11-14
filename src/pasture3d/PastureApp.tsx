@@ -32,6 +32,8 @@ import { meadowHeight } from "./meadowHeight";
 import { pasturePetY } from "./pastureGround";
 import { Meadow } from "./Meadow";
 import { PastureStations } from "./PastureStations";
+import { YARD_KIT_PRELOAD } from "./YardKits";
+import { preloadYardKits } from "./yardKitLoader";
 import { PastureActivityAreas } from "./PastureActivityAreas";
 import {
   isActivityStationKind,
@@ -55,6 +57,7 @@ import {
 } from "../world/lib/plazaChatAuth";
 import {
   PASTURE_ZOOM_DEFAULT,
+  PASTURE_CAM_PITCH,
   cameraOccludersForZone,
   cameraBehindYaw,
   clampZoom,
@@ -62,6 +65,7 @@ import {
   zoomBySteps,
   zoomFromWheel,
 } from "./camera";
+import { PASTURE_SPAWN_YAW } from "./yardFacing";
 import { pasturePetLabel } from "./labels";
 import {
   nearbyOcclusionPoint,
@@ -155,6 +159,9 @@ export type PastureDebug = {
   getZoom: () => number;
   setZoom: (distance: number) => void;
   zoomBy: (steps: number) => void;
+  setCameraPitch: (pitch: number | null) => void;
+  getCameraPitch: () => number;
+  setOwnYaw: (yaw: number) => void;
   resetCamera: () => void;
   setTimeOfDay: (hours: number | null) => void;
   getTimeOfDay: () => number | null;
@@ -237,20 +244,22 @@ export function PastureApp({
   const camYawRef = useRef(0);
   const livePose = useRef<LivePose>(
     (() => {
-      const pose = owner
-        ? seedPose(owner, 0, PASTURE_ZONE)
-        : { x: PASTURE_ZONE.spawn.x, z: PASTURE_ZONE.spawn.z };
+      const pose = {
+        x: PASTURE_ZONE.spawn.x,
+        z: PASTURE_ZONE.spawn.z,
+      };
       return {
         zone: PASTURE_ZONE.id,
         x: pose.x,
         y: pasturePetY(pose.x, pose.z),
         z: pose.z,
-        yaw: 0,
+        yaw: PASTURE_SPAWN_YAW,
       };
     })(),
   );
   const walkTarget = useRef<Vec2 | null>(null);
   const zoomRef = useRef(PASTURE_ZOOM_DEFAULT);
+  const pitchRef = useRef(PASTURE_CAM_PITCH);
   const stageRef = useRef<HTMLDivElement>(null);
   const frameSampler = useRef(createFrameSampler());
   const frameDpr = useRef(1);
@@ -296,6 +305,15 @@ export function PastureApp({
     zoomRef.current = next;
     setZoom(next);
     return next;
+  }, []);
+
+  const applyPitch = useCallback((pitch: number | null) => {
+    pitchRef.current = pitch == null ? PASTURE_CAM_PITCH : pitch;
+    return pitchRef.current;
+  }, []);
+
+  useEffect(() => {
+    preloadYardKits(YARD_KIT_PRELOAD);
   }, []);
 
   const dismissHint = useCallback(() => {
@@ -638,6 +656,7 @@ export function PastureApp({
     return () => document.removeEventListener("keydown", onKey, true);
   }, [
     applyZoom,
+    applyPitch,
     closeStationMenu,
     dismissHint,
     helpOpen,
@@ -707,6 +726,11 @@ export function PastureApp({
       sendCosmetics: presence.sendCosmetics,
       getZoom: () => zoomRef.current,
       setZoom: (distance) => applyZoom(distance),
+      setCameraPitch: (pitch) => applyPitch(pitch),
+      getCameraPitch: () => pitchRef.current,
+      setOwnYaw: (yaw) => {
+        livePose.current = { ...livePose.current, yaw };
+      },
       zoomBy: (steps) =>
         applyZoom(
           zoomBySteps(
@@ -849,10 +873,10 @@ export function PastureApp({
       {hintOpen ? (
         <div className="pasture-hint" role="status">
           <p>
-            Click the meadow to walk. Scroll or pinch to zoom. Press Enter to
-            chat. Walk northwest to the Crafting Station, northeast to the
-            Market Stall, or southeast to the Customization Station. Use + / -
-            or the buttons to zoom, and 0 to reset.
+            Click the plaza to walk. Scroll or pinch to zoom. Press Enter to
+            chat. Walk ahead and right to The Drop, further along the shop row
+            to the Print Shop, or just right to the Fitting Room. Use + / - or
+            the buttons to zoom, and 0 to reset.
           </p>
           <button type="button" className="quiet" onClick={dismissHint}>
             Got it
@@ -1005,8 +1029,14 @@ export function PastureApp({
               onWalk={walkTo}
               walkEnabled={!!mine && !stationMenu}
             />
-            <PastureStations onInteract={onStationInteract} />
-            <PastureActivityAreas onInteract={onStationInteract} />
+            <PastureStations
+              preferPerf={preferPerf}
+              onInteract={onStationInteract}
+            />
+            <PastureActivityAreas
+              preferPerf={preferPerf}
+              onInteract={onStationInteract}
+            />
             <StationProximity
               poseRef={livePose}
               pendingOpenRef={pendingOpenRef}
@@ -1055,6 +1085,7 @@ export function PastureApp({
               livePose={livePose}
               walkTarget={walkTarget}
               zoomRef={zoomRef}
+              pitchRef={pitchRef}
               presencePlayers={presence.players}
               chats={presence.chats}
               emotes={[...presence.emotes, ...localEmotes]}
@@ -1085,6 +1116,7 @@ function PastureWorld({
   livePose,
   walkTarget,
   zoomRef,
+  pitchRef,
   presencePlayers,
   chats,
   emotes,
@@ -1104,6 +1136,7 @@ function PastureWorld({
   livePose: MutableRefObject<LivePose>;
   walkTarget: MutableRefObject<Vec2 | null>;
   zoomRef: MutableRefObject<number>;
+  pitchRef: MutableRefObject<number>;
   presencePlayers: Array<{
     id: string;
     name: string;
@@ -1169,6 +1202,7 @@ function PastureWorld({
       <FollowCamera
         livePose={livePose}
         zoomRef={zoomRef}
+        pitchRef={pitchRef}
         reducedMotion={reducedMotion}
         followOwner={followOwner}
         camYawRef={camYawRef}
@@ -1235,12 +1269,14 @@ function PastureWorld({
 function FollowCamera({
   livePose,
   zoomRef,
+  pitchRef,
   reducedMotion,
   followOwner,
   camYawRef,
 }: {
   livePose: MutableRefObject<LivePose>;
   zoomRef: MutableRefObject<number>;
+  pitchRef: MutableRefObject<number>;
   reducedMotion: boolean;
   followOwner: boolean;
   camYawRef: MutableRefObject<number>;
@@ -1255,7 +1291,12 @@ function FollowCamera({
   useFrame((state, delta) => {
     const pose = followOwner
       ? livePose.current
-      : { x: PASTURE_ZONE.spawn.x, y: 0, z: PASTURE_ZONE.spawn.z, yaw: 0 };
+      : {
+          x: PASTURE_ZONE.spawn.x,
+          y: 0,
+          z: PASTURE_ZONE.spawn.z,
+          yaw: PASTURE_SPAWN_YAW,
+        };
     const ground = meadowHeight(pose.x, pose.z);
     const petYaw = followOwner ? (pose.yaw ?? 0) : 0;
     const fromSpawn = Math.hypot(
@@ -1286,6 +1327,7 @@ function FollowCamera({
       meadowHeight,
       boxes,
       camYawRef.current,
+      pitchRef.current,
     );
     camTarget.set(cam.x, cam.y, cam.z);
     lookTarget.set(look.x, look.y, look.z);

@@ -1,5 +1,6 @@
 /** Shared Yard materials: concrete textures, tokens, cheap neon bloom. */
 
+import "@react-three/fiber";
 import * as THREE from "three";
 
 export const YARD = {

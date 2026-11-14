@@ -2,6 +2,15 @@ import type { ThreeEvent } from "@react-three/fiber";
 import { POND_PIER_LABEL_LOCAL } from "./meadowFootprints";
 import { PastureWorldText } from "./PastureWorldText";
 import { yardLabelForLandmark } from "./yardLabels";
+import {
+  YardCanalKit,
+  YardCrystalKit,
+  YardGardenKit,
+  YardKitchenKit,
+  YardRaceBowlKit,
+  YardTreasureKit,
+} from "./YardKits";
+import { YardKitSwap } from "./yardKitLoader";
 import type { WorldLandmark, WorldStation } from "../world/config/zones";
 import { PASTURE_ZONE } from "../world/config/zones";
 import { meadowHeight } from "./meadowHeight";
@@ -102,6 +111,7 @@ function CrystalQuarry({ x, z, y, rotY = 0, onInteract }: SitProps) {
         <boxGeometry args={[0.7, 0.9, 0.12]} />
         <meshStandardMaterial color={YARD.ink} roughness={0.8} />
       </mesh>
+      <YardCrystalKit />
       <PastureWorldText
         position={[0, 2.45, 0]}
         fontSize={0.34}
@@ -238,6 +248,7 @@ function TreasureDig({ x, z, y, rotY = 0, onInteract }: SitProps) {
         <boxGeometry args={[0.52, 0.06, 0.38]} />
         <meshStandardMaterial color={YARD.accent} roughness={0.4} />
       </mesh>
+      <YardTreasureKit />
       <PastureWorldText
         position={[0, 2.45, 0]}
         fontSize={0.32}
@@ -295,6 +306,7 @@ function GardenBeds({ x, z, y, rotY = 0, onInteract }: SitProps) {
           metalness={0.3}
         />
       </mesh>
+      <YardGardenKit />
       <PastureWorldText
         position={[0, 2.4, 0]}
         fontSize={0.32}
@@ -377,6 +389,7 @@ function KitchenHut({ x, z, y, rotY = 0, onInteract }: SitProps) {
           <meshStandardMaterial color={YARD.ink} roughness={0.8} />
         </mesh>
       ))}
+      <YardKitchenKit />
       <PastureWorldText
         position={[0, 3.15, 0]}
         fontSize={0.32}
@@ -445,23 +458,36 @@ function RaceGate({ x, z, y, rotY = 0, onInteract }: SitProps) {
           </mesh>
         )),
       )}
-      <mesh
-        position={[3.35, 1.05, 2.1]}
-        rotation={[Math.PI, 0, 0]}
-        scale={[1, 0.48, 1]}
-        receiveShadow
-      >
-        <sphereGeometry args={[2.2, 24, 14, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardMaterial
-          color={YARD.concreteDark}
-          roughness={0.92}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
-      <mesh position={[3.35, 1.05, 2.1]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[2.2, 0.16, 8, 28]} />
-        <meshStandardMaterial color={YARD.concreteLight} roughness={0.8} />
-      </mesh>
+      <YardKitSwap
+        name="bowl-platform"
+        fallback={
+          <>
+            <mesh
+              position={[3.35, 1.05, 2.1]}
+              rotation={[Math.PI, 0, 0]}
+              scale={[1, 0.48, 1]}
+              receiveShadow
+            >
+              <sphereGeometry
+                args={[2.2, 24, 14, 0, Math.PI * 2, 0, Math.PI / 2]}
+              />
+              <meshStandardMaterial
+                color={YARD.concreteDark}
+                roughness={0.92}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
+            <mesh position={[3.35, 1.05, 2.1]} rotation={[Math.PI / 2, 0, 0]}>
+              <torusGeometry args={[2.2, 0.16, 8, 28]} />
+              <meshStandardMaterial
+                color={YARD.concreteLight}
+                roughness={0.8}
+              />
+            </mesh>
+          </>
+        }
+      />
+      <YardRaceBowlKit />
       <PastureWorldText
         position={[0, 2.85, 0]}
         fontSize={0.32}
@@ -478,6 +504,7 @@ function RaceGate({ x, z, y, rotY = 0, onInteract }: SitProps) {
 export function PastureActivityAreas({
   onInteract,
 }: {
+  preferPerf?: boolean;
   onInteract: (station: WorldStation) => void;
 }) {
   const handle =
@@ -511,6 +538,7 @@ export function PastureActivityAreas({
           />
         );
       })}
+      <YardCanalKit />
     </group>
   );
 }

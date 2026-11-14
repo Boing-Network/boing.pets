@@ -8,21 +8,16 @@ export type FlattenSpot = { x: number; z: number; radius: number };
 /** Flatten around spawn, landmarks, and path corridors so props sit level. */
 export const PASTURE_FLATTEN: readonly FlattenSpot[] = [
   { x: 0, z: 0, radius: 3.2 },
-  { x: 0, z: 6, radius: 2.6 },
-  { x: -24, z: 18, radius: 4.5 },
-  { x: -18, z: -20, radius: 2.8 },
-  { x: 22, z: -16, radius: 4.2 },
-  { x: 18, z: 22, radius: 2.6 },
-  { x: -16, z: 12, radius: 3.2 },
-  { x: 16, z: 12, radius: 3.4 },
-  { x: 16, z: -8, radius: 3.2 },
-  { x: -30, z: 6, radius: 3.4 },
-  { x: 27, z: -16, radius: 3.2 },
-  { x: 8, z: -28, radius: 3.2 },
-  { x: 12, z: 28, radius: 3.4 },
-  { x: -22, z: 26, radius: 3.4 },
-  { x: -12, z: -32, radius: 3.4 },
-  { x: 28, z: 4, radius: 3.6 },
+  {
+    x: PASTURE_ZONE.spawn.x,
+    z: PASTURE_ZONE.spawn.z,
+    radius: 2.6,
+  },
+  ...PASTURE_ZONE.landmarks.map((item) => ({
+    x: item.position.x,
+    z: item.position.z,
+    radius: Math.max(2.6, Math.hypot(item.width, item.depth) / 2 + 1.4),
+  })),
 ];
 
 const PATH_FLATTEN_RADIUS = 1.7;

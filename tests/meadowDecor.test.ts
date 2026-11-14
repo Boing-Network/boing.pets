@@ -27,8 +27,13 @@ describe("meadow decor sits on the ground and stays off footprints", () => {
   if (!pond) throw new Error("missing lily pond");
 
   it("describes an elliptical pond seated just above the floor", () => {
-    expect(pond.rx).toBeCloseTo(3.5, 5);
-    expect(pond.rz).toBeCloseTo(2.75, 5);
+    const pondLand = PASTURE_ZONE.landmarks.find(
+      (item) => item.id === "lily-pond",
+    )!;
+    expect(pond.x).toBeCloseTo(pondLand.position.x, 5);
+    expect(pond.z).toBeCloseTo(pondLand.position.z, 5);
+    expect(pond.rx).toBeCloseTo(pondLand.width / 2, 5);
+    expect(pond.rz).toBeCloseTo(pondLand.depth / 2, 5);
     expect(POND_WATER_LIFT).toBeGreaterThan(0);
     expect(POND_WATER_LIFT).toBeLessThanOrEqual(0.03);
     expect(inPondFootprint(pond.x, pond.z)).toBe(true);
@@ -106,8 +111,8 @@ describe("meadow decor sits on the ground and stays off footprints", () => {
       }
     }
     expect(rimHits).toBeGreaterThanOrEqual(3);
-    // Former grass gap between the customization pad and the pond path.
-    expect(pasturePathWear(17.05, -9.4)).toBeGreaterThan(0.5);
+    // Shop-front path in front of The Drop should stay a worn trail.
+    expect(pasturePathWear(12, -6)).toBeGreaterThan(0.5);
   });
 
   it("places pond-area labels off the water and the pier deck", () => {

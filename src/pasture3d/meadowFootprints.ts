@@ -143,10 +143,16 @@ export function inFenceFootprint(
   return false;
 }
 
+/** Keep the compact rooftop plaza free of meadow grass and tufts. */
+export function inPlazaFootprint(x: number, z: number): boolean {
+  return Math.abs(x) <= 28 && z <= 16 && z >= -30;
+}
+
 /** True when a grass tuft, flower, or rock may be planted at (x, z). */
 export function isDecorClear(x: number, z: number): boolean {
   if (Math.hypot(x, z) >= PASTURE_GROUND_RADIUS - 3) return false;
   if (Math.abs(x) < 1.2 && Math.abs(z) < 1.2) return false;
+  if (inPlazaFootprint(x, z)) return false;
   if (inPondFootprint(x, z)) return false;
   if (inPadFootprint(x, z)) return false;
   if (inPathFootprint(x, z)) return false;

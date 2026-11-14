@@ -13,47 +13,39 @@ export type FenceSegment = {
  * for both decor and collision.
  */
 export const MEADOW_TREE_SPOTS: readonly MeadowPoint[] = [
-  // NW grove
+  // Rooftop-plaza clear: mid-field props pulled to the rim.
   [-36, 26],
   [-32, 30],
   [-38, 30],
   [-30, 28],
   [-37, 22],
-  // SW grove
   [-28, -36],
   [-32, -30],
   [-26, -30],
   [-34, -36],
   [-24, -38],
-  // SE grove
   [36, -28],
   [32, -32],
   [38, -34],
   [30, -26],
   [38, -24],
-  // NE grove
   [30, 36],
   [36, 32],
   [28, 30],
   [34, 38],
   [26, 36],
-  // North copse
   [-12, 36],
   [-6, 40],
   [-10, 40],
-  // South copse
   [8, -40],
   [14, -32],
   [12, -38],
-  // East copse
   [42, -8],
   [40, 6],
   [38, 12],
-  // West copse
   [-42, 6],
   [-40, -8],
   [-38, -14],
-  // Punctuation
   [24, -38],
   [16, 38],
   [20, -28],
@@ -62,24 +54,12 @@ export const MEADOW_TREE_SPOTS: readonly MeadowPoint[] = [
   [28, 28],
   [8, 32],
   [-20, -28],
-  // Mid-field copses so the zoomed-out lawn is not a bare bowl
   [10, -18],
-  [12, -12],
   [-10, -18],
-  [-10, -6],
-  [12, 10],
-  [-12, 10],
-  [4, -22],
   [-6, 22],
-  [18, 6],
-  [-18, -6],
   [8, 18],
-  [20, -22],
   [-14, 20],
   [16, 24],
-  [-16, 4],
-  [4, -16],
-  // Camera-near walkable lawn
   [-30, 36],
   [-20, 36],
   [-5, 31],
@@ -89,6 +69,7 @@ export const MEADOW_TREE_SPOTS: readonly MeadowPoint[] = [
 
 /** Soft shrubs. Visual only - pets can walk through. */
 export const MEADOW_BUSH_SPOTS: readonly MeadowPoint[] = [
+  // Rooftop-plaza clear: mid-field props pulled to the rim.
   [-34, 28],
   [-33, 22],
   [-30, 32],
@@ -111,31 +92,17 @@ export const MEADOW_BUSH_SPOTS: readonly MeadowPoint[] = [
   [-36, -10],
   [-22, 12],
   [20, 18],
-  [16, -18],
   [-14, -16],
   [6, 20],
-  [-6, -22],
   [26, -8],
   [-28, -4],
-  [12, -16],
-  [14, -12],
   [-8, -16],
-  [-8, -4],
-  [14, 12],
-  [-10, 10],
-  [6, -20],
   [-4, 24],
-  [20, 8],
-  [-16, -4],
   [10, 20],
-  [22, -20],
   [-12, 22],
   [6, -14],
-  [-14, 6],
   [8, 8],
   [-4, 18],
-  [4, 12],
-  [8, -8],
   [-8, 4],
 ];
 
