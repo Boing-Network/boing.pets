@@ -51,3 +51,13 @@ Local:
 ```sh
 npm run db:local
 ```
+
+## Idle Adventures admin
+
+Operator tools for Worldwide Pop-Ups, rarity/luck overrides, and adventure analytics stay on the command line:
+
+```sh
+npm run admin:adventures -- analytics
+```
+
+The CLI signs with the local operator key file. Do not upload that key in a browser, and do not ship an admin page that accepts a key. `/admin-adventures.html` is a read-only note pointing at the CLI.

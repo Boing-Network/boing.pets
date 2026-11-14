@@ -3,6 +3,7 @@
  * Sign and send Idle Adventures admin requests.
  * Reads MULTI_TOKEN_ADMIN_SECRET_KEY from a local key file (default .dev.vars).
  * The key is never printed, logged, or written back.
+ * There is no browser admin tool and no in-browser key upload or signing.
  *
  * Usage:
  *   npm run admin:adventures -- analytics

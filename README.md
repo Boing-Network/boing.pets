@@ -27,6 +27,21 @@ Open **http://localhost:5177** (use this exact origin, not 127.0.0.1). Starter T
 
 `npm run verify` runs lint, strict TypeScript, production build, and core/proof tests. `npm run smoke:rpc` performs read-only testnet metadata and block/receipt checks. RPC outages do not break deterministic CI.
 
+## Idle Adventures operator tools
+
+Pop-Up events, rarity and Style Luck overrides, and adventure analytics use operator-signed Worker endpoints. Sign those requests with the CLI only. There is no browser key upload, and the client build must not include admin signing code.
+
+```sh
+npm run admin:adventures -- analytics
+npm run admin:adventures -- state
+npm run admin:adventures -- popup-create --json payload.json
+npm run admin:adventures -- popup-end --id summer-block-party
+npm run admin:adventures -- override-rarity --json rarity.json
+npm run admin:adventures -- override-luck --json luck.json
+```
+
+The CLI reads `MULTI_TOKEN_ADMIN_SECRET_KEY` from a local key file (default `.dev.vars`) and never prints the key. `--origin` must match the worker `APP_ORIGIN`. Use `--help` for the full flag list. A bookmark to `/admin-adventures.html` is a read-only note pointing at this command; it does not accept a key.
+
 ## Play
 
 1. Open/unlock Boing Express and choose **Boing testnet 6913**. Get testnet BOING from https://boing.network/faucet.
