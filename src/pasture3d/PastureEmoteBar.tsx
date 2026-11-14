@@ -16,7 +16,7 @@ export function PastureEmoteBar({
   if (!visible) return null;
   return (
     <div className="pasture-emote-bar" role="toolbar" aria-label="Pet emotes">
-      {MANUAL_EMOTE_IDS.map((id) => (
+      {MANUAL_EMOTE_IDS.map((id, index) => (
         <button
           key={id}
           type="button"
@@ -24,7 +24,8 @@ export function PastureEmoteBar({
           disabled={disabled}
           onClick={() => onEmote(id)}
         >
-          {EMOTE_LABELS[id]}
+          <span className="pasture-emote-key">{index + 1}</span>
+          <span>{EMOTE_LABELS[id]}</span>
         </button>
       ))}
     </div>

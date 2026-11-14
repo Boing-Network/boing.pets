@@ -924,7 +924,12 @@ export function PastureApp({
       </div>
       {nearbyStation && !stationMenu ? (
         <div className="pasture-station-prompt" role="status">
-          <p>{stationPrompt(nearbyStation)}</p>
+          <p className="pasture-station-prompt-copy">
+            <kbd className="keycap" aria-hidden="true">
+              E
+            </kbd>
+            <span>{stationPrompt(nearbyStation)}</span>
+          </p>
           {nearbyProgress ? (
             <p className="pasture-station-progress">
               {formatAreaLine(nearbyProgress)}

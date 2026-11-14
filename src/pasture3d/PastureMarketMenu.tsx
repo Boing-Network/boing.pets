@@ -84,7 +84,9 @@ function priceLabel(price: string | null): string {
 
 function rarityClass(id: string): string {
   const rarity = itemRarity(id);
-  return rarity ? `rarity-badge rarity-${rarity}` : "rarity-badge";
+  return rarity
+    ? `rarity-badge rarity-${rarity} sticker`
+    : "rarity-badge sticker";
 }
 
 export function PastureMarketMenu({ onClose }: { onClose: () => void }) {
@@ -400,13 +402,16 @@ export function PastureMarketMenu({ onClose }: { onClose: () => void }) {
               : MARKET_EMPTY_COPY.none}
           </p>
         ) : (
-          visibleListings.map((listing) => {
+          visibleListings.map((listing, index) => {
             const listingPrice = priceLabel(listing.price_boing);
             const mine = app.owner && listing.seller === app.owner;
             const rarity = (listing.rarity ||
               itemRarity(listing.item_id)) as ItemRarity | null;
             return (
-              <article key={listing.id} className="market-card">
+              <article
+                key={listing.id}
+                className={"market-card" + (index === 0 ? " is-featured" : "")}
+              >
                 <div className="market-card-top">
                   <h3>{listing.name || itemDisplayName(listing.item_id)}</h3>
                   {rarity ? (
@@ -415,9 +420,8 @@ export function PastureMarketMenu({ onClose }: { onClose: () => void }) {
                     </span>
                   ) : null}
                 </div>
-                <p className="subtle">
-                  {listing.qty}x {listingPrice}
-                </p>
+                <p className="drop-price">{listingPrice}</p>
+                <p className="subtle">{listing.qty}x</p>
                 <p className="small">
                   {listing.seller.slice(0, 10)}...{" "}
                   {listing.expires_at

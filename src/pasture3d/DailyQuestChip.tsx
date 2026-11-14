@@ -4,7 +4,6 @@ import type { DailyQuestView } from "../content/dailyQuests";
 import {
   buildDailyProgress,
   formatAreaLine,
-  formatDailyChipTitle,
   type AreaAttemptSnapshot,
   type AreaProgress,
   type DailyProgress,
@@ -100,9 +99,25 @@ export function DailyQuestChip({
         aria-controls="pasture-dailies-list"
         onClick={() => setOpen((value) => !value)}
       >
-        <strong>{formatDailyChipTitle(progress)}</strong>
+        <strong>
+          <span className="pasture-dailies-kicker">Daily</span>
+          <span className="pasture-dailies-frac">
+            {progress.completeCount} / {progress.goalCount}
+          </span>
+        </strong>
         <span>{subtitle}</span>
       </button>
+      <div className="pasture-dailies-meter" aria-hidden="true">
+        {Array.from({ length: progress.goalCount }, (_, index) => (
+          <i
+            key={index}
+            className={
+              "pasture-dailies-seg" +
+              (index < progress.completeCount ? " is-on" : "")
+            }
+          />
+        ))}
+      </div>
       {open ? (
         <ul id="pasture-dailies-list" className="pasture-dailies-list">
           {progress.areas.map((area) => (

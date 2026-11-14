@@ -156,10 +156,19 @@ export async function refreshCollections() {
         "aria-label",
         copy.revealed ? def.title : copy.description,
       );
+      const itemKey = def.id.split(":").pop() || "";
+      const rarity = itemRarity(itemKey);
+      const sticker = got
+        ? rarity
+          ? `<span class="sticker sticker-accent rarity-badge rarity-${rarity}">${ITEM_RARITY_LABELS[rarity]}</span>`
+          : '<span class="sticker">LOGGED</span>'
+        : '<span class="sticker">LOCKED</span>';
       el.innerHTML =
         '<div class="collection-icon" aria-hidden="true">' +
         collectionIconSvg(def.id, { silhouette: !got }) +
-        "</div><h4>" +
+        "</div>" +
+        sticker +
+        "<h4>" +
         esc(copy.title) +
         (got ? " ✓" : "") +
         '</h4><p class="small">' +
@@ -504,9 +513,9 @@ export async function refreshEconomy() {
       el.className = "market-card";
       const rarity = itemRarity(item.id);
       const rarityHtml = rarity
-        ? `<span class="rarity-badge rarity-${rarity}">${ITEM_RARITY_LABELS[rarity]}</span>`
+        ? `<span class="rarity-badge rarity-${rarity} sticker">${ITEM_RARITY_LABELS[rarity]}</span>`
         : "";
-      el.innerHTML = `<div class="market-card-top"><h3>${item.name}</h3>${rarityHtml}</div><p class="subtle">${item.kind} · ${priceLabel}</p><p class="small">${item.description}</p>`;
+      el.innerHTML = `<div class="market-card-top"><h3>${item.name}</h3>${rarityHtml}</div><p class="drop-price">${priceLabel}</p><p class="subtle">${item.kind}</p><p class="small">${item.description}</p>`;
       const btn = document.createElement("button");
       btn.className = "secondary";
       btn.textContent = "Buy · sign";
@@ -597,7 +606,7 @@ export async function refreshEconomy() {
     $("#listings").textContent = MARKET_EMPTY_COPY.filters;
   } else {
     $("#listings").replaceChildren(
-      ...visibleListings.map((listing) => {
+      ...visibleListings.map((listing, index) => {
         const priceLabel = listing.price_boing
           ? `${formatMarketPriceBoing(listing.price_boing)} testnet BOING`
           : "Relist in testnet BOING";
@@ -606,11 +615,11 @@ export async function refreshEconomy() {
           : "No expiry";
         const rarity = listing.rarity || itemRarity(listing.item_id);
         const rarityHtml = rarity
-          ? `<span class="rarity-badge rarity-${rarity}">${ITEM_RARITY_LABELS[rarity]}</span>`
+          ? `<span class="rarity-badge rarity-${rarity} sticker">${ITEM_RARITY_LABELS[rarity]}</span>`
           : "";
         const el = document.createElement("article");
-        el.className = "market-card";
-        el.innerHTML = `<div class="market-card-top"><h3>${itemDisplayName(listing.item_id)}</h3>${rarityHtml}</div><p class="subtle">${listing.qty}x · ${priceLabel}</p><p class="small">${listing.seller.slice(0, 10)}… · ${expiry}</p>`;
+        el.className = "market-card" + (index === 0 ? " is-featured" : "");
+        el.innerHTML = `<div class="market-card-top"><h3>${itemDisplayName(listing.item_id)}</h3>${rarityHtml}</div><p class="drop-price">${priceLabel}</p><p class="subtle">${listing.qty}x</p><p class="small">${listing.seller.slice(0, 10)}… · ${expiry}</p>`;
         if (app.owner && listing.seller === app.owner) {
           const btn = document.createElement("button");
           btn.className = "secondary";

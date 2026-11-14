@@ -1,4 +1,5 @@
 import { ACHIEVEMENTS, petSvg } from "../../core";
+import { petSerialLabel } from "../petSerial";
 import { type EquippedCosmetics } from "../../content/cosmetics";
 import { api, app, $maybe, notice, pending, type ViewPet } from "../appRuntime";
 import {
@@ -114,7 +115,7 @@ export function card(p: ViewPet) {
   const mind = p.mind
     ? `<p class="mind"><b>${p.mind.mood}</b> · ${p.mind.suggestion}</p><p class="subtle">${(p.mind.cues || []).slice(0, 2).join(" · ")}</p>`
     : "";
-  el.innerHTML = `<div class="pet-picture">${petSvg(p.traits, ["scruffy", "stray"].includes(p.state.status))}</div><div class="card-head"><h3>${p.traits.species}</h3><span class="badge">${p.owner === app.owner ? "YOUR BUDDY" : p.state.status.toUpperCase()}</span></div><p class="subtle">${p.traits.personality} · ${p.state.stage} · ${p.state.skills.focus}</p><p class="subtle">${p.state.streak} day streak · ${p.state.xp} XP · ${p.state.boinglets} Boinglets · ${p.state.status}</p>${mind}${meter("Belly", p.state.hunger)}${meter("Joy", p.state.happiness)}${meter("Energy", p.state.energy)}${meter("Hygiene", p.state.hygiene)}${meter("Health", p.state.health)}${badges ? `<div class="ach-row">${badges}</div>` : ""}<p class="small">${p.owner.slice(0, 10)}…${p.owner.slice(-6)}</p><a class="small" target="_blank" rel="noreferrer" href="https://boing.observer/tx/${p.hatch_tx}">Hatch transaction ↗</a>`;
+  el.innerHTML = `<div class="pet-picture">${petSvg(p.traits, ["scruffy", "stray"].includes(p.state.status))}</div><p class="pet-kicker">PASTURE · LIVE</p><div class="card-head"><h3>${p.traits.species}</h3><span class="sticker sticker-accent">${p.owner === app.owner ? "YOUR BUDDY" : p.state.status.toUpperCase()}</span></div><p class="pet-serial">${petSerialLabel(p.hatch_tx)}</p><p class="subtle">${p.traits.personality} · ${p.state.stage} · ${p.state.skills.focus}</p><p class="subtle">${p.state.streak} day streak · ${p.state.xp} XP · ${p.state.boinglets} Boinglets · ${p.state.status}</p>${mind}${meter("Belly", p.state.hunger)}${meter("Joy", p.state.happiness)}${meter("Energy", p.state.energy)}${meter("Hygiene", p.state.hygiene)}${meter("Health", p.state.health)}${badges ? `<div class="ach-row">${badges}</div>` : ""}<p class="small">${p.owner.slice(0, 10)}…${p.owner.slice(-6)}</p><a class="small" target="_blank" rel="noreferrer" href="https://boing.observer/tx/${p.hatch_tx}">Hatch transaction ↗</a>`;
   return el;
 }
 export async function refreshBuddyCard() {
@@ -485,7 +486,7 @@ function openPublicInspect(pet: ViewPet) {
   const info = publicPetInfo(pet);
   const petCard = document.createElement("article");
   petCard.className = "pet-card";
-  petCard.innerHTML = `<div class="card-head"><h3>${info.species}</h3><span class="badge">NEIGHBOR</span></div><p class="subtle">${info.personality} · ${info.stage}</p><p class="small">A pasture friend. Private care stats stay with their owner.</p>`;
+  petCard.innerHTML = `<p class="pet-kicker">PASTURE FRIEND</p><div class="card-head"><h3>${info.species}</h3><span class="sticker">NEIGHBOR</span></div><p class="pet-serial">${petSerialLabel(pet.hatch_tx)}</p><p class="subtle">${info.personality} · ${info.stage}</p><p class="small">A pasture friend. Private care stats stay with their owner.</p>`;
   inspect.append(head, petCard);
   syncOverlayClass();
   inspect.scrollIntoView({ block: "nearest", behavior: "smooth" });
