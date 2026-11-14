@@ -12,7 +12,11 @@ import {
 } from "../../minigames/cookGame";
 import { itemIconSvg } from "../itemIcons";
 import { refreshEconomy } from "../pages/progressPage";
-import { closeRewardModal, showRewardModal } from "../rewardModal";
+import {
+  closeRewardModal,
+  showRewardModal,
+  updateRewardChainStatus,
+} from "../rewardModal";
 import {
   claimResultForActivity,
   type ClaimRewardResult,
@@ -173,20 +177,33 @@ async function claimAttempt(
     params: [claimMessage, app.owner],
   });
   if (play?.aborted) return;
-  const result = await sessionApi<ClaimRewardResult>(
-    "/api/activity/attempt/claim",
-    {
-      id,
-      owner: app.owner,
-      signature,
-    },
-  );
-  if (play?.aborted) return;
-  const shown = claimResultForActivity(result, activity);
-  showRewardModal(shown);
-  notice(`Claimed ${shown.reward.name}.`);
-  playSfx("reward");
-  await refreshEconomy().catch(() => undefined);
+  showRewardModal(null, { chainStatus: "pending" });
+  try {
+    const result = await sessionApi<ClaimRewardResult>(
+      "/api/activity/attempt/claim",
+      {
+        id,
+        owner: app.owner,
+        signature,
+      },
+    );
+    if (play?.aborted) {
+      closeRewardModal();
+      return;
+    }
+    const shown = claimResultForActivity(result, activity);
+    updateRewardChainStatus("confirmed", shown);
+    notice(`Claimed ${shown.reward.name}.`);
+    playSfx("reward");
+    await refreshEconomy().catch(() => undefined);
+  } catch (error) {
+    if (play?.aborted) {
+      closeRewardModal();
+      throw error;
+    }
+    updateRewardChainStatus("failed");
+    throw error;
+  }
 }
 
 function mountShell(root: HTMLElement, title: string) {

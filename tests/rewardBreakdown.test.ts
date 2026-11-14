@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  chainStatusDescription,
+  chainStatusLabel,
   claimResultForActivity,
   formatRewardBreakdown,
 } from "../src/ui/rewardBreakdown";
@@ -90,5 +92,16 @@ describe("formatRewardBreakdown", () => {
     expect(view.activityTitle).toBe("Mining");
     expect(view.totalBoinglets).toBe(4);
     expect(view.lines).toEqual([{ key: "base", label: "Base", value: "+4ℬ" }]);
+  });
+});
+
+describe("reward chain status", () => {
+  it("labels pending and confirmed states", () => {
+    expect(chainStatusLabel("pending")).toBe("On-chain: pending");
+    expect(chainStatusLabel("confirmed")).toBe("On-chain: confirmed");
+    expect(chainStatusLabel("failed")).toBe("On-chain: failed");
+    expect(chainStatusDescription("pending")).toMatch(/confirm/i);
+    expect(chainStatusDescription("confirmed")).toMatch(/inventory/i);
+    expect(chainStatusDescription("failed")).toMatch(/try/i);
   });
 });

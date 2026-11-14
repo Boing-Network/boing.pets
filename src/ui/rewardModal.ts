@@ -1,7 +1,10 @@
 import { activityIconSvg, collectionIconSvg, itemIconSvg } from "./itemIcons";
 import {
+  chainStatusDescription,
+  chainStatusLabel,
   formatRewardBreakdown,
   type ClaimRewardResult,
+  type RewardChainStatus,
 } from "./rewardBreakdown";
 
 function esc(value: string) {
@@ -114,30 +117,52 @@ function closeRewardModal() {
   restore?.();
 }
 
-export function showRewardModal(result: ClaimRewardResult) {
-  closeRewardModal();
-  const view = formatRewardBreakdown(result);
-  const previously = document.activeElement as HTMLElement | null;
+function chainStatusMarkup(status: RewardChainStatus): string {
+  return `<p class="reward-chain-status is-${status}" data-status="${status}" role="status">
+      <span class="reward-chain-dot" aria-hidden="true"></span>
+      <span class="reward-chain-label">${esc(chainStatusLabel(status))}</span>
+      <span class="reward-chain-copy">${esc(chainStatusDescription(status))}</span>
+    </p>`;
+}
 
-  const root = document.createElement("div");
-  root.id = "reward-modal";
-  root.className = "reward-modal";
-  root.innerHTML = `
+function pendingRewardView(): ClaimRewardResult {
+  return {
+    reward: { name: "Securing your reward", rewardBoinglets: 0 },
+  };
+}
+
+function renderRewardCard(
+  result: ClaimRewardResult | null,
+  chainStatus: RewardChainStatus,
+): string {
+  const pending =
+    !result || (chainStatus === "pending" && !result.reward?.itemId);
+  const view = formatRewardBreakdown(result ?? pendingRewardView());
+  const itemName =
+    pending && !result?.reward?.itemId ? "Securing your reward" : view.itemName;
+  const itemIcon = view.itemId
+    ? itemIconSvg(view.itemId)
+    : collectionIconSvg("treasure");
+  return `
     <canvas class="reward-confetti" id="reward-confetti" aria-hidden="true"></canvas>
     <div class="reward-card" role="dialog" aria-modal="true" aria-labelledby="reward-title" tabindex="-1">
-      <p id="reward-live" class="visually-hidden" aria-live="polite">${esc(view.summary)}</p>
+      <p id="reward-live" class="visually-hidden" aria-live="polite">${esc(pending ? chainStatusDescription(chainStatus) : view.summary)}</p>
       <div class="reward-activity">
-        <span class="reward-activity-icon">${activityIconSvg(result.activity || "")}</span>
-        <p class="eyebrow" id="reward-title">${esc(view.activityTitle)}</p>
+        <span class="reward-activity-icon">${activityIconSvg(result?.activity || "")}</span>
+        <p class="eyebrow" id="reward-title">${esc(pending ? "Reward incoming" : view.activityTitle)}</p>
       </div>
       <div class="reward-item">
-        <div class="reward-item-icon">${view.itemId ? itemIconSvg(view.itemId) : collectionIconSvg("treasure")}</div>
+        <div class="reward-item-icon">${itemIcon}</div>
         <div>
-          <h3>${esc(view.itemName)}</h3>
-          ${view.rarity ? `<p class="subtle">${esc(view.rarity)}</p>` : ""}
+          <h3>${esc(itemName)}</h3>
+          ${!pending && view.rarity ? `<p class="subtle">${esc(view.rarity)}</p>` : ""}
         </div>
       </div>
-      <ul class="reward-lines">
+      ${chainStatusMarkup(chainStatus)}
+      ${
+        pending
+          ? ""
+          : `<ul class="reward-lines">
         ${view.lines
           .map(
             (line) =>
@@ -154,10 +179,25 @@ export function showRewardModal(result: ClaimRewardResult) {
               )
               .join("")}</ul>`
           : ""
+      }`
       }
-      <button type="button" id="reward-nice">Nice!</button>
+      <button type="button" id="reward-nice">${pending ? "Working…" : "Nice!"}</button>
     </div>
   `;
+}
+
+export function showRewardModal(
+  result: ClaimRewardResult | null,
+  options: { chainStatus?: RewardChainStatus } = {},
+) {
+  const chainStatus = options.chainStatus ?? "confirmed";
+  closeRewardModal();
+  const previously = document.activeElement as HTMLElement | null;
+
+  const root = document.createElement("div");
+  root.id = "reward-modal";
+  root.className = "reward-modal";
+  root.innerHTML = renderRewardCard(result, chainStatus);
 
   const onKey = (event: KeyboardEvent) => {
     if (event.key === "Escape") {
@@ -200,7 +240,49 @@ export function showRewardModal(result: ClaimRewardResult) {
   const canvas = root.querySelector<HTMLCanvasElement>("#reward-confetti");
   if (canvas) burstConfetti(canvas);
   const nice = root.querySelector<HTMLButtonElement>("#reward-nice");
+  if (nice && chainStatus === "pending") nice.disabled = true;
   (nice ?? root.querySelector<HTMLElement>(".reward-card"))?.focus();
+}
+
+export function updateRewardChainStatus(
+  status: RewardChainStatus,
+  result?: ClaimRewardResult | null,
+) {
+  const root = document.getElementById("reward-modal");
+  if (!root) {
+    if (result || status !== "pending")
+      showRewardModal(result ?? null, { chainStatus: status });
+    return;
+  }
+  if (result) {
+    const live = document.activeElement === root.querySelector("#reward-nice");
+    root.innerHTML = renderRewardCard(result, status);
+    const canvas = root.querySelector<HTMLCanvasElement>("#reward-confetti");
+    if (canvas && status === "confirmed") burstConfetti(canvas);
+    const nice = root.querySelector<HTMLButtonElement>("#reward-nice");
+    if (nice) {
+      nice.disabled = status === "pending";
+      nice.addEventListener("click", closeRewardModal);
+      if (live) nice.focus();
+    }
+    return;
+  }
+  const el = root.querySelector(".reward-chain-status");
+  if (el) {
+    el.className = `reward-chain-status is-${status}`;
+    el.setAttribute("data-status", status);
+    const label = el.querySelector(".reward-chain-label");
+    const copy = el.querySelector(".reward-chain-copy");
+    if (label) label.textContent = chainStatusLabel(status);
+    if (copy) copy.textContent = chainStatusDescription(status);
+  }
+  const live = root.querySelector("#reward-live");
+  if (live) live.textContent = chainStatusDescription(status);
+  const nice = root.querySelector<HTMLButtonElement>("#reward-nice");
+  if (nice) {
+    nice.disabled = status === "pending";
+    if (status !== "pending") nice.textContent = "Nice!";
+  }
 }
 
 export { closeRewardModal };

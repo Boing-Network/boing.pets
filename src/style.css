@@ -1450,6 +1450,52 @@ a:hover {
   width: 100%;
   margin-top: 4px;
 }
+.reward-card #reward-nice:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+.reward-chain-status {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  row-gap: 2px;
+  margin: 0 0 16px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid #3a4d72;
+  background: #101c34;
+}
+.reward-chain-dot {
+  grid-row: 1 / span 2;
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: #e8c27a;
+}
+.reward-chain-status.is-confirmed .reward-chain-dot {
+  background: #3dcc7a;
+}
+.reward-chain-status.is-failed .reward-chain-dot {
+  background: #e07a7a;
+}
+.reward-chain-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.reward-chain-copy {
+  font-size: 0.75rem;
+  opacity: 0.82;
+}
+.reward-chain-status.is-confirmed {
+  border-color: #2f6b4a;
+  background: #12301f;
+}
+.reward-chain-status.is-failed {
+  border-color: #6b2f2f;
+  background: #301212;
+}
 @media (prefers-reduced-motion: reduce) {
   .reward-confetti {
     display: none;

@@ -126,3 +126,19 @@ export function formatRewardBreakdown(result: ClaimRewardResult): {
     summary: summaryParts.join(". ") + ".",
   };
 }
+
+export type RewardChainStatus = "pending" | "confirmed" | "failed";
+
+export function chainStatusLabel(status: RewardChainStatus): string {
+  if (status === "pending") return "On-chain: pending";
+  if (status === "confirmed") return "On-chain: confirmed";
+  return "On-chain: failed";
+}
+
+export function chainStatusDescription(status: RewardChainStatus): string {
+  if (status === "pending")
+    return "Waiting for the network to confirm your claim.";
+  if (status === "confirmed")
+    return "The reward is confirmed and in your inventory.";
+  return "The claim did not confirm. You can try signing again.";
+}
