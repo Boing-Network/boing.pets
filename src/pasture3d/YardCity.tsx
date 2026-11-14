@@ -13,6 +13,7 @@ import {
   type CityKitInstance,
 } from "./cityLayout";
 import { CityStreetDressing } from "./cityDressing";
+import { STREET_PROP_BASE, STREETWEAR_PROPS } from "./streetProps";
 import { InstancedYardKit, type YardKitInstance } from "./yardKitLoader";
 
 function asInstances(items: readonly CityKitInstance[]): YardKitInstance[] {
@@ -56,6 +57,18 @@ export function YardCity({ preferPerf }: { preferPerf: boolean }) {
   );
   const buildings = useMemo(() => groupByName(cityFillerBuildings()), []);
   const props = useMemo(() => groupByName(cityPropKits()), []);
+  const streetwear = useMemo(
+    () =>
+      groupByName(
+        STREETWEAR_PROPS.map((item) => ({
+          name: item.name,
+          position: [...item.position] as [number, number, number],
+          rotationY: item.rotationY,
+          scale: item.scale,
+        })),
+      ),
+    [],
+  );
   const trees = useMemo(
     () =>
       CITY_PARK_TREES.map(([x, z], i) => ({
@@ -96,6 +109,16 @@ export function YardCity({ preferPerf }: { preferPerf: boolean }) {
       ))}
       {Object.entries(props).map(([name, items]) => (
         <InstancedYardKit key={`prop-${name}`} name={name} items={items} />
+      ))}
+      {Object.entries(streetwear).map(([name, items]) => (
+        <InstancedYardKit
+          key={`streetwear-${name}`}
+          name={name}
+          items={items}
+          base={STREET_PROP_BASE}
+          restyle={false}
+          recenter={false}
+        />
       ))}
       <CityStreetDressing />
       <InstancedYardKit name="tree-detailed" items={trees} restyle={false} />

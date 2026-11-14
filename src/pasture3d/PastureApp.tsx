@@ -1567,6 +1567,7 @@ function LocalPet({
         selected={selected}
         yours
         movingRef={moving}
+        speedRef={speed}
         bubble={bubble}
         hideHudOverlays={hideHudOverlays}
         emote={emote}

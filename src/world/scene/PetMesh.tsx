@@ -9,18 +9,17 @@ import {
   pastureNameplateVisible,
   pasturePetLabel,
 } from "../../pasture3d/labels";
-import { pastureHopOffset } from "../../pasture3d/pastureGround";
 import { worldSafeText } from "../lib/worldFont";
-import {
-  UNIT_SPHERE,
-  UNIT_SPHERE_LO,
-  petModelParams,
-  smileTubeGeometry,
-  type PetModelLook,
-} from "../lib/petModel";
+import { petModelParams, type PetModelLook } from "../lib/petModel";
 import { CosmeticAttachments } from "./CosmeticAttachments";
+import { StreetBodyModel } from "./StreetBodyModel";
+import {
+  STREET_BODY_ACCESSORY_RADIUS,
+  STREET_BODY_ACCESSORY_Y,
+  STREET_BODY_HAT_Y,
+  STREET_BODY_LABEL_Y,
+} from "../../pasture3d/streetBodyAnchors";
 import { EMOTE_DURATION_MS, emoteActive, type EmoteId } from "../lib/emotes";
-import { PetFeatureMesh } from "./PetFeatureMesh";
 import { playMoodSfx } from "../../audio";
 import {
   moodMotion,
@@ -43,6 +42,7 @@ export function PetMesh({
   cosmetics,
   moving = false,
   movingRef,
+  speedRef,
   reducedMotion = false,
   selected = false,
   yours = false,
@@ -60,6 +60,7 @@ export function PetMesh({
   cosmetics?: EquippedCosmetics;
   moving?: boolean;
   movingRef?: MutableRefObject<boolean>;
+  speedRef?: MutableRefObject<number>;
   reducedMotion?: boolean;
   selected?: boolean;
   yours?: boolean;
@@ -81,7 +82,7 @@ export function PetMesh({
   const moodKind = petMoodKind(care);
   const motion = moodMotion(moodKind, reducedMotion);
 
-  useFrame(({ camera, clock, size, gl }) => {
+  useFrame(({ camera, size, gl }) => {
     if (
       root.current &&
       (nameRef.current || bubbleRef.current || stackRef.current)
@@ -122,58 +123,40 @@ export function PetMesh({
       }
     }
     if (!hop.current) return;
+    hop.current.scale.set(1, 1, 1);
     if (reducedMotion) {
       hop.current.position.y = 0;
       hop.current.rotation.y = 0;
       hop.current.rotation.z = 0;
-      hop.current.scale.set(1, 1, 1);
       return;
     }
-    const isMoving = movingRef?.current ?? moving;
-    const baseY = pastureHopOffset(clock.elapsedTime, isMoving, reducedMotion);
     const now = Date.now();
     const playing = emote && emoteActive(emote.at, now);
     if (playing) {
       const u = Math.min(1, Math.max(0, (now - emote.at) / EMOTE_DURATION_MS));
       const pulse = Math.sin(u * Math.PI);
       if (emote.id === "wave") {
-        hop.current.position.y = baseY + pulse * 0.12;
-        hop.current.rotation.z = Math.sin(u * Math.PI * 4) * 0.35;
+        hop.current.position.y = pulse * 0.06;
+        hop.current.rotation.z = Math.sin(u * Math.PI * 4) * 0.18;
         hop.current.rotation.y = 0;
-        hop.current.scale.set(1, 1, 1);
       } else if (emote.id === "hop" || emote.id === "play") {
-        hop.current.position.y =
-          baseY + Math.abs(Math.sin(u * Math.PI * 2)) * 0.42;
-        hop.current.rotation.z = Math.sin(u * Math.PI * 2) * 0.12;
-        hop.current.rotation.y = emote.id === "play" ? pulse * 0.4 : 0;
-        hop.current.scale.setScalar(1 + pulse * 0.08);
+        hop.current.position.y = Math.abs(Math.sin(u * Math.PI * 2)) * 0.22;
+        hop.current.rotation.z = Math.sin(u * Math.PI * 2) * 0.06;
+        hop.current.rotation.y = emote.id === "play" ? pulse * 0.25 : 0;
       } else if (emote.id === "spin") {
-        hop.current.position.y = baseY + pulse * 0.18;
+        hop.current.position.y = pulse * 0.08;
         hop.current.rotation.z = 0;
         hop.current.rotation.y = u * Math.PI * 2;
-        hop.current.scale.set(1, 1, 1);
       } else {
-        hop.current.position.y = baseY + pulse * 0.16;
+        hop.current.position.y = pulse * 0.08;
         hop.current.rotation.z = 0;
         hop.current.rotation.y = 0;
-        hop.current.scale.setScalar(1 + pulse * 0.18);
       }
       return;
     }
-    const extra = motion.bounceAmp
-      ? (Math.sin(clock.elapsedTime * motion.bounceSpeed) * 0.5 + 0.5) *
-        motion.bounceAmp
-      : 0;
-    hop.current.position.y = baseY + extra;
+    hop.current.position.y = 0;
     hop.current.rotation.y = 0;
-    hop.current.scale.set(
-      1 + motion.droop * 0.05,
-      1 - motion.droop * 0.18,
-      1 + motion.droop * 0.05,
-    );
-    hop.current.rotation.z = isMoving
-      ? Math.sin(clock.elapsedTime * 11) * 0.06
-      : Math.sin(clock.elapsedTime * 2.4) * 0.02 - motion.droop * 0.25;
+    hop.current.rotation.z = 0;
     if (moodId) playMoodSfx(moodKind, moodId, reducedMotion);
   });
 
@@ -189,91 +172,20 @@ export function PetMesh({
       }}
     >
       <group ref={hop}>
-        <mesh
-          geometry={UNIT_SPHERE}
-          position={[model.body.cx, model.body.cy, model.body.cz]}
-          scale={[model.body.x, model.body.y, model.body.z]}
-          castShadow={false}
-        >
-          <meshStandardMaterial
-            color={model.bodyColor}
-            roughness={0.5}
-            metalness={0}
-          />
-        </mesh>
-        {model.feet.map((foot, i) => (
-          <mesh
-            key={"foot-" + i}
-            geometry={UNIT_SPHERE_LO}
-            position={[foot.x, foot.y, foot.z]}
-            scale={[foot.cx, foot.cy, foot.cz]}
-          >
-            <meshStandardMaterial
-              color={model.accentColor}
-              roughness={0.52}
-              metalness={0}
-            />
-          </mesh>
-        ))}
-        <PetFeatureMesh model={model} accent={model.accentColor} />
-        {model.spots.map((spot, i) => (
-          <mesh
-            key={"spot-" + i}
-            geometry={UNIT_SPHERE_LO}
-            position={[spot.x, spot.y, spot.z]}
-            scale={spot.r}
-          >
-            <meshStandardMaterial
-              color={model.accentColor}
-              transparent
-              opacity={0.6}
-              roughness={0.55}
-              metalness={0}
-            />
-          </mesh>
-        ))}
-        {model.eyes.map((eye, i) => (
-          <mesh
-            key={"eye-" + i}
-            geometry={UNIT_SPHERE_LO}
-            position={[eye.x, eye.y, eye.z]}
-            scale={eye.r}
-          >
-            <meshStandardMaterial
-              color={model.faceColor}
-              roughness={0.4}
-              metalness={0}
-            />
-          </mesh>
-        ))}
-        <mesh geometry={smileTubeGeometry()} position={[0, model.body.cy, 0]}>
-          <meshStandardMaterial
-            color={model.faceColor}
-            roughness={0.4}
-            metalness={0}
-          />
-        </mesh>
-        {model.showAntenna && !cosmetics?.hat ? (
-          <mesh
-            geometry={UNIT_SPHERE_LO}
-            position={[model.antenna.x, model.antenna.y, model.antenna.z]}
-            scale={model.antenna.r}
-          >
-            <meshStandardMaterial
-              color={model.accentColor}
-              emissive={model.accentColor}
-              emissiveIntensity={0.2}
-              roughness={0.45}
-            />
-          </mesh>
-        ) : null}
+        <StreetBodyModel
+          look={look}
+          moving={moving}
+          movingRef={movingRef}
+          speedRef={speedRef}
+          reducedMotion={reducedMotion}
+        />
         <CosmeticAttachments
           cosmetics={cosmetics}
           moving={moving}
           movingRef={movingRef}
-          hatY={model.hatAnchorY}
-          accessoryY={model.accessoryY}
-          accessoryRadius={model.accessoryRadius}
+          hatY={STREET_BODY_HAT_Y}
+          accessoryY={STREET_BODY_ACCESSORY_Y}
+          accessoryRadius={STREET_BODY_ACCESSORY_RADIUS}
         />
         {children}
       </group>
@@ -287,7 +199,7 @@ export function PetMesh({
       </mesh>
       {pastureHudOverlaysVisible(hideHudOverlays) ? (
         <Html
-          position={[0, model.labelY, 0]}
+          position={[0, STREET_BODY_LABEL_Y, 0]}
           center
           sprite
           style={{ pointerEvents: "none" }}

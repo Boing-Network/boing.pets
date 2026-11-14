@@ -37,3 +37,17 @@ for the current byte sizes.
 Packs that were considered but **not** used, because they are not verifiably
 CC0, include typical Quaternius packs under the Quaternius Asset License (QAL).
 Do not add QAL-only models to this folder.
+
+## Nico-provided street character and props
+
+The playable character body (`public/characters/street-body.glb`, root
+`StreetBody`) and the city props in `public/street-props/` were provided by
+Nico Chikuji for Boing Pets / The Yard. They are not Kenney CC0 assets.
+
+Shipped singles, already pivoted to a y=0 base and compressed with
+gltf-transform (meshopt + WebP, textures capped at 1024): Fat Caps, Tagged
+Hydrant, Sticker Box, Wheatpaste, Pigeon Drum, Corner Store, Night Cart, Site
+Fence, Wood Crate, Tagged Cone, and Walk-Up. The AlleyKit (a1) and BlockKit
+(a2) bundles were skipped because they duplicate those singles. See
+`scripts/optimize-street-props.mjs` and `public/street-props/manifest.json`
+for byte sizes.

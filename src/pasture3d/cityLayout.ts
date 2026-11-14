@@ -1,5 +1,11 @@
 /** Compact 2-by-2-block street grid for The Yard (street-level city district). */
 
+import {
+  STREETWEAR_PROPS,
+  overlapsStreetwearProp,
+  type StreetPropSpec,
+} from "./streetProps";
+
 /** World size of one Kenney road tile after scale. */
 export const CITY_TILE = 6;
 
@@ -225,6 +231,7 @@ export function cityFillerBuildings(): CityKitInstance[] {
   let n = 0;
   for (const [x, z, rotY] of candidates) {
     if (inReserved(x, z, 1.15) || onCityStreet(x, z, CURB)) continue;
+    if (overlapsStreetwearProp(x, z, 8)) continue;
     if (Math.hypot(x, z - 8) < 5 && Math.abs(x) < 5) continue;
     if (
       Math.abs(x - CITY_COURT.x) < CITY_COURT.width / 2 + 1.1 &&
@@ -251,6 +258,7 @@ export function cityFillerBuildings(): CityKitInstance[] {
   ];
   for (const [x, z, rotY] of extra) {
     if (inReserved(x, z, 1.15) || onCityStreet(x, z, CURB)) continue;
+    if (overlapsStreetwearProp(x, z, 8)) continue;
     if (
       items.some(
         (item) =>
@@ -266,16 +274,35 @@ export function cityFillerBuildings(): CityKitInstance[] {
   return items;
 }
 
+export function cityStreetwearProps(): (CityKitInstance & StreetPropSpec)[] {
+  return STREETWEAR_PROPS.map((item) => ({
+    ...item,
+    position: [...item.position],
+  }));
+}
+
+export function cityStreetwearBuildings(): (CityKitInstance &
+  StreetPropSpec)[] {
+  return cityStreetwearProps().filter((item) => item.kind === "building");
+}
+
 export function cityBuildingFootprints(): {
   x: number;
   z: number;
   r: number;
 }[] {
-  return cityFillerBuildings().map((item) => ({
-    x: item.position[0],
-    z: item.position[2],
-    r: 2.6,
-  }));
+  return [
+    ...cityFillerBuildings().map((item) => ({
+      x: item.position[0],
+      z: item.position[2],
+      r: 2.6,
+    })),
+    ...cityStreetwearBuildings().map((item) => ({
+      x: item.position[0],
+      z: item.position[2],
+      r: Math.max(item.halfW, item.halfD) + 0.4,
+    })),
+  ];
 }
 
 /** A few park trees around the Old Oak, used as path solids. */
@@ -450,17 +477,38 @@ export function cityDressingSolids(): CitySolid[] {
       height: bulky ? 2.4 : 1.2,
     });
   }
+  for (const [i, prop] of cityStreetwearProps().entries()) {
+    if (prop.kind !== "clutter") continue;
+    solids.push({
+      id: "streetwear-prop-" + i,
+      x: prop.position[0],
+      z: prop.position[2],
+      halfW: prop.halfW,
+      halfD: prop.halfD,
+      height: prop.height,
+    });
+  }
   return solids;
 }
 
 /** Taller, slightly larger boxes so the follow camera does not clip roofs. */
 export function cityBuildingCameraSolids(): CitySolid[] {
-  return cityFillerBuildings().map((item, i) => ({
-    id: "city-building-cam-" + i,
-    x: item.position[0],
-    z: item.position[2],
-    halfW: 3.35,
-    halfD: 3.35,
-    height: 7.4,
-  }));
+  return [
+    ...cityFillerBuildings().map((item, i) => ({
+      id: "city-building-cam-" + i,
+      x: item.position[0],
+      z: item.position[2],
+      halfW: 3.35,
+      halfD: 3.35,
+      height: 7.4,
+    })),
+    ...cityStreetwearBuildings().map((item, i) => ({
+      id: "streetwear-building-cam-" + i,
+      x: item.position[0],
+      z: item.position[2],
+      halfW: Math.max(item.halfW, 3.35),
+      halfD: Math.max(item.halfD, 3.35),
+      height: Math.max(item.height, 7.4),
+    })),
+  ];
 }

@@ -27,8 +27,22 @@ function getLoader(): GLTFLoader {
   return loader;
 }
 
-export function loadYardGltf(name: string): Promise<GLTF> {
-  const url = `${YARD_KIT_BASE}${name}.glb`;
+export function gltfUrl(name: string, base = YARD_KIT_BASE): string {
+  if (
+    name.startsWith("/") ||
+    name.endsWith(".glb") ||
+    name.startsWith("http")
+  ) {
+    return name;
+  }
+  return `${base}${name}.glb`;
+}
+
+export function loadYardGltf(
+  name: string,
+  base = YARD_KIT_BASE,
+): Promise<GLTF> {
+  const url = gltfUrl(name, base);
   let pending = cache.get(url);
   if (!pending) {
     pending = getLoader().loadAsync(url);
@@ -101,6 +115,22 @@ export function prepareYardKit(
       ? opts.frontZ - box.max.z
       : -((box.min.z + box.max.z) / 2);
   obj.position.set(-midX, groundY - box.min.y, z);
+  root.add(obj);
+  mergeKitMeshes(root);
+  return root;
+}
+
+/** Keep authored pivot (y=0 base, no XZ recentering) for Nico street props. */
+export function prepareStreetProp(
+  scene: THREE.Object3D,
+  opts: { restyle?: boolean } = {},
+): THREE.Group {
+  const root = new THREE.Group();
+  const obj = scene.clone(true);
+  if (opts.restyle) restyleYardKit(obj);
+  obj.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(obj);
+  obj.position.y += -box.min.y;
   root.add(obj);
   mergeKitMeshes(root);
   return root;
@@ -228,20 +258,26 @@ export function InstancedYardKit({
   items,
   scale = 1,
   restyle = true,
+  base = YARD_KIT_BASE,
+  recenter = true,
 }: {
   name: string;
   scale?: number;
   restyle?: boolean;
+  base?: string;
+  recenter?: boolean;
   items: readonly YardKitInstance[];
 }) {
   const [sources, setSources] = useState<THREE.Mesh[]>([]);
   const refs = useRef<Array<THREE.InstancedMesh | null>>([]);
   useEffect(() => {
     let live = true;
-    loadYardGltf(name)
+    loadYardGltf(name, base)
       .then((gltf) => {
         if (!live) return;
-        const prepared = prepareYardKit(gltf.scene, { scale: 1, restyle });
+        const prepared = recenter
+          ? prepareYardKit(gltf.scene, { scale: 1, restyle })
+          : prepareStreetProp(gltf.scene, { restyle });
         const meshes: THREE.Mesh[] = [];
         prepared.traverse((obj) => {
           if (isMesh(obj)) meshes.push(obj);
@@ -252,7 +288,7 @@ export function InstancedYardKit({
     return () => {
       live = false;
     };
-  }, [name, restyle]);
+  }, [name, restyle, base, recenter]);
   useLayoutEffect(() => {
     sources.forEach((source, mi) => {
       const inst = refs.current[mi];
