@@ -1,7 +1,7 @@
 /** Unified item guide: names, categories, rarities, and how to obtain each stack. */
 
 import { CATALOG } from "../economy";
-import { RECIPES } from "./cooking";
+import { RECIPES, recipeByFoodId } from "./cooking";
 import { CRAFT_RECIPES, craftItemName } from "./crafting";
 import { FISH } from "./fishing";
 import { CROPS } from "./gardening";
@@ -127,6 +127,7 @@ const EXTRA_NAMES: Record<string, string> = {
   "ribbon-gold": "Gold Ribbon",
   "ribbon-silver": "Silver Ribbon",
   "ribbon-bronze": "Bronze Ribbon",
+  "food-snack": "Pasture Snack",
 };
 
 export function itemDisplayName(gameItemId: string): string {
@@ -134,6 +135,7 @@ export function itemDisplayName(gameItemId: string): string {
     onchainItemByGameId(gameItemId)?.name ||
     CATALOG.find((item) => item.id === gameItemId)?.name ||
     EXTRA_NAMES[gameItemId] ||
+    recipeByFoodId(gameItemId)?.foodName ||
     craftItemName(gameItemId)
   );
 }

@@ -3,7 +3,7 @@ import {
   COSMETIC_SLOTS,
   type EquippedCosmetics,
 } from "../../content/cosmetics";
-import { catalogItem } from "../../economy";
+import { itemDisplayName as catalogItemDisplayName } from "../../content/items";
 
 export type PublicPetInfo = {
   species: string;
@@ -30,7 +30,7 @@ export function publicPetInfo(pet: {
 }
 
 export function itemDisplayName(itemId: string): string {
-  return catalogItem(itemId)?.name || itemId;
+  return catalogItemDisplayName(itemId);
 }
 
 export function equippedSummary(

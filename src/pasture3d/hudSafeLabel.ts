@@ -1,4 +1,5 @@
 import { Vector3, type Camera, type Matrix4 } from "three";
+import { pastureHudRects } from "./hudLayout";
 
 /** Screen-space rules so always-on-top pasture labels stay off the HUD. */
 
@@ -36,14 +37,34 @@ export function inflateRect(rect: Rect, pad: number): Rect {
  * Reserved HUD regions in CSS pixels, matching the pasture chrome
  * (Buddy chip, presence line, zoom/reset/audio, chat).
  */
-export function pastureHudSafeRects(width: number, height: number): Rect[] {
+export function pastureHudSafeRects(
+  width: number,
+  height: number,
+  touchControls = false,
+): Rect[] {
   const w = Math.max(1, width);
   const h = Math.max(1, height);
-  return [
+  const hud = pastureHudRects({ width: w, height: h, touchControls });
+  const fromHud = (rect: {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+  }): Rect =>
+    inflateRect(
+      {
+        left: rect.left,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+      },
+      HUD_LABEL_PAD,
+    );
+  const rects: Rect[] = [
     // Buddy chip + presence status, top-left.
     { left: 0, top: 0, right: Math.min(w, 188), bottom: Math.min(h, 108) },
-    // Camera + audio controls, top-right (four 44px buttons + gaps).
-    { left: Math.max(0, w - 108), top: 0, right: w, bottom: Math.min(h, 248) },
+    // Camera + Settings controls, top-right (four buttons; Settings is wider).
+    { left: Math.max(0, w - 120), top: 0, right: w, bottom: Math.min(h, 248) },
     // Chat form along the bottom, plus the chat log just above it.
     { left: 0, top: Math.max(0, h - 92), right: w, bottom: h },
     {
@@ -52,7 +73,16 @@ export function pastureHudSafeRects(width: number, height: number): Rect[] {
       right: Math.min(w, 340),
       bottom: Math.max(0, h - 84),
     },
+    fromHud(hud.emote),
+    fromHud(hud.prompt),
+    fromHud(hud.progress),
+    fromHud(hud.minimap),
+    fromHud(hud.inventory),
+    fromHud(hud.txToast),
   ];
+  if (hud.joystick) rects.push(fromHud(hud.joystick));
+  if (hud.interact) rects.push(fromHud(hud.interact));
+  return rects;
 }
 
 /** Approximate screen-space box of a centered billboard label. */

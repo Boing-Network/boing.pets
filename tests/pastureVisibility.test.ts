@@ -176,4 +176,33 @@ describe("HUD-safe labels", () => {
     expect(clamped!.left).toBe(LABEL_EDGE_PAD);
     expect(clamped!.dx).toBeGreaterThan(0);
   });
+
+  it("reserves the daily chip, mini-map, bag, and wallet toast", () => {
+    const desktop = { width: 1400, height: 900 };
+    const rects = pastureHudSafeRects(desktop.width, desktop.height, false);
+    const minimap = { left: 20, top: 110, right: 140, bottom: 230 };
+    const bag = { left: 20, top: 270, right: 140, bottom: 300 };
+    const toast = { left: 640, top: 16, right: 760, bottom: 70 };
+    const progress = { left: 1220, top: 620, right: 1380, bottom: 670 };
+    expect(rects.some((r) => rectsOverlap(r, minimap))).toBe(true);
+    expect(rects.some((r) => rectsOverlap(r, bag))).toBe(true);
+    expect(rects.some((r) => rectsOverlap(r, toast))).toBe(true);
+    expect(rects.some((r) => rectsOverlap(r, progress))).toBe(true);
+    expect(
+      labelHudOpacity(labelScreenRect(80, 170, 24, 16), rects, desktop),
+    ).toBe(0);
+    expect(
+      labelHudOpacity(labelScreenRect(1300, 640, 24, 16), rects, desktop),
+    ).toBe(0);
+
+    const touch = { width: 390, height: 844 };
+    const touchRects = pastureHudSafeRects(touch.width, touch.height, true);
+    const touchProgress = { left: 200, top: 430, right: 370, bottom: 490 };
+    const touchMap = { left: 16, top: 100, right: 148, bottom: 240 };
+    expect(touchRects.some((r) => rectsOverlap(r, touchProgress))).toBe(true);
+    expect(touchRects.some((r) => rectsOverlap(r, touchMap))).toBe(true);
+    expect(
+      labelHudOpacity(labelScreenRect(300, 450, 22, 14), touchRects, touch),
+    ).toBe(0);
+  });
 });

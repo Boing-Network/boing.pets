@@ -58,6 +58,35 @@ export const PASTURE_TX_TOAST_SIDE_CLEAR_PX = 110;
 export const PASTURE_TX_TOAST_MAX_WIDTH_PX = 360;
 export const PASTURE_TX_TOAST_HEIGHT_PX = 72;
 export const PASTURE_TX_TOAST_Z_INDEX = 20;
+/** On touch, the toast wraps onto a second row, so reserve a taller hit target. */
+export const PASTURE_TX_TOAST_TOUCH_SIDE_CLEAR_PX =
+  PASTURE_TX_TOAST_SIDE_CLEAR_PX;
+export const PASTURE_TX_TOAST_TOUCH_MAX_WIDTH_PX =
+  PASTURE_TX_TOAST_MAX_WIDTH_PX;
+export const PASTURE_TX_TOAST_TOUCH_HEIGHT_PX = 108;
+
+export function pastureTxToastSideClear(touchControls: boolean): number {
+  return touchControls
+    ? PASTURE_TX_TOAST_TOUCH_SIDE_CLEAR_PX
+    : PASTURE_TX_TOAST_SIDE_CLEAR_PX;
+}
+
+export function pastureTxToastHeight(touchControls: boolean): number {
+  return touchControls
+    ? PASTURE_TX_TOAST_TOUCH_HEIGHT_PX
+    : PASTURE_TX_TOAST_HEIGHT_PX;
+}
+
+export function pastureTxToastMaxWidth(
+  width: number,
+  touchControls: boolean,
+): number {
+  const side = pastureTxToastSideClear(touchControls);
+  const cap = touchControls
+    ? PASTURE_TX_TOAST_TOUCH_MAX_WIDTH_PX
+    : PASTURE_TX_TOAST_MAX_WIDTH_PX;
+  return Math.min(cap, Math.max(0, width - side * 2));
+}
 
 /** Bag button sits under the mini-map on the left. */
 export const PASTURE_INVENTORY_BTN_LEFT_PX = PASTURE_MINIMAP_LEFT_PX;
@@ -175,16 +204,14 @@ export function pastureHudRects(opts: {
     top: PASTURE_MINIMAP_TOP_PX,
     bottom: PASTURE_MINIMAP_TOP_PX + PASTURE_MINIMAP_HEIGHT_PX,
   };
-  const toastWidth = Math.min(
-    PASTURE_TX_TOAST_MAX_WIDTH_PX,
-    Math.max(0, width - PASTURE_TX_TOAST_SIDE_CLEAR_PX * 2),
-  );
+  const toastWidth = pastureTxToastMaxWidth(width, touchControls);
+  const toastHeight = pastureTxToastHeight(touchControls);
   const txToast: HudRect = {
     id: "tx-toast",
     left: (width - toastWidth) / 2,
     right: (width + toastWidth) / 2,
     top: PASTURE_TX_TOAST_TOP_PX,
-    bottom: PASTURE_TX_TOAST_TOP_PX + PASTURE_TX_TOAST_HEIGHT_PX,
+    bottom: PASTURE_TX_TOAST_TOP_PX + toastHeight,
   };
   const inventory: HudRect = {
     id: "inventory",

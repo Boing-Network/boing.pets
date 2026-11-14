@@ -27,6 +27,8 @@ describe("pasture inventory panel", () => {
     ]);
     const items = entriesForTab(entries, "items");
     expect(items.some((row) => row.id === "food-snack")).toBe(true);
+    const snack = items.find((row) => row.id === "food-snack");
+    expect(snack?.name).toBe("Pasture Snack");
     expect(items.some((row) => row.id === "ore-pebble" && row.qty === 3)).toBe(
       true,
     );

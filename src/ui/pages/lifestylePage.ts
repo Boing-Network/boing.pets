@@ -9,6 +9,7 @@ import {
   wireActivityButton,
 } from "../minigames/playActivity";
 import type { ActivityId } from "../../content/attempts";
+import { formatKitchenSummary } from "../../content/cooking";
 
 const attemptStatus: Partial<
   Record<ActivityId, Awaited<ReturnType<typeof loadAttemptStatus>>>
@@ -256,11 +257,11 @@ export async function refreshKitchen() {
         : `${s.attemptsUsed}/${s.dailyCap} play attempts today · ${s.remaining} left`
       : "";
     $("#kitchen-summary").textContent = app.owner
-      ? `Cooked ${data.cookedToday}/${data.cookCap} · served ${data.servedToday}/${data.serveCap} · ${attemptLine}`
+      ? formatKitchenSummary(data, attemptLine)
       : "Connect Express, gather crops or fish, then cook and serve snacks.";
   } catch {
     $("#kitchen-summary").textContent = app.owner
-      ? `Cooked ${data.cookedToday}/${data.cookCap} · served ${data.servedToday}/${data.serveCap} today`
+      ? formatKitchenSummary(data, "today")
       : "Connect Express, gather crops or fish, then cook and serve snacks.";
   }
   ensureLifestylePlay("cook");

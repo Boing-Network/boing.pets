@@ -10,6 +10,7 @@ import {
   pastureHudSafeRects,
   projectLocalBoxToScreen,
 } from "./hudSafeLabel";
+import { readPastureTouchPrefs } from "./mobileControls";
 
 type Props = ComponentProps<typeof WorldText>;
 
@@ -94,7 +95,11 @@ export function PastureWorldText({
     const midY = (clamped.top + clamped.bottom) / 2;
     const opacity = labelHudOpacity(
       clamped,
-      pastureHudSafeRects(size.width, size.height),
+      pastureHudSafeRects(
+        size.width,
+        size.height,
+        readPastureTouchPrefs().touchControls,
+      ),
       size,
       {
         x: (midX / size.width) * 2 - 1,

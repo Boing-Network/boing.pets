@@ -123,3 +123,32 @@ export function applyFoodBoosts<T extends { hunger: number; energy: number }>(
   }
   return { ...base, hunger, energy, snacksToday: servings.length };
 }
+
+export function formatKitchenCounts(data: {
+  cookedToday?: number | null;
+  servedToday?: number | null;
+  cookCap?: number | null;
+  serveCap?: number | null;
+}): string {
+  const n = (value: number | null | undefined, fallback: number) =>
+    typeof value === "number" && Number.isFinite(value) ? value : fallback;
+  const cooked = n(data.cookedToday, 0);
+  const served = n(data.servedToday, 0);
+  const cookCap = n(data.cookCap, COOK_DAILY_CAP);
+  const serveCap = n(data.serveCap, SERVE_DAILY_CAP);
+  return `Cooked ${cooked}/${cookCap} · served ${served}/${serveCap}`;
+}
+
+export function formatKitchenSummary(
+  data: {
+    cookedToday?: number | null;
+    servedToday?: number | null;
+    cookCap?: number | null;
+    serveCap?: number | null;
+  },
+  extra?: string,
+): string {
+  const counts = formatKitchenCounts(data);
+  const tail = (extra || "").trim();
+  return tail ? `${counts} · ${tail}` : counts;
+}

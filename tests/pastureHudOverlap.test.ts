@@ -27,6 +27,8 @@ import {
   PASTURE_TX_TOAST_HEIGHT_PX,
   PASTURE_TX_TOAST_SIDE_CLEAR_PX,
   PASTURE_TX_TOAST_TOP_PX,
+  pastureTxToastHeight,
+  pastureTxToastSideClear,
   PASTURE_PROGRESS_CHIP_GAP_PX,
   PASTURE_PROGRESS_CHIP_HEIGHT_PX,
   PASTURE_STATION_PROMPT_HEIGHT_PX,
@@ -225,22 +227,32 @@ describe("pasture chat stays clear of emotes and touch controls", () => {
       touchControls: true,
     });
     expect(PASTURE_TX_TOAST_TOP_PX).toBe(12);
+    expect(PASTURE_TX_TOAST_HEIGHT_PX).toBe(72);
+    expect(PASTURE_TX_TOAST_SIDE_CLEAR_PX).toBe(110);
     expect(css).toMatch(/\.pasture-tx-toast\s*\{[^}]*top:\s*12px/s);
-    for (const layout of [desktop, mobile]) {
+    expect(css).toMatch(
+      /\.pasture-3d-stage\.is-touch-controls \.pasture-tx-toast\s*\{[^}]*flex-direction:\s*column/s,
+    );
+    const cases = [
+      { layout: desktop, touch: false, width: 1280 },
+      { layout: mobile, touch: true, width: 390 },
+    ];
+    for (const { layout, touch } of cases) {
       expect(layout.txToast.top).toBe(PASTURE_TX_TOAST_TOP_PX);
       expect(layout.txToast.bottom - layout.txToast.top).toBe(
-        PASTURE_TX_TOAST_HEIGHT_PX,
+        pastureTxToastHeight(touch),
       );
       expect(layout.txToast.left).toBeGreaterThanOrEqual(
-        PASTURE_TX_TOAST_SIDE_CLEAR_PX - 0.01,
+        pastureTxToastSideClear(touch) - 0.01,
       );
-      for (const other of [
-        layout.minimap,
+      const others = [
         layout.progress,
         layout.prompt,
         layout.emote,
         layout.chat,
-      ]) {
+      ];
+      if (!touch) others.unshift(layout.minimap);
+      for (const other of others) {
         expect(rectsOverlap(layout.txToast, other)).toBe(false);
       }
       const mid = hudRectCenter(layout.txToast);
@@ -262,6 +274,7 @@ describe("pasture chat stays clear of emotes and touch controls", () => {
       touchControls: true,
     });
     expect(css).toMatch(/\.pasture-inventory-btn\s*\{[^}]*top:\s*266px/s);
+    expect(css).toMatch(/\.pasture-inventory-panel\s*\{[^}]*top:\s*96px/s);
     for (const layout of [desktop, mobile]) {
       expect(layout.inventory.top).toBe(PASTURE_INVENTORY_BTN_TOP_PX);
       expect(layout.inventory.left).toBe(PASTURE_INVENTORY_BTN_LEFT_PX);
@@ -286,5 +299,22 @@ describe("pasture chat stays clear of emotes and touch controls", () => {
     }
     expect(rectsOverlap(mobile.inventory, mobile.joystick!)).toBe(false);
     expect(rectsOverlap(mobile.inventory, mobile.interact!)).toBe(false);
+  });
+
+  it("raises the activity overlay above HUD chrome and keeps Settings scrollable", () => {
+    expect(css).toMatch(/\.pasture-station-overlay\s*\{[^}]*z-index:\s*22/s);
+    expect(css).toMatch(
+      /\.pasture-3d-stage\.is-station-menu-open \.pasture-minimap/,
+    );
+    expect(css).toMatch(
+      /\.pasture-3d-stage\.is-station-menu-open \.pasture-dailies-chip/,
+    );
+    expect(css).toMatch(
+      /\.pasture-3d-stage\.is-station-menu-open \.pasture-cam-controls/,
+    );
+    expect(css).toMatch(/\.pasture-audio-panel\s*\{[^}]*max-height:/s);
+    expect(css).toMatch(
+      /\.pasture-3d-stage\.is-touch-controls \.pasture-audio-panel\s*\{[^}]*max-height:/s,
+    );
   });
 });

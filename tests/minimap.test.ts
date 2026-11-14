@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { PASTURE_ZONE } from "../src/world/config/zones";
 import {
   mapToWorld,
+  MINIMAP_ICON_MIN_DIST_PX,
   miniMapStations,
   pastureMiniMapBounds,
+  spreadMiniMapMarkers,
   worldToMap,
 } from "../src/pasture3d/minimap";
 import { ACTIVITY_STATION_KINDS } from "../src/pasture3d/stationInteract";
@@ -49,5 +51,52 @@ describe("pasture mini-map projection", () => {
     expect(kitchen?.icon).toBe("K");
     expect(kitchen?.x).toBe(-22);
     expect(kitchen?.z).toBe(26);
+  });
+
+  it("spreads clustered station icons so letters stay readable", () => {
+    const clustered = [
+      { x: 70, y: 70 },
+      { x: 72, y: 71 },
+      { x: 70, y: 70 },
+    ];
+    const spread = spreadMiniMapMarkers(clustered, SIZE);
+    expect(spread).toHaveLength(3);
+    for (const point of spread) {
+      expect(point.x).toBeGreaterThanOrEqual(8);
+      expect(point.x).toBeLessThanOrEqual(SIZE - 8);
+      expect(point.y).toBeGreaterThanOrEqual(8);
+      expect(point.y).toBeLessThanOrEqual(SIZE - 8);
+    }
+    const d01 = Math.hypot(
+      spread[0]!.x - spread[1]!.x,
+      spread[0]!.y - spread[1]!.y,
+    );
+    const d02 = Math.hypot(
+      spread[0]!.x - spread[2]!.x,
+      spread[0]!.y - spread[2]!.y,
+    );
+    const d12 = Math.hypot(
+      spread[1]!.x - spread[2]!.x,
+      spread[1]!.y - spread[2]!.y,
+    );
+    expect(d01).toBeGreaterThanOrEqual(MINIMAP_ICON_MIN_DIST_PX - 0.5);
+    expect(d02).toBeGreaterThanOrEqual(MINIMAP_ICON_MIN_DIST_PX - 0.5);
+    expect(d12).toBeGreaterThanOrEqual(MINIMAP_ICON_MIN_DIST_PX - 0.5);
+
+    const stations = miniMapStations();
+    const bounds = pastureMiniMapBounds();
+    const mapped = stations.map((station) => worldToMap(station, bounds, SIZE));
+    const laidOut = spreadMiniMapMarkers(mapped, SIZE);
+    let minDist = Infinity;
+    for (let i = 0; i < laidOut.length; i++) {
+      for (let j = i + 1; j < laidOut.length; j++) {
+        const dist = Math.hypot(
+          laidOut[i]!.x - laidOut[j]!.x,
+          laidOut[i]!.y - laidOut[j]!.y,
+        );
+        if (dist < minDist) minDist = dist;
+      }
+    }
+    expect(minDist).toBeGreaterThanOrEqual(MINIMAP_ICON_MIN_DIST_PX - 0.5);
   });
 });

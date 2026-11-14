@@ -3,10 +3,13 @@ import { unlockedCollections } from "../src/content/collections";
 import {
   applyFoodBoosts,
   COOK_DAILY_CAP,
+  formatKitchenCounts,
+  formatKitchenSummary,
   isCookKind,
   isFoodItem,
   recipeById,
   RECIPES,
+  SERVE_DAILY_CAP,
 } from "../src/content/cooking";
 
 describe("cooking content", () => {
@@ -47,5 +50,25 @@ describe("cooking content", () => {
         now: Date.now(),
       }),
     ).not.toContain("discovery:recipe:recipe-sprout-salad");
+  });
+
+  it("formats kitchen counts with zero and cap defaults when fields are missing", () => {
+    expect(formatKitchenCounts({})).toBe(
+      `Cooked 0/${COOK_DAILY_CAP} · served 0/${SERVE_DAILY_CAP}`,
+    );
+    expect(
+      formatKitchenCounts({
+        cookedToday: 2,
+        cookCap: 5,
+        servedToday: 1,
+        serveCap: 5,
+      }),
+    ).toBe(`Cooked 2/5 · served 1/5`);
+    expect(formatKitchenSummary({}, "today")).toBe(
+      `Cooked 0/${COOK_DAILY_CAP} · served 0/${SERVE_DAILY_CAP} · today`,
+    );
+    expect(
+      formatKitchenCounts({ cookedToday: undefined, cookCap: undefined }),
+    ).not.toMatch(/undefined/);
   });
 });

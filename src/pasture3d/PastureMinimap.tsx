@@ -9,6 +9,7 @@ import {
   mapToWorld,
   miniMapStations,
   pastureMiniMapBounds,
+  spreadMiniMapMarkers,
   worldToMap,
 } from "./minimap";
 
@@ -16,6 +17,17 @@ export const PASTURE_MINIMAP_BOARD_SIZE = 140;
 
 const stations = miniMapStations();
 const bounds = pastureMiniMapBounds();
+const spreadStations = (() => {
+  const mapped = stations.map((station) =>
+    worldToMap(station, bounds, PASTURE_MINIMAP_BOARD_SIZE),
+  );
+  const spread = spreadMiniMapMarkers(mapped, PASTURE_MINIMAP_BOARD_SIZE);
+  return stations.map((station, index) => ({
+    ...station,
+    mapX: spread[index]!.x,
+    mapY: spread[index]!.y,
+  }));
+})();
 
 export function PastureMinimap({
   poseRef,
@@ -74,27 +86,20 @@ export function PastureMinimap({
           height: PASTURE_MINIMAP_BOARD_SIZE,
         }}
       >
-        {stations.map((station) => {
-          const mapped = worldToMap(
-            station,
-            bounds,
-            PASTURE_MINIMAP_BOARD_SIZE,
-          );
-          return (
-            <span
-              key={station.id}
-              className="pasture-minimap-station"
-              title={station.title}
-              style={{
-                left: mapped.x,
-                top: mapped.y,
-                background: station.color,
-              }}
-            >
-              {station.icon}
-            </span>
-          );
-        })}
+        {spreadStations.map((station) => (
+          <span
+            key={station.id}
+            className="pasture-minimap-station"
+            title={station.title}
+            style={{
+              left: station.mapX,
+              top: station.mapY,
+              background: station.color,
+            }}
+          >
+            {station.icon}
+          </span>
+        ))}
         <span ref={playerRef} className="pasture-minimap-player" title="You" />
       </button>
     </div>

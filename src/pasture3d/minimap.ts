@@ -97,3 +97,52 @@ export function miniMapStations(): MiniMapMarker[] {
     };
   });
 }
+
+/** Minimum pixel gap between station icons after the layout pass. */
+export const MINIMAP_ICON_MIN_DIST_PX = 16;
+/** Keep spread icons inside the board instead of hanging off the edge. */
+export const MINIMAP_ICON_MARGIN_PX = 8;
+
+/**
+ * Nudge overlapping mini-map markers apart with a few repulsion iterations.
+ * Click-to-walk still uses the original board coordinates, not these offsets.
+ */
+export function spreadMiniMapMarkers(
+  points: { x: number; y: number }[],
+  size: number,
+  minDist = MINIMAP_ICON_MIN_DIST_PX,
+  margin = MINIMAP_ICON_MARGIN_PX,
+  iterations = 12,
+): { x: number; y: number }[] {
+  const pts = points.map((point) => ({ x: point.x, y: point.y }));
+  const lo = margin;
+  const hi = size - margin;
+  for (let step = 0; step < iterations; step++) {
+    for (let i = 0; i < pts.length; i++) {
+      for (let j = i + 1; j < pts.length; j++) {
+        let dx = pts[j].x - pts[i].x;
+        let dy = pts[j].y - pts[i].y;
+        let dist = Math.hypot(dx, dy);
+        if (dist < 0.01) {
+          dx = ((i + 1) % 2 === 0 ? -1 : 1) * 0.01;
+          dy = ((j + 1) % 2 === 0 ? 1 : -1) * 0.01;
+          dist = Math.hypot(dx, dy);
+        }
+        if (dist < minDist) {
+          const push = (minDist - dist) / 2;
+          const ux = dx / dist;
+          const uy = dy / dist;
+          pts[i].x -= ux * push;
+          pts[i].y -= uy * push;
+          pts[j].x += ux * push;
+          pts[j].y += uy * push;
+        }
+      }
+    }
+    for (const point of pts) {
+      point.x = Math.min(hi, Math.max(lo, point.x));
+      point.y = Math.min(hi, Math.max(lo, point.y));
+    }
+  }
+  return pts;
+}
