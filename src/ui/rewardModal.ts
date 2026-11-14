@@ -7,6 +7,12 @@ import {
   type ClaimRewardResult,
   type RewardChainStatus,
 } from "./rewardBreakdown";
+import {
+  adventureRevealClassName,
+  formatAcquiredAt,
+  formatOwnerCount,
+  type AdventureRevealReward,
+} from "./adventureReveal";
 
 function esc(value: string) {
   return value.replace(
@@ -21,7 +27,10 @@ function esc(value: string) {
 const FOCUSABLE =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-function burstConfetti(canvas: HTMLCanvasElement) {
+function burstConfetti(
+  canvas: HTMLCanvasElement,
+  options: { colors?: string[]; extra?: boolean } = {},
+) {
   if (prefersReducedMotion()) {
     canvas.hidden = true;
     return;
@@ -30,7 +39,7 @@ function burstConfetti(canvas: HTMLCanvasElement) {
   if (!ctx) return;
   const parent = canvas.parentElement;
   if (!parent) return;
-  const colors = [
+  const colors = options.colors ?? [
     "#7fa7ff",
     "#9ad7c2",
     "#ffd27a",
@@ -52,7 +61,8 @@ function burstConfetti(canvas: HTMLCanvasElement) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   };
   resize();
-  const particles = Array.from({ length: 96 }, (_, i) => {
+  const count = options.extra ? 140 : 96;
+  const particles = Array.from({ length: count }, (_, i) => {
     const angle = Math.random() * Math.PI * 2;
     const speed = 3 + Math.random() * 7;
     return {
@@ -128,36 +138,90 @@ function pendingRewardView(): ClaimRewardResult {
   };
 }
 
+function mintLabel(status: AdventureRevealReward["mintStatus"]): string {
+  if (status === "pending") return "Mint pending";
+  if (status === "confirmed") return "Mint confirmed";
+  if (status === "failed") return "Mint failed";
+  return "Off-chain";
+}
+
+function adventureRewardMarkup(reward: AdventureRevealReward): string {
+  const itemIcon = reward.previewItemId
+    ? itemIconSvg(reward.previewItemId)
+    : collectionIconSvg("treasure");
+  return `
+    <article class="${esc(adventureRevealClassName(reward))}" data-rarity="${esc(String(reward.rarity))}">
+      <div class="reward-item">
+        <div class="reward-item-icon">${itemIcon}</div>
+        <div>
+          <h3>${esc(reward.name)}${reward.qty > 1 ? ` ×${reward.qty}` : ""}</h3>
+          <p class="adventure-rarity-name" style="color:${esc(reward.color)}">${esc(reward.rarityName)}</p>
+        </div>
+      </div>
+      <ul class="reward-lines adventure-reveal-meta">
+        <li><span>Category</span><strong>${esc(reward.category)}</strong></li>
+        <li><span>Drop source</span><strong>${esc(reward.dropSource)}</strong></li>
+        <li><span>Status</span><strong>${esc(reward.ownership)}</strong></li>
+        <li><span>Acquired</span><strong>${esc(formatAcquiredAt(reward.acquiredAt))} (America/New_York)</strong></li>
+        <li><span>Owners</span><strong>${esc(formatOwnerCount(reward.ownerCount))}</strong></li>
+        <li><span>Mint</span><strong>${esc(mintLabel(reward.mintStatus))}</strong></li>
+      </ul>
+    </article>
+  `;
+}
+
+export type RewardModalOptions = {
+  chainStatus?: RewardChainStatus;
+  adventureRewards?: AdventureRevealReward[];
+  activityTitle?: string;
+};
+
 function renderRewardCard(
   result: ClaimRewardResult | null,
-  chainStatus: RewardChainStatus,
+  options: RewardModalOptions,
 ): string {
+  const chainStatus = options.chainStatus ?? "confirmed";
+  const adventure = options.adventureRewards ?? [];
   const pending =
-    !result || (chainStatus === "pending" && !result.reward?.itemId);
+    !adventure.length &&
+    (!result || (chainStatus === "pending" && !result.reward?.itemId));
   const view = formatRewardBreakdown(result ?? pendingRewardView());
   const itemName =
     pending && !result?.reward?.itemId ? "Securing your reward" : view.itemName;
   const itemIcon = view.itemId
     ? itemIconSvg(view.itemId)
     : collectionIconSvg("treasure");
+  const title =
+    options.activityTitle || (pending ? "Reward incoming" : view.activityTitle);
+  const lead = adventure[0];
+  const cardClass = lead ? adventureRevealClassName(lead) : "reward-card";
+  const flairClass = lead?.extraFlair
+    ? " reward-modal has-flair"
+    : lead?.holo
+      ? " has-holo"
+      : "";
   return `
     <canvas class="reward-confetti" id="reward-confetti" aria-hidden="true"></canvas>
-    <div class="reward-card" role="dialog" aria-modal="true" aria-labelledby="reward-title" tabindex="-1">
+    <div class="${cardClass}" role="dialog" aria-modal="true" aria-labelledby="reward-title" tabindex="-1" data-flair="${lead?.effect ?? ""}">
       <p id="reward-live" class="visually-hidden" aria-live="polite">${esc(pending ? chainStatusDescription(chainStatus) : view.summary)}</p>
       <div class="reward-activity">
-        <span class="reward-activity-icon">${activityIconSvg(result?.activity || "")}</span>
-        <p class="eyebrow" id="reward-title">${esc(pending ? "Reward incoming" : view.activityTitle)}</p>
+        <span class="reward-activity-icon">${activityIconSvg(result?.activity || "adventure")}</span>
+        <p class="eyebrow" id="reward-title">${esc(title)}</p>
       </div>
-      <div class="reward-item">
+      ${
+        adventure.length
+          ? adventure.map(adventureRewardMarkup).join("")
+          : `<div class="reward-item">
         <div class="reward-item-icon">${itemIcon}</div>
         <div>
           <h3>${esc(itemName)}</h3>
           ${!pending && view.rarity ? `<p class="subtle">${esc(view.rarity)}</p>` : ""}
         </div>
-      </div>
+      </div>`
+      }
       ${chainStatusMarkup(chainStatus)}
       ${
-        pending
+        pending || adventure.length
           ? ""
           : `<ul class="reward-lines">
         ${view.lines
@@ -180,12 +244,12 @@ function renderRewardCard(
       }
       <button type="button" id="reward-nice">${pending ? "Working…" : "Nice!"}</button>
     </div>
-  `;
+  `.replace(" data-flair", flairClass ? ` data-flair` : " data-flair");
 }
 
 export function showRewardModal(
   result: ClaimRewardResult | null,
-  options: { chainStatus?: RewardChainStatus } = {},
+  options: RewardModalOptions = {},
 ) {
   const chainStatus = options.chainStatus ?? "confirmed";
   closeRewardModal();
@@ -193,8 +257,15 @@ export function showRewardModal(
 
   const root = document.createElement("div");
   root.id = "reward-modal";
-  root.className = "reward-modal";
-  root.innerHTML = renderRewardCard(result, chainStatus);
+  const lead = options.adventureRewards?.[0];
+  root.className =
+    "reward-modal" +
+    (lead?.holo ? " has-holo" : "") +
+    (lead?.extraFlair ? " has-flair" : "") +
+    (lead ? ` rarity-${lead.rarity}` : "");
+  root.innerHTML = renderRewardCard(result, options);
+  (root as HTMLElement & { __adventure?: RewardModalOptions }).__adventure =
+    options;
 
   const onKey = (event: KeyboardEvent) => {
     if (event.key === "Escape") {
@@ -203,14 +274,18 @@ export function showRewardModal(
       return;
     }
     if (event.key !== "Tab") return;
-    const dialog = root.querySelector(".reward-card") as HTMLElement | null;
+    const dialog = root.querySelector(
+      ".reward-card, .adventure-reveal",
+    ) as HTMLElement | null;
     if (!dialog) return;
     const els = [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
       (el) => !el.hasAttribute("disabled") && el.tabIndex !== -1,
     );
-    if (!els.length) return;
-    const first = els[0]!;
-    const last = els[els.length - 1]!;
+    const extra = root.querySelectorAll<HTMLElement>("#reward-nice");
+    const list = els.length ? els : [...extra];
+    if (!list.length) return;
+    const first = list[0]!;
+    const last = list[list.length - 1]!;
     if (event.shiftKey && document.activeElement === first) {
       event.preventDefault();
       last.focus();
@@ -235,9 +310,15 @@ export function showRewardModal(
     .querySelector<HTMLButtonElement>("#reward-nice")
     ?.addEventListener("click", closeRewardModal);
   const canvas = root.querySelector<HTMLCanvasElement>("#reward-confetti");
-  if (canvas) burstConfetti(canvas);
+  if (canvas) {
+    const colors = lead
+      ? [lead.color, "#ff4d00", "#f5f5f0", "#2ec8e0"]
+      : undefined;
+    burstConfetti(canvas, { colors, extra: lead?.extraFlair });
+  }
   const nice = root.querySelector<HTMLButtonElement>("#reward-nice");
-  if (nice && chainStatus === "pending") nice.disabled = true;
+  if (nice && chainStatus === "pending" && !options.adventureRewards?.length)
+    nice.disabled = true;
   (nice ?? root.querySelector<HTMLElement>(".reward-card"))?.focus();
 }
 
@@ -246,19 +327,28 @@ export function updateRewardChainStatus(
   result?: ClaimRewardResult | null,
 ) {
   const root = document.getElementById("reward-modal");
+  const saved = root
+    ? (root as HTMLElement & { __adventure?: RewardModalOptions }).__adventure
+    : undefined;
   if (!root) {
     if (result || status !== "pending")
-      showRewardModal(result ?? null, { chainStatus: status });
+      showRewardModal(result ?? null, {
+        ...(saved ?? {}),
+        chainStatus: status,
+      });
     return;
   }
-  if (result) {
+  if (result || saved?.adventureRewards) {
     const live = document.activeElement === root.querySelector("#reward-nice");
-    root.innerHTML = renderRewardCard(result, status);
+    const next = { ...(saved ?? {}), chainStatus: status };
+    root.innerHTML = renderRewardCard(result ?? null, next);
+    (root as HTMLElement & { __adventure?: RewardModalOptions }).__adventure =
+      next;
     const canvas = root.querySelector<HTMLCanvasElement>("#reward-confetti");
     if (canvas && status === "confirmed") burstConfetti(canvas);
     const nice = root.querySelector<HTMLButtonElement>("#reward-nice");
     if (nice) {
-      nice.disabled = status === "pending";
+      nice.disabled = status === "pending" && !saved?.adventureRewards?.length;
       nice.addEventListener("click", closeRewardModal);
       if (live) nice.focus();
     }
@@ -277,7 +367,7 @@ export function updateRewardChainStatus(
   if (live) live.textContent = chainStatusDescription(status);
   const nice = root.querySelector<HTMLButtonElement>("#reward-nice");
   if (nice) {
-    nice.disabled = status === "pending";
+    nice.disabled = status === "pending" && !saved?.adventureRewards?.length;
     if (status !== "pending") nice.textContent = "Nice!";
   }
 }

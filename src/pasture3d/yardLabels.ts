@@ -20,6 +20,7 @@ const BY_LANDMARK_ID: Record<string, YardLabelSpec> = {
   "garden-beds": { title: "CITY GARDEN", tag: "CROPS" },
   "old-oak": { title: "OLD OAK", tag: "LANDMARK" },
   "home-plot": { title: "HOME STOOP", tag: "DESK" },
+  "dispatch-station": { title: "DISPATCH", tag: "TRIPS" },
   wildflowers: { title: "PLANTERS", tag: "DECOR" },
   "snack-barn": { title: "STORAGE", tag: "STORAGE" },
 };
@@ -29,6 +30,7 @@ const BY_KIND: Record<PastureStationKind, YardLabelSpec> = {
   market: BY_LANDMARK_ID["market-stall"]!,
   craft: BY_LANDMARK_ID["crafting-station"]!,
   customize: BY_LANDMARK_ID["customization-station"]!,
+  dispatch: BY_LANDMARK_ID["dispatch-station"]!,
   fish: BY_LANDMARK_ID["pond-pier"]!,
   treasure: BY_LANDMARK_ID["treasure-dig"]!,
   race: BY_LANDMARK_ID["race-gate"]!,

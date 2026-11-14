@@ -465,4 +465,58 @@ describe("idle adventures API", () => {
       .get(owner, "hat-stardust") as { qty: number };
     expect(inv.qty).toBe(1);
   });
+
+  it("honors the local dev clock header and refuses it in production", async () => {
+    const token = await sessionToken();
+    const startedAt = Date.now();
+    (env as { ADVENTURE_DEV_CLOCK?: string }).ADVENTURE_DEV_CLOCK = "1";
+    const start = await request(
+      "/api/adventures/start",
+      { owner, location_id: "night-market", duration_id: "quick" },
+      {
+        Authorization: "Bearer " + token,
+        "x-adventure-now": String(startedAt),
+      },
+    );
+    expect(start.status).toBe(200);
+    const started = (await start.json()) as {
+      run: { id: string; endsAt: number };
+    };
+    const early = await request(
+      "/api/adventures/claim",
+      { owner, run_id: started.run.id, claim_id: "early" },
+      {
+        Authorization: "Bearer " + token,
+        "x-adventure-now": String(startedAt + 1000),
+      },
+    );
+    expect(early.status).toBeGreaterThanOrEqual(400);
+
+    const ready = await request(
+      "/api/adventures/claim",
+      { owner, run_id: started.run.id, claim_id: "local-clock" },
+      {
+        Authorization: "Bearer " + token,
+        "x-adventure-now": String(started.run.endsAt + 1000),
+      },
+    );
+    expect(ready.status).toBe(200);
+
+    delete (env as { ADVENTURE_DEV_CLOCK?: string }).ADVENTURE_DEV_CLOCK;
+    const blocked = await app.fetch(
+      new Request(
+        "https://boing-pets.nico-chikuji.workers.dev/api/adventures?now=" +
+          String(started.run.endsAt + 1_000_000),
+        {
+          headers: {
+            "x-adventure-now": String(started.run.endsAt + 1_000_000),
+          },
+        },
+      ),
+      { ...env, ADVENTURE_DEV_CLOCK: "1" } as typeof env,
+    );
+    expect(blocked.status).toBe(200);
+    const prod = (await blocked.json()) as { devClock?: boolean };
+    expect(prod.devClock).toBeFalsy();
+  });
 });

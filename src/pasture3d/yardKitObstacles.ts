@@ -55,6 +55,7 @@ export const YARD_KIT_FOOTPRINTS: readonly KitFootprint[] = [
   withLandmark("kit-drop", "market-stall", 3.6, 2.3, 5.0),
   withLandmark("kit-print", "crafting-station", 3.3, 1.9, 5.0),
   withLandmark("kit-fitting", "customization-station", 3.3, 1.9, 5.0),
+  withLandmark("kit-dispatch", "dispatch-station", 3.4, 2.3, 5.2),
   withLandmark("kit-home", "home-plot", 3.6, 2.2, 5.0),
   withLandmark("kit-bowl", "race-gate", 0, 3.2, 1.8, { x: 2.55, z: -4.35 }),
 ];

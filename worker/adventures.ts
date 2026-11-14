@@ -18,6 +18,7 @@ import {
   mulberry32,
   publicAdventureRates,
   resolveAdventureRewards,
+  ADVENTURE_EXCLUSIVE_ITEMS,
   rollOutcome,
   outcomeChances,
   seedFromParts,
@@ -39,6 +40,7 @@ import {
 import { resolveIncludedReceipt } from "./proof";
 import { rpc as rpcCall, RpcRejected } from "./rpc";
 import { HttpError, requireSocialSession } from "./social";
+import { resolveAdventureNow } from "../src/content/adventureClock";
 
 const UTC_DAY_MS = 86_400_000;
 const RESUBMIT_AFTER_MS = 60_000;
@@ -258,6 +260,52 @@ async function completesToday(
     .bind(owner, locationId, utcDayStart(now))
     .first<{ n: number }>();
   return row?.n ?? 0;
+}
+
+async function ownerCountMap(env: Env, itemIds: string[]) {
+  const counts: Record<string, number> = {};
+  const unique = [...new Set(itemIds.filter(Boolean))];
+  for (const id of unique) {
+    const row = await env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM inventory WHERE item_id=? AND qty>0",
+    )
+      .bind(id)
+      .first<{ n: number }>();
+    counts[id] = row?.n ?? 0;
+  }
+  return counts;
+}
+
+async function collectionFor(env: Env, owner: string) {
+  const owned = await inventorySet(env, owner);
+  const items = Object.entries(ADVENTURE_EXCLUSIVE_ITEMS).map(([id, row]) => ({
+    id,
+    name: row.name,
+    rarity: row.rarity,
+    owned: owned.has(id),
+  }));
+  return {
+    found: items.filter((item) => item.owned).length,
+    total: items.length,
+    items,
+  };
+}
+
+async function viewRunPublic(env: Env, run: RunRow, rewards: RewardRow[] = []) {
+  const view = viewRun(run, rewards);
+  const counts = await ownerCountMap(
+    env,
+    view.rewards
+      .map((row) => row.gameItemId)
+      .filter((id): id is string => !!id),
+  );
+  return {
+    ...view,
+    rewards: view.rewards.map((row) => ({
+      ...row,
+      ownerCount: row.gameItemId ? (counts[row.gameItemId] ?? 0) : null,
+    })),
+  };
 }
 
 function viewRun(run: RunRow, rewards: RewardRow[] = []) {
@@ -882,12 +930,19 @@ async function previewsFor(
 export async function adventuresGet(
   req: Request,
   env: Env,
-  now: number,
+  wallNow: number,
 ): Promise<Response | null> {
+  const clock = resolveAdventureNow(
+    req,
+    env as { ADVENTURE_DEV_CLOCK?: string; APP_ORIGIN?: string },
+    wallNow,
+  );
+  const now = clock.now;
   const url = new URL(req.url);
   if (url.pathname === "/api/adventures/rates") {
     return Response.json({
       rates: publicAdventureRates(),
+      devClock: clock.devClock,
       events: activeEvents(now).map((event) => ({
         id: event.id,
         name: event.name,
@@ -898,21 +953,21 @@ export async function adventuresGet(
     });
   }
   if (url.pathname === "/api/adventures/history") {
-    const owner = await ownerFromBody(req, env, undefined, now, true);
+    const owner = await ownerFromBody(req, env, undefined, wallNow, true);
     await settleMints(env, now);
     const runs = await listOwnerRuns(env, owner!, now);
     const claimed = runs.filter((run) => run.status === "claimed");
     const views = [];
     for (const run of claimed) {
-      views.push(viewRun(run, await rewardsFor(env, run.id)));
+      views.push(await viewRunPublic(env, run, await rewardsFor(env, run.id)));
     }
     return Response.json({ history: views });
   }
   if (url.pathname !== "/api/adventures") return null;
-  const owner = await ownerFromBody(req, env, undefined, now, false);
+  const owner = await ownerFromBody(req, env, undefined, wallNow, false);
   if (owner) {
     try {
-      await requireSocialSession(req, env, owner, now);
+      await requireSocialSession(req, env, owner, wallNow);
     } catch (error) {
       if (error instanceof HttpError && error.status === 401) {
         /* public catalog still returns */
@@ -929,6 +984,7 @@ export async function adventuresGet(
       runs: [],
       slots: slotsForCompletions(0),
       preview: [],
+      devClock: clock.devClock,
     });
   }
   const milestones = await loadMilestones(env, owner, now);
@@ -936,7 +992,7 @@ export async function adventuresGet(
   const runs = await listOwnerRuns(env, owner, now);
   const views = [];
   for (const run of runs.filter((row) => row.status !== "claimed")) {
-    views.push(viewRun(run, await rewardsFor(env, run.id)));
+    views.push(await viewRunPublic(env, run, await rewardsFor(env, run.id)));
   }
   return Response.json({
     locations: rates.locations,
@@ -953,6 +1009,8 @@ export async function adventuresGet(
       name: event.name,
       endsAt: event.endsAt,
     })),
+    collection: await collectionFor(env, owner),
+    devClock: clock.devClock,
   });
 }
 
@@ -961,23 +1019,30 @@ export async function adventuresPost(
   url: URL,
   env: Env,
   body: Record<string, unknown>,
-  now: number,
+  wallNow: number,
 ): Promise<Response | null> {
-  // Ignore any client-supplied clock.
+  // Ignore any client-supplied body clock. Local dev may send a header.
   void body.now;
   void body.clientNow;
   void body.timestamp;
+  const clock = resolveAdventureNow(
+    req,
+    env as { ADVENTURE_DEV_CLOCK?: string; APP_ORIGIN?: string },
+    wallNow,
+  );
+  const now = clock.now;
   if (url.pathname === "/api/adventures/start") {
-    const owner = await ownerFromBody(req, env, body, now, true);
+    const owner = await ownerFromBody(req, env, body, wallNow, true);
     await settleMints(env, now);
     const started = await startAdventure(env, owner!, body, now);
     return Response.json({
-      run: viewRun(started.run),
+      run: await viewRunPublic(env, started.run as RunRow, []),
       preview: started.preview,
+      devClock: clock.devClock,
     });
   }
   if (url.pathname === "/api/adventures/claim") {
-    const owner = await ownerFromBody(req, env, body, now, true);
+    const owner = await ownerFromBody(req, env, body, wallNow, true);
     const runId = typeof body.run_id === "string" ? body.run_id : "";
     if (!runId) throw new HttpError(400, "run_id is required");
     const claimId =
@@ -987,12 +1052,12 @@ export async function adventuresPost(
     await settleMints(env, now);
     const result = await claimRun(env, owner!, runId, now, claimId);
     return Response.json({
-      run: viewRun(result.run as RunRow, result.rewards),
+      run: await viewRunPublic(env, result.run as RunRow, result.rewards),
       idempotent: result.idempotent,
     });
   }
   if (url.pathname === "/api/adventures/claim-all") {
-    const owner = await ownerFromBody(req, env, body, now, true);
+    const owner = await ownerFromBody(req, env, body, wallNow, true);
     await settleMints(env, now);
     const runs = await listOwnerRuns(env, owner!, now);
     const ready = runs.filter((run) => run.status === "ready");
@@ -1005,7 +1070,9 @@ export async function adventuresPost(
         now,
         crypto.randomUUID(),
       );
-      claimed.push(viewRun(result.run as RunRow, result.rewards));
+      claimed.push(
+        await viewRunPublic(env, result.run as RunRow, result.rewards),
+      );
     }
     return Response.json({ claimed, count: claimed.length });
   }

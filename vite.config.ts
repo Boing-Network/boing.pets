@@ -20,6 +20,7 @@ export default defineConfig({
     alias: {
       "cloudflare:workers": resolve(root, "tests/stubs/cloudflare-workers.ts"),
     },
+    exclude: ["**/node_modules/**", "**/dist/**", "**/playtest-artifacts/**"],
   },
   build: {
     rollupOptions: {

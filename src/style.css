@@ -1667,6 +1667,13 @@ a:hover {
   visibility: hidden;
   pointer-events: none;
 }
+
+#pasture-canvas.is-station-menu-open .pasture-buddy-chip,
+#pasture-canvas.is-station-menu-open .pasture-presence-status {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .pasture-3d-stage.is-touch-controls .pasture-station-overlay {
   padding: 12px 10px calc(var(--pasture-chat-clearance, 206px) + 8px);
 }
@@ -1717,8 +1724,11 @@ a:hover {
   color: #ffd0c8;
 }
 @media (max-width: 720px) {
+  .pasture-station-overlay {
+    padding: 8px 10px 12px;
+  }
   .pasture-station-menu {
-    max-height: min(82vh, 680px);
+    max-height: min(92dvh, 820px);
   }
 }
 

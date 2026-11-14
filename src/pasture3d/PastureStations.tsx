@@ -12,6 +12,7 @@ import {
   YardHomeKit,
   YardPrintShopKit,
 } from "./YardKits";
+import { DispatchDepot } from "./DispatchDepot";
 
 function landmarkFor(id: string): WorldLandmark | undefined {
   return PASTURE_ZONE.landmarks.find((item) => item.id === id);
@@ -458,10 +459,12 @@ export function PastureStations({
   const craft = PASTURE_ZONE.stations.find((s) => s.kind === "craft");
   const market = PASTURE_ZONE.stations.find((s) => s.kind === "market");
   const customize = PASTURE_ZONE.stations.find((s) => s.kind === "customize");
+  const dispatch = PASTURE_ZONE.stations.find((s) => s.kind === "dispatch");
   const home = PASTURE_ZONE.stations.find((s) => s.kind === "home");
   const craftLand = landmarkFor("crafting-station");
   const marketLand = landmarkFor("market-stall");
   const customizeLand = landmarkFor("customization-station");
+  const dispatchLand = landmarkFor("dispatch-station");
   const homeLand = landmarkFor("home-plot");
   const handle =
     (station: WorldStation | undefined) =>
@@ -496,6 +499,15 @@ export function PastureStations({
           y={meadowHeight(customizeLand.position.x, customizeLand.position.z)}
           rotY={yardFacing(customizeLand.position.x, customizeLand.position.z)}
           onInteract={handle(customize)}
+        />
+      ) : null}
+      {dispatch && dispatchLand ? (
+        <DispatchDepot
+          x={dispatchLand.position.x}
+          z={dispatchLand.position.z}
+          y={meadowHeight(dispatchLand.position.x, dispatchLand.position.z)}
+          rotY={yardFacing(dispatchLand.position.x, dispatchLand.position.z)}
+          onInteract={handle(dispatch)}
         />
       ) : null}
       {home && homeLand ? (

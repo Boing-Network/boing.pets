@@ -2,7 +2,7 @@
 
 import type { WorldStation, WorldZoneConfig } from "../world/config/zones";
 
-export type DeskStationKind = "craft" | "market" | "customize";
+export type DeskStationKind = "craft" | "market" | "customize" | "dispatch";
 export type ActivityStationKind =
   "mine" | "fish" | "treasure" | "garden" | "cook" | "race";
 export type HomeStationKind = "home";
@@ -13,6 +13,7 @@ export const DESK_STATION_KINDS: readonly DeskStationKind[] = [
   "craft",
   "market",
   "customize",
+  "dispatch",
 ];
 
 export const ACTIVITY_STATION_KINDS: readonly ActivityStationKind[] = [
@@ -34,6 +35,7 @@ export const CUSTOM_PASTURE_LANDMARK_IDS = [
   "crafting-station",
   "market-stall",
   "customization-station",
+  "dispatch-station",
   "crystal-quarry",
   "pond-pier",
   "treasure-dig",
@@ -49,7 +51,12 @@ export const CUSTOM_PASTURE_LANDMARK_IDS = [
 export function isDeskStationKind(
   kind: WorldStation["kind"],
 ): kind is DeskStationKind {
-  return kind === "craft" || kind === "market" || kind === "customize";
+  return (
+    kind === "craft" ||
+    kind === "market" ||
+    kind === "customize" ||
+    kind === "dispatch"
+  );
 }
 
 export function isActivityStationKind(
@@ -116,6 +123,7 @@ export function stationPrompt(station: WorldStation): string {
   if (station.kind === "craft") return "Press E to craft";
   if (station.kind === "market") return "Press E to open the market";
   if (station.kind === "customize") return "Press E to customize";
+  if (station.kind === "dispatch") return "Press E to open Dispatch";
   if (station.kind === "mine") return "Press E to mine";
   if (station.kind === "fish") return "Press E to fish";
   if (station.kind === "treasure") return "Press E to dig";
@@ -130,6 +138,7 @@ export function stationActionLabel(station: WorldStation): string {
   if (station.kind === "craft") return "Craft";
   if (station.kind === "market") return "Open market";
   if (station.kind === "customize") return "Customize";
+  if (station.kind === "dispatch") return "Open Dispatch";
   if (station.kind === "mine") return "Mine";
   if (station.kind === "fish") return "Fish";
   if (station.kind === "treasure") return "Dig";

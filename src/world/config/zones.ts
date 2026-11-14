@@ -21,7 +21,8 @@ export interface WorldStation {
     | "garden"
     | "cook"
     | "race"
-    | "home";
+    | "home"
+    | "dispatch";
   position: WorldPoint;
   radius: number;
   hint: string;
@@ -465,6 +466,15 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       width: 5.2,
       depth: 5.2,
     },
+    {
+      id: "dispatch-station",
+      label: "Dispatch",
+      position: { x: 24, y: 0, z: 0 },
+      color: "#2ec8e0",
+      height: 2.8,
+      width: 4.6,
+      depth: 3.2,
+    },
   ],
   stations: [
     {
@@ -556,6 +566,14 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       hint: "Walk onto your plot to place furniture. The 2D home page is still a fallback.",
       careHref: "/home.html",
     },
+    {
+      id: "pasture-dispatch",
+      label: "Dispatch",
+      kind: "dispatch",
+      position: { x: 24, y: 0, z: 0 },
+      radius: 3.4,
+      hint: "Press E to open Dispatch",
+    },
   ],
   paths: [
     [
@@ -605,6 +623,10 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     [
       { x: 18, y: 0.02, z: 16 },
       { x: 28, y: 0.02, z: 16 },
+    ],
+    [
+      { x: 18, y: 0.02, z: 0 },
+      { x: 24, y: 0.02, z: 0 },
     ],
     [
       { x: -18, y: 0.02, z: 6 },

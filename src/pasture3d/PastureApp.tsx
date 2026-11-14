@@ -95,6 +95,7 @@ import {
   togglePastureFullscreen,
 } from "./fullscreen";
 import { WalkthroughCard } from "../onboarding/WalkthroughCard";
+import { AdventureHudChip, useAdventureDesk } from "./AdventureHudChip";
 import { DailyQuestChip, useDailyProgress } from "./DailyQuestChip";
 import { PastureSessionRecap } from "./PastureSessionRecap";
 import { noticeWalletError } from "../ui/appRuntime";
@@ -145,6 +146,11 @@ const PastureMarketMenu = lazy(() =>
 const PastureCustomizeMenu = lazy(() =>
   import("./PastureCustomizeMenu").then((m) => ({
     default: m.PastureCustomizeMenu,
+  })),
+);
+const PastureDispatchMenu = lazy(() =>
+  import("./PastureDispatchMenu").then((m) => ({
+    default: m.PastureDispatchMenu,
   })),
 );
 const PastureActivityMenu = lazy(() =>
@@ -850,6 +856,7 @@ export function PastureApp({
   }, [stationMenu]);
 
   const dailyProgress = useDailyProgress(owner);
+  const adventureDesk = useAdventureDesk(!!ready);
   const nearbyProgress = nearbyStation
     ? areaProgressForStation(dailyProgress, nearbyStation.kind)
     : null;
@@ -875,6 +882,11 @@ export function PastureApp({
       ) : null}
       <PastureSessionRecap owner={owner} onOpenChange={setRecapOpen} />
       <DailyQuestChip progress={dailyProgress} nearby={nearbyProgress} />
+      <AdventureHudChip
+        desk={adventureDesk}
+        hidden={!!stationMenu}
+        onOpen={() => openStationMenu("dispatch")}
+      />
       <PastureHelpOverlay
         open={helpOpen}
         touch={touchControls}
@@ -1036,6 +1048,12 @@ export function PastureApp({
               <PastureMarketMenu onClose={closeStationMenu} />
             ) : stationMenu === "customize" ? (
               <PastureCustomizeMenu onClose={closeStationMenu} />
+            ) : stationMenu === "dispatch" ? (
+              <PastureDispatchMenu
+                onClose={closeStationMenu}
+                desk={adventureDesk}
+                onDesk={() => undefined}
+              />
             ) : isActivityStationKind(stationMenu) ? (
               <PastureActivityMenu
                 key={stationMenu}

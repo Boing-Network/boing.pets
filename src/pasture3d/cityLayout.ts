@@ -178,6 +178,7 @@ export const CITY_RESERVED_LOTS: readonly {
   { x: -16, z: -26, r: 8 }, // oak park
   { x: 6, z: -24, r: 11 }, // canal
   { x: 0, z: 8, r: 3 }, // spawn approach
+  { x: 24, z: 0, r: 6 }, // dispatch depot
 ];
 
 function inReserved(x: number, z: number, pad = 0): boolean {
