@@ -19,6 +19,7 @@ describe("pasture keyboard shortcuts", () => {
     expect(key("M")).toEqual({ type: "toggleMap" });
     expect(key("s")).toEqual({ type: "toggleSettings" });
     expect(key("E")).toEqual({ type: "interact" });
+    expect(key("f")).toEqual({ type: "toggleFullscreen" });
     expect(key("?")).toEqual({ type: "toggleHelp" });
     expect(key("/", { shiftKey: true, code: "Slash" })).toEqual({
       type: "toggleHelp",
@@ -48,7 +49,18 @@ describe("pasture keyboard shortcuts", () => {
   it("lists keyboard shortcuts with touch equivalents for the help overlay", () => {
     const keys = SHORTCUT_HELP.map((row) => row.key);
     expect(keys).toEqual(
-      expect.arrayContaining(["B", "M", "S", "1", "2", "3", "4", "E", "?"]),
+      expect.arrayContaining([
+        "B",
+        "M",
+        "S",
+        "1",
+        "2",
+        "3",
+        "4",
+        "E",
+        "F",
+        "?",
+      ]),
     );
     for (const row of SHORTCUT_HELP) {
       expect(row.touch.length).toBeGreaterThan(0);

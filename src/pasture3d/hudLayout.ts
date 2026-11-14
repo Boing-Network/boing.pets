@@ -44,7 +44,14 @@ export const PASTURE_PROGRESS_CHIP_Z_INDEX = 15;
 export const PASTURE_PROGRESS_CHIP_RIGHT_PX = 16;
 
 /** Compact pasture mini-map, top-left under the buddy chip and presence line. */
+/** Camera / Settings / Help / Full-screen stack, top-right of the canvas. */
+export const PASTURE_CAM_CONTROLS_RIGHT_PX = 12;
+export const PASTURE_CAM_CONTROLS_TOP_PX = 10;
+export const PASTURE_CAM_CONTROLS_WIDTH_PX = 140;
+export const PASTURE_CAM_CONTROLS_HEIGHT_PX = 320;
+
 export const PASTURE_MINIMAP_LEFT_PX = 12;
+
 export const PASTURE_MINIMAP_TOP_PX = 96;
 export const PASTURE_MINIMAP_SIZE_PX = 140;
 export const PASTURE_MINIMAP_TITLE_PX = 18;

@@ -1,5 +1,9 @@
 import { Vector3, type Camera, type Matrix4 } from "three";
-import { pastureHudRects } from "./hudLayout";
+import {
+  PASTURE_CAM_CONTROLS_HEIGHT_PX,
+  PASTURE_CAM_CONTROLS_WIDTH_PX,
+  pastureHudRects,
+} from "./hudLayout";
 
 /** Screen-space rules so always-on-top pasture labels stay off the HUD. */
 
@@ -63,8 +67,13 @@ export function pastureHudSafeRects(
   const rects: Rect[] = [
     // Buddy chip + presence status, top-left.
     { left: 0, top: 0, right: Math.min(w, 188), bottom: Math.min(h, 108) },
-    // Camera + Settings controls, top-right (four buttons; Settings is wider).
-    { left: Math.max(0, w - 120), top: 0, right: w, bottom: Math.min(h, 248) },
+    // Camera, Settings, Help, and Full-screen controls, top-right.
+    {
+      left: Math.max(0, w - PASTURE_CAM_CONTROLS_WIDTH_PX),
+      top: 0,
+      right: w,
+      bottom: Math.min(h, PASTURE_CAM_CONTROLS_HEIGHT_PX),
+    },
     // Chat form along the bottom, plus the chat log just above it.
     { left: 0, top: Math.max(0, h - 92), right: w, bottom: h },
     {
@@ -107,7 +116,12 @@ export function pastureHudCollisionRects(
   });
   const rects: Rect[] = [
     { left: 0, top: 0, right: Math.min(w, 188), bottom: Math.min(h, 108) },
-    { left: Math.max(0, w - 120), top: 0, right: w, bottom: Math.min(h, 248) },
+    {
+      left: Math.max(0, w - PASTURE_CAM_CONTROLS_WIDTH_PX),
+      top: 0,
+      right: w,
+      bottom: Math.min(h, PASTURE_CAM_CONTROLS_HEIGHT_PX),
+    },
     asRect(hud.emote),
     asRect(hud.prompt),
     asRect(hud.progress),

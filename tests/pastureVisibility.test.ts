@@ -84,10 +84,12 @@ describe("HUD-safe labels", () => {
     const buddy = { left: 12, top: 12, right: 90, bottom: 52 };
     const reset = { left: 1340, top: 110, right: 1390, bottom: 154 };
     const audio = { left: 1340, top: 164, right: 1390, bottom: 208 };
+    const full = { left: 1340, top: 268, right: 1390, bottom: 312 };
     const chat = { left: 20, top: 850, right: 400, bottom: 890 };
     expect(rects.some((r) => rectsOverlap(r, buddy))).toBe(true);
     expect(rects.some((r) => rectsOverlap(r, reset))).toBe(true);
     expect(rects.some((r) => rectsOverlap(r, audio))).toBe(true);
+    expect(rects.some((r) => rectsOverlap(r, full))).toBe(true);
     expect(rects.some((r) => rectsOverlap(r, chat))).toBe(true);
   });
 

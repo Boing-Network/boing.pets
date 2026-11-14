@@ -9,6 +9,7 @@ export type PastureShortcut =
   | { type: "toggleHelp" }
   | { type: "emote"; id: ManualEmoteId }
   | { type: "interact" }
+  | { type: "toggleFullscreen" }
   | { type: "dismiss" };
 
 export type ShortcutHelpRow = {
@@ -30,10 +31,15 @@ export const SHORTCUT_HELP: ShortcutHelpRow[] = [
     action: "Interact with a nearby station",
     touch: "Interact button",
   },
+  {
+    key: "F",
+    action: "Enter or exit full screen",
+    touch: "Full-screen button",
+  },
   { key: "?", action: "Open or close this help", touch: "Help (?) button" },
   {
     key: "Esc",
-    action: "Close help, settings, bag, or a station menu",
+    action: "Close help, settings, bag, a station menu, or full screen",
     touch: "Close",
   },
 ];
@@ -75,6 +81,7 @@ export function shortcutFromEvent(event: {
   if (key === "m" || key === "M") return { type: "toggleMap" };
   if (key === "s" || key === "S") return { type: "toggleSettings" };
   if (key === "e" || key === "E") return { type: "interact" };
+  if (key === "f" || key === "F") return { type: "toggleFullscreen" };
   const emoteIndex =
     key === "1" || key === "2" || key === "3" || key === "4"
       ? Number(key) - 1

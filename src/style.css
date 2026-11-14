@@ -2984,3 +2984,43 @@ html[data-reduced-motion="true"] .ui-skeleton {
     background: #1a2c22;
   }
 }
+
+/* Full-screen pasture: native Fullscreen API or iOS immersive fallback. */
+#pasture-canvas:fullscreen,
+#pasture-canvas:-webkit-full-screen,
+html.is-pasture-immersive #pasture-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  max-height: none;
+  min-height: 0;
+  margin: 0;
+  border-radius: 0;
+  border: 0;
+  z-index: 80;
+}
+html.is-pasture-immersive,
+html.is-pasture-immersive body {
+  height: 100dvh;
+  overflow: hidden;
+}
+html.is-pasture-immersive header,
+html.is-pasture-immersive footer,
+html.is-pasture-immersive .hero,
+html.is-pasture-immersive #notice,
+html.is-pasture-immersive .pasture-shell > .section-title,
+html.is-pasture-immersive .pasture-shell > .subtle,
+html.is-pasture-immersive #gallery,
+html.is-pasture-immersive .pages,
+html.is-pasture-immersive #how {
+  display: none !important;
+}
+html.is-pasture-immersive main.page,
+html.is-pasture-immersive .pasture-shell,
+html.is-pasture-immersive .pasture-layout {
+  margin: 0;
+  padding: 0;
+  height: 100dvh;
+  max-width: none;
+}

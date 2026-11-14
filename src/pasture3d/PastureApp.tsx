@@ -72,6 +72,12 @@ import { PastureAudioControls } from "./PastureAudioControls";
 import { PastureHelpButton, PastureHelpOverlay } from "./PastureHelpOverlay";
 import { shortcutFromEvent } from "./keyboardShortcuts";
 import { createFrameSampler, type FrameSampleSummary } from "./frameStats";
+import {
+  isImmersiveFallback,
+  isPastureFullscreen,
+  subscribePastureFullscreen,
+  togglePastureFullscreen,
+} from "./fullscreen";
 import { WalkthroughCard } from "../onboarding/WalkthroughCard";
 import { DailyQuestChip, useDailyProgress } from "./DailyQuestChip";
 import { PastureSessionRecap } from "./PastureSessionRecap";
@@ -259,6 +265,7 @@ export function PastureApp({
   const [mapVisible, setMapVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [fullScreen, setFullScreen] = useState(false);
   const [recapOpen, setRecapOpen] = useState(false);
   const [nearbyStation, setNearbyStation] = useState<WorldStation | null>(null);
   const [localEmotes, setLocalEmotes] = useState<
@@ -567,6 +574,14 @@ export function PastureApp({
             event.preventDefault();
             event.stopPropagation();
             closeStationMenu();
+            return;
+          }
+          if (isImmersiveFallback()) {
+            event.preventDefault();
+            event.stopPropagation();
+            void togglePastureFullscreen().then((active) =>
+              setFullScreen(active),
+            );
           }
           return;
         }
@@ -585,6 +600,10 @@ export function PastureApp({
           sendEmote(shortcut.id);
         } else if (shortcut.type === "interact") {
           interactNearby();
+        } else if (shortcut.type === "toggleFullscreen") {
+          void togglePastureFullscreen().then((active) =>
+            setFullScreen(active),
+          );
         }
         return;
       }
@@ -646,6 +665,12 @@ export function PastureApp({
     pushMusicDuck();
     return () => popMusicDuck();
   }, [stationMenu]);
+
+  useEffect(() => {
+    const sync = (active: boolean) => setFullScreen(active);
+    sync(isPastureFullscreen());
+    return subscribePastureFullscreen(sync);
+  }, []);
 
   useEffect(() => {
     let raf = 0;
@@ -763,6 +788,7 @@ export function PastureApp({
         (inventoryOpen ? " is-inventory-open" : "") +
         (settingsOpen ? " is-settings-open" : "") +
         (helpOpen ? " is-help-open" : "") +
+        (fullScreen ? " is-fullscreen" : "") +
         (recapOpen ? " is-recap-open" : "") +
         (touchControls && mine ? " is-touch-controls" : "")
       }
@@ -881,6 +907,20 @@ export function PastureApp({
           open={helpOpen}
           onToggle={() => setHelpOpen((open) => !open)}
         />
+        <button
+          type="button"
+          className={fullScreen ? "is-open" : undefined}
+          aria-label={fullScreen ? "Exit full screen" : "Enter full screen"}
+          aria-pressed={fullScreen}
+          onClick={() => {
+            playSfx("ui-click");
+            void togglePastureFullscreen().then((active) =>
+              setFullScreen(active),
+            );
+          }}
+        >
+          {fullScreen ? "Exit" : "Full"}
+        </button>
       </div>
       {nearbyStation && !stationMenu ? (
         <div className="pasture-station-prompt" role="status">
