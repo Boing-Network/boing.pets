@@ -1,5 +1,6 @@
 import { playSfx, type SfxName } from "../../audio";
 import { api, app, $, $maybe, notice } from "../appRuntime";
+import { queryKitchenDesk, setDeskText } from "../kitchenDesk";
 import { assertWallet, run } from "../careActions";
 import { refreshEconomy } from "./progressPage";
 import {
@@ -231,6 +232,12 @@ export async function kitchenAct(
 }
 
 export async function refreshKitchen() {
+  const desk = queryKitchenDesk(
+    typeof document === "undefined" ? null : document,
+  );
+  // Bag Use calls kitchenAct("serve") with no kitchen desk on the page.
+  if (!desk.mounted) return;
+
   const data = await api<{
     recipes: Array<{
       id: string;
@@ -257,16 +264,22 @@ export async function refreshKitchen() {
         ? "Hatch a buddy to unlock the recipe mini-game."
         : `${s.attemptsUsed}/${s.dailyCap} play attempts today · ${s.remaining} left`
       : "";
-    $("#kitchen-summary").textContent = app.owner
-      ? formatKitchenSummary(data, attemptLine)
-      : "Connect Express, gather crops or fish, then cook and serve snacks.";
+    setDeskText(
+      desk.summary,
+      app.owner
+        ? formatKitchenSummary(data, attemptLine)
+        : "Connect Express, gather crops or fish, then cook and serve snacks.",
+    );
   } catch {
-    $("#kitchen-summary").textContent = app.owner
-      ? formatKitchenSummary(data, "today")
-      : "Connect Express, gather crops or fish, then cook and serve snacks.";
+    setDeskText(
+      desk.summary,
+      app.owner
+        ? formatKitchenSummary(data, "today")
+        : "Connect Express, gather crops or fish, then cook and serve snacks.",
+    );
   }
   ensureLifestylePlay("cook");
-  $("#kitchen-recipes").replaceChildren(
+  desk.recipes?.replaceChildren(
     ...data.recipes.map((recipe) => {
       const el = document.createElement("article");
       el.className = "market-card";
@@ -293,9 +306,9 @@ export async function refreshKitchen() {
     const empty = document.createElement("p");
     empty.className = "subtle";
     empty.textContent = "No cooked dishes yet.";
-    $("#kitchen-dishes").replaceChildren(empty);
+    desk.dishes?.replaceChildren(empty);
   } else {
-    $("#kitchen-dishes").replaceChildren(
+    desk.dishes?.replaceChildren(
       ...dishEntries.map(([foodId, qty]) => {
         const recipe = data.recipes.find((r) => r.foodId === foodId);
         const el = document.createElement("article");
