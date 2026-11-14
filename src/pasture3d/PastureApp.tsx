@@ -73,6 +73,8 @@ import {
   setPastureLookOverride,
 } from "./pastureFocus";
 import { PastureAudioControls } from "./PastureAudioControls";
+import { PastureHelpButton, PastureHelpOverlay } from "./PastureHelpOverlay";
+import { shortcutFromEvent } from "./keyboardShortcuts";
 import { WalkthroughCard } from "../onboarding/WalkthroughCard";
 import { DailyQuestChip, useDailyProgress } from "./DailyQuestChip";
 import { PastureSessionRecap } from "./PastureSessionRecap";
@@ -85,7 +87,11 @@ import { areaProgressForStation, formatAreaLine } from "./dailyProgress";
 import { PastureTouchControls } from "./PastureTouchControls";
 import { PastureEmoteBar } from "./PastureEmoteBar";
 import { SocialPlayWatch } from "./SocialPlayWatch";
-import { latestEmoteFor, type EmoteId } from "../world/lib/emotes";
+import {
+  latestEmoteFor,
+  type EmoteId,
+  type ManualEmoteId,
+} from "../world/lib/emotes";
 import {
   pastureMobileDpr,
   readPastureTouchPrefs,
@@ -227,6 +233,9 @@ export function PastureApp({
     null,
   );
   const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [mapVisible, setMapVisible] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [recapOpen, setRecapOpen] = useState(false);
   const [nearbyStation, setNearbyStation] = useState<WorldStation | null>(null);
   const [localEmotes, setLocalEmotes] = useState<
@@ -472,6 +481,33 @@ export function PastureApp({
     };
   }, [applyZoom, dismissHint]);
 
+  const sendEmote = useCallback(
+    (emote: ManualEmoteId) => {
+      const at = Date.now();
+      if (owner) {
+        setLocalEmotes((prev) => [
+          ...prev.filter((row) => row.id !== owner),
+          { id: owner, emote, at },
+        ]);
+      }
+      presence.sendEmote(emote);
+    },
+    [owner, presence],
+  );
+
+  const interactNearby = useCallback(() => {
+    if (stationMenuRef.current) return false;
+    const near = nearbyInteractStation(
+      { x: livePose.current.x, z: livePose.current.z },
+      PASTURE_ZONE,
+    );
+    if (near && isPastureStationKind(near.kind)) {
+      openStationMenu(near.kind);
+      return true;
+    }
+    return false;
+  }, [openStationMenu]);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -483,6 +519,52 @@ export function PastureApp({
         target?.isContentEditable
       )
         return;
+      const shortcut = shortcutFromEvent(event);
+      if (shortcut) {
+        if (shortcut.type === "dismiss") {
+          if (helpOpen) {
+            event.preventDefault();
+            event.stopPropagation();
+            setHelpOpen(false);
+            return;
+          }
+          if (settingsOpen) {
+            event.preventDefault();
+            event.stopPropagation();
+            setSettingsOpen(false);
+            return;
+          }
+          if (inventoryOpen) {
+            event.preventDefault();
+            event.stopPropagation();
+            setInventoryOpen(false);
+            return;
+          }
+          if (stationMenuRef.current) {
+            event.preventDefault();
+            event.stopPropagation();
+            closeStationMenu();
+          }
+          return;
+        }
+        event.preventDefault();
+        if (shortcut.type === "toggleBag") {
+          setHelpOpen(false);
+          setInventoryOpen((open) => !open);
+        } else if (shortcut.type === "toggleMap") {
+          setMapVisible((open) => !open);
+        } else if (shortcut.type === "toggleSettings") {
+          setHelpOpen(false);
+          setSettingsOpen((open) => !open);
+        } else if (shortcut.type === "toggleHelp") {
+          setHelpOpen((open) => !open);
+        } else if (shortcut.type === "emote") {
+          sendEmote(shortcut.id);
+        } else if (shortcut.type === "interact") {
+          interactNearby();
+        }
+        return;
+      }
       if (event.key === "+" || event.key === "=") {
         event.preventDefault();
         applyZoom(
@@ -508,27 +590,21 @@ export function PastureApp({
       } else if (event.key === "0") {
         event.preventDefault();
         resetCamera();
-      } else if (event.key === "Escape" && stationMenuRef.current) {
-        event.preventDefault();
-        event.stopPropagation();
-        closeStationMenu();
-      } else if (
-        (event.key === "e" || event.key === "E") &&
-        !stationMenuRef.current
-      ) {
-        const near = nearbyInteractStation(
-          { x: livePose.current.x, z: livePose.current.z },
-          PASTURE_ZONE,
-        );
-        if (near && isPastureStationKind(near.kind)) {
-          event.preventDefault();
-          openStationMenu(near.kind);
-        }
       }
     };
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
-  }, [applyZoom, dismissHint, resetCamera, closeStationMenu, openStationMenu]);
+  }, [
+    applyZoom,
+    closeStationMenu,
+    dismissHint,
+    helpOpen,
+    interactNearby,
+    inventoryOpen,
+    resetCamera,
+    sendEmote,
+    settingsOpen,
+  ]);
 
   useEffect(() => {
     const disarm = armAudioUnlock();
@@ -646,6 +722,8 @@ export function PastureApp({
         "pasture-3d-stage" +
         (stationMenu ? " is-station-menu-open" : "") +
         (inventoryOpen ? " is-inventory-open" : "") +
+        (settingsOpen ? " is-settings-open" : "") +
+        (helpOpen ? " is-help-open" : "") +
         (recapOpen ? " is-recap-open" : "") +
         (touchControls && mine ? " is-touch-controls" : "")
       }
@@ -658,7 +736,17 @@ export function PastureApp({
       ) : null}
       <PastureSessionRecap owner={owner} onOpenChange={setRecapOpen} />
       <DailyQuestChip progress={dailyProgress} nearby={nearbyProgress} />
-      <PastureMinimap poseRef={livePose} onWalk={(x, z) => walkTo(x, z)} />
+      <PastureHelpOverlay
+        open={helpOpen}
+        touch={touchControls}
+        onClose={() => setHelpOpen(false)}
+      />
+      <PastureMinimap
+        poseRef={livePose}
+        visible={mapVisible}
+        onToggle={() => setMapVisible((open) => !open)}
+        onWalk={(x, z) => walkTo(x, z)}
+      />
       <PastureInventory
         owner={owner}
         open={inventoryOpen}
@@ -691,16 +779,7 @@ export function PastureApp({
       <PastureEmoteBar
         visible={!!mine && !stationMenu}
         disabled={!presence.walletBound || presence.status !== "live"}
-        onEmote={(emote) => {
-          const at = Date.now();
-          if (owner) {
-            setLocalEmotes((prev) => [
-              ...prev.filter((row) => row.id !== owner),
-              { id: owner, emote, at },
-            ]);
-          }
-          presence.sendEmote(emote);
-        }}
+        onEmote={sendEmote}
       />
       {hintOpen ? (
         <div className="pasture-hint" role="status">
@@ -755,7 +834,14 @@ export function PastureApp({
         <button type="button" aria-label="Reset camera" onClick={resetCamera}>
           Reset
         </button>
-        <PastureAudioControls />
+        <PastureAudioControls
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+        />
+        <PastureHelpButton
+          open={helpOpen}
+          onToggle={() => setHelpOpen((open) => !open)}
+        />
       </div>
       {nearbyStation && !stationMenu ? (
         <div className="pasture-station-prompt" role="status">

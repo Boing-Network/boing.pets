@@ -2367,6 +2367,88 @@ a:hover {
   visibility: hidden;
   pointer-events: none;
 }
+.pasture-3d-stage.is-touch-controls.is-help-open .pasture-minimap,
+.pasture-3d-stage.is-touch-controls.is-help-open .pasture-inventory-btn,
+.pasture-3d-stage.is-touch-controls.is-help-open .pasture-cam-controls {
+  visibility: hidden;
+  pointer-events: none;
+}
+.pasture-help-overlay {
+  position: absolute;
+  left: 164px;
+  top: 96px;
+  z-index: 22;
+  width: min(340px, calc(100% - 176px));
+  max-height: calc(
+    100% - 96px - var(--pasture-chat-clearance, 68px) -
+      var(--pasture-emote-height, 52px) - 24px
+  );
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(16, 28, 22, 0.96);
+  color: #f4fff6;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  pointer-events: auto;
+}
+.pasture-help-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pasture-help-overlay h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.pasture-help-lead {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  opacity: 0.88;
+}
+.pasture-help-table {
+  width: 100%;
+  margin: 8px 0 0;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.pasture-help-table th,
+.pasture-help-table td {
+  padding: 3px 6px 3px 0;
+  text-align: left;
+  vertical-align: top;
+}
+.pasture-help-table kbd {
+  display: inline-block;
+  min-width: 1.4em;
+  padding: 0 4px;
+  border-radius: 6px;
+  border: 1px solid #2a5a46;
+  background: #0c1c14;
+  font: inherit;
+  font-weight: 700;
+  text-align: center;
+}
+.pasture-3d-stage.is-touch-controls .pasture-help-overlay {
+  left: 12px;
+  right: 12px;
+  width: auto;
+  max-height: min(
+    420px,
+    calc(
+      100dvh - 96px - var(--pasture-chat-clearance, 206px) -
+        var(--pasture-emote-height, 52px) -
+        var(--pasture-station-prompt-gap, 12px) -
+        var(--pasture-station-prompt-height, 86px) -
+        var(--pasture-progress-chip-gap, 12px) -
+        var(--pasture-progress-chip-height, 58px) - 12px
+    )
+  );
+}
+.pasture-cam-controls button.is-open {
+  outline: 2px solid #fff4b8;
+  outline-offset: 1px;
+}
 .pasture-station-progress {
   margin: 0;
   font-size: 0.8rem;
@@ -2381,8 +2463,17 @@ a:hover {
   width: 140px;
   pointer-events: auto;
 }
-.pasture-minimap-title {
+.pasture-minimap-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
   margin: 0 0 4px;
+  min-height: 14px;
+  height: 14px;
+}
+.pasture-minimap-title {
+  margin: 0;
   font-size: 0.68rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -2390,6 +2481,24 @@ a:hover {
   text-shadow: 0 1px 2px #000a;
   line-height: 14px;
   height: 14px;
+}
+.pasture-minimap-toggle {
+  margin: 0;
+  padding: 0 4px;
+  min-width: 0;
+  min-height: 14px;
+  height: 14px;
+  border: 0;
+  background: transparent;
+  color: #d7ebdd;
+  font: inherit;
+  font-size: 0.68rem;
+  line-height: 14px;
+  cursor: pointer;
+}
+.pasture-minimap-toggle:focus-visible {
+  outline: 2px solid #fff4b8;
+  outline-offset: 1px;
 }
 .pasture-minimap-board {
   position: relative;

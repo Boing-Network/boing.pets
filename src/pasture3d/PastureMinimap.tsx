@@ -23,9 +23,13 @@ const spreadStations = layoutMiniMapStations(
 export function PastureMinimap({
   poseRef,
   onWalk,
+  visible = true,
+  onToggle,
 }: {
   poseRef: MutableRefObject<LivePose>;
   onWalk: (x: number, z: number) => void;
+  visible?: boolean;
+  onToggle?: () => void;
 }) {
   const playerRef = useRef<HTMLSpanElement>(null);
 
@@ -67,37 +71,56 @@ export function PastureMinimap({
 
   return (
     <div
-      className="pasture-minimap"
+      className={"pasture-minimap" + (visible ? "" : " is-collapsed")}
       data-hud="minimap"
       aria-label="Pasture mini-map"
     >
-      <p className="pasture-minimap-title">Map</p>
-      <button
-        type="button"
-        className="pasture-minimap-board"
-        aria-label="Walk to a point on the pasture"
-        onClick={onActivate}
-        style={{
-          width: PASTURE_MINIMAP_BOARD_SIZE,
-          height: PASTURE_MINIMAP_BOARD_SIZE,
-        }}
-      >
-        {spreadStations.map((station) => (
-          <span
-            key={station.id}
-            className="pasture-minimap-station"
-            title={station.title}
-            style={{
-              left: station.mapX,
-              top: station.mapY,
-              background: station.color,
-            }}
+      <div className="pasture-minimap-head">
+        <p className="pasture-minimap-title">Map</p>
+        {onToggle ? (
+          <button
+            type="button"
+            className="pasture-minimap-toggle"
+            aria-label={visible ? "Hide map" : "Show map"}
+            aria-pressed={visible}
+            onClick={onToggle}
           >
-            {station.icon}
-          </span>
-        ))}
-        <span ref={playerRef} className="pasture-minimap-player" title="You" />
-      </button>
+            {visible ? "Hide" : "Show"}
+          </button>
+        ) : null}
+      </div>
+      {visible ? (
+        <button
+          type="button"
+          className="pasture-minimap-board"
+          aria-label="Walk to a point on the pasture"
+          onClick={onActivate}
+          style={{
+            width: PASTURE_MINIMAP_BOARD_SIZE,
+            height: PASTURE_MINIMAP_BOARD_SIZE,
+          }}
+        >
+          {spreadStations.map((station) => (
+            <span
+              key={station.id}
+              className="pasture-minimap-station"
+              title={station.title}
+              style={{
+                left: station.mapX,
+                top: station.mapY,
+                background: station.color,
+              }}
+            >
+              {station.icon}
+            </span>
+          ))}
+          <span
+            ref={playerRef}
+            className="pasture-minimap-player"
+            title="You"
+          />
+        </button>
+      ) : null}
     </div>
   );
 }

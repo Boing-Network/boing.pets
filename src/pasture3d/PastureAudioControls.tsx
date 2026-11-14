@@ -17,10 +17,23 @@ import {
 } from "../ui/a11ySettings";
 import { readPastureTouchPrefs } from "./mobileControls";
 
-export function PastureAudioControls() {
+export function PastureAudioControls({
+  open: openProp,
+  onOpenChange,
+}: {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+} = {}) {
   const [settings, setSettings] = useState<AudioSettings>(getAudioSettings);
   const [a11y, setA11y] = useState<A11ySettings>(getA11ySettings);
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const controlled = openProp !== undefined;
+  const open = controlled ? openProp : uncontrolledOpen;
+  const setOpen = (next: boolean | ((value: boolean) => boolean)) => {
+    const value = typeof next === "function" ? next(open) : next;
+    if (!controlled) setUncontrolledOpen(value);
+    onOpenChange?.(value);
+  };
   const [tab, setTab] = useState<"audio" | "access">("audio");
   const [touchSheet, setTouchSheet] = useState(
     () => readPastureTouchPrefs().touchControls,
