@@ -1260,3 +1260,135 @@ button.btn-accent,
 }
 
 /* Preserve cook-hint contrast hooks; do not recolor spots here. */
+
+/* Higher-specificity leftovers from the pre-streetwear HUD and desk chrome. */
+#pasture-canvas .pasture-inventory-btn,
+.pasture-inventory-btn {
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--paper);
+  border: 2px solid var(--paper);
+  box-shadow: var(--shadow);
+}
+
+#pasture-canvas .pasture-inventory-panel,
+.pasture-inventory-panel {
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--paper);
+  border: 2px solid var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.pasture-inventory-head h2 {
+  font-family: var(--font-display);
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  color: var(--paper);
+}
+
+.pasture-inventory-tabs button {
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--paper);
+  border: 2px solid var(--paper);
+  box-shadow: none;
+  font-family: var(--font-condensed);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  min-height: 0;
+  padding: 4px 10px;
+}
+
+.pasture-inventory-tabs button:hover {
+  color: var(--paper);
+  transform: none;
+}
+
+.pasture-inventory-tabs button.is-active {
+  background: var(--accent);
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+.pasture-inventory-row {
+  border-top: 1px solid var(--line);
+}
+
+#pasture-canvas .pasture-settings-panel,
+#pasture-canvas .pasture-audio-panel,
+#pasture-canvas .pasture-help-overlay,
+#pasture-canvas .pasture-session-recap,
+#pasture-canvas .reward-modal,
+.pasture-settings-panel,
+.pasture-audio-panel,
+.pasture-help-overlay,
+.pasture-session-recap,
+.reward-modal {
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--paper);
+  border: 2px solid var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.pasture-settings-tabs button,
+.pasture-audio-row button {
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--paper);
+  border: 2px solid var(--paper);
+  box-shadow: none;
+}
+
+.pasture-settings-tabs button[aria-selected="true"],
+.pasture-audio-row button.is-muted {
+  background: var(--accent);
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+.pasture-help-table kbd {
+  font-family: var(--font-mono);
+  background: var(--paper);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+.market-list-form input,
+.market-list-form select,
+.market-filters input,
+.market-filters select {
+  background: var(--ink-2);
+  color: var(--paper);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.collection-item.is-collected {
+  background: var(--paper);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.collection-item.is-collected h4,
+.collection-item.is-collected .small {
+  color: #3a3a3a;
+}
+
+.collection-item.is-collected h4 {
+  color: var(--ink);
+}
+
+.ui-skeleton,
+.ui-skeleton-card,
+.ui-skeleton-tile,
+.ui-skeleton-row,
+.ui-skeleton-board {
+  border-radius: var(--radius);
+  border: 2px solid var(--line);
+  box-shadow: none;
+}
