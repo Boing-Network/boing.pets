@@ -57,6 +57,18 @@ CREATE TABLE IF NOT EXISTS adventure_milestones (
   updated_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS adventure_reward_grants (
+  reward_id TEXT PRIMARY KEY,
+  run_id TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS adventure_xp (
+  owner TEXT PRIMARY KEY,
+  qty INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS operator_mint_queue (
   id TEXT PRIMARY KEY,
   reward_id TEXT NOT NULL UNIQUE,
@@ -64,6 +76,7 @@ CREATE TABLE IF NOT EXISTS operator_mint_queue (
   game_item_id TEXT NOT NULL,
   item_id INTEGER NOT NULL,
   qty INTEGER NOT NULL,
+  contract TEXT,
   admin_nonce INTEGER,
   signed_tx TEXT,
   tx_hash TEXT,
@@ -75,9 +88,5 @@ CREATE TABLE IF NOT EXISTS operator_mint_queue (
 );
 CREATE INDEX IF NOT EXISTS operator_mint_queue_status
   ON operator_mint_queue(status, updated_at);
-
-CREATE TABLE IF NOT EXISTS adventure_reward_grants (
-  reward_id TEXT PRIMARY KEY,
-  run_id TEXT NOT NULL,
-  created_at INTEGER NOT NULL
-);
+CREATE INDEX IF NOT EXISTS operator_mint_queue_nonce
+  ON operator_mint_queue(admin_nonce, status);

@@ -81,7 +81,18 @@ export function marketCategoryFromGameId(
     gameItemId.startsWith("frame-") ||
     gameItemId.startsWith("ribbon-") ||
     gameItemId === "grail-tag" ||
-    gameItemId === "vaulted-jacket"
+    gameItemId === "vaulted-jacket" ||
+    gameItemId.startsWith("shoe-") ||
+    gameItemId.startsWith("jacket-") ||
+    gameItemId.startsWith("bag-") ||
+    gameItemId.startsWith("acc-") ||
+    gameItemId.startsWith("jewel-") ||
+    gameItemId.startsWith("apparel-") ||
+    gameItemId.startsWith("emote-") ||
+    gameItemId.startsWith("music-") ||
+    gameItemId.startsWith("secret-") ||
+    gameItemId.startsWith("collectible-") ||
+    gameItemId.startsWith("popup-")
   )
     return "cosmetics";
   if (gameItemId.startsWith("mat-")) return "tools";

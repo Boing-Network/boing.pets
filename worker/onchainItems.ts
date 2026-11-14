@@ -55,7 +55,7 @@ class HttpError extends Error {
   }
 }
 
-interface Config {
+export interface OnchainOperatorConfig {
   contract: string;
   secret: Uint8Array;
   admin: string;
@@ -80,7 +80,9 @@ interface WithdrawalRow {
 const adminCache = new Map<string, string>();
 
 /** Parsed config, or null when the feature is off (missing or malformed settings). */
-export async function onchainConfig(env: Env): Promise<Config | null> {
+export async function onchainConfig(
+  env: Env,
+): Promise<OnchainOperatorConfig | null> {
   const contractRaw = env.MULTI_TOKEN_CONTRACT?.trim();
   const keyRaw = env.MULTI_TOKEN_ADMIN_SECRET_KEY?.trim();
   if (!contractRaw || !keyRaw) return null;
@@ -111,7 +113,7 @@ async function rpc<T>(env: Env, method: string, params: unknown[]): Promise<T> {
 
 async function onchainBalance(
   env: Env,
-  cfg: Config,
+  cfg: OnchainOperatorConfig,
   owner: string,
   itemId: number,
 ) {
@@ -181,7 +183,7 @@ function encodeLegs(legs: WithdrawLeg[]): string {
 }
 
 async function signOperatorCall(
-  cfg: Config,
+  cfg: OnchainOperatorConfig,
   nonce: number,
   to: string,
   calldata: Uint8Array,
@@ -206,7 +208,7 @@ async function signOperatorCall(
 }
 
 async function signMint(
-  cfg: Config,
+  cfg: OnchainOperatorConfig,
   nonce: number,
   to: string,
   itemId: number,
@@ -216,7 +218,7 @@ async function signMint(
 }
 
 async function signTransfer(
-  cfg: Config,
+  cfg: OnchainOperatorConfig,
   nonce: number,
   to: string,
   itemId: number,
@@ -228,7 +230,7 @@ async function signTransfer(
 /** Transfer the operator's existing balance first; mint only the shortfall. */
 async function planWithdrawLegs(
   env: Env,
-  cfg: Config,
+  cfg: OnchainOperatorConfig,
   startNonce: number,
   to: string,
   itemId: number,
@@ -251,6 +253,57 @@ async function planWithdrawLegs(
   if (legs.length === 0)
     throw new HttpError(500, "Withdrawal produced no transactions");
   return legs;
+}
+
+export async function nextOperatorNonce(
+  env: Env,
+  cfg: OnchainOperatorConfig,
+): Promise<{ chainNonce: number; startNonce: number }> {
+  const chainNonce = await adminNonce(env, cfg.admin);
+  const withdrawn = await env.DB.prepare(
+    "SELECT MAX(admin_nonce) AS n FROM onchain_withdrawals WHERE contract=? AND status='submitted'",
+  )
+    .bind(cfg.contract)
+    .first<{ n: number | null }>();
+  let queued: { n: number | null } | null = null;
+  try {
+    queued = await env.DB.prepare(
+      `SELECT MAX(admin_nonce) AS n FROM operator_mint_queue
+       WHERE status IN ('signing','submitted') AND admin_nonce IS NOT NULL`,
+    ).first<{ n: number | null }>();
+  } catch {
+    queued = null;
+  }
+  const taken = [
+    withdrawn?.n == null ? -1 : Number(withdrawn.n),
+    queued?.n == null ? -1 : Number(queued.n),
+  ];
+  const maxTaken = Math.max(-1, ...taken);
+  return {
+    chainNonce,
+    startNonce: Math.max(chainNonce, maxTaken + 1),
+  };
+}
+
+export async function planOperatorDelivery(
+  env: Env,
+  cfg: OnchainOperatorConfig,
+  startNonce: number,
+  to: string,
+  itemId: number,
+  qty: number,
+) {
+  return planWithdrawLegs(env, cfg, startNonce, to, itemId, qty);
+}
+
+export async function submitOperatorTransaction(env: Env, signed: string) {
+  try {
+    await rpc(env, "boing_submitTransaction", [signed]);
+    return { ok: true as const, alreadyKnown: false };
+  } catch (error) {
+    if (isAlreadyKnown(error)) return { ok: true as const, alreadyKnown: true };
+    throw error;
+  }
 }
 
 function isAlreadyKnown(e: unknown) {
@@ -303,7 +356,7 @@ type LegOutcome = "ok" | "fail" | "dropped" | "pending";
 /** Resolve one in-flight withdrawal against the chain. Never throws on RPC trouble. */
 async function settle(
   env: Env,
-  cfg: Config,
+  cfg: OnchainOperatorConfig,
   w: WithdrawalRow,
   now: number,
 ): Promise<void> {
@@ -555,7 +608,7 @@ async function fetchIncludedTx(
 
 async function prepareDeposit(
   env: Env,
-  cfg: Config,
+  cfg: OnchainOperatorConfig,
   body: Record<string, unknown>,
 ) {
   const owner = hex32(body.owner);
@@ -591,7 +644,7 @@ async function prepareDeposit(
 
 async function confirmDeposit(
   env: Env,
-  cfg: Config,
+  cfg: OnchainOperatorConfig,
   body: Record<string, unknown>,
   now: number,
 ) {
@@ -876,31 +929,16 @@ export async function onchainItemsPost(
       "The Pets operator key is not the item contract admin; withdrawals are paused.",
     );
 
-  const chainNonce = await adminNonce(env, cfg.admin);
-  const inflight = await env.DB.prepare(
-    "SELECT MAX(admin_nonce) AS n FROM onchain_withdrawals WHERE contract=? AND status='submitted'",
-  )
-    .bind(cfg.contract)
-    .first<{ n: number | null }>();
-  let startNonce = Math.max(
-    chainNonce,
-    inflight?.n == null ? 0 : Number(inflight.n) + 1,
-  );
+  const firstNonce = await nextOperatorNonce(env, cfg);
+  const chainNonce = firstNonce.chainNonce;
+  let startNonce = firstNonce.startNonce;
   const id = c.id;
   let recorded = false;
   let legs: WithdrawLeg[] = [];
   for (let attempt = 0; attempt < 3 && !recorded; attempt++) {
     if (attempt > 0) {
-      const again = await env.DB.prepare(
-        "SELECT MAX(admin_nonce) AS n FROM onchain_withdrawals WHERE contract=? AND status='submitted'",
-      )
-        .bind(cfg.contract)
-        .first<{ n: number | null }>();
-      startNonce = Math.max(
-        startNonce + 1,
-        chainNonce,
-        again?.n == null ? 0 : Number(again.n) + 1,
-      );
+      const again = await nextOperatorNonce(env, cfg);
+      startNonce = Math.max(startNonce + 1, again.startNonce);
     }
     legs = await planWithdrawLegs(
       env,
