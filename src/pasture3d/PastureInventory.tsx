@@ -2,8 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { itemIconSvg } from "../ui/itemIcons";
 import { api, app } from "../ui/appRuntime";
 import { run } from "../ui/careActions";
-import { economyAct } from "../ui/pages/progressPage";
-import { kitchenAct } from "../ui/pages/lifestylePage";
+import { economyAct } from "../ui/economyAct";
 import {
   buildInventoryEntries,
   entriesForTab,
@@ -67,6 +66,7 @@ export function PastureInventory({
 
   const serve = (entry: InventoryEntry) => {
     void run(async () => {
+      const { kitchenAct } = await import("../ui/pages/lifestylePage");
       await kitchenAct("serve", { food_id: entry.id });
       await reload();
       setFlash(`Fed 1 ${entry.name}. Hunger and energy are up.`);

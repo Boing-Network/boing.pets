@@ -9,6 +9,7 @@ import {
   MEADOW_FLOWER_PATCHES,
   MEADOW_ROCK_SPOTS,
   MEADOW_TALL_GRASS_PATCHES,
+  MEADOW_FENCES,
   MEADOW_TREE_SPOTS,
   PASTURE_GROUND_RADIUS,
   type MeadowPoint,
@@ -219,4 +220,62 @@ export function collectMeadowDecor(preferPerf = false): DecorInstance[] {
     ...placedTrees(),
     ...placedBushes(),
   ];
+}
+
+export type FencePiece = {
+  kind: "rail-top" | "rail-bottom" | "post";
+  x: number;
+  y: number;
+  z: number;
+  rotY: number;
+  scaleX: number;
+  scaleY: number;
+  scaleZ: number;
+};
+
+/** Instanced fence parts for the five meadow rails (two rails + posts per segment). */
+export function meadowFencePieces(): FencePiece[] {
+  const out: FencePiece[] = [];
+  for (const rail of MEADOW_FENCES) {
+    const midX = (rail.x1 + rail.x2) / 2;
+    const midZ = (rail.z1 + rail.z2) / 2;
+    const len = Math.hypot(rail.x2 - rail.x1, rail.z2 - rail.z1);
+    const rotY = Math.atan2(rail.x2 - rail.x1, rail.z2 - rail.z1);
+    const y = meadowHeight(midX, midZ);
+    const posts = Math.max(2, Math.round(len / 2.1) + 1);
+    out.push({
+      kind: "rail-top",
+      x: midX,
+      y: y + 0.7,
+      z: midZ,
+      rotY,
+      scaleX: 0.1,
+      scaleY: 0.1,
+      scaleZ: len,
+    });
+    out.push({
+      kind: "rail-bottom",
+      x: midX,
+      y: y + 0.42,
+      z: midZ,
+      rotY,
+      scaleX: 0.08,
+      scaleY: 0.08,
+      scaleZ: len,
+    });
+    for (let p = 0; p < posts; p++) {
+      const localZ = -len / 2 + (p / (posts - 1)) * len;
+      out.push({
+        kind: "post",
+        x: midX + Math.sin(rotY) * localZ,
+        y: y + 0.48,
+        z: midZ + Math.cos(rotY) * localZ,
+        rotY,
+        scaleX: 0.14,
+        scaleY: 0.96,
+        scaleZ: 0.14,
+      });
+    }
+  }
+  return out;
 }

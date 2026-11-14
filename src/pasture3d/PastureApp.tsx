@@ -1,6 +1,7 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
   Suspense,
+  lazy,
   useCallback,
   useEffect,
   useMemo,
@@ -32,11 +33,6 @@ import { pasturePetY } from "./pastureGround";
 import { Meadow } from "./Meadow";
 import { PastureStations } from "./PastureStations";
 import { PastureActivityAreas } from "./PastureActivityAreas";
-import { PastureCraftMenu } from "./PastureCraftMenu";
-import { PastureMarketMenu } from "./PastureMarketMenu";
-import { PastureCustomizeMenu } from "./PastureCustomizeMenu";
-import { PastureActivityMenu } from "./PastureActivityMenu";
-import { PastureHomeMenu } from "./PastureHomeMenu";
 import {
   isActivityStationKind,
   isPastureStationKind,
@@ -75,6 +71,7 @@ import {
 import { PastureAudioControls } from "./PastureAudioControls";
 import { PastureHelpButton, PastureHelpOverlay } from "./PastureHelpOverlay";
 import { shortcutFromEvent } from "./keyboardShortcuts";
+import { createFrameSampler, type FrameSampleSummary } from "./frameStats";
 import { WalkthroughCard } from "../onboarding/WalkthroughCard";
 import { DailyQuestChip, useDailyProgress } from "./DailyQuestChip";
 import { PastureSessionRecap } from "./PastureSessionRecap";
@@ -117,6 +114,26 @@ import {
 
 ensureWorldFontConfig();
 
+const PastureCraftMenu = lazy(() =>
+  import("./PastureCraftMenu").then((m) => ({ default: m.PastureCraftMenu })),
+);
+const PastureMarketMenu = lazy(() =>
+  import("./PastureMarketMenu").then((m) => ({ default: m.PastureMarketMenu })),
+);
+const PastureCustomizeMenu = lazy(() =>
+  import("./PastureCustomizeMenu").then((m) => ({
+    default: m.PastureCustomizeMenu,
+  })),
+);
+const PastureActivityMenu = lazy(() =>
+  import("./PastureActivityMenu").then((m) => ({
+    default: m.PastureActivityMenu,
+  })),
+);
+const PastureHomeMenu = lazy(() =>
+  import("./PastureHomeMenu").then((m) => ({ default: m.PastureHomeMenu })),
+);
+
 const HINT_KEY = "boing-pets-pasture-hint-v1";
 
 export type PastureDebug = {
@@ -143,6 +160,10 @@ export type PastureDebug = {
   openInventory: () => void;
   getNearbyStation: () => { id: string; kind: string } | null;
   setOcclusionLook: (look: { x: number; y: number; z: number } | null) => void;
+  getFrameStats: () => FrameSampleSummary & {
+    dpr: number;
+    preferPerf: boolean;
+  };
 };
 
 export type PastureAppProps = {
@@ -225,6 +246,8 @@ export function PastureApp({
   const walkTarget = useRef<Vec2 | null>(null);
   const zoomRef = useRef(PASTURE_ZOOM_DEFAULT);
   const stageRef = useRef<HTMLDivElement>(null);
+  const frameSampler = useRef(createFrameSampler());
+  const frameDpr = useRef(1);
   const [zoom, setZoom] = useState(PASTURE_ZOOM_DEFAULT);
   const [ready, setReady] = useState(false);
   const [hintOpen, setHintOpen] = useState(readHintOpen);
@@ -625,6 +648,16 @@ export function PastureApp({
   }, [stationMenu]);
 
   useEffect(() => {
+    let raf = 0;
+    const tick = (now: number) => {
+      frameSampler.current.tick(now);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  useEffect(() => {
     const debug: PastureDebug = {
       getPetCount: () =>
         Math.max(
@@ -677,6 +710,11 @@ export function PastureApp({
         );
         return near ? { id: near.id, kind: near.kind } : null;
       },
+      getFrameStats: () => ({
+        ...frameSampler.current.summary(),
+        dpr: frameDpr.current,
+        preferPerf,
+      }),
     };
     if (handleRef) handleRef.current = debug;
     if (typeof window !== "undefined") window.__pasture3d = debug;
@@ -701,6 +739,7 @@ export function PastureApp({
     openStationMenu,
     closeStationMenu,
     walkToAndOpen,
+    preferPerf,
   ]);
 
   useEffect(() => {
@@ -864,21 +903,29 @@ export function PastureApp({
       ) : null}
       {stationMenu ? (
         <div className="pasture-station-overlay">
-          {stationMenu === "craft" ? (
-            <PastureCraftMenu onClose={closeStationMenu} />
-          ) : stationMenu === "market" ? (
-            <PastureMarketMenu onClose={closeStationMenu} />
-          ) : stationMenu === "customize" ? (
-            <PastureCustomizeMenu onClose={closeStationMenu} />
-          ) : isActivityStationKind(stationMenu) ? (
-            <PastureActivityMenu
-              key={stationMenu}
-              kind={stationMenu}
-              onClose={closeStationMenu}
-            />
-          ) : stationMenu === "home" ? (
-            <PastureHomeMenu onClose={closeStationMenu} />
-          ) : null}
+          <Suspense
+            fallback={
+              <p className="small pasture-station-loading" role="status">
+                Opening...
+              </p>
+            }
+          >
+            {stationMenu === "craft" ? (
+              <PastureCraftMenu onClose={closeStationMenu} />
+            ) : stationMenu === "market" ? (
+              <PastureMarketMenu onClose={closeStationMenu} />
+            ) : stationMenu === "customize" ? (
+              <PastureCustomizeMenu onClose={closeStationMenu} />
+            ) : isActivityStationKind(stationMenu) ? (
+              <PastureActivityMenu
+                key={stationMenu}
+                kind={stationMenu}
+                onClose={closeStationMenu}
+              />
+            ) : stationMenu === "home" ? (
+              <PastureHomeMenu onClose={closeStationMenu} />
+            ) : null}
+          </Suspense>
         </div>
       ) : null}
       <div className="pasture-3d-canvas">
@@ -895,6 +942,7 @@ export function PastureApp({
             gl.domElement.dataset.pastureCanvas = "1";
             gl.toneMapping = THREE.ACESFilmicToneMapping;
             gl.toneMappingExposure = 1.05;
+            frameDpr.current = gl.getPixelRatio();
             setReady(true);
           }}
           onPointerDown={dismissHint}

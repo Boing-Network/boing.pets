@@ -22,9 +22,7 @@ import {
 } from "./ui/careActions";
 import { refresh } from "./ui/pages/refreshAll";
 import { controls } from "./ui/pages/pasturePage";
-import { economyAct } from "./ui/pages/progressPage";
-import { housingAct } from "./ui/pages/lifestylePage";
-import { socialAct } from "./ui/pages/socialPage";
+import { economyAct } from "./ui/economyAct";
 
 function showOnboardingTip() {
   if (localStorage.getItem("boing-pets-onboarded")) return;
@@ -177,6 +175,7 @@ on(
         `/api/housing/plot?owner=${app.owner}&viewer=${app.owner}`,
       );
       const nextVis = data.plot?.visibility === "public" ? "private" : "public";
+      const { housingAct } = await import("./ui/pages/lifestylePage");
       await housingAct("set_visibility", { visibility: nextVis });
     }),
 );
@@ -184,30 +183,49 @@ on(
   "#save-profile",
   "click",
   () =>
-    void run(() =>
-      socialAct("set_profile", {
+    void run(async () => {
+      const { socialAct } = await import("./ui/pages/socialPage");
+      await socialAct("set_profile", {
         display_name: ($("#display-name") as HTMLInputElement).value,
-      }),
-    ),
+      });
+    }),
 );
 on(
   "#add-friend",
   "click",
   () =>
-    void run(() =>
-      socialAct("friend_request", {
+    void run(async () => {
+      const { socialAct } = await import("./ui/pages/socialPage");
+      await socialAct("friend_request", {
         target: ($("#friend-wallet") as HTMLInputElement).value.trim(),
-      }),
-    ),
+      });
+    }),
 );
-on("#party-create", "click", () => void run(() => socialAct("party_create")));
-on("#party-leave", "click", () => void run(() => socialAct("party_leave")));
+on(
+  "#party-create",
+  "click",
+  () =>
+    void run(async () => {
+      const { socialAct } = await import("./ui/pages/socialPage");
+      await socialAct("party_create");
+    }),
+);
+on(
+  "#party-leave",
+  "click",
+  () =>
+    void run(async () => {
+      const { socialAct } = await import("./ui/pages/socialPage");
+      await socialAct("party_leave");
+    }),
+);
 on(
   "#dm-send",
   "click",
   () =>
     void run(async () => {
       if (!app.dmTarget) throw new Error("Pick a friend to message");
+      const { socialAct } = await import("./ui/pages/socialPage");
       await socialAct("send_message", {
         target: app.dmTarget,
         body: ($("#dm-body") as HTMLInputElement).value,

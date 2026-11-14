@@ -36,7 +36,7 @@ import {
 } from "../ui/emptyStates";
 import { api, app, notice } from "../ui/appRuntime";
 import { run } from "../ui/careActions";
-import { economyAct } from "../ui/pages/progressPage";
+import { economyAct } from "../ui/economyAct";
 
 type Listing = MarketListingView;
 

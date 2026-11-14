@@ -10,8 +10,10 @@ import {
   scatteredFlowers,
   scatteredGrass,
   scatteredRocks,
+  meadowFencePieces,
   mulberry,
   type DecorInstance,
+  type FencePiece,
 } from "./meadowDecor";
 import {
   POND_RIM_LIFT,
@@ -23,7 +25,6 @@ import {
   MEADOW_APRON_TREE_SPOTS,
   MEADOW_BUSH_SPOTS,
   MEADOW_EXTRA_BUSH_SPOTS,
-  MEADOW_FENCES,
   MEADOW_ROCK_SPOTS,
   MEADOW_TREE_SPOTS,
   PASTURE_GROUND_RADIUS,
@@ -456,38 +457,79 @@ function MeadowBushes({ preferPerf }: { preferPerf: boolean }) {
   );
 }
 
+function InstancedFencePart({
+  pieces,
+  color,
+  roughness,
+  preferPerf,
+}: {
+  pieces: FencePiece[];
+  color: string;
+  roughness: number;
+  preferPerf: boolean;
+}) {
+  const mesh = useRef<THREE.InstancedMesh>(null);
+  useLayoutEffect(() => {
+    const inst = mesh.current;
+    if (!inst || !pieces.length) return;
+    const dummy = new THREE.Object3D();
+    pieces.forEach((piece, index) => {
+      dummy.position.set(piece.x, piece.y, piece.z);
+      dummy.rotation.set(0, piece.rotY, 0);
+      dummy.scale.set(piece.scaleX, piece.scaleY, piece.scaleZ);
+      dummy.updateMatrix();
+      inst.setMatrixAt(index, dummy.matrix);
+    });
+    inst.count = pieces.length;
+    inst.instanceMatrix.needsUpdate = true;
+  }, [pieces]);
+  if (!pieces.length) return null;
+  return (
+    <instancedMesh
+      ref={mesh}
+      args={[undefined, undefined, pieces.length]}
+      castShadow={!preferPerf}
+    >
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial color={color} roughness={roughness} />
+    </instancedMesh>
+  );
+}
+
 function MeadowFences({ preferPerf }: { preferPerf: boolean }) {
+  const pieces = useMemo(() => meadowFencePieces(), []);
+  const tops = useMemo(
+    () => pieces.filter((row) => row.kind === "rail-top"),
+    [pieces],
+  );
+  const bottoms = useMemo(
+    () => pieces.filter((row) => row.kind === "rail-bottom"),
+    [pieces],
+  );
+  const posts = useMemo(
+    () => pieces.filter((row) => row.kind === "post"),
+    [pieces],
+  );
   return (
     <group>
-      {MEADOW_FENCES.map((rail, i) => {
-        const midX = (rail.x1 + rail.x2) / 2;
-        const midZ = (rail.z1 + rail.z2) / 2;
-        const len = Math.hypot(rail.x2 - rail.x1, rail.z2 - rail.z1);
-        const angle = Math.atan2(rail.x2 - rail.x1, rail.z2 - rail.z1);
-        const y = meadowHeight(midX, midZ);
-        const posts = Math.max(2, Math.round(len / 2.1) + 1);
-        return (
-          <group key={i} position={[midX, y, midZ]} rotation={[0, angle, 0]}>
-            <mesh position={[0, 0.7, 0]} castShadow={!preferPerf}>
-              <boxGeometry args={[0.1, 0.1, len]} />
-              <meshStandardMaterial color="#8a6a48" roughness={0.85} />
-            </mesh>
-            <mesh position={[0, 0.42, 0]} castShadow={!preferPerf}>
-              <boxGeometry args={[0.08, 0.08, len]} />
-              <meshStandardMaterial color="#7a5a3c" roughness={0.85} />
-            </mesh>
-            {Array.from({ length: posts }, (_, p) => {
-              const z = -len / 2 + (p / (posts - 1)) * len;
-              return (
-                <mesh key={p} position={[0, 0.48, z]} castShadow={!preferPerf}>
-                  <boxGeometry args={[0.14, 0.96, 0.14]} />
-                  <meshStandardMaterial color="#6a4e32" roughness={0.9} />
-                </mesh>
-              );
-            })}
-          </group>
-        );
-      })}
+      <InstancedFencePart
+        pieces={tops}
+        color="#8a6a48"
+        roughness={0.85}
+        preferPerf={preferPerf}
+      />
+      <InstancedFencePart
+        pieces={bottoms}
+        color="#7a5a3c"
+        roughness={0.85}
+        preferPerf={preferPerf}
+      />
+      <InstancedFencePart
+        pieces={posts}
+        color="#6a4e32"
+        roughness={0.9}
+        preferPerf={preferPerf}
+      />
     </group>
   );
 }
