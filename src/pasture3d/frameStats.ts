@@ -15,6 +15,10 @@ export type RendererInfoSnapshot = {
   triangles: number;
   geometries: number;
   textures: number;
+  programs: number;
+  lights: number;
+  shadowCasters: number;
+  transparent: number;
 };
 
 export type FrameStatsReport = FrameSampleSummary &
@@ -28,7 +32,50 @@ export const EMPTY_RENDERER_INFO: RendererInfoSnapshot = {
   triangles: 0,
   geometries: 0,
   textures: 0,
+  programs: 0,
+  lights: 0,
+  shadowCasters: 0,
+  transparent: 0,
 };
+
+type SceneObjectLike = {
+  type?: unknown;
+  castShadow?: unknown;
+  isMesh?: unknown;
+  isInstancedMesh?: unknown;
+  material?: unknown;
+};
+
+type SceneLike = {
+  // Parameter is wide so Three's Object3D traverse remains assignable.
+  traverse: (cb: (obj: object) => void) => void;
+};
+
+/** Count lights, shadow casters, and transparent materials in a Three scene. */
+export function collectSceneStats(scene: SceneLike | null | undefined): {
+  lights: number;
+  shadowCasters: number;
+  transparent: number;
+} {
+  const stats = { lights: 0, shadowCasters: 0, transparent: 0 };
+  if (!scene) return stats;
+  scene.traverse((raw) => {
+    const obj = raw as SceneObjectLike;
+    const type = String(obj.type ?? "");
+    if (type.includes("Light")) stats.lights += 1;
+    if (
+      obj.castShadow === true &&
+      (obj.isMesh === true || obj.isInstancedMesh === true)
+    ) {
+      stats.shadowCasters += 1;
+    }
+    const mat = obj.material as
+      { transparent?: boolean } | Array<{ transparent?: boolean }> | undefined;
+    const mats = Array.isArray(mat) ? mat : mat ? [mat] : [];
+    if (mats.some((item) => item.transparent)) stats.transparent += 1;
+  });
+  return stats;
+}
 
 export function summarizeFrameTimes(
   deltasMs: readonly number[],

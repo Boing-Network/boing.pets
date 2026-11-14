@@ -28,8 +28,9 @@ import {
   PASTURE_TX_TOAST_DESKTOP_RIGHT_PX,
   PASTURE_TX_TOAST_HEIGHT_PX,
   PASTURE_TX_TOAST_TOP_PX,
-  PASTURE_TX_TOAST_TOUCH_SIDE_CLEAR_PX,
   PASTURE_TX_TOAST_TOUCH_TOP_PX,
+  PASTURE_CAM_CONTROLS_HEIGHT_PX,
+  PASTURE_CAM_CONTROLS_WIDTH_PX,
   pastureTxToastHeight,
   pastureTxToastTop,
   PASTURE_PROGRESS_CHIP_GAP_PX,
@@ -87,8 +88,8 @@ describe("pasture chat stays clear of emotes and touch controls", () => {
     expect(css).toMatch(/--pasture-station-prompt-height:\s*86px/);
     expect(css).toMatch(/--pasture-progress-chip-gap:\s*12px/);
     expect(css).toMatch(/\.pasture-dailies-chip\s*\{[^}]*bottom:\s*calc\(/s);
-    expect(css).not.toMatch(
-      /\.pasture-3d-stage\.is-touch-controls\s+\.pasture-dailies-chip\s*\{[^}]*top:\s*86px/s,
+    expect(css).toMatch(
+      /\.pasture-3d-stage\.is-touch-controls\s+\.pasture-dailies-chip\s*\{[^}]*top:\s*314px/s,
     );
   });
 
@@ -150,32 +151,56 @@ describe("pasture chat stays clear of emotes and touch controls", () => {
     expect(hitHudTarget(mobile, chat.x, chat.y)).toBe("chat");
   });
 
-  it("keeps the daily progress chip above the prompt and clear of other HUD", () => {
+  it("keeps the daily progress chip above the prompt on desktop", () => {
     const desktop = pastureHudRects({
       width: 1280,
       height: 800,
       touchControls: false,
     });
+    expect(desktop.progress.bottom - desktop.progress.top).toBe(
+      PASTURE_PROGRESS_CHIP_HEIGHT_PX,
+    );
+    expect(desktop.progress.bottom).toBe(
+      desktop.prompt.top - PASTURE_PROGRESS_CHIP_GAP_PX,
+    );
+    for (const other of [desktop.prompt, desktop.emote, desktop.chat]) {
+      expect(rectsOverlap(desktop.progress, other)).toBe(false);
+    }
+    const mid = hudRectCenter(desktop.progress);
+    expect(hitHudTarget(desktop, mid.x, mid.y)).toBe("progress");
+  });
+
+  it("parks the daily chip under the bag at 390px, clear of the character", () => {
     const mobile = pastureHudRects({
       width: 390,
       height: 844,
       touchControls: true,
     });
-    for (const layout of [desktop, mobile]) {
-      expect(layout.progress.bottom - layout.progress.top).toBe(
-        PASTURE_PROGRESS_CHIP_HEIGHT_PX,
-      );
-      expect(layout.progress.bottom).toBe(
-        layout.prompt.top - PASTURE_PROGRESS_CHIP_GAP_PX,
-      );
-      for (const other of [layout.prompt, layout.emote, layout.chat]) {
-        expect(rectsOverlap(layout.progress, other)).toBe(false);
-      }
-      const mid = hudRectCenter(layout.progress);
-      expect(hitHudTarget(layout, mid.x, mid.y)).toBe("progress");
+    expect(mobile.progress.bottom - mobile.progress.top).toBe(
+      PASTURE_PROGRESS_CHIP_HEIGHT_PX,
+    );
+    expect(mobile.progress.top).toBe(mobile.inventory.bottom + 12);
+    expect(mobile.progress.left).toBe(mobile.inventory.left);
+    for (const other of [
+      mobile.prompt,
+      mobile.emote,
+      mobile.chat,
+      mobile.minimap,
+      mobile.inventory,
+      mobile.joystick!,
+      mobile.interact!,
+    ]) {
+      expect(rectsOverlap(mobile.progress, other)).toBe(false);
     }
-    expect(rectsOverlap(mobile.progress, mobile.joystick!)).toBe(false);
-    expect(rectsOverlap(mobile.progress, mobile.interact!)).toBe(false);
+    const mid = hudRectCenter(mobile.progress);
+    expect(hitHudTarget(mobile, mid.x, mid.y)).toBe("progress");
+    const character = { x: 195, y: 422 };
+    expect(
+      character.x >= mobile.progress.left &&
+        character.x < mobile.progress.right &&
+        character.y >= mobile.progress.top &&
+        character.y < mobile.progress.bottom,
+    ).toBe(false);
   });
 
   it("keeps the mini-map under the buddy chip and clear of other HUD", () => {
@@ -234,7 +259,7 @@ describe("pasture chat stays clear of emotes and touch controls", () => {
     expect(PASTURE_TX_TOAST_TOUCH_TOP_PX).toBe(314);
     expect(css).toMatch(/\.pasture-tx-toast\s*\{[^}]*top:\s*96px/s);
     expect(css).toMatch(
-      /\.pasture-3d-stage\.is-touch-controls \.pasture-tx-toast\s*\{[^}]*top:\s*314px/s,
+      /\.pasture-3d-stage\.is-touch-controls \.pasture-tx-toast\s*\{[^}]*top:\s*328px/s,
     );
     const cases = [
       { layout: desktop, touch: false, width: 1280 },
@@ -246,8 +271,13 @@ describe("pasture chat stays clear of emotes and touch controls", () => {
         pastureTxToastHeight(touch),
       );
       if (touch) {
-        expect(layout.txToast.left).toBe(PASTURE_TX_TOAST_TOUCH_SIDE_CLEAR_PX);
-        expect(layout.txToast.right).toBeLessThan(layout.progress.left);
+        expect(layout.txToast.left).toBeGreaterThan(layout.progress.right);
+        expect(layout.txToast.right).toBeLessThanOrEqual(
+          width - PASTURE_CAM_CONTROLS_WIDTH_PX,
+        );
+        expect(layout.txToast.top).toBeGreaterThanOrEqual(
+          PASTURE_CAM_CONTROLS_HEIGHT_PX,
+        );
       } else {
         expect(layout.txToast.left).toBe(PASTURE_TX_TOAST_DESKTOP_LEFT_PX);
         expect(layout.txToast.right).toBe(

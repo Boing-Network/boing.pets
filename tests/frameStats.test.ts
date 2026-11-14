@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   FRAME_BUDGET_MS,
+  collectSceneStats,
   createFrameSampler,
   summarizeFrameTimes,
 } from "../src/pasture3d/frameStats";
@@ -51,5 +52,41 @@ describe("instanced meadow fences", () => {
       expect(tops[i]?.y).toBeCloseTo(y + 0.7, 5);
       expect(bottoms[i]?.y).toBeCloseTo(y + 0.42, 5);
     }
+  });
+});
+
+describe("scene render stats", () => {
+  it("counts lights, shadow casters, and transparent meshes", () => {
+    const nodes = [
+      { type: "DirectionalLight" },
+      { type: "AmbientLight" },
+      {
+        type: "Mesh",
+        isMesh: true,
+        castShadow: true,
+        material: { transparent: false },
+      },
+      {
+        type: "InstancedMesh",
+        isInstancedMesh: true,
+        castShadow: false,
+        material: { transparent: true },
+      },
+      {
+        type: "Mesh",
+        isMesh: true,
+        castShadow: true,
+        material: [{ transparent: true }, { transparent: false }],
+      },
+    ];
+    const scene = {
+      traverse: (cb: (obj: (typeof nodes)[number]) => void) =>
+        nodes.forEach(cb),
+    };
+    expect(collectSceneStats(scene)).toEqual({
+      lights: 2,
+      shadowCasters: 2,
+      transparent: 2,
+    });
   });
 });

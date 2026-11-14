@@ -1,14 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { PASTURE_ZONE } from "../src/world/config/zones";
 import {
+  CITY_COURT,
   CITY_STREETS_X,
   CITY_STREETS_Z,
+  cityBuildingCameraSolids,
   cityBuildingFootprints,
+  cityDressingSolids,
+  cityParkedCars,
   cityRoadTiles,
   cityStreetLights,
   cityStreetSegments,
   onCityStreet,
 } from "../src/pasture3d/cityLayout";
+import { cameraOccludersForZone } from "../src/pasture3d/camera";
+import { blocked, obstaclesForZone } from "../src/pasture3d/pathing";
 
 describe("yard city grid", () => {
   it("builds a compact 2-by-2-block street grid", () => {
@@ -45,5 +51,40 @@ describe("yard city grid", () => {
         Math.hypot(b.x - PASTURE_ZONE.spawn.x, b.z - PASTURE_ZONE.spawn.z),
       ).toBeGreaterThan(4);
     }
+  });
+
+  it("fills leftover lots with dressing that stays off streets and spawn", () => {
+    expect(cityParkedCars().length).toBeGreaterThan(4);
+    expect(cityDressingSolids().length).toBeGreaterThan(8);
+    expect(cityBuildingFootprints().length).toBeGreaterThan(8);
+    for (const solid of cityDressingSolids()) {
+      expect(onCityStreet(solid.x, solid.z, 2.4), solid.id).toBe(false);
+      expect(
+        Math.hypot(
+          solid.x - PASTURE_ZONE.spawn.x,
+          solid.z - PASTURE_ZONE.spawn.z,
+        ),
+      ).toBeGreaterThan(4);
+    }
+    expect(onCityStreet(CITY_COURT.x, CITY_COURT.z, 3)).toBe(false);
+    const obstacles = obstaclesForZone(PASTURE_ZONE);
+    expect(blocked({ x: CITY_COURT.x, z: CITY_COURT.z }, obstacles)).toBeNull();
+    expect(blocked({ x: 0, z: 8 }, obstacles)).toBeNull();
+    expect(blocked({ x: 22, z: 8 }, obstacles)).toBeNull();
+  });
+
+  it("registers city buildings as camera occluders so roofs can pull the camera in", () => {
+    expect(cityBuildingCameraSolids().length).toBe(
+      cityBuildingFootprints().length,
+    );
+    const boxes = cameraOccludersForZone(PASTURE_ZONE);
+    expect(boxes.length).toBeGreaterThan(cityBuildingFootprints().length);
+    const sample = cityBuildingCameraSolids()[0]!;
+    expect(
+      boxes.some(
+        (box) =>
+          Math.hypot(box.x - sample.x, box.z - sample.z) < 0.2 && box.maxY >= 6,
+      ),
+    ).toBe(true);
   });
 });

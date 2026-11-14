@@ -209,12 +209,12 @@ describe("HUD-safe labels", () => {
 
     const touch = { width: 390, height: 844 };
     const touchRects = pastureHudSafeRects(touch.width, touch.height, true);
-    const touchProgress = { left: 200, top: 430, right: 370, bottom: 490 };
+    const touchProgress = { left: 16, top: 314, right: 140, bottom: 400 };
     const touchMap = { left: 16, top: 100, right: 148, bottom: 240 };
     expect(touchRects.some((r) => rectsOverlap(r, touchProgress))).toBe(true);
     expect(touchRects.some((r) => rectsOverlap(r, touchMap))).toBe(true);
     expect(
-      labelHudOpacity(labelScreenRect(300, 450, 22, 14), touchRects, touch),
+      labelHudOpacity(labelScreenRect(80, 350, 22, 14), touchRects, touch),
     ).toBe(0);
   });
 
@@ -222,10 +222,10 @@ describe("HUD-safe labels", () => {
     const touch = { width: 390, height: 844 };
     const hud = pastureHudCollisionRects(touch.width, touch.height, true);
     const underChip = {
-      left: 230,
-      top: 430,
-      right: 260,
-      bottom: 460,
+      left: 20,
+      top: 390,
+      right: 70,
+      bottom: 415,
     };
     expect(hud.some((r) => rectsOverlap(r, underChip))).toBe(true);
     const { dx, dy } = nudgeRectOutOfHud(underChip, hud, touch);

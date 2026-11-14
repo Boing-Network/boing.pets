@@ -36,7 +36,7 @@ function writeInstances(mesh: THREE.InstancedMesh | null, items: Spot[]) {
 }
 
 function Skyline({ preferPerf }: { preferPerf: boolean }) {
-  const count = preferPerf ? 22 : 50;
+  const count = preferPerf ? 16 : 28;
   const capCount = preferPerf ? 0 : Math.floor(count * 0.45);
   const windowMap = useMemo(
     () => (preferPerf ? null : makeWindowTexture()),
@@ -115,7 +115,7 @@ function Skyline({ preferPerf }: { preferPerf: boolean }) {
           roughness={0.7}
           metalness={0.12}
           emissive="#ffd08a"
-          emissiveIntensity={preferPerf ? 0.2 : 0.7}
+          emissiveIntensity={preferPerf ? 0.15 : 0.4}
         />
       </instancedMesh>
       {capCount ? (
@@ -132,7 +132,7 @@ function Skyline({ preferPerf }: { preferPerf: boolean }) {
             roughness={0.7}
             metalness={0.12}
             emissive="#ffd08a"
-            emissiveIntensity={0.65}
+            emissiveIntensity={0.35}
           />
         </instancedMesh>
       ) : null}

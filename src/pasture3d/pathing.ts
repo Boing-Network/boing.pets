@@ -1,7 +1,11 @@
 import type { WorldLandmark, WorldZoneConfig } from "../world/config/zones";
 import { WORLD_CONFIG } from "../world/config/zones";
 import { MEADOW_FENCE_HALF_THICK, MEADOW_FENCES } from "./meadowLayout";
-import { CITY_PARK_TREES, cityBuildingFootprints } from "./cityLayout";
+import {
+  CITY_PARK_TREES,
+  cityBuildingFootprints,
+  cityDressingSolids,
+} from "./cityLayout";
 import { yardKitObstacles } from "./yardKitObstacles";
 
 export type Vec2 = { x: number; z: number };
@@ -62,6 +66,16 @@ export function obstaclesForZone(zone: WorldZoneConfig): Obstacle[] {
         halfW: building.r + PET_RADIUS,
         halfD: building.r + PET_RADIUS,
         shape: "circle",
+      });
+    }
+    for (const solid of cityDressingSolids()) {
+      list.push({
+        id: solid.id,
+        x: solid.x,
+        z: solid.z,
+        halfW: solid.halfW + PET_RADIUS,
+        halfD: solid.halfD + PET_RADIUS,
+        shape: "aabb",
       });
     }
     for (const [i, rail] of MEADOW_FENCES.entries()) {
@@ -140,7 +154,7 @@ function pushOutOf(pos: Vec2, o: Obstacle): Vec2 {
 
 export function pushOut(pos: Vec2, obstacles: Obstacle[]): Vec2 {
   let cur = pos;
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 10; i++) {
     const hit = blocked(cur, obstacles);
     if (!hit) return cur;
     cur = pushOutOf(cur, hit);

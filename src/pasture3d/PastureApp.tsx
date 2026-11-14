@@ -82,6 +82,7 @@ import {
   shortcutFromEvent,
 } from "./keyboardShortcuts";
 import {
+  collectSceneStats,
   createFrameSampler,
   EMPTY_RENDERER_INFO,
   type FrameStatsReport,
@@ -236,13 +237,18 @@ function FrameInfoProbe({
 }: {
   onInfo: (info: RendererInfoSnapshot) => void;
 }) {
-  useFrame(({ gl }) => {
+  useFrame(({ gl, scene }) => {
     const info = gl.info;
+    const sceneStats = collectSceneStats(scene);
     onInfo({
       drawCalls: info.render.calls,
       triangles: info.render.triangles,
       geometries: info.memory.geometries,
       textures: info.memory.textures,
+      programs: info.programs?.length ?? 0,
+      lights: sceneStats.lights,
+      shadowCasters: sceneStats.shadowCasters,
+      transparent: sceneStats.transparent,
     });
   });
   return null;

@@ -292,9 +292,9 @@ export function YardCanalKit() {
   const waterD = rz * 2 * 0.88;
   return (
     <group>
-      <mesh position={[x, y + 0.08, z]} receiveShadow>
-        <boxGeometry args={[rx * 2 + 1.1, 0.16, rz * 2 + 1.1]} />
-        <meshStandardMaterial color={YARD.concreteDark} roughness={0.86} />
+      <mesh position={[x, y + 0.06, z]} receiveShadow>
+        <boxGeometry args={[rx * 2 + 1.1, 0.12, rz * 2 + 1.1]} />
+        <meshStandardMaterial color={YARD.waterDeep} roughness={0.95} />
       </mesh>
       <mesh
         position={[x, y + 0.14, z]}
@@ -303,13 +303,14 @@ export function YardCanalKit() {
       >
         <planeGeometry args={[waterW, waterD]} />
         <meshStandardMaterial
-          color="#2f9bb8"
-          roughness={0.12}
-          metalness={0.28}
+          color={YARD.water}
+          roughness={0.08}
+          metalness={0.12}
           transparent
-          opacity={0.88}
-          emissive="#15607a"
-          emissiveIntensity={0.22}
+          opacity={0.72}
+          emissive={YARD.water}
+          emissiveIntensity={0.18}
+          depthWrite={false}
         />
       </mesh>
       <InstancedYardKit name="skate-fence" items={fences} />

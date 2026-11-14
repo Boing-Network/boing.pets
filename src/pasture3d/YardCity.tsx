@@ -6,11 +6,13 @@ import { YARD } from "./yardChrome";
 import {
   CITY_PARK_TREES,
   cityFillerBuildings,
+  cityPropKits,
   cityRoadTiles,
   cityStreetLights,
   cityTrafficLights,
   type CityKitInstance,
 } from "./cityLayout";
+import { CityStreetDressing } from "./cityDressing";
 import { InstancedYardKit, type YardKitInstance } from "./yardKitLoader";
 
 function asInstances(items: readonly CityKitInstance[]): YardKitInstance[] {
@@ -53,6 +55,7 @@ export function YardCity({ preferPerf }: { preferPerf: boolean }) {
     [preferPerf],
   );
   const buildings = useMemo(() => groupByName(cityFillerBuildings()), []);
+  const props = useMemo(() => groupByName(cityPropKits()), []);
   const trees = useMemo(
     () =>
       CITY_PARK_TREES.map(([x, z], i) => ({
@@ -91,6 +94,10 @@ export function YardCity({ preferPerf }: { preferPerf: boolean }) {
       {Object.entries(buildings).map(([name, items]) => (
         <InstancedYardKit key={`bldg-${name}`} name={name} items={items} />
       ))}
+      {Object.entries(props).map(([name, items]) => (
+        <InstancedYardKit key={`prop-${name}`} name={name} items={items} />
+      ))}
+      <CityStreetDressing />
       <InstancedYardKit name="tree-detailed" items={trees} restyle={false} />
     </group>
   );

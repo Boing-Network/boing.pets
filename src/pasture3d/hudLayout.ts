@@ -72,9 +72,12 @@ export const PASTURE_TX_TOAST_DESKTOP_RIGHT_PX = 120;
 export const PASTURE_TX_TOAST_TOUCH_SIDE_CLEAR_PX = 16;
 export const PASTURE_TX_TOAST_TOUCH_HEIGHT_PX = 88;
 
+export const PASTURE_TX_TOAST_TOUCH_BESIDE_TOP_PX =
+  PASTURE_CAM_CONTROLS_HEIGHT_PX + 8;
+
 export function pastureTxToastTop(touchControls: boolean): number {
   return touchControls
-    ? PASTURE_TX_TOAST_TOUCH_TOP_PX
+    ? PASTURE_TX_TOAST_TOUCH_BESIDE_TOP_PX
     : PASTURE_TX_TOAST_TOP_PX;
 }
 
@@ -91,15 +94,14 @@ export function pastureTxToastRect(
   const top = pastureTxToastTop(touchControls);
   const height = pastureTxToastHeight(touchControls);
   if (touchControls) {
-    const left = PASTURE_TX_TOAST_TOUCH_SIDE_CLEAR_PX;
-    const chipLeft =
-      width -
-      PASTURE_PROGRESS_CHIP_RIGHT_PX -
-      Math.min(
-        PASTURE_PROGRESS_CHIP_WIDTH_PX,
-        Math.max(0, width - PASTURE_PROGRESS_CHIP_RIGHT_PX * 2),
-      );
-    const right = Math.max(left, chipLeft - PASTURE_HUD_GAP_PX);
+    const left =
+      PASTURE_PROGRESS_CHIP_TOUCH_LEFT_PX +
+      PASTURE_PROGRESS_CHIP_TOUCH_WIDTH_PX +
+      PASTURE_HUD_GAP_PX;
+    const right = Math.max(
+      left,
+      width - PASTURE_CAM_CONTROLS_WIDTH_PX - PASTURE_HUD_GAP_PX,
+    );
     return { left, right, top, bottom: top + height };
   }
   const left = PASTURE_TX_TOAST_DESKTOP_LEFT_PX;
@@ -122,6 +124,11 @@ export const PASTURE_TX_TOAST_TOUCH_TOP_PX =
   PASTURE_INVENTORY_BTN_HEIGHT_PX +
   PASTURE_HUD_GAP_PX;
 
+/** On touch / narrow, the daily chip sits under the bag, not over the character. */
+export const PASTURE_PROGRESS_CHIP_TOUCH_TOP_PX = PASTURE_TX_TOAST_TOUCH_TOP_PX;
+export const PASTURE_PROGRESS_CHIP_TOUCH_LEFT_PX = PASTURE_MINIMAP_LEFT_PX;
+export const PASTURE_PROGRESS_CHIP_TOUCH_WIDTH_PX =
+  PASTURE_INVENTORY_BTN_WIDTH_PX;
 export function pastureProgressChipBottom(touchControls: boolean): number {
   return (
     pastureStationPromptBottom(touchControls) +
@@ -208,18 +215,37 @@ export function pastureHudRects(opts: {
     top: height - promptBottom - PASTURE_STATION_PROMPT_HEIGHT_PX,
     bottom: height - promptBottom,
   };
-  const progressBottom = pastureProgressChipBottom(touchControls);
   const progressWidth = Math.min(
-    PASTURE_PROGRESS_CHIP_WIDTH_PX,
-    Math.max(0, width - PASTURE_PROGRESS_CHIP_RIGHT_PX * 2),
+    touchControls
+      ? PASTURE_PROGRESS_CHIP_TOUCH_WIDTH_PX
+      : PASTURE_PROGRESS_CHIP_WIDTH_PX,
+    Math.max(
+      0,
+      width -
+        (touchControls
+          ? PASTURE_PROGRESS_CHIP_TOUCH_LEFT_PX * 2
+          : PASTURE_PROGRESS_CHIP_RIGHT_PX * 2),
+    ),
   );
-  const progress: HudRect = {
-    id: "progress",
-    left: width - PASTURE_PROGRESS_CHIP_RIGHT_PX - progressWidth,
-    right: width - PASTURE_PROGRESS_CHIP_RIGHT_PX,
-    top: height - progressBottom - PASTURE_PROGRESS_CHIP_HEIGHT_PX,
-    bottom: height - progressBottom,
-  };
+  const progress: HudRect = touchControls
+    ? {
+        id: "progress",
+        left: PASTURE_PROGRESS_CHIP_TOUCH_LEFT_PX,
+        right: PASTURE_PROGRESS_CHIP_TOUCH_LEFT_PX + progressWidth,
+        top: PASTURE_PROGRESS_CHIP_TOUCH_TOP_PX,
+        bottom:
+          PASTURE_PROGRESS_CHIP_TOUCH_TOP_PX + PASTURE_PROGRESS_CHIP_HEIGHT_PX,
+      }
+    : (() => {
+        const progressBottom = pastureProgressChipBottom(false);
+        return {
+          id: "progress",
+          left: width - PASTURE_PROGRESS_CHIP_RIGHT_PX - progressWidth,
+          right: width - PASTURE_PROGRESS_CHIP_RIGHT_PX,
+          top: height - progressBottom - PASTURE_PROGRESS_CHIP_HEIGHT_PX,
+          bottom: height - progressBottom,
+        };
+      })();
   const minimap: HudRect = {
     id: "minimap",
     left: PASTURE_MINIMAP_LEFT_PX,

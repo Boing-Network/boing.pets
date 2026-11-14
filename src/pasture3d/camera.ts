@@ -1,5 +1,9 @@
 import type { WorldZoneConfig } from "../world/config/zones";
-import { CITY_PARK_TREES } from "./cityLayout";
+import {
+  CITY_PARK_TREES,
+  cityBuildingCameraSolids,
+  cityDressingSolids,
+} from "./cityLayout";
 import { yardKitCameraOccluders } from "./yardKitObstacles";
 
 /** Pure camera helpers for pasture zoom, ground clearance, and landmark occlusion. */
@@ -250,6 +254,19 @@ export function cameraOccludersForZone(
         halfD: 1.1,
         minY: groundY,
         maxY: 3.2,
+      });
+    }
+    for (const solid of [
+      ...cityBuildingCameraSolids(),
+      ...cityDressingSolids(),
+    ]) {
+      boxes.push({
+        x: solid.x,
+        z: solid.z,
+        halfW: solid.halfW,
+        halfD: solid.halfD,
+        minY: groundY,
+        maxY: solid.height + 0.4,
       });
     }
     boxes.push(...yardKitCameraOccluders(groundY));

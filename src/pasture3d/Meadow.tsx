@@ -3,11 +3,7 @@ import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { pastureDayLive } from "./MeadowAtmosphere";
 import { meadowHeight } from "./meadowHeight";
-import {
-  POND_RIM_WIDTH,
-  POND_WATER_LIFT,
-  lilyPondEllipse,
-} from "./meadowFootprints";
+import { lilyPondEllipse } from "./meadowFootprints";
 import { PASTURE_GROUND_RADIUS } from "./meadowLayout";
 import { makeConcreteTexture, YARD } from "./yardChrome";
 import { YardOak } from "./YardOak";
@@ -113,85 +109,8 @@ if (dot(pondDelta, pondDelta) < 1.0) discard;`,
 }
 
 function Pond() {
-  const pond = lilyPondEllipse();
-  if (!pond) return null;
-  const { x, z, rx, rz } = pond;
-  const ground = meadowHeight(x, z);
-  const waterTop = ground + POND_WATER_LIFT;
-  const basinDepth = 0.28;
-  const canalW = rx * 2.2;
-  const canalD = rz * 2.2;
-  const waterW = Math.max(1, canalW - POND_RIM_WIDTH * 1.6);
-  const waterD = Math.max(1, canalD - POND_RIM_WIDTH * 1.6);
-  const pads = [
-    [0.28, 0.18, 0.45],
-    [-0.42, -0.12, 0.36],
-    [0.08, -0.48, 0.32],
-  ] as const;
-  return (
-    <group>
-      <mesh position={[x, waterTop - basinDepth, z]} receiveShadow>
-        <boxGeometry args={[canalW, 0.08, canalD]} />
-        <meshStandardMaterial color={YARD.concreteDark} roughness={1} />
-      </mesh>
-      <mesh position={[x, waterTop - basinDepth / 2, z]} renderOrder={3}>
-        <boxGeometry args={[waterW, basinDepth, waterD]} />
-        <meshStandardMaterial
-          color={YARD.water}
-          emissive="#3a6a78"
-          emissiveIntensity={0.22}
-          roughness={0.16}
-          metalness={0.18}
-          transparent
-          opacity={0.82}
-          depthWrite
-        />
-      </mesh>
-      {(
-        [
-          [canalW / 2, canalD],
-          [-canalW / 2, canalD],
-        ] as const
-      ).map(([px, len], i) => (
-        <mesh
-          key={`x${i}`}
-          position={[x + px, waterTop - basinDepth / 2 + 0.02, z]}
-        >
-          <boxGeometry args={[0.28, basinDepth + 0.08, len + 0.28]} />
-          <meshStandardMaterial color={YARD.concrete} roughness={0.92} />
-        </mesh>
-      ))}
-      {(
-        [
-          [canalW, canalD / 2],
-          [canalW, -canalD / 2],
-        ] as const
-      ).map(([len, pz], i) => (
-        <mesh
-          key={`z${i}`}
-          position={[x, waterTop - basinDepth / 2 + 0.02, z + pz]}
-        >
-          <boxGeometry args={[len + 0.28, basinDepth + 0.08, 0.28]} />
-          <meshStandardMaterial color={YARD.concrete} roughness={0.92} />
-        </mesh>
-      ))}
-      {pads.map(([nx, nz, s], i) => (
-        <mesh
-          key={i}
-          rotation={[-Math.PI / 2, 0, i * 0.7]}
-          position={[
-            x + nx * (waterW / 2),
-            waterTop + 0.006,
-            z + nz * (waterD / 2),
-          ]}
-          renderOrder={6}
-        >
-          <circleGeometry args={[s, 10]} />
-          <meshStandardMaterial color={YARD.foliage} roughness={0.8} />
-        </mesh>
-      ))}
-    </group>
-  );
+  // Water is rendered by YardCanalKit (single clear-teal surface).
+  return null;
 }
 
 function Fireflies({ count }: { count: number }) {

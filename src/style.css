@@ -2607,12 +2607,9 @@ a:hover {
 }
 #pasture-canvas.is-touch-controls .pasture-tx-toast,
 .pasture-3d-stage.is-touch-controls .pasture-tx-toast {
-  top: 314px;
-  left: 16px;
-  right: calc(
-    var(--pasture-progress-chip-right, 16px) +
-      var(--pasture-progress-chip-width, 196px) + 12px
-  );
+  top: 328px;
+  left: 164px;
+  right: 152px;
   flex-direction: row;
   align-items: center;
   max-height: none;
@@ -2624,8 +2621,11 @@ a:hover {
 }
 
 .pasture-3d-stage.is-touch-controls .pasture-dailies-chip {
-  right: 16px;
-  top: auto;
+  left: 12px;
+  right: auto;
+  top: 314px;
+  bottom: auto;
+  width: 140px;
 }
 
 .pasture-touch-controls {

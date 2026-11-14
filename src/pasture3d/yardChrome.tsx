@@ -15,7 +15,8 @@ export const YARD = {
   lane: "#c8c4ba",
   rust: "#6a4a3a",
   metal: "#6a6a68",
-  water: "#5a9aaa",
+  water: "#1ec8c4",
+  waterDeep: "#0a3a3c",
   sand: "#c4a56a",
   soil: "#4a3a28",
   foliage: "#2d4f34",
@@ -23,7 +24,7 @@ export const YARD = {
 } as const;
 
 export function makeConcreteTexture() {
-  const size = 512;
+  const size = 256;
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext("2d");
@@ -77,7 +78,7 @@ export function makeConcreteTexture() {
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(6, 6);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
+  tex.anisotropy = 1;
   tex.needsUpdate = true;
   return tex;
 }
@@ -227,7 +228,7 @@ export function makeGraffitiTexture(seed = 3) {
 }
 
 export function makeWindowTexture() {
-  const size = 256;
+  const size = 128;
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext("2d");
