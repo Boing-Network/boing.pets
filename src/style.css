@@ -2004,6 +2004,37 @@ a:hover {
   max-width: min(42rem, calc(100% - 1.5rem));
   max-height: min(44rem, calc(100dvh - 3.5rem));
 }
+
+.pasture-activity-tip {
+  margin: 0 0 12px;
+  padding: 10px 12px 12px;
+  border-radius: 14px;
+  border: 1px solid #e8c27a;
+  background: #1a1810ee;
+  color: #fff8e0;
+}
+.pasture-activity-tip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.pasture-activity-tip-head .eyebrow {
+  margin: 0;
+}
+.pasture-activity-tip-title {
+  margin: 0 0 4px;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+.pasture-activity-tip-body {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #f3e6c4;
+}
+
 .pasture-activity-body {
   overflow: auto;
 }

@@ -709,6 +709,7 @@ export function PastureApp({
             <PastureCustomizeMenu onClose={closeStationMenu} />
           ) : isActivityStationKind(stationMenu) ? (
             <PastureActivityMenu
+              key={stationMenu}
               kind={stationMenu}
               onClose={closeStationMenu}
             />

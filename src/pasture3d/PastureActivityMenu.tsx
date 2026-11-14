@@ -10,6 +10,7 @@ import {
 } from "../ui/pages/activitiesPage";
 import { refreshGarden, refreshKitchen } from "../ui/pages/lifestylePage";
 import { resetActivityOverlayState } from "../ui/minigames/playActivity";
+import { PastureActivityTip } from "./PastureActivityTip";
 
 async function refreshActivity(kind: ActivityStationKind) {
   switch (kind) {
@@ -79,6 +80,7 @@ export function PastureActivityMenu({
           Close
         </button>
       </div>
+      <PastureActivityTip kind={kind} />
       <div ref={bodyRef} className="pasture-activity-body" />
       <p className="small">
         The full desk is also at{" "}
