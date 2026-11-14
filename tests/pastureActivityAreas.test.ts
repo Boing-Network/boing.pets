@@ -22,7 +22,7 @@ import {
   obstaclesForZone,
   resolveClickTarget,
 } from "../src/pasture3d/pathing";
-import { MEADOW_TREE_SPOTS } from "../src/pasture3d/meadowLayout";
+import { CITY_PARK_TREES } from "../src/pasture3d/cityLayout";
 import { PASTURE_FLATTEN } from "../src/pasture3d/meadowHeight";
 
 const obstacles = obstaclesForZone(PASTURE_ZONE);
@@ -32,16 +32,16 @@ const EXPECTED: Record<
   { x: number; z: number; landmarkId: string; label: string }
 > = {
   mine: {
-    x: -10,
-    z: -6,
+    x: -22,
+    z: 6,
     landmarkId: "crystal-quarry",
     label: "Crystal Quarry",
   },
-  fish: { x: 13, z: -24, landmarkId: "pond-pier", label: "Pond Pier" },
-  treasure: { x: 8, z: -6, landmarkId: "treasure-dig", label: "Treasure Dig" },
-  garden: { x: 22, z: -20, landmarkId: "garden-beds", label: "Garden Beds" },
-  cook: { x: -16, z: -8, landmarkId: "kitchen-hut", label: "Pasture Kitchen" },
-  race: { x: -12, z: 8, landmarkId: "race-gate", label: "Race Track" },
+  fish: { x: 16, z: -24, landmarkId: "pond-pier", label: "Pond Pier" },
+  treasure: { x: 8, z: 20, landmarkId: "treasure-dig", label: "Treasure Dig" },
+  garden: { x: 10, z: -18, landmarkId: "garden-beds", label: "Garden Beds" },
+  cook: { x: -12, z: -8, landmarkId: "kitchen-hut", label: "Pasture Kitchen" },
+  race: { x: -10, z: 12, landmarkId: "race-gate", label: "Race Track" },
 };
 
 const REQUIRED_IDS: Record<string, string[]> = {
@@ -115,7 +115,7 @@ describe("public pasture activity areas", () => {
       )!;
       const halfW = land.width / 2 + 0.55;
       const halfD = land.depth / 2 + 0.55;
-      for (const [x, z] of MEADOW_TREE_SPOTS) {
+      for (const [x, z] of CITY_PARK_TREES) {
         const dx = Math.max(Math.abs(station.position.x - x) - halfW, 0);
         const dz = Math.max(Math.abs(station.position.z - z) - halfD, 0);
         expect(Math.hypot(dx, dz)).toBeGreaterThan(0.85);

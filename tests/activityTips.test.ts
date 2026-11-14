@@ -25,9 +25,11 @@ describe("first-play activity tips", () => {
   it("explains each pasture activity in a short tip", () => {
     expect(activityTipFor("cook").body).toMatch(/recipe flash/i);
     expect(activityTipFor("mine").body).toMatch(/vein/i);
-    expect(activityTipFor("fish").body).toMatch(/sweet spot/i);
+    expect(activityTipFor("fish").body).toMatch(
+      /hook when the float hits the window/i,
+    );
     expect(activityTipFor("treasure").body).toMatch(/glowing tile/i);
-    expect(activityTipFor("garden").body).toMatch(/green zone/i);
+    expect(activityTipFor("garden").body).toMatch(/hit window/i);
     expect(activityTipFor("race").body).toMatch(/beats/i);
   });
 

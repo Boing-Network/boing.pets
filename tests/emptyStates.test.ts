@@ -12,18 +12,18 @@ import {
 describe("empty states and skeletons", () => {
   it("points an empty bag pocket at the place to get those items", () => {
     expect(bagEmptyCopy("items", false).title).toContain("Connect");
-    expect(bagEmptyCopy("items", true).hint).toContain("Market Stall");
-    expect(BAG_EMPTY_COPY.crops.hint).toContain("Garden Beds");
-    expect(BAG_EMPTY_COPY.fish.hint).toContain("Pond Pier");
-    expect(BAG_EMPTY_COPY.recipes.hint).toContain("Pasture Kitchen");
+    expect(bagEmptyCopy("items", true).hint).toContain("The Drop");
+    expect(BAG_EMPTY_COPY.crops.hint).toContain("City Garden");
+    expect(BAG_EMPTY_COPY.fish.hint).toContain("The Canal");
+    expect(BAG_EMPTY_COPY.recipes.hint).toContain("Street Kitchen");
   });
 
   it("points empty market, collection, and leaderboard views at a next step", () => {
     expect(MARKET_EMPTY_COPY.none).toContain("bag");
     expect(MARKET_EMPTY_COPY.filters).toContain("Clear");
-    expect(COLLECTION_EMPTY_COPY).toContain("pasture");
-    expect(LEADERBOARD_EMPTY_COPY).toContain("Race Track");
-    expect(LEADERBOARD_EMPTY_COPY).toContain("Pond Pier");
+    expect(COLLECTION_EMPTY_COPY).toContain("The Yard");
+    expect(LEADERBOARD_EMPTY_COPY).toContain("Skate Park");
+    expect(LEADERBOARD_EMPTY_COPY).toContain("The Canal");
   });
 
   it("renders labeled skeleton placeholders for each panel", () => {

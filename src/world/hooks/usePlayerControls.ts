@@ -26,11 +26,37 @@ export function usePlayerControls() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent, down: boolean) => {
+      const target = event.target as {
+        tagName?: string;
+        isContentEditable?: boolean;
+      } | null;
+      const tag = target?.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
       const key = event.key.toLowerCase();
-      if (["w", "arrowup"].includes(key)) state.current.forward = down;
-      if (["s", "arrowdown"].includes(key)) state.current.back = down;
-      if (["a", "arrowleft"].includes(key)) state.current.left = down;
-      if (["d", "arrowright"].includes(key)) state.current.right = down;
+      if (["w", "arrowup"].includes(key)) {
+        if (down) event.preventDefault();
+        state.current.forward = down;
+      }
+      if (["s", "arrowdown"].includes(key)) {
+        if (down) event.preventDefault();
+        state.current.back = down;
+      }
+      if (["a", "arrowleft"].includes(key)) {
+        if (down) event.preventDefault();
+        state.current.left = down;
+      }
+      if (["d", "arrowright"].includes(key)) {
+        if (down) event.preventDefault();
+        state.current.right = down;
+      }
       if (key === "e" || key === " ") {
         if (down) event.preventDefault();
         state.current.interact = down;

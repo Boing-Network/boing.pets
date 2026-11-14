@@ -9,12 +9,14 @@ import {
   YARD_LABEL_TAG_FILL,
 } from "./yardLabels";
 import {
+  beginLabelFrame,
   clampLabelToViewport,
   labelDistanceScale,
   labelHudOpacity,
   labelScreenRect,
   pastureHudSafeRects,
   projectLocalBoxToScreen,
+  reserveLabelRect,
 } from "./hudSafeLabel";
 import { readPastureTouchPrefs } from "./mobileControls";
 
@@ -37,7 +39,7 @@ const TEXT_BOUNDS_PAD = 0.03;
 
 export function PastureWorldText({
   position,
-  fontSize = 0.42,
+  fontSize = 0.26,
   tag,
   children,
   color = YARD_LABEL_FILL,
@@ -56,7 +58,7 @@ export function PastureWorldText({
       : "";
   const length = Math.max(title.length, tag?.length ?? 0, 8);
 
-  useFrame(({ camera, size }) => {
+  useFrame(({ camera, size, gl }) => {
     const node = group.current;
     const shift = offset.current;
     const label = text.current;
@@ -98,22 +100,45 @@ export function PastureWorldText({
       const tagH = (rect.bottom - rect.top) * 0.55;
       rect = { ...rect, bottom: rect.bottom + tagH };
     }
+    beginLabelFrame(gl.info.render.frame);
     const clamped = clampLabelToViewport(rect, size);
     if (!clamped) {
       label.visible = false;
       if (tagText.current) tagText.current.visible = false;
       return;
     }
-    if (clamped.dx !== 0 || clamped.dy !== 0) {
-      const ndcX = ((sx + clamped.dx) / size.width) * 2 - 1;
-      const ndcY = -((sy + clamped.dy) / size.height) * 2 + 1;
+    const reserved = reserveLabelRect({
+      left: clamped.left,
+      top: clamped.top,
+      right: clamped.right,
+      bottom: clamped.bottom,
+    });
+    if (!reserved) {
+      label.visible = false;
+      if (tagText.current) tagText.current.visible = false;
+      return;
+    }
+    const maxPx = Math.max(size.width * 0.26, 160);
+    if (
+      reserved.right - reserved.left > maxPx ||
+      reserved.bottom - reserved.top > size.height * 0.2
+    ) {
+      label.visible = false;
+      if (tagText.current) tagText.current.visible = false;
+      return;
+    }
+    const shiftX = reserved.left - rect.left;
+    const shiftY = reserved.top - rect.top;
+    if (shiftX !== 0 || shiftY !== 0) {
+      const ndcX = ((sx + shiftX) / size.width) * 2 - 1;
+      const ndcY = -((sy + shiftY) / size.height) * 2 + 1;
       _shifted.set(ndcX, ndcY, _world.z).unproject(camera);
       shift.position.copy(node.worldToLocal(_local.copy(_shifted)));
     }
-    const midX = (clamped.left + clamped.right) / 2;
-    const midY = (clamped.top + clamped.bottom) / 2;
+    const midX = (reserved.left + reserved.right) / 2;
+    const midY = (reserved.top + reserved.bottom) / 2;
     const opacity = labelHudOpacity(
-      clamped,
+      reserved,
       pastureHudSafeRects(
         size.width,
         size.height,

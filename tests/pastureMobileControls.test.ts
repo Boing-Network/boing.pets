@@ -31,7 +31,7 @@ describe("pasture mobile stick", () => {
   it("keeps a deadzone and a 1x cap for the mobile pixel ratio", () => {
     expect(STICK_DEADZONE).toBeGreaterThan(0);
     expect(pastureMobileDpr(true)).toEqual([1, 1]);
-    expect(pastureMobileDpr(false)[1]).toBeGreaterThan(1);
+    expect(pastureMobileDpr(false)).toEqual([1, 1]);
   });
 
   it("shows touch controls on coarse or narrow viewports", () => {

@@ -14,6 +14,7 @@ import {
   spreadMiniMapMarkers,
   walkTargetFromMiniMapClick,
   worldToMap,
+  miniMapStreets,
 } from "../src/pasture3d/minimap";
 
 const SIZE = 140;
@@ -106,6 +107,20 @@ describe("pasture mini-map projection", () => {
       }
     }
     expect(minDist).toBeGreaterThanOrEqual(MINIMAP_ICON_MIN_DIST_PX - 0.5);
+  });
+
+  it("draws the city street grid on the map", () => {
+    const streets = miniMapStreets(SIZE);
+    expect(streets.length).toBe(6);
+    const mid = SIZE / 2;
+    const hasAvenue = streets.some(
+      (s) => Math.abs(s.x1 - mid) < 1 && Math.abs(s.x2 - mid) < 1,
+    );
+    const hasStreet = streets.some(
+      (s) => Math.abs(s.y1 - mid) < 1 && Math.abs(s.y2 - mid) < 1,
+    );
+    expect(hasAvenue).toBe(true);
+    expect(hasStreet).toBe(true);
   });
 
   it("snaps a mini-map click to the station interact spot", () => {

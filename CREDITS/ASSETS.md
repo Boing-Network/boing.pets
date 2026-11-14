@@ -12,6 +12,7 @@ CC0 deed: https://creativecommons.org/publicdomain/zero/1.0/
 
 | Pack                  | Version | Official source (license confirmed)          | License file in pack          |
 | --------------------- | ------- | -------------------------------------------- | ----------------------------- |
+| City Kit Roads        | 2.2     | https://kenney.nl/assets/city-kit-roads      | License: Creative Commons CC0 |
 | City Kit (Commercial) | 2.1     | https://kenney.nl/assets/city-kit-commercial | License: Creative Commons CC0 |
 | City Kit (Industrial) | 2.0     | https://kenney.nl/assets/city-kit-industrial | License: Creative Commons CC0 |
 | City Kit (Suburban)   | 2.0     | https://kenney.nl/assets/city-kit-suburban   | License: Creative Commons CC0 |
@@ -26,9 +27,9 @@ or “www.kenney.nl” is appreciated, not required.
 
 ## Optimized files in this repo
 
-Only a curated subset is shipped (storefronts, skyline silhouettes, a food stall
-kit, furniture and food props, planters, an oak, rocks, and modular skate-bowl
-pieces). Source zips are not committed. Each GLB was converted / optimized with
+Only a curated subset is shipped (road and sidewalk tiles, streetlights,
+storefronts, suburban houses, skyline silhouettes, a food stall kit, furniture
+and food props, planters, an oak, rocks, and modular skate-bowl pieces). Source zips are not committed. Each GLB was converted / optimized with
 gltf-transform (`dedup`, `weld`, `quantize`, meshopt, texture resize to 512 and
 WebP). See `scripts/optimize-yard-kits.mjs` and `public/yard-kits/manifest.json`
 for the current byte sizes.

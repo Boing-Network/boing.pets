@@ -13,7 +13,7 @@ import {
   obstaclesForZone,
   resolveClickTarget,
 } from "../src/pasture3d/pathing";
-import { MEADOW_TREE_SPOTS } from "../src/pasture3d/meadowLayout";
+import { CITY_PARK_TREES } from "../src/pasture3d/cityLayout";
 import { PASTURE_FLATTEN } from "../src/pasture3d/meadowHeight";
 
 const obstacles = obstaclesForZone(PASTURE_ZONE);
@@ -24,9 +24,9 @@ describe("public pasture stations", () => {
   const customize = stationByKind(PASTURE_ZONE, "customize");
 
   it("places labeled craft, market, and customize landmarks around spawn", () => {
-    expect(craft?.position).toEqual({ x: 16, y: 0, z: -16 });
-    expect(market?.position).toEqual({ x: 16, y: 0, z: -6 });
-    expect(customize?.position).toEqual({ x: 16, y: 0, z: 8 });
+    expect(craft?.position).toEqual({ x: 22, y: 0, z: -12 });
+    expect(market?.position).toEqual({ x: 12, y: 0, z: -8 });
+    expect(customize?.position).toEqual({ x: 22, y: 0, z: 10 });
     expect(craft?.radius).toBe(3.4);
     expect(market?.radius).toBe(3.4);
     expect(customize?.radius).toBe(3.4);
@@ -62,7 +62,7 @@ describe("public pasture stations", () => {
       )!;
       const halfW = land.width / 2 + 0.55;
       const halfD = land.depth / 2 + 0.55;
-      for (const [x, z] of MEADOW_TREE_SPOTS) {
+      for (const [x, z] of CITY_PARK_TREES) {
         const dx = Math.max(Math.abs(station.position.x - x) - halfW, 0);
         const dz = Math.max(Math.abs(station.position.z - z) - halfD, 0);
         expect(Math.hypot(dx, dz)).toBeGreaterThan(0.85);
@@ -87,7 +87,7 @@ describe("public pasture stations", () => {
 
   it("adds a walk-in home plot with the 2D housing page as a fallback", () => {
     const home = stationByKind(PASTURE_ZONE, "home");
-    expect(home?.position).toEqual({ x: 24, y: 0, z: 8 });
+    expect(home?.position).toEqual({ x: 28, y: 0, z: 16 });
     expect(home?.careHref).toBe("/home.html");
     expect(stationActionLabel(home!)).toMatch(/home/i);
     const land = PASTURE_ZONE.landmarks.find(

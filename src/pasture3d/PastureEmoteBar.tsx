@@ -15,7 +15,11 @@ export function PastureEmoteBar({
 }) {
   if (!visible) return null;
   return (
-    <div className="pasture-emote-bar" role="toolbar" aria-label="Pet emotes">
+    <div
+      className="pasture-emote-bar"
+      role="toolbar"
+      aria-label="Character emotes"
+    >
       {MANUAL_EMOTE_IDS.map((id, index) => (
         <button
           key={id}

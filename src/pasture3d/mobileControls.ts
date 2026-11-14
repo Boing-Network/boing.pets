@@ -42,5 +42,8 @@ export function readPastureTouchPrefs(
 }
 
 export function pastureMobileDpr(preferPerf: boolean): [number, number] {
-  return preferPerf ? [1, 1] : [1, 1.75];
+  // Cap pixel ratio so The Yard stays near the SwiftShader 33ms budget
+  // even on high-DPI displays. preferPerf already disables other work.
+  void preferPerf;
+  return [1, 1];
 }

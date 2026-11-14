@@ -7,6 +7,7 @@ import {
 import type { LivePose } from "../world/scene/Player";
 import {
   layoutMiniMapStations,
+  miniMapStreets,
   pastureMiniMapBounds,
   walkTargetFromMiniMapClick,
   worldToMap,
@@ -76,7 +77,7 @@ export function PastureMinimap({
       aria-label="Pasture mini-map"
     >
       <div className="pasture-minimap-head">
-        <p className="pasture-minimap-title">Map</p>
+        <p className="pasture-minimap-title">The Yard</p>
         {onToggle ? (
           <button
             type="button"
@@ -100,6 +101,25 @@ export function PastureMinimap({
             height: PASTURE_MINIMAP_BOARD_SIZE,
           }}
         >
+          <svg
+            className="pasture-minimap-streets"
+            width={PASTURE_MINIMAP_BOARD_SIZE}
+            height={PASTURE_MINIMAP_BOARD_SIZE}
+            viewBox={`0 0 ${PASTURE_MINIMAP_BOARD_SIZE} ${PASTURE_MINIMAP_BOARD_SIZE}`}
+            aria-hidden="true"
+          >
+            {miniMapStreets(PASTURE_MINIMAP_BOARD_SIZE, bounds).map(
+              (street, i) => (
+                <line
+                  key={`st-${i}`}
+                  x1={street.x1}
+                  y1={street.y1}
+                  x2={street.x2}
+                  y2={street.y2}
+                />
+              ),
+            )}
+          </svg>
           {spreadStations.map((station) => (
             <span
               key={station.id}

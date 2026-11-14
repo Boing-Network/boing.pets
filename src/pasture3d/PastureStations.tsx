@@ -119,7 +119,7 @@ function Workbench({
       </YardPrintShopKit>
       <PastureWorldText
         position={[0, 2.35, 0]}
-        fontSize={0.36}
+        fontSize={0.24}
         anchorX="center"
         anchorY="middle"
         tag={label.tag}
@@ -190,8 +190,8 @@ function MarketStall({
           <boxGeometry args={[2.7, 1.7, 0.08]} />
           <meshStandardMaterial
             color="#3a2a18"
-            emissive="#c4883a"
-            emissiveIntensity={0.35}
+            emissive="#e0a04a"
+            emissiveIntensity={0.55}
             roughness={0.7}
           />
         </mesh>
@@ -251,7 +251,7 @@ function MarketStall({
             roughness={0.08}
             metalness={0.2}
             transparent
-            opacity={0.18}
+            opacity={0.28}
           />
         </mesh>
         <mesh position={[0, 0.55, 1.05]} receiveShadow>
@@ -270,9 +270,27 @@ function MarketStall({
           <boxGeometry args={[0.45, 0.45, 0.4]} />
           <meshStandardMaterial color="#e8d5b0" roughness={0.8} />
         </mesh>
+        <mesh position={[0, 2.42, 1.12]}>
+          <planeGeometry args={[2.35, 0.48]} />
+          <meshStandardMaterial
+            color={YARD.ink}
+            emissive={YARD.accent}
+            emissiveIntensity={0.85}
+            roughness={0.35}
+          />
+        </mesh>
+        <mesh position={[0, 2.42, 1.13]}>
+          <planeGeometry args={[2.15, 0.28]} />
+          <meshStandardMaterial
+            color={YARD.accent}
+            emissive={YARD.accent}
+            emissiveIntensity={1.2}
+            roughness={0.3}
+          />
+        </mesh>
         <PastureWorldText
-          position={[0, 3.25, 0.4]}
-          fontSize={0.38}
+          position={[0, 3.05, 0.15]}
+          fontSize={0.24}
           anchorX="center"
           anchorY="middle"
           tag={label.tag}
@@ -359,7 +377,7 @@ function DressingStand({
       </YardFittingKit>
       <PastureWorldText
         position={[0, 2.95, 0]}
-        fontSize={0.3}
+        fontSize={0.24}
         anchorX="center"
         anchorY="middle"
         tag={label.tag}
@@ -420,7 +438,7 @@ function HomePlot({
       <YardHomeKit />
       <PastureWorldText
         position={[0, 1.15, 0]}
-        fontSize={0.32}
+        fontSize={0.24}
         anchorX="center"
         anchorY="middle"
         tag={label.tag}

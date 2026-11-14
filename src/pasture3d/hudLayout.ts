@@ -37,8 +37,8 @@ export const PASTURE_STATION_PROMPT_MAX_WIDTH_PX = 420;
 export const PASTURE_STATION_PROMPT_HEIGHT_PX = 86;
 
 /** Compact daily progress chip on the right, above the station prompt. */
-export const PASTURE_PROGRESS_CHIP_WIDTH_PX = 180;
-export const PASTURE_PROGRESS_CHIP_HEIGHT_PX = 58;
+export const PASTURE_PROGRESS_CHIP_WIDTH_PX = 196;
+export const PASTURE_PROGRESS_CHIP_HEIGHT_PX = 92;
 export const PASTURE_PROGRESS_CHIP_GAP_PX = PASTURE_HUD_GAP_PX;
 export const PASTURE_PROGRESS_CHIP_Z_INDEX = 15;
 export const PASTURE_PROGRESS_CHIP_RIGHT_PX = 16;
@@ -92,7 +92,14 @@ export function pastureTxToastRect(
   const height = pastureTxToastHeight(touchControls);
   if (touchControls) {
     const left = PASTURE_TX_TOAST_TOUCH_SIDE_CLEAR_PX;
-    const right = Math.max(left, width - PASTURE_TX_TOAST_TOUCH_SIDE_CLEAR_PX);
+    const chipLeft =
+      width -
+      PASTURE_PROGRESS_CHIP_RIGHT_PX -
+      Math.min(
+        PASTURE_PROGRESS_CHIP_WIDTH_PX,
+        Math.max(0, width - PASTURE_PROGRESS_CHIP_RIGHT_PX * 2),
+      );
+    const right = Math.max(left, chipLeft - PASTURE_HUD_GAP_PX);
     return { left, right, top, bottom: top + height };
   }
   const left = PASTURE_TX_TOAST_DESKTOP_LEFT_PX;

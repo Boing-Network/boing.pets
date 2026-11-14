@@ -14,32 +14,32 @@ export type ActivityTip = {
 export const ACTIVITY_TIPS: Record<ActivityStationKind, ActivityTip> = {
   mine: {
     kind: "mine",
-    title: "Crystal Quarry",
+    title: "Crystal Yard",
     body: "Tap in time with the vein pulses. Misses use an attempt, but you only sign if you want to keep the crystals.",
   },
   fish: {
     kind: "fish",
-    title: "Pond Pier",
-    body: "Cast, then hook when the float is in the sweet spot. Misses skip the signature; sign only to keep a catch.",
+    title: "The Canal",
+    body: "Cast, then hook when the float hits the window. Misses skip the signature; sign only to keep a catch.",
   },
   treasure: {
     kind: "treasure",
-    title: "Treasure Dig",
+    title: "Dig Site",
     body: "Memorize the glowing tile, then dig. A wrong tile uses an attempt with no signature.",
   },
   garden: {
     kind: "garden",
-    title: "Garden Beds",
-    body: "Hold to water, and release in the green zone. Sign only if you want to keep the harvest.",
+    title: "City Garden",
+    body: "Hold to water, and release in the hit window. Sign only if you want to keep the harvest.",
   },
   cook: {
     kind: "cook",
-    title: "Pasture Kitchen",
+    title: "Street Kitchen",
     body: "Watch the recipe flash, then tap ingredients in that order. Sign only if you want to keep the dish.",
   },
   race: {
     kind: "race",
-    title: "Race Track",
+    title: "Skate Park",
     body: "Hit the beats to stay on the track. Sign only if you want the finish reward.",
   },
 };

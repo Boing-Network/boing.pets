@@ -1,6 +1,6 @@
 {
-  "total": 465984,
-  "count": 55,
+  "total": 573480,
+  "count": 69,
   "files": [
     {
       "out": "shop-wide.glb",
@@ -36,6 +36,16 @@
       "out": "sky-tower-e.glb",
       "pack": "commercial",
       "size": 18824
+    },
+    {
+      "out": "house-i.glb",
+      "pack": "suburban",
+      "size": 15768
+    },
+    {
+      "out": "house-h.glb",
+      "pack": "suburban",
+      "size": 15300
     },
     {
       "out": "fries.glb",
@@ -83,6 +93,11 @@
       "size": 8648
     },
     {
+      "out": "dumpster.glb",
+      "pack": "roads",
+      "size": 8364
+    },
+    {
       "out": "planter.glb",
       "pack": "suburban",
       "size": 8356
@@ -91,6 +106,11 @@
       "out": "burger.glb",
       "pack": "food",
       "size": 8220
+    },
+    {
+      "out": "traffic-light.glb",
+      "pack": "roads",
+      "size": 7832
     },
     {
       "out": "fence-low.glb",
@@ -123,6 +143,11 @@
       "size": 7328
     },
     {
+      "out": "construction-fence.glb",
+      "pack": "roads",
+      "size": 7304
+    },
+    {
       "out": "soda.glb",
       "pack": "food",
       "size": 7268
@@ -131,6 +156,11 @@
       "out": "sky-low-b.glb",
       "pack": "commercial",
       "size": 7040
+    },
+    {
+      "out": "road-bend.glb",
+      "pack": "roads",
+      "size": 6944
     },
     {
       "out": "sky-low-a.glb",
@@ -163,6 +193,16 @@
       "size": 6468
     },
     {
+      "out": "construction-barrier.glb",
+      "pack": "roads",
+      "size": 6036
+    },
+    {
+      "out": "road-crossroad.glb",
+      "pack": "roads",
+      "size": 6024
+    },
+    {
       "out": "sky-low-e.glb",
       "pack": "commercial",
       "size": 5976
@@ -176,6 +216,26 @@
       "out": "tree-large.glb",
       "pack": "suburban",
       "size": 5900
+    },
+    {
+      "out": "construction-cone.glb",
+      "pack": "roads",
+      "size": 5840
+    },
+    {
+      "out": "street-light.glb",
+      "pack": "roads",
+      "size": 5772
+    },
+    {
+      "out": "road-crossing.glb",
+      "pack": "roads",
+      "size": 5744
+    },
+    {
+      "out": "road-intersection.glb",
+      "pack": "roads",
+      "size": 5728
     },
     {
       "out": "bowl-side.glb",
@@ -196,6 +256,16 @@
       "out": "awning-wide.glb",
       "pack": "commercial",
       "size": 5576
+    },
+    {
+      "out": "road-straight-half.glb",
+      "pack": "roads",
+      "size": 5444
+    },
+    {
+      "out": "road-straight.glb",
+      "pack": "roads",
+      "size": 5396
     },
     {
       "out": "tree-oak.glb",

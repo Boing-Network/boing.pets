@@ -9,19 +9,19 @@ export type YardLabelSpec = { title: string; tag: string };
 
 const BY_LANDMARK_ID: Record<string, YardLabelSpec> = {
   "kitchen-hut": { title: "STREET KITCHEN", tag: "COOK" },
-  "market-stall": { title: "THE DROP", tag: "MARKET STALL / LIVE" },
+  "market-stall": { title: "THE DROP", tag: "LIVE" },
   "crafting-station": { title: "PRINT SHOP", tag: "CRAFT" },
   "customization-station": { title: "FITTING ROOM", tag: "CUSTOM" },
-  "pond-pier": { title: "ROOFTOP CANAL", tag: "FISH" },
-  "lily-pond": { title: "ROOFTOP CANAL", tag: "FISH" },
-  "treasure-dig": { title: "TREASURE DIG", tag: "DIG" },
-  "race-gate": { title: "RACE STRIP", tag: "RACE" },
-  "crystal-quarry": { title: "CRYSTAL QUARRY", tag: "MINE" },
-  "garden-beds": { title: "GARDEN BEDS", tag: "CROPS" },
+  "pond-pier": { title: "THE CANAL", tag: "FISH" },
+  "lily-pond": { title: "THE CANAL", tag: "FISH" },
+  "treasure-dig": { title: "DIG SITE", tag: "DIG" },
+  "race-gate": { title: "SKATE PARK", tag: "RACE" },
+  "crystal-quarry": { title: "CRYSTAL YARD", tag: "MINE" },
+  "garden-beds": { title: "CITY GARDEN", tag: "CROPS" },
   "old-oak": { title: "OLD OAK", tag: "LANDMARK" },
-  "home-plot": { title: "HOME PLOT", tag: "DESK" },
-  wildflowers: { title: "WILDFLOWERS", tag: "DECOR" },
-  "snack-barn": { title: "ROOF SHACK", tag: "STORAGE" },
+  "home-plot": { title: "HOME STOOP", tag: "DESK" },
+  wildflowers: { title: "PLANTERS", tag: "DECOR" },
+  "snack-barn": { title: "STORAGE", tag: "STORAGE" },
 };
 
 const BY_KIND: Record<PastureStationKind, YardLabelSpec> = {

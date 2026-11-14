@@ -1010,7 +1010,7 @@ a:hover {
   scroll-margin-top: 0.5rem;
   border-radius: 24px;
   overflow: hidden;
-  border: 1px solid #2a5a46;
+  border: 1px solid #3a4454;
   background: linear-gradient(180deg, #16345f, #1f6a4a 70%);
   box-shadow: inset 0 -40px 80px #0b1a1233;
   --pasture-chat-inset: 12px;
@@ -1020,7 +1020,7 @@ a:hover {
   --pasture-station-prompt-gap: 12px;
   --pasture-station-prompt-height: 86px;
   --pasture-progress-chip-gap: 12px;
-  --pasture-progress-chip-height: 58px;
+  --pasture-progress-chip-height: 92px;
 }
 #pasture-canvas.is-touch-controls {
   --pasture-chat-bottom: 150px;
@@ -1101,7 +1101,7 @@ a:hover {
   min-height: 40px;
   padding: 8px 14px;
   border-radius: 999px;
-  border: 1px solid #2a5a46;
+  border: 1px solid #3a4454;
   background: #0c1c14ee;
   color: #eef8ff;
   font: inherit;
@@ -1234,7 +1234,7 @@ a:hover {
 .pasture-chat-form input {
   flex: 1;
   min-width: 0;
-  border: 1px solid #2a5a46;
+  border: 1px solid #3a4454;
   border-radius: 12px;
   padding: 8px 10px;
   background: #0c1c14ee;
@@ -1300,7 +1300,7 @@ a:hover {
   min-height: 44px;
   padding: 0 10px;
   border-radius: 12px;
-  border: 1px solid #2a5a46;
+  border: 1px solid #3a4454;
   background: #0c1c14ee;
   color: #eef8ff;
   font: inherit;
@@ -2127,7 +2127,7 @@ a:hover {
   overflow-y: auto;
   padding: 10px;
   border-radius: 12px;
-  border: 1px solid #2a5a46;
+  border: 1px solid #3a4454;
   background: #0c1c14f2;
   color: #eef8ff;
   box-shadow: 0 8px 24px #0005;
@@ -2148,7 +2148,7 @@ a:hover {
         var(--pasture-station-prompt-gap, 12px) -
         var(--pasture-station-prompt-height, 86px) -
         var(--pasture-progress-chip-gap, 12px) -
-        var(--pasture-progress-chip-height, 58px) - 12px
+        var(--pasture-progress-chip-height, 92px) - 12px
     )
   );
   z-index: 21;
@@ -2163,7 +2163,7 @@ a:hover {
   flex: 1;
   min-height: 36px;
   border-radius: 10px;
-  border: 1px solid #2a5a46;
+  border: 1px solid #3a4454;
   background: #0c1c14;
   color: inherit;
   font: inherit;
@@ -2439,7 +2439,7 @@ a:hover {
   min-width: 1.4em;
   padding: 0 4px;
   border-radius: 6px;
-  border: 1px solid #2a5a46;
+  border: 1px solid #3a4454;
   background: #0c1c14;
   font: inherit;
   font-weight: 700;
@@ -2457,7 +2457,7 @@ a:hover {
         var(--pasture-station-prompt-gap, 12px) -
         var(--pasture-station-prompt-height, 86px) -
         var(--pasture-progress-chip-gap, 12px) -
-        var(--pasture-progress-chip-height, 58px) - 12px
+        var(--pasture-progress-chip-height, 92px) - 12px
     )
   );
 }
@@ -2520,14 +2520,27 @@ a:hover {
   position: relative;
   display: block;
   padding: 0;
-  border: 1px solid #2a5a46;
+  border: 1px solid #3a4454;
   border-radius: 14px;
   background:
-    radial-gradient(circle at 50% 50%, #1a3a28 0%, #0c1c14ee 70%), #0c1c14ee;
+    radial-gradient(circle at 50% 50%, #243044 0%, #12161cee 72%), #12161cee;
   box-shadow: 0 8px 24px #0005;
   overflow: hidden;
   cursor: pointer;
   color: inherit;
+}
+.pasture-minimap-streets {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.pasture-minimap-streets line {
+  stroke: #8a93a3;
+  stroke-width: 3.2;
+  stroke-linecap: square;
 }
 .pasture-minimap-board:focus-visible {
   outline: 2px solid #fff4b8;
@@ -2596,7 +2609,10 @@ a:hover {
 .pasture-3d-stage.is-touch-controls .pasture-tx-toast {
   top: 314px;
   left: 16px;
-  right: 16px;
+  right: calc(
+    var(--pasture-progress-chip-right, 16px) +
+      var(--pasture-progress-chip-width, 196px) + 12px
+  );
   flex-direction: row;
   align-items: center;
   max-height: none;
@@ -2725,7 +2741,7 @@ a:hover {
   height: 36px;
   padding: 0 12px;
   border-radius: 999px;
-  border: 1px solid #2a5a46;
+  border: 1px solid #3a4454;
   background: #0c1c14ee;
   color: #eef8ff;
   font: inherit;
@@ -2750,12 +2766,12 @@ a:hover {
       var(--pasture-station-prompt-gap, 12px) -
       var(--pasture-station-prompt-height, 86px) -
       var(--pasture-progress-chip-gap, 12px) -
-      var(--pasture-progress-chip-height, 58px) - 12px
+      var(--pasture-progress-chip-height, 92px) - 12px
   );
   overflow: auto;
   padding: 14px 14px 10px;
   border-radius: 20px;
-  border: 1px solid #2a5a46;
+  border: 1px solid #3a4454;
   background: linear-gradient(130deg, #101c35ee, #0b1225f2);
   color: #eef8ff;
   box-shadow: 0 16px 40px #0006;
@@ -2799,7 +2815,7 @@ a:hover {
 .pasture-inventory-tabs button {
   padding: 4px 10px;
   border-radius: 999px;
-  border: 1px solid #2a5a46;
+  border: 1px solid #3a4454;
   background: #0c1c14aa;
   color: inherit;
   font: inherit;
@@ -2890,7 +2906,7 @@ html[data-cook-hint="colorblind"] .cook-spot-absent {
   flex: 1;
   min-width: 0;
   border-radius: 8px;
-  border: 1px solid #2a5a46;
+  border: 1px solid #3a4454;
   background: #0c1c14;
   color: inherit;
   font: inherit;
@@ -2908,7 +2924,7 @@ html[data-cook-hint="colorblind"] .cook-spot-absent {
   margin: 0 auto 4px;
   padding: 0 5px;
   border-radius: 999px;
-  border: 1px solid #2a5a46;
+  border: 1px solid #3a4454;
   background: #0c1c14ee;
   color: #fff8e0;
   font-size: 0.78rem;

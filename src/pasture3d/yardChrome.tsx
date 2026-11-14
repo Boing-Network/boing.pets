@@ -11,14 +11,14 @@ export const YARD = {
   accent: "#FF4D00",
   concrete: "#c4c0b6",
   concreteDark: "#9a968c",
-  concreteLight: "#e0dcd2",
+  concreteLight: "#8a8680",
   lane: "#c8c4ba",
   rust: "#6a4a3a",
   metal: "#6a6a68",
   water: "#5a9aaa",
   sand: "#c4a56a",
   soil: "#4a3a28",
-  foliage: "#3f7d4a",
+  foliage: "#2d4f34",
   trunk: "#6d4a32",
 } as const;
 
@@ -28,18 +28,34 @@ export function makeConcreteTexture() {
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
-  ctx.fillStyle = "#d4d0c6";
+  ctx.fillStyle = "#3a3936";
   ctx.fillRect(0, 0, size, size);
-  for (let i = 0; i < 2600; i++) {
+  for (let i = 0; i < 4200; i++) {
     const x = ((i * 73) % size) + ((i * 17) % 9) * 0.2;
     const y = ((i * 47) % size) + ((i * 11) % 7) * 0.2;
-    const tone = 190 + ((i * 13) % 40);
-    ctx.fillStyle = `rgba(${tone}, ${tone - 3}, ${tone - 10}, 0.28)`;
-    ctx.fillRect(x, y, 2 + (i % 6), 1 + (i % 4));
+    const tone = 42 + ((i * 13) % 36);
+    ctx.fillStyle = `rgba(${tone}, ${tone - 1}, ${tone - 4}, 0.35)`;
+    ctx.fillRect(x, y, 2 + (i % 5), 1 + (i % 3));
   }
-  ctx.strokeStyle = "rgba(150, 146, 138, 0.45)";
+  for (let i = 0; i < 18; i++) {
+    const x = (i * 97) % size;
+    const y = (i * 53) % size;
+    ctx.fillStyle = `rgba(${20 + (i % 10)}, ${18 + (i % 8)}, 14, 0.28)`;
+    ctx.beginPath();
+    ctx.ellipse(
+      x,
+      y,
+      18 + (i % 16),
+      8 + (i % 10),
+      (i * 0.7) % 3,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+  }
+  ctx.strokeStyle = "rgba(18, 18, 16, 0.55)";
   ctx.lineWidth = 2;
-  for (let g = 0; g <= size; g += 64) {
+  for (let g = 0; g <= size; g += 128) {
     ctx.beginPath();
     ctx.moveTo(g, 0);
     ctx.lineTo(g, size);
@@ -49,26 +65,17 @@ export function makeConcreteTexture() {
     ctx.lineTo(size, g);
     ctx.stroke();
   }
-  ctx.strokeStyle = "rgba(245, 245, 240, 0.95)";
-  ctx.lineWidth = 5;
-  ctx.strokeRect(24, 24, size - 48, size - 48);
-  ctx.beginPath();
-  ctx.moveTo(24, size / 2);
-  ctx.lineTo(size - 24, size / 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(size / 2, 24);
-  ctx.lineTo(size / 2, size - 24);
-  ctx.stroke();
-  ctx.strokeStyle = "rgba(255, 77, 0, 0.9)";
-  ctx.lineWidth = 4;
-  ctx.strokeRect(80, 80, size - 160, size - 160);
-  ctx.beginPath();
-  ctx.arc(size / 2, size / 2, 48, 0, Math.PI * 2);
-  ctx.stroke();
+  ctx.strokeStyle = "rgba(12, 12, 10, 0.7)";
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 10; i++) {
+    ctx.beginPath();
+    ctx.moveTo((i * 83) % size, (i * 29) % size);
+    ctx.lineTo((i * 83 + 80) % size, (i * 29 + 40) % size);
+    ctx.stroke();
+  }
   const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(8, 8);
+  tex.repeat.set(6, 6);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
   tex.needsUpdate = true;
@@ -136,11 +143,9 @@ export function makeChainTexture() {
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
   ctx.clearRect(0, 0, size, size);
-  ctx.fillStyle = "rgba(200, 200, 196, 0.12)";
-  ctx.fillRect(0, 0, size, size);
-  ctx.strokeStyle = "rgba(40, 40, 38, 0.95)";
-  ctx.lineWidth = 3;
-  const step = 18;
+  ctx.strokeStyle = "rgba(18, 18, 16, 1)";
+  ctx.lineWidth = 5;
+  const step = 16;
   for (let x = -size; x <= size * 2; x += step) {
     ctx.beginPath();
     ctx.moveTo(x, 0);
@@ -153,7 +158,7 @@ export function makeChainTexture() {
   }
   const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(8, 2);
+  tex.repeat.set(14, 3);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.needsUpdate = true;
   return tex;

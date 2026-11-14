@@ -3,6 +3,7 @@
 import { PASTURE_ZONE } from "../world/config/zones";
 import { yardLabelForKind } from "./yardLabels";
 import { interactStations, type PastureStationKind } from "./stationInteract";
+import { cityStreetSegments } from "./cityLayout";
 
 export const MINIMAP_STATION_ICON: Record<PastureStationKind, string> = {
   craft: "C",
@@ -199,4 +200,18 @@ export function walkTargetFromMiniMapClick(
     }
   }
   return { x: world.x, z: world.z, station: null };
+}
+
+export type MiniMapStreet = { x1: number; y1: number; x2: number; y2: number };
+
+/** Street grid in map pixels, for the city-style mini-map. */
+export function miniMapStreets(
+  size: number,
+  bounds: MiniMapBounds = pastureMiniMapBounds(),
+): MiniMapStreet[] {
+  return cityStreetSegments().map((seg) => {
+    const a = worldToMap({ x: seg.x1, z: seg.z1 }, bounds, size);
+    const b = worldToMap({ x: seg.x2, z: seg.z2 }, bounds, size);
+    return { x1: a.x, y1: a.y, x2: b.x, y2: b.y };
+  });
 }

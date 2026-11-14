@@ -191,6 +191,9 @@ export type LabelClamp = Rect & { dx: number; dy: number };
  * Shift a billboard so it stays fully inside the canvas with padding.
  * Returns null when the label cannot fit (caller should hide it).
  */
+/** Hide a label rather than dragging it across the screen into the HUD. */
+export const LABEL_MAX_CLAMP_SHIFT_PX = 160;
+
 export function clampLabelToViewport(
   rect: Rect,
   viewport: { width: number; height: number },
@@ -201,6 +204,15 @@ export function clampLabelToViewport(
   const width = rect.right - rect.left;
   const height = rect.bottom - rect.top;
   if (width > maxW + 0.5 || height > maxH + 0.5) return null;
+  // Fully off-canvas labels stay hidden so a far billboard is not
+  // unprojected into the middle of the view (the giant Drop sign).
+  const onScreen = rectsOverlap(rect, {
+    left: 0,
+    top: 0,
+    right: viewport.width,
+    bottom: viewport.height,
+  });
+  if (!onScreen) return null;
 
   let dx = 0;
   let dy = 0;
@@ -212,6 +224,7 @@ export function clampLabelToViewport(
   if (rect.bottom + dy > viewport.height - pad) {
     dy -= rect.bottom + dy - (viewport.height - pad);
   }
+  if (Math.hypot(dx, dy) > LABEL_MAX_CLAMP_SHIFT_PX) return null;
   return {
     left: rect.left + dx,
     top: rect.top + dy,
@@ -274,8 +287,43 @@ export function labelHudOpacity(
 
 /** Shrink labels that are very close to the camera so they don't balloon over the HUD. */
 export function labelDistanceScale(distance: number): number {
-  if (!Number.isFinite(distance) || distance <= 0) return 1;
-  return Math.max(0.55, Math.min(1, distance / 14));
+  if (!Number.isFinite(distance) || distance <= 0) return 0.4;
+  return Math.max(0.4, Math.min(1, distance / 20));
+}
+
+let labelClaimFrame = -1;
+const claimedLabels: Rect[] = [];
+
+export function beginLabelFrame(frame: number): void {
+  if (frame === labelClaimFrame) return;
+  labelClaimFrame = frame;
+  claimedLabels.length = 0;
+}
+
+/** Keep world labels from stacking on each other. Returns a nudged box or null to hide. */
+export function reserveLabelRect(rect: Rect, gap = 8): Rect | null {
+  let box: Rect = { ...rect };
+  for (let pass = 0; pass < 4; pass++) {
+    const hit = claimedLabels.find((other) =>
+      rectsOverlap(inflateRect(box, gap), other),
+    );
+    if (!hit) break;
+    const dy = -(box.bottom - hit.top + gap);
+    box = {
+      left: box.left,
+      right: box.right,
+      top: box.top + dy,
+      bottom: box.bottom + dy,
+    };
+    if (box.top < LABEL_EDGE_PAD) return null;
+  }
+  if (
+    claimedLabels.some((other) => rectsOverlap(inflateRect(box, gap), other))
+  ) {
+    return null;
+  }
+  claimedLabels.push(box);
+  return box;
 }
 
 /**
@@ -308,10 +356,11 @@ export function nudgeRectOutOfHud(
         { dx: inflated.right - box.left + gap, dy: 0 },
         { dx: 0, dy: inflated.bottom - box.top + gap },
       ];
-      options.sort(
-        (a, b) =>
-          Math.abs(a.dx) + Math.abs(a.dy) - (Math.abs(b.dx) + Math.abs(b.dy)),
-      );
+      options.sort((a, b) => {
+        const score = (item: { dx: number; dy: number }) =>
+          Math.abs(item.dx) + Math.abs(item.dy) + (item.dy < 0 ? -48 : 0);
+        return score(a) - score(b);
+      });
       const pick = options[0]!;
       box.left += pick.dx;
       box.right += pick.dx;

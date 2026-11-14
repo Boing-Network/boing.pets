@@ -132,7 +132,7 @@ export async function refreshBuddyCard() {
   } else
     slot.textContent = app.owner
       ? "Your egg is waiting. Ready to meet the tiny oddball inside?"
-      : "Connect Boing Express to hatch your first buddy. You can browse the pasture without a wallet.";
+      : "Connect Boing Express to hatch, then walk The Yard. You can browse the block without a wallet.";
   refreshBuddyChip();
 }
 
@@ -165,8 +165,7 @@ export async function refreshPastureGallery() {
   if (gallery) {
     gallery.replaceChildren(...data.pets.map(card));
     if (!data.pets.length)
-      gallery.textContent =
-        "A peaceful, empty pasture. Your buddy could be the very first.";
+      gallery.textContent = "The Yard is quiet. Be the first one on the block.";
   }
   const prev = $maybe("#prev");
   const nextBtn = $maybe("#next");

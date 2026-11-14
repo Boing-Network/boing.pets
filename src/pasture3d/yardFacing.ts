@@ -1,6 +1,6 @@
-/** Rotate a Yard kit so its local +Z faces the spawn plaza. */
+/** Rotate a Yard kit so its local +Z faces the main intersection. */
 
-export const YARD_PLAZA_CENTER = { x: 0, z: 10 } as const;
+export const YARD_PLAZA_CENTER = { x: 0, z: 0 } as const;
 
 /** Face the plaza (-Z) so The Drop sits ahead-right of spawn. */
 export const PASTURE_SPAWN_YAW = Math.PI;

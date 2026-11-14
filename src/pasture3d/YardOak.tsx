@@ -93,8 +93,8 @@ export function YardOak({ preferPerf = false }: { preferPerf?: boolean }) {
         }
       />
       <PastureWorldText
-        position={[0, 5.15, 0]}
-        fontSize={0.36}
+        position={[0, 4.7, 0]}
+        fontSize={0.22}
         anchorX="center"
         anchorY="middle"
         tag={label.tag}

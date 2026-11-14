@@ -6,7 +6,6 @@ import { useMemo } from "react";
 import { PASTURE_ZONE } from "../world/config/zones";
 import { lilyPondEllipse } from "./meadowFootprints";
 import { meadowHeight } from "./meadowHeight";
-import { MEADOW_BUSH_SPOTS, MEADOW_ROCK_SPOTS } from "./meadowLayout";
 import { NeonHalo, YARD } from "./yardChrome";
 import {
   InstancedYardKit,
@@ -20,15 +19,6 @@ export const YARD_KIT_PRELOAD = [
   "shop-narrow",
   "shop-small",
   "shop-mid",
-  "sky-low-a",
-  "sky-low-b",
-  "sky-low-e",
-  "sky-low-g",
-  "sky-low-i",
-  "sky-low-wide-a",
-  "sky-low-wide-b",
-  "sky-tower-a",
-  "sky-tower-e",
   "awning-wide",
   "container-a",
   "container-b",
@@ -65,13 +55,25 @@ export const YARD_KIT_PRELOAD = [
   "rail-low",
   "skate-fence",
   "skate-bench",
+  "road-straight",
+  "road-crossroad",
+  "road-crossing",
+  "street-light",
+  "traffic-light",
+  "house-h",
+  "house-i",
+  "dumpster",
+  "construction-fence",
+  "construction-cone",
+  "sky-low-a",
+  "shop-narrow",
 ] as const;
 
 function ground(x: number, z: number): number {
   return meadowHeight(x, z);
 }
 
-/** The Drop — wide commercial shopfront facing the plaza. */
+/** The Drop — corner sneaker storefront on the main intersection. */
 export function YardDropKit({
   fallback,
   children,
@@ -185,31 +187,47 @@ export function YardHomeKit() {
   const y = 0;
   return (
     <group>
-      <YardKit name="planter" scale={2.6} position={[-2.2, y, -2.2]} />
-      <YardKit name="planter" scale={2.6} position={[2.2, y, -2.2]} />
-      <YardKit name="potted-plant" scale={1.8} position={[-2.2, y, 2.15]} />
-      <YardKit name="potted-plant" scale={1.8} position={[2.2, y, 2.15]} />
+      <YardKit name="house-h" scale={4.6} position={[0, y, -3.2]} />
+      <YardKit name="planter" scale={2.6} position={[-2.2, y, 1.4]} />
+      <YardKit name="planter" scale={2.6} position={[2.2, y, 1.4]} />
+      <YardKit name="potted-plant" scale={1.8} position={[-1.6, y, 2.15]} />
+      <YardKit name="potted-plant" scale={1.8} position={[1.6, y, 2.15]} />
     </group>
   );
 }
 
 export function YardTreasureKit() {
+  // Keep containers west / slightly south of the sandpit so The Drop's
+  // merch window stays clear from spawn.
   return (
     <group>
       <YardKit
         name="container-a"
-        scale={6}
-        position={[-2.4, 0, -1.6]}
-        rotation={[0, 0.4, 0]}
+        scale={5.2}
+        position={[-3.2, 0, 1.3]}
+        rotation={[0, 0.35, 0]}
       />
       <YardKit
         name="container-b"
-        scale={6}
-        position={[2.6, 0, -1.8]}
-        rotation={[0, -0.2, 0]}
+        scale={5.2}
+        position={[-3.6, 0, -0.8]}
+        rotation={[0, -0.18, 0]}
       />
-      <YardKit name="box-closed" scale={3} position={[-0.9, 0, 1.1]} />
-      <YardKit name="box-closed" scale={2.4} position={[-0.55, 0, 1.35]} />
+      <YardKit name="box-closed" scale={3} position={[-1.4, 0, 1.3]} />
+      <YardKit name="box-closed" scale={2.4} position={[-1.15, 0, 1.55]} />
+      <YardKit
+        name="construction-fence"
+        scale={3.4}
+        position={[-2.6, 0, -2.2]}
+        rotation={[0, Math.PI / 2, 0]}
+      />
+      <YardKit
+        name="construction-fence"
+        scale={3.4}
+        position={[2.4, 0, -2.2]}
+        rotation={[0, Math.PI / 2, 0]}
+      />
+      <YardKit name="construction-cone" scale={3} position={[1.8, 0, 1.6]} />
     </group>
   );
 }
@@ -242,28 +260,59 @@ export function YardCanalKit() {
   if (!pond) return null;
   const { x, z, rx, rz } = pond;
   const y = ground(x, z);
-  const w = rx * 2.2;
-  const d = rz * 2.2;
-  const railY = y + 0.02;
+  const fences: YardKitInstance[] = [];
+  {
+    const spacing = 1.65;
+    const scale = 1.7;
+    const insetX = rx + 0.5;
+    const insetZ = rz + 0.5;
+    const place = (
+      len: number,
+      alongX: boolean,
+      cx: number,
+      cz: number,
+      rotY: number,
+    ) => {
+      const n = Math.max(2, Math.round(len / spacing));
+      for (let i = 0; i < n; i++) {
+        const t = n === 1 ? 0 : (i / (n - 1) - 0.5) * len;
+        fences.push({
+          position: alongX ? [cx + t, y, cz] : [cx, y, cz + t],
+          rotationY: rotY,
+          scale,
+        });
+      }
+    };
+    place(insetX * 2, true, x, z - insetZ, 0);
+    place(insetX * 2, true, x, z + insetZ, 0);
+    place(insetZ * 2, false, x - insetX, z, Math.PI / 2);
+    place(insetZ * 2, false, x + insetX, z, Math.PI / 2);
+  }
+  const waterW = rx * 2 * 0.88;
+  const waterD = rz * 2 * 0.88;
   return (
     <group>
-      {([-w / 2, w / 2] as const).map((px) => (
-        <YardKit
-          key={`x${px}`}
-          name="skate-fence"
-          scale={Math.max(2.2, d / 1.05)}
-          position={[x + px, railY, z]}
-          rotation={[0, Math.PI / 2, 0]}
+      <mesh position={[x, y + 0.08, z]} receiveShadow>
+        <boxGeometry args={[rx * 2 + 1.1, 0.16, rz * 2 + 1.1]} />
+        <meshStandardMaterial color={YARD.concreteDark} roughness={0.86} />
+      </mesh>
+      <mesh
+        position={[x, y + 0.14, z]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        renderOrder={4}
+      >
+        <planeGeometry args={[waterW, waterD]} />
+        <meshStandardMaterial
+          color="#2f9bb8"
+          roughness={0.12}
+          metalness={0.28}
+          transparent
+          opacity={0.88}
+          emissive="#15607a"
+          emissiveIntensity={0.22}
         />
-      ))}
-      {([-d / 2, d / 2] as const).map((pz) => (
-        <YardKit
-          key={`z${pz}`}
-          name="skate-fence"
-          scale={Math.max(2.2, w / 1.05)}
-          position={[x, railY, z + pz]}
-        />
-      ))}
+      </mesh>
+      <InstancedYardKit name="skate-fence" items={fences} />
       {(
         [
           [0.28, 0.18],
@@ -275,7 +324,7 @@ export function YardCanalKit() {
           key={i}
           name="lily"
           scale={2.4}
-          position={[x + nx * (w / 2), y + 0.16, z + nz * (d / 2)]}
+          position={[x + nx * (waterW / 2), y + 0.2, z + nz * (waterD / 2)]}
         />
       ))}
     </group>
@@ -289,19 +338,20 @@ export function YardOakKit({ fallback }: { fallback: React.ReactNode }) {
 /** Modular Mini Skate bowl to the side of the race strip (local +X). */
 export function YardRaceBowlKit() {
   const s = 2.15;
+  // Kenney inner-corner opens toward +X+Z; sides are low on +Z.
   const tiles: { name: string; x: number; z: number; rotY: number }[] = [
-    { name: "bowl-corner-inner", x: 2.2, z: 0.4, rotY: Math.PI },
-    { name: "bowl-side", x: 4.35, z: 0.4, rotY: Math.PI },
-    { name: "bowl-corner-inner", x: 6.5, z: 0.4, rotY: Math.PI / 2 },
-    { name: "bowl-side", x: 2.2, z: 2.55, rotY: -Math.PI / 2 },
+    { name: "bowl-corner-inner", x: 2.2, z: 0.4, rotY: 0 },
+    { name: "bowl-side", x: 4.35, z: 0.4, rotY: 0 },
+    { name: "bowl-corner-inner", x: 6.5, z: 0.4, rotY: -Math.PI / 2 },
+    { name: "bowl-side", x: 2.2, z: 2.55, rotY: Math.PI / 2 },
     { name: "bowl-platform", x: 4.35, z: 2.55, rotY: 0 },
-    { name: "bowl-side", x: 6.5, z: 2.55, rotY: Math.PI / 2 },
-    { name: "bowl-corner-inner", x: 2.2, z: 4.7, rotY: -Math.PI / 2 },
-    { name: "bowl-side", x: 4.35, z: 4.7, rotY: 0 },
-    { name: "bowl-corner-inner", x: 6.5, z: 4.7, rotY: 0 },
+    { name: "bowl-side", x: 6.5, z: 2.55, rotY: -Math.PI / 2 },
+    { name: "bowl-corner-inner", x: 2.2, z: 4.7, rotY: Math.PI / 2 },
+    { name: "bowl-side", x: 4.35, z: 4.7, rotY: Math.PI },
+    { name: "bowl-corner-inner", x: 6.5, z: 4.7, rotY: Math.PI },
   ];
   return (
-    <group>
+    <group rotation={[0, Math.PI / 2, 0]}>
       {tiles.map((tile, i) => (
         <YardKit
           key={i}
@@ -426,27 +476,145 @@ export function YardSkylineKits({ preferPerf }: { preferPerf: boolean }) {
   );
 }
 
-export function YardPlazaDecorKits({ preferPerf }: { preferPerf: boolean }) {
+export function YardPlazaFurnishings({ preferPerf }: { preferPerf: boolean }) {
   const planters = useMemo(() => {
-    const src = preferPerf ? MEADOW_BUSH_SPOTS.slice(0, 8) : MEADOW_BUSH_SPOTS;
-    return src.map(([x, z], i) => ({
+    const spots: [number, number][] = preferPerf
+      ? [
+          [-6, 1],
+          [6, 1],
+          [-6, -6],
+          [6, -6],
+        ]
+      : [
+          [-6, 1.4],
+          [6, 1.4],
+          [-6, -6.2],
+          [6, -6.2],
+          [-4.5, -11],
+          [4.5, -11],
+          [0, 2.6],
+        ];
+    return spots.map(([x, z], i) => ({
       position: [x, ground(x, z), z] as [number, number, number],
-      rotationY: i * 0.4,
-      scale: 2.4,
+      rotationY: i * 0.5,
+      scale: 2.3,
     }));
   }, [preferPerf]);
-  const pots = useMemo(() => {
-    const src = preferPerf ? MEADOW_ROCK_SPOTS.slice(0, 6) : MEADOW_ROCK_SPOTS;
-    return src.map(([x, z], i) => ({
+  const benches = useMemo(() => {
+    const spots: Array<[number, number, number]> = preferPerf
+      ? [
+          [-3.6, -2, 0.2],
+          [3.6, -2, -0.2],
+        ]
+      : [
+          [-3.8, -1.8, 0.2],
+          [3.8, -1.8, -0.2],
+          [-3.8, -7.4, Math.PI + 0.15],
+          [3.8, -7.4, Math.PI - 0.15],
+        ];
+    return spots.map(([x, z, rotY]) => ({
       position: [x, ground(x, z), z] as [number, number, number],
-      rotationY: i * 0.7,
-      scale: 2.1,
+      rotationY: rotY,
+      scale: 1.9,
     }));
   }, [preferPerf]);
+  const posts: Array<[number, number]> = preferPerf
+    ? [
+        [-7.5, 2.2],
+        [7.5, 2.2],
+        [-7.5, -9],
+        [7.5, -9],
+      ]
+    : [
+        [-7.5, 2.2],
+        [7.5, 2.2],
+        [-7.5, -9],
+        [7.5, -9],
+        [0, 2.2],
+        [0, -9],
+      ];
   return (
     <group>
+      {/* Low reflecting pool + sculpture at the plaza center, off the N-S spine enough to read but not a path solid. */}
+      <mesh position={[0, 0.06, -3.2]} receiveShadow>
+        <cylinderGeometry args={[2.15, 2.25, 0.12, 20]} />
+        <meshStandardMaterial color={YARD.concreteDark} roughness={0.88} />
+      </mesh>
+      <mesh
+        position={[0, 0.12, -3.2]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        renderOrder={2}
+      >
+        <circleGeometry args={[1.85, 20]} />
+        <meshStandardMaterial
+          color="#2f9bb8"
+          roughness={0.14}
+          metalness={0.25}
+          transparent
+          opacity={0.8}
+          emissive="#15607a"
+          emissiveIntensity={0.18}
+        />
+      </mesh>
+      <mesh position={[0, 1.15, -3.2]} castShadow={false}>
+        <cylinderGeometry args={[0.18, 0.28, 2.1, 8]} />
+        <meshStandardMaterial color={YARD.concrete} roughness={0.7} />
+      </mesh>
+      <mesh position={[0, 2.25, -3.2]}>
+        <sphereGeometry args={[0.55, 12, 10]} />
+        <meshStandardMaterial
+          color={YARD.paper}
+          roughness={0.35}
+          metalness={0.15}
+          emissive={YARD.accent}
+          emissiveIntensity={0.22}
+        />
+      </mesh>
+      <NeonHalo position={[0, 2.25, -3.2]} width={1.4} height={1.2} />
+      {posts.map(([x, z], i) => (
+        <group key={`light-${i}`} position={[x, 0, z]}>
+          <mesh position={[0, 1.6, 0]}>
+            <cylinderGeometry args={[0.06, 0.08, 3.2, 6]} />
+            <meshStandardMaterial
+              color={YARD.metal}
+              roughness={0.4}
+              metalness={0.5}
+            />
+          </mesh>
+          <mesh position={[0, 3.2, 0]}>
+            <sphereGeometry args={[0.12, 8, 6]} />
+            <meshStandardMaterial
+              color="#ffe7b0"
+              emissive="#ffe14a"
+              emissiveIntensity={0.9}
+            />
+          </mesh>
+        </group>
+      ))}
+      {posts.slice(0, -1).map((_, i) => {
+        const [ax, az] = posts[i]!;
+        const [bx, bz] = posts[i + 1]!;
+        const mx = (ax + bx) / 2;
+        const mz = (az + bz) / 2;
+        const len = Math.hypot(bx - ax, bz - az);
+        const rotY = Math.atan2(bx - ax, bz - az);
+        return (
+          <mesh
+            key={`strung-${i}`}
+            position={[mx, 3.05, mz]}
+            rotation={[Math.PI / 2, rotY, 0]}
+          >
+            <cylinderGeometry args={[0.02, 0.02, len, 4]} />
+            <meshStandardMaterial
+              color="#ffe7b0"
+              emissive="#ffb347"
+              emissiveIntensity={0.7}
+            />
+          </mesh>
+        );
+      })}
       <InstancedYardKit name="planter" items={planters} />
-      <InstancedYardKit name="pot-large" items={pots} />
+      <InstancedYardKit name="skate-bench" items={benches} />
     </group>
   );
 }

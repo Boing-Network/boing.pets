@@ -1,7 +1,7 @@
 /** Deterministic meadow instance placement, shared by the scene and tests. */
 
 import { meadowHeight } from "./meadowHeight";
-import { isDecorClear } from "./meadowFootprints";
+import { inPlazaFootprint, isDecorClear } from "./meadowFootprints";
 import {
   MEADOW_APRON_TREE_SPOTS,
   MEADOW_BUSH_SPOTS,
@@ -123,9 +123,10 @@ function fromSpots(
       scale: scaleFor(i),
       rotY: i * 0.7,
     }))
-    .filter(
-      (row) => isDecorClear(row.x, row.z) || kind === "tree" || kind === "bush",
-    );
+    .filter((row) => {
+      if (inPlazaFootprint(row.x, row.z)) return false;
+      return isDecorClear(row.x, row.z) || kind === "tree" || kind === "bush";
+    });
 }
 
 export function scatteredGrass(preferPerf: boolean): DecorInstance[] {

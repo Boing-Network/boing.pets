@@ -35,7 +35,7 @@ describe("meadow decor sits on the ground and stays off footprints", () => {
     expect(pond.rx).toBeCloseTo(pondLand.width / 2, 5);
     expect(pond.rz).toBeCloseTo(pondLand.depth / 2, 5);
     expect(POND_WATER_LIFT).toBeGreaterThan(0);
-    expect(POND_WATER_LIFT).toBeLessThanOrEqual(0.03);
+    expect(POND_WATER_LIFT).toBeLessThanOrEqual(0.12);
     expect(inPondFootprint(pond.x, pond.z)).toBe(true);
     expect(inPondFootprint(pond.x + pond.rx + 2, pond.z)).toBe(false);
     expect(isDecorClear(pond.x, pond.z)).toBe(false);

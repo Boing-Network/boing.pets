@@ -11,6 +11,7 @@ import {
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { YARD } from "./yardChrome";
 
 export const YARD_KIT_BASE = "/yard-kits/";
@@ -56,7 +57,9 @@ export function restyleYardKit(root: THREE.Object3D): void {
       const lum = c.r * 0.4 + c.g * 0.45 + c.b * 0.15;
       const isWindow = c.b > c.r + 0.08 && c.b > 0.35;
       const isAwning = c.r > 0.55 && c.g < 0.5 && c.r > c.b;
-      const isRoof = lum < 0.28;
+      const isPaintedRoof =
+        c.g > c.r + 0.08 && c.g > c.b + 0.08 && lum > 0.18 && lum < 0.65;
+      const isRoof = lum < 0.28 || isPaintedRoof;
       if (isWindow) {
         mat.color = new THREE.Color("#d7e7f0");
         mat.emissive = new THREE.Color("#ffc888");
@@ -99,7 +102,52 @@ export function prepareYardKit(
       : -((box.min.z + box.max.z) / 2);
   obj.position.set(-midX, groundY - box.min.y, z);
   root.add(obj);
+  mergeKitMeshes(root);
   return root;
+}
+
+function materialKey(material: THREE.Material): string {
+  return `${material.type}:${material.uuid}`;
+}
+
+/** Collapse a prepared kit to one mesh per material to cut draw calls. */
+function mergeKitMeshes(root: THREE.Group): void {
+  root.updateMatrixWorld(true);
+  const groups = new Map<
+    string,
+    { geos: THREE.BufferGeometry[]; material: THREE.Material }
+  >();
+  const remove: THREE.Mesh[] = [];
+  root.traverse((obj) => {
+    if (!(obj instanceof THREE.Mesh) || !obj.geometry) return;
+    const raw = obj.material;
+    const mat = Array.isArray(raw) ? null : raw;
+    if (!mat) return;
+    const geo: THREE.BufferGeometry = obj.geometry.clone();
+    geo.applyMatrix4(obj.matrixWorld);
+    const key = materialKey(mat);
+    let slot = groups.get(key);
+    if (!slot) {
+      slot = { geos: [], material: mat };
+      groups.set(key, slot);
+    }
+    slot.geos.push(geo);
+    remove.push(obj);
+  });
+  if (!groups.size) return;
+  for (const mesh of remove) mesh.removeFromParent();
+  for (const { geos, material } of groups.values()) {
+    const merged = geos.length === 1 ? geos[0]! : mergeGeometries(geos, false);
+    if (geos.length > 1) {
+      for (const geo of geos) geo.dispose();
+    }
+    if (!merged) continue;
+    const mesh = new THREE.Mesh(merged, material);
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    mesh.frustumCulled = true;
+    root.add(mesh);
+  }
 }
 
 export function YardKit({
@@ -186,21 +234,19 @@ export function InstancedYardKit({
   restyle?: boolean;
   items: readonly YardKitInstance[];
 }) {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const [source, setSource] = useState<THREE.Mesh | null>(null);
+  const [sources, setSources] = useState<THREE.Mesh[]>([]);
+  const refs = useRef<Array<THREE.InstancedMesh | null>>([]);
   useEffect(() => {
     let live = true;
     loadYardGltf(name)
       .then((gltf) => {
         if (!live) return;
-        const scene = gltf.scene.clone(true);
-        if (restyle) restyleYardKit(scene);
-        scene.updateMatrixWorld(true);
-        let mesh: THREE.Mesh | null = null;
-        scene.traverse((obj) => {
-          if (!mesh && isMesh(obj)) mesh = obj;
+        const prepared = prepareYardKit(gltf.scene, { scale: 1, restyle });
+        const meshes: THREE.Mesh[] = [];
+        prepared.traverse((obj) => {
+          if (isMesh(obj)) meshes.push(obj);
         });
-        if (mesh) setSource(mesh);
+        setSources(meshes);
       })
       .catch(() => {});
     return () => {
@@ -208,35 +254,41 @@ export function InstancedYardKit({
     };
   }, [name, restyle]);
   useLayoutEffect(() => {
-    const inst = meshRef.current;
-    if (!inst || !source) return;
-    source.geometry.computeBoundingBox();
-    const box = source.geometry.boundingBox;
-    const dummy = new THREE.Object3D();
-    items.forEach((item, i) => {
-      const s = (item.scale ?? 1) * scale;
-      const yOff = box ? -box.min.y * s : 0;
-      dummy.position.set(
-        item.position[0],
-        item.position[1] + yOff,
-        item.position[2],
-      );
-      dummy.rotation.set(0, item.rotationY ?? 0, 0);
-      dummy.scale.setScalar(s);
-      dummy.updateMatrix();
-      inst.setMatrixAt(i, dummy.matrix);
+    sources.forEach((source, mi) => {
+      const inst = refs.current[mi];
+      if (!inst) return;
+      const dummy = new THREE.Object3D();
+      items.forEach((item, i) => {
+        const s = (item.scale ?? 1) * scale;
+        dummy.position.set(
+          item.position[0],
+          item.position[1],
+          item.position[2],
+        );
+        dummy.rotation.set(0, item.rotationY ?? 0, 0);
+        dummy.scale.setScalar(s);
+        dummy.updateMatrix();
+        inst.setMatrixAt(i, dummy.matrix);
+      });
+      inst.count = items.length;
+      inst.instanceMatrix.needsUpdate = true;
     });
-    inst.count = items.length;
-    inst.instanceMatrix.needsUpdate = true;
-  }, [items, source, scale]);
-  if (!source || items.length === 0) return null;
+  }, [items, sources, scale]);
+  if (sources.length === 0 || items.length === 0) return null;
   return (
-    <instancedMesh
-      ref={meshRef}
-      args={[source.geometry, source.material, items.length]}
-      frustumCulled={false}
-      castShadow={false}
-      receiveShadow={false}
-    />
+    <>
+      {sources.map((source, i) => (
+        <instancedMesh
+          key={`${name}-${i}`}
+          ref={(el) => {
+            refs.current[i] = el;
+          }}
+          args={[source.geometry, source.material, items.length]}
+          frustumCulled={false}
+          castShadow={false}
+          receiveShadow={false}
+        />
+      ))}
+    </>
   );
 }

@@ -247,9 +247,7 @@ describe("pasture chat stays clear of emotes and touch controls", () => {
       );
       if (touch) {
         expect(layout.txToast.left).toBe(PASTURE_TX_TOAST_TOUCH_SIDE_CLEAR_PX);
-        expect(layout.txToast.right).toBe(
-          width - PASTURE_TX_TOAST_TOUCH_SIDE_CLEAR_PX,
-        );
+        expect(layout.txToast.right).toBeLessThan(layout.progress.left);
       } else {
         expect(layout.txToast.left).toBe(PASTURE_TX_TOAST_DESKTOP_LEFT_PX);
         expect(layout.txToast.right).toBe(

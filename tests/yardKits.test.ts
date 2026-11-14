@@ -10,7 +10,7 @@ describe("yard kits", () => {
     expect(YARD_KIT_BASE).toBe("/yard-kits/");
     expect(YARD_KIT_PRELOAD.length).toBeGreaterThan(20);
     expect(YARD_KIT_PRELOAD).toContain("shop-wide");
-    expect(YARD_KIT_PRELOAD).toContain("sky-tower-a");
+    expect(YARD_KIT_PRELOAD).toContain("skate-bench");
   });
 
   it("keeps spawn walkable after kit solids are added", () => {

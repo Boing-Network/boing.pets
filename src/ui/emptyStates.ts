@@ -18,19 +18,19 @@ export const BAG_EMPTY_COPY: Record<
 > = {
   items: {
     title: "This pocket is empty.",
-    hint: "Snacks and furniture drop from pasture activities, or buy them at the Market Stall.",
+    hint: "Snacks and furniture drop from Yard lots, or buy them at The Drop.",
   },
   crops: {
     title: "No crops in the bag yet.",
-    hint: "Tend the Garden Beds on the pasture, then harvest to fill this pocket.",
+    hint: "Tend the City Garden on the block, then harvest to fill this pocket.",
   },
   fish: {
     title: "No fish in the bag yet.",
-    hint: "Walk to the Pond Pier and fish to catch something for this pocket.",
+    hint: "Walk to The Canal and fish to catch something for this pocket.",
   },
   recipes: {
     title: "No recipes ready to cook.",
-    hint: "Gather ingredients from activities, then walk to the Pasture Kitchen to cook.",
+    hint: "Gather ingredients from lots, then walk to the Street Kitchen to cook.",
   },
 };
 
@@ -40,16 +40,16 @@ export const BAG_CONNECT_COPY = {
 };
 
 export const MARKET_EMPTY_COPY = {
-  none: "No player listings yet. Earn a drop on the pasture or buy from the catalog, then list it from your bag at the Market Stall.",
+  none: "No player listings yet. Earn a drop in The Yard or buy from the catalog, then list it from your bag at The Drop.",
   filters:
     "No listings match these filters. Clear a filter or search a different name to see every open listing.",
 };
 
 export const COLLECTION_EMPTY_COPY =
-  "The discovery log is waiting. Explore the pasture and finish activities like fishing, mining, or treasure digs to unlock entries.";
+  "The discovery log is waiting. Walk The Yard and finish fishing, mining, or digs to unlock entries.";
 
 export const LEADERBOARD_EMPTY_COPY =
-  "No claimed runs yet this week. Finish a Race Track or Pond Pier activity on the pasture, then claim the reward to post a score.";
+  "No claimed runs yet this week. Finish a Skate Park or The Canal run in The Yard, then claim the reward to post a score.";
 
 export function bagEmptyCopy(
   tab: InventoryEmptyTab,

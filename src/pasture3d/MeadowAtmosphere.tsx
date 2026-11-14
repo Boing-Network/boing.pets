@@ -83,18 +83,18 @@ export function MeadowAtmosphere({
         color={first.sunColor}
         position={[first.sunX, first.sunY, first.sunZ]}
         castShadow={shadows}
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
+        shadow-mapSize-width={512}
+        shadow-mapSize-height={512}
         shadow-camera-near={1}
-        shadow-camera-far={70}
-        shadow-camera-left={-32}
-        shadow-camera-right={32}
-        shadow-camera-top={32}
-        shadow-camera-bottom={-32}
+        shadow-camera-far={56}
+        shadow-camera-left={-26}
+        shadow-camera-right={26}
+        shadow-camera-top={26}
+        shadow-camera-bottom={-26}
         shadow-bias={-0.0004}
-        shadow-normalBias={0.035}
-        shadow-radius={3}
-        shadow-intensity={0.42}
+        shadow-normalBias={0.04}
+        shadow-radius={1}
+        shadow-intensity={0.36}
       />
       <directionalLight
         ref={fill}

@@ -90,7 +90,7 @@ export async function confirmPending() {
   }>("/api/confirm", { id: p.id, tx_hash: p.tx_hash });
   localStorage.removeItem("boing-pets-pending");
   await refresh();
-  let msg = "Confirmed. Your buddy felt that little bounce!";
+  let msg = "Confirmed. Logged.";
   if (confirmed.drop?.name) {
     msg += ` You found a ${confirmed.drop.tier} drop: ${confirmed.drop.name}!`;
   }
@@ -128,7 +128,7 @@ export async function act(action: Action) {
     await refresh();
     let msg =
       action === "checkin"
-        ? "Hello sent. A little love goes a long way."
+        ? "Hello sent."
         : action === "play"
           ? "Playtime logged. Energy up!"
           : "All fresh. Hygiene restored.";

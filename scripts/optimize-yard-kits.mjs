@@ -22,6 +22,7 @@ const packs = {
   food: join(srcRoot, "food-kit", "Models", "GLB format"),
   nature: join(srcRoot, "nature-kit", "Models", "GLTF format"),
   skate: join(srcRoot, "mini-skate", "Models", "GLB format"),
+  roads: join(srcRoot, "city-kit-roads", "Models", "GLB format"),
 };
 
 const picks = [
@@ -140,6 +141,40 @@ const picks = [
   { pack: "skate", file: "rail-low.glb", out: "rail-low.glb" },
   { pack: "skate", file: "fence.glb", out: "skate-fence.glb" },
   { pack: "skate", file: "bench.glb", out: "skate-bench.glb" },
+  { pack: "roads", file: "road-straight.glb", out: "road-straight.glb" },
+  {
+    pack: "roads",
+    file: "road-straight-half.glb",
+    out: "road-straight-half.glb",
+  },
+  { pack: "roads", file: "road-crossroad-line.glb", out: "road-crossroad.glb" },
+  { pack: "roads", file: "road-crossing.glb", out: "road-crossing.glb" },
+  {
+    pack: "roads",
+    file: "road-intersection-line.glb",
+    out: "road-intersection.glb",
+  },
+  { pack: "roads", file: "road-bend-sidewalk.glb", out: "road-bend.glb" },
+  { pack: "roads", file: "light-square.glb", out: "street-light.glb" },
+  { pack: "roads", file: "traffic-light.glb", out: "traffic-light.glb" },
+  {
+    pack: "roads",
+    file: "construction-fence.glb",
+    out: "construction-fence.glb",
+  },
+  {
+    pack: "roads",
+    file: "construction-cone.glb",
+    out: "construction-cone.glb",
+  },
+  {
+    pack: "roads",
+    file: "construction-barrier.glb",
+    out: "construction-barrier.glb",
+  },
+  { pack: "roads", file: "dumpster.glb", out: "dumpster.glb" },
+  { pack: "suburban", file: "building-type-h.glb", out: "house-h.glb" },
+  { pack: "suburban", file: "building-type-i.glb", out: "house-i.glb" },
 ];
 
 mkdirSync(outDir, { recursive: true });

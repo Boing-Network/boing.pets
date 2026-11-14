@@ -14,11 +14,14 @@ import {
   pastureGroundRadius,
 } from "../src/pasture3d/meadowLayout";
 import { obstaclesForZone } from "../src/pasture3d/pathing";
+import { CITY_PARK_TREES } from "../src/pasture3d/cityLayout";
 import { PASTURE_ZONE } from "../src/world/config/zones";
 
 describe("enlarged pasture layout", () => {
   const obstacles = obstaclesForZone(PASTURE_ZONE);
-  const solids = obstacles.filter((o) => o.id !== "meadow-tree");
+  const solids = obstacles.filter(
+    (o) => o.id !== "city-park-tree" && o.id !== "meadow-tree",
+  );
 
   it("covers the walkable square with terrain and keeps trees in bounds", () => {
     const { bounds } = PASTURE_ZONE;
@@ -36,7 +39,7 @@ describe("enlarged pasture layout", () => {
       expect(z).toBeGreaterThanOrEqual(bounds.minZ);
       expect(z).toBeLessThanOrEqual(bounds.maxZ);
     }
-    for (const [x, z] of MEADOW_TREE_SPOTS) {
+    for (const [x, z] of CITY_PARK_TREES) {
       expect(solids.some((o) => Math.hypot(o.x - x, o.z - z) < 2.4)).toBe(
         false,
       );
@@ -81,7 +84,7 @@ describe("enlarged pasture layout", () => {
       if (z >= 44) nearZ += 1;
     }
     expect(nearZ).toBeGreaterThanOrEqual(10);
-    for (const [x, z] of MEADOW_TREE_SPOTS) {
+    for (const [x, z] of CITY_PARK_TREES) {
       expect(distanceToPasturePath(x, z)).toBeGreaterThan(2.4);
     }
   });

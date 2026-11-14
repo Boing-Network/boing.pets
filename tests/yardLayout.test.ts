@@ -18,7 +18,7 @@ function dist(
   return Math.hypot(pa.x - pb.x, pa.z - pb.z);
 }
 
-describe("yard plaza layout", () => {
+describe("yard city layout", () => {
   const spawn = PASTURE_ZONE.spawn;
   const market = stationByKind(PASTURE_ZONE, "market")!;
   const craft = stationByKind(PASTURE_ZONE, "craft")!;
@@ -38,30 +38,29 @@ describe("yard plaza layout", () => {
     expect(market.position.z).toBeLessThan(spawn.z - 8);
   });
 
-  it("clusters the three shops on the east wall facing the plaza", () => {
-    for (const shop of [market, craft, customize]) {
-      expect(shop.position.x).toBeGreaterThan(10);
-      expect(Math.abs(shop.position.x - market.position.x)).toBeLessThan(1);
-    }
+  it("puts the print shop and fitting room on the east avenue, with The Drop as a corner store", () => {
+    expect(market.position.x).toBeGreaterThan(10);
+    expect(craft.position.x).toBeGreaterThan(18);
+    expect(customize.position.x).toBeGreaterThan(18);
+    expect(Math.abs(craft.position.x - customize.position.x)).toBeLessThan(1);
     expect(dist(market, craft)).toBeLessThan(16);
-    expect(dist(market, customize)).toBeLessThan(20);
+    expect(dist(market, customize)).toBeLessThan(24);
     expect(dist(craft, customize)).toBeLessThan(28);
   });
 
-  it("clusters kitchen, crystals, and the oak on the west / north activity yard", () => {
+  it("places the kitchen, crystal yard, and oak park on the west side of the avenue", () => {
     expect(kitchen.position.x).toBeLessThan(spawn.x - 8);
     expect(kitchen.position.z).toBeLessThan(spawn.z);
     expect(crystal.position.x).toBeLessThan(spawn.x);
     expect(crystal.position.z).toBeLessThan(spawn.z);
     expect(oak.position.x).toBeLessThan(spawn.x);
     expect(oak.position.z).toBeLessThan(kitchen.position.z);
-    expect(dist(kitchen, crystal)).toBeLessThan(12);
+    expect(dist(kitchen, crystal)).toBeLessThan(28);
   });
 
-  it("keeps treasure in front of The Drop and the canal behind the shop row", () => {
-    expect(treasure.position.x).toBeLessThan(market.position.x);
+  it("puts the construction lot south of midtown and the canal on the north waterfront", () => {
     expect(treasure.position.x).toBeGreaterThan(spawn.x);
-    expect(Math.abs(treasure.position.z - market.position.z)).toBeLessThan(4);
+    expect(treasure.position.z).toBeGreaterThan(spawn.z);
     expect(pond.z).toBeLessThan(market.position.z - 8);
     expect(Math.abs(pier.position.z - pond.z)).toBeLessThan(1);
     expect(dist(pier, pond)).toBeLessThan(12);
@@ -86,7 +85,7 @@ describe("yard plaza layout", () => {
     }
   });
 
-  it("leaves the central plaza and spawn clear of interact prompts", () => {
+  it("leaves the main intersection and spawn clear of interact prompts", () => {
     expect(stationByKind(PASTURE_ZONE, "market")).toBeTruthy();
     const clear = [spawn, { x: 0, z: 0 }, { x: 0, z: 2 }];
     for (const point of clear) {

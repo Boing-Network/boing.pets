@@ -10,6 +10,26 @@ export type FrameSampleSummary = {
   overBudget: number;
 };
 
+export type RendererInfoSnapshot = {
+  drawCalls: number;
+  triangles: number;
+  geometries: number;
+  textures: number;
+};
+
+export type FrameStatsReport = FrameSampleSummary &
+  RendererInfoSnapshot & {
+    dpr: number;
+    preferPerf: boolean;
+  };
+
+export const EMPTY_RENDERER_INFO: RendererInfoSnapshot = {
+  drawCalls: 0,
+  triangles: 0,
+  geometries: 0,
+  textures: 0,
+};
+
 export function summarizeFrameTimes(
   deltasMs: readonly number[],
   budgetMs = FRAME_BUDGET_MS,

@@ -26,8 +26,8 @@ export function PastureHelpOverlay({
       </div>
       <p className="pasture-help-lead">
         {touch
-          ? "On a phone or tablet, use the on-screen buttons. Keys still work with a keyboard."
-          : "Keys work anywhere on the pasture except when you are typing in chat."}
+          ? "On a phone or tablet, use the joystick and on-screen buttons. WASD still works with a keyboard."
+          : "WASD or arrow keys move your character relative to the camera. Keys are ignored while you type in chat."}
       </p>
       <table className="pasture-help-table">
         <thead>

@@ -74,8 +74,19 @@ import {
 } from "./pastureFocus";
 import { PastureAudioControls } from "./PastureAudioControls";
 import { PastureHelpButton, PastureHelpOverlay } from "./PastureHelpOverlay";
-import { shortcutFromEvent } from "./keyboardShortcuts";
-import { createFrameSampler, type FrameSampleSummary } from "./frameStats";
+import {
+  applyMoveKey,
+  clearMoveKeys,
+  combinedMoveStick,
+  isEditableTarget,
+  shortcutFromEvent,
+} from "./keyboardShortcuts";
+import {
+  createFrameSampler,
+  EMPTY_RENDERER_INFO,
+  type FrameStatsReport,
+  type RendererInfoSnapshot,
+} from "./frameStats";
 import {
   isImmersiveFallback,
   isPastureFullscreen,
@@ -173,10 +184,7 @@ export type PastureDebug = {
   openInventory: () => void;
   getNearbyStation: () => { id: string; kind: string } | null;
   setOcclusionLook: (look: { x: number; y: number; z: number } | null) => void;
-  getFrameStats: () => FrameSampleSummary & {
-    dpr: number;
-    preferPerf: boolean;
-  };
+  getFrameStats: () => FrameStatsReport;
 };
 
 export type PastureAppProps = {
@@ -223,6 +231,23 @@ function readHintOpen() {
   }
 }
 
+function FrameInfoProbe({
+  onInfo,
+}: {
+  onInfo: (info: RendererInfoSnapshot) => void;
+}) {
+  useFrame(({ gl }) => {
+    const info = gl.info;
+    onInfo({
+      drawCalls: info.render.calls,
+      triangles: info.render.triangles,
+      geometries: info.memory.geometries,
+      textures: info.memory.textures,
+    });
+  });
+  return null;
+}
+
 export function PastureApp({
   pets,
   owner,
@@ -263,6 +288,7 @@ export function PastureApp({
   const stageRef = useRef<HTMLDivElement>(null);
   const frameSampler = useRef(createFrameSampler());
   const frameDpr = useRef(1);
+  const renderInfo = useRef<RendererInfoSnapshot>({ ...EMPTY_RENDERER_INFO });
   const [zoom, setZoom] = useState(PASTURE_ZOOM_DEFAULT);
   const [ready, setReady] = useState(false);
   const [hintOpen, setHintOpen] = useState(readHintOpen);
@@ -371,8 +397,8 @@ export function PastureApp({
     if (presence.status === "live") {
       onStatus(
         presence.walletBound
-          ? `Online in the pasture · ${presence.players.length} other wanderer${presence.players.length === 1 ? "" : "s"}`
-          : "Spectating the pasture — connect to walk as your buddy and chat.",
+          ? `Online in The Yard · ${presence.players.length} other wanderer${presence.players.length === 1 ? "" : "s"}`
+          : "Spectating The Yard — connect to walk your hatch and chat.",
       );
       return;
     }
@@ -558,15 +584,11 @@ export function PastureApp({
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const tag = target?.tagName;
-      if (
-        tag === "INPUT" ||
-        tag === "TEXTAREA" ||
-        tag === "SELECT" ||
-        target?.isContentEditable
-      )
+      if (isEditableTarget(event.target)) return;
+      if (applyMoveKey(controls.current, event, true)) {
+        event.preventDefault();
         return;
+      }
       const shortcut = shortcutFromEvent(event);
       if (shortcut) {
         if (shortcut.type === "dismiss") {
@@ -652,8 +674,29 @@ export function PastureApp({
         resetCamera();
       }
     };
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (applyMoveKey(controls.current, event, false)) event.preventDefault();
+    };
+    const clear = () => clearMoveKeys(controls.current);
+    const onFocusIn = (event: FocusEvent) => {
+      if (isEditableTarget(event.target)) clear();
+    };
     document.addEventListener("keydown", onKey, true);
-    return () => document.removeEventListener("keydown", onKey, true);
+    document.addEventListener("keyup", onKeyUp, true);
+    const onVisibility = () => {
+      if (document.hidden) clear();
+    };
+    window.addEventListener("blur", clear);
+    document.addEventListener("visibilitychange", onVisibility);
+    document.addEventListener("focusin", onFocusIn);
+    return () => {
+      document.removeEventListener("keydown", onKey, true);
+      document.removeEventListener("keyup", onKeyUp, true);
+      window.removeEventListener("blur", clear);
+      document.removeEventListener("visibilitychange", onVisibility);
+      document.removeEventListener("focusin", onFocusIn);
+      clear();
+    };
   }, [
     applyZoom,
     applyPitch,
@@ -761,6 +804,7 @@ export function PastureApp({
       },
       getFrameStats: () => ({
         ...frameSampler.current.summary(),
+        ...renderInfo.current,
         dpr: frameDpr.current,
         preferPerf,
       }),
@@ -873,10 +917,11 @@ export function PastureApp({
       {hintOpen ? (
         <div className="pasture-hint" role="status">
           <p>
-            Click the plaza to walk. Scroll or pinch to zoom. Press Enter to
-            chat. Walk ahead and right to The Drop, further along the shop row
-            to the Print Shop, or just right to the Fitting Room. Use + / - or
-            the buttons to zoom, and 0 to reset.
+            WASD or the arrow keys move your character, relative to the camera.
+            You can also click the street to walk, or use the joystick. Press
+            Enter to chat. Walk ahead and right to The Drop, then along the east
+            avenue to the Print Shop or Fitting Room. Use + / - or the buttons
+            to zoom, and 0 to reset.
           </p>
           <button type="button" className="quiet" onClick={dismissHint}>
             Got it
@@ -1016,9 +1061,15 @@ export function PastureApp({
             frameDpr.current = gl.getPixelRatio();
             setReady(true);
           }}
+
           onPointerDown={dismissHint}
         >
           <Suspense fallback={null}>
+            <FrameInfoProbe
+              onInfo={(info) => {
+                renderInfo.current = info;
+              }}
+            />
             <MeadowAtmosphere
               preferPerf={preferPerf}
               reducedMotion={reducedMotion}
@@ -1399,19 +1450,17 @@ function LocalPet({
       started.current = true;
     }
     const here = { x: node.position.x, z: node.position.z };
-    const stickLen = stickMagnitude(
+    const move = combinedMoveStick(
+      controls.current,
       controls.current.stickX,
       controls.current.stickY,
     );
+    const stickLen = stickMagnitude(move.x, move.y);
     const stickActive = stickEnabled && stickLen > STICK_DEADZONE;
     const target = stickActive ? null : walkTarget.current;
     if (stickActive) {
       walkTarget.current = null;
-      const dir = stickWorldDelta(
-        controls.current.stickX,
-        controls.current.stickY,
-        camYawRef.current,
-      );
+      const dir = stickWorldDelta(move.x, move.y, camYawRef.current);
       const dest = { x: here.x + dir.x, z: here.z + dir.z };
       speed.current = approachSpeed(
         speed.current,

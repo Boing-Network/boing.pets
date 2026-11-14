@@ -1,10 +1,7 @@
 import type { WorldLandmark, WorldZoneConfig } from "../world/config/zones";
 import { WORLD_CONFIG } from "../world/config/zones";
-import {
-  MEADOW_FENCE_HALF_THICK,
-  MEADOW_FENCES,
-  MEADOW_TREE_SPOTS,
-} from "./meadowLayout";
+import { MEADOW_FENCE_HALF_THICK, MEADOW_FENCES } from "./meadowLayout";
+import { CITY_PARK_TREES, cityBuildingFootprints } from "./cityLayout";
 import { yardKitObstacles } from "./yardKitObstacles";
 
 export type Vec2 = { x: number; z: number };
@@ -47,13 +44,23 @@ export function obstaclesForZone(zone: WorldZoneConfig): Obstacle[] {
     });
   }
   if (zone.id === "pasture") {
-    for (const [x, z] of MEADOW_TREE_SPOTS) {
+    for (const [x, z] of CITY_PARK_TREES) {
       list.push({
-        id: "meadow-tree",
+        id: "city-park-tree",
         x,
         z,
-        halfW: 0.85,
-        halfD: 0.85,
+        halfW: 0.9,
+        halfD: 0.9,
+        shape: "circle",
+      });
+    }
+    for (const [i, building] of cityBuildingFootprints().entries()) {
+      list.push({
+        id: "city-building-" + i,
+        x: building.x,
+        z: building.z,
+        halfW: building.r + PET_RADIUS,
+        halfD: building.r + PET_RADIUS,
         shape: "circle",
       });
     }

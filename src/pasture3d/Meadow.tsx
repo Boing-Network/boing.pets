@@ -38,7 +38,7 @@ function Terrain({
       pos.setY(i, y);
       const n = Math.sin(x * 0.19) * Math.cos(z * 0.16);
       const shade = 0.96 + n * 0.04;
-      color.setRGB(0.82 * shade, 0.8 * shade, 0.74 * shade);
+      color.setRGB(0.38 * shade, 0.37 * shade, 0.35 * shade);
       colors[i * 3] = color.r;
       colors[i * 3 + 1] = color.g;
       colors[i * 3 + 2] = color.b;
@@ -104,7 +104,7 @@ if (dot(pondDelta, pondDelta) < 1.0) discard;`,
         ref={mat}
         map={map ?? undefined}
         vertexColors
-        color={map ? "#f2eee6" : YARD.concreteLight}
+        color={map ? "#7a7670" : YARD.concreteLight}
         roughness={0.92}
         metalness={0}
       />

@@ -9,8 +9,8 @@ import {
   pointToSegment,
 } from "./meadowLayout";
 
-export const POND_WATER_LIFT = 0.02;
-export const POND_RIM_LIFT = 0.034;
+export const POND_WATER_LIFT = 0.1;
+export const POND_RIM_LIFT = 0.12;
 export const POND_RIM_WIDTH = 0.48;
 export const POND_DECOR_MARGIN = 0.9;
 export const PATH_DECOR_CLEAR = 1.8;
@@ -55,7 +55,7 @@ export function lilyPondEllipse(): MeadowEllipse | null {
 export const POND_PATH_OUTSET = 0.12;
 
 /** Local offset for the Pond Pier billboard, north of the deck and above the posts. */
-export const POND_PIER_LABEL_LOCAL = { x: 0.2, y: 2.9, z: 1.4 } as const;
+export const POND_PIER_LABEL_LOCAL = { x: -0.2, y: 2.7, z: 1.2 } as const;
 
 /**
  * Point on the ellipse (plus optional outward margin) in the direction
@@ -143,9 +143,9 @@ export function inFenceFootprint(
   return false;
 }
 
-/** Keep the compact rooftop plaza free of meadow grass and tufts. */
+/** Keep the compact city district free of meadow grass and tufts. */
 export function inPlazaFootprint(x: number, z: number): boolean {
-  return Math.abs(x) <= 28 && z <= 16 && z >= -30;
+  return Math.abs(x) <= 32 && Math.abs(z) <= 32;
 }
 
 /** True when a grass tuft, flower, or rock may be planted at (x, z). */
