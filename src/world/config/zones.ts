@@ -469,7 +469,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "dispatch-station",
       label: "Dispatch",
-      position: { x: 24, y: 0, z: 0 },
+      position: { x: 24, y: 0, z: -18 },
       color: "#2ec8e0",
       height: 2.8,
       width: 4.6,
@@ -570,7 +570,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       id: "pasture-dispatch",
       label: "Dispatch",
       kind: "dispatch",
-      position: { x: 24, y: 0, z: 0 },
+      position: { x: 24, y: 0, z: -18 },
       radius: 3.4,
       hint: "Press E to open Dispatch",
     },
@@ -625,8 +625,8 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       { x: 28, y: 0.02, z: 16 },
     ],
     [
-      { x: 18, y: 0.02, z: 0 },
-      { x: 24, y: 0.02, z: 0 },
+      { x: 18, y: 0.02, z: -18 },
+      { x: 24, y: 0.02, z: -18 },
     ],
     [
       { x: -18, y: 0.02, z: 6 },

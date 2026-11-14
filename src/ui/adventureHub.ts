@@ -17,6 +17,13 @@ import {
 import { itemRarity } from "../content/items";
 import type { ItemRarity } from "../content/rarities";
 import { ITEM_RARITIES } from "../content/rarities";
+import {
+  displayRarityName,
+  formatAcquiredAt,
+  formatOwnerCount,
+  rarityFx,
+} from "./adventureReveal";
+import { itemDisplayName } from "../content/items";
 
 export type AdventureRunView = {
   id: string;
@@ -51,6 +58,7 @@ export type AdventureCollectionItem = {
   name: string;
   rarity: string;
   owned: boolean;
+  ownerCount?: number | null;
 };
 
 export type DispatchFilters = {
@@ -235,3 +243,55 @@ export const FILTER_RARITIES: readonly (ItemRarity | "all")[] = [
 ];
 
 export type StyleSetSummary = { id: StyleSetId; active: boolean };
+
+export function filterSummary(filters: DispatchFilters): string {
+  const duration =
+    filters.durationId === "all"
+      ? "All durations"
+      : durationLabel(filters.durationId);
+  const rarity =
+    filters.rarity === "all"
+      ? "All rarities"
+      : filters.rarity === "mythic"
+        ? "Grail"
+        : filters.rarity === "iconic"
+          ? "Vaulted"
+          : filters.rarity;
+  return `${duration} · ${rarity}`;
+}
+
+export function historyRowFromRun(run: AdventureRunView) {
+  const location = adventureLocationById(run.locationId);
+  const duration = adventureDurationById(run.durationId);
+  const lead =
+    (run.rewards ?? []).find((row) => row.gameItemId) ?? run.rewards?.[0];
+  const rarity = lead?.rarity ?? "common";
+  const fx = rarityFx(rarity);
+  const outcome = run.outcome ?? "claimed";
+  const outcomeLabel =
+    outcome === "success"
+      ? "Success"
+      : outcome === "partial"
+        ? "Partial"
+        : outcome === "bonus"
+          ? "Bonus"
+          : outcome === "fail"
+            ? "Fail"
+            : outcome;
+  return {
+    id: run.id,
+    locationName: location?.name ?? run.locationId,
+    durationName: duration?.name ?? durationLabel(run.durationId),
+    outcome,
+    outcomeLabel,
+    rewardName: lead?.gameItemId
+      ? itemDisplayName(lead.gameItemId)
+      : lead?.currency || lead?.kind || "No drop",
+    rarity,
+    rarityName: displayRarityName(rarity),
+    rarityColor: fx.color,
+    acquiredAt: run.claimedAt ?? run.completedAt,
+    acquiredLabel: formatAcquiredAt(run.claimedAt ?? run.completedAt),
+    ownerCountLabel: formatOwnerCount(lead?.ownerCount ?? null),
+  };
+}

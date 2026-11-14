@@ -28,7 +28,16 @@ import {
   type AdventureStyleSnapshot,
 } from "../src/content/adventures";
 import { onchainItemByGameId } from "../src/content/onchainItems";
-import { activeEvents } from "../src/content/seasons";
+import {
+  appliedPityGrants,
+  appliedRarityWeights,
+  appliedStyleLuck,
+  livePopupEvents,
+  loadAdventureOverrides,
+  logAdventureEvent,
+  ownerCountMap,
+  type PopupEventView,
+} from "./adventureAdmin";
 import { loadOrBuildRollup } from "./careRollup";
 import { pushLedgerCredit } from "./ledger";
 import {
@@ -44,6 +53,30 @@ import { resolveAdventureNow } from "../src/content/adventureClock";
 
 const UTC_DAY_MS = 86_400_000;
 const RESUBMIT_AFTER_MS = 60_000;
+
+async function ratesFor(env: Env, now: number) {
+  const overrides = await loadAdventureOverrides(env, now);
+  const luck = appliedStyleLuck(overrides);
+  return publicAdventureRates({
+    weights: appliedRarityWeights(overrides),
+    pityGrants: appliedPityGrants(overrides),
+    styleLuckPoints: luck.rarityPoints,
+    multiplierCap: luck.multiplierCap,
+    version: overrides.rarityVersion,
+  });
+}
+
+function publicEvents(events: PopupEventView[]) {
+  return events.map((event) => ({
+    id: event.id,
+    name: event.name,
+    startsAt: event.startsAt,
+    endsAt: event.endsAt,
+    status: event.status,
+    pool: event.pool,
+    limitedCosmetics: event.pool.map((row) => row.itemId),
+  }));
+}
 
 type RunRow = {
   id: string;
@@ -236,6 +269,9 @@ async function captureStyleSnapshot(
     }
   }
   const adventureXp = await loadAdventureXp(env, owner);
+  const overrides = await loadAdventureOverrides(env, now);
+  const luck = appliedStyleLuck(overrides);
+  const live = await livePopupEvents(env, now);
   return snapshotStyleLuck({
     equippedIds: equipped,
     ownedItemIds: [...new Set([...owned, ...equipped])],
@@ -244,6 +280,11 @@ async function captureStyleSnapshot(
     now,
     locationId,
     durationId,
+    rarityPoints: luck.rarityPoints,
+    multiplierCap: luck.multiplierCap,
+    setBonusPoints: luck.setBonusPoints,
+    eventIds: live.map((event) => event.id),
+    eventTags: live.flatMap((event) => event.pool.map((row) => row.itemId)),
   });
 }
 
@@ -262,20 +303,6 @@ async function completesToday(
   return row?.n ?? 0;
 }
 
-async function ownerCountMap(env: Env, itemIds: string[]) {
-  const counts: Record<string, number> = {};
-  const unique = [...new Set(itemIds.filter(Boolean))];
-  for (const id of unique) {
-    const row = await env.DB.prepare(
-      "SELECT COUNT(*) AS n FROM inventory WHERE item_id=? AND qty>0",
-    )
-      .bind(id)
-      .first<{ n: number }>();
-    counts[id] = row?.n ?? 0;
-  }
-  return counts;
-}
-
 async function collectionFor(env: Env, owner: string) {
   const owned = await inventorySet(env, owner);
   const items = Object.entries(ADVENTURE_EXCLUSIVE_ITEMS).map(([id, row]) => ({
@@ -284,10 +311,17 @@ async function collectionFor(env: Env, owner: string) {
     rarity: row.rarity,
     owned: owned.has(id),
   }));
+  const counts = await ownerCountMap(
+    env,
+    items.map((item) => item.id),
+  );
   return {
     found: items.filter((item) => item.owned).length,
     total: items.length,
-    items,
+    items: items.map((item) => ({
+      ...item,
+      ownerCount: counts[item.id] ?? 0,
+    })),
   };
 }
 
@@ -366,12 +400,14 @@ async function lazyComplete(
   const pity = await loadPity(env, run.owner);
   const owned = await inventorySet(env, run.owner);
   const milestones = await loadMilestones(env, run.owner, now);
+  const overrides = await loadAdventureOverrides(env, now);
   const weights = effectiveRarityWeights({
     durationId: run.duration_id,
     luckMultiplier: style.multiplier,
     adventureBonus: style.adventureBonus,
     sets: style.sets,
     locationId: run.location_id,
+    baseWeights: appliedRarityWeights(overrides),
   });
   const resolved = resolveAdventureRewards({
     rng,
@@ -439,7 +475,22 @@ async function lazyComplete(
   const next = await env.DB.prepare("SELECT * FROM adventure_runs WHERE id=?")
     .bind(run.id)
     .first<RunRow>();
-  return next ?? { ...run, status: "ready", outcome, completed_at: now };
+  const completedRun = next ?? {
+    ...run,
+    status: "ready" as const,
+    outcome,
+    completed_at: now,
+  };
+  await logAdventureEvent(env, {
+    at: now,
+    owner: run.owner,
+    type: "complete",
+    locationId: run.location_id,
+    durationId: run.duration_id,
+    outcome,
+    runId: run.id,
+  });
+  return completedRun;
 }
 
 async function listOwnerRuns(env: Env, owner: string, now: number) {
@@ -593,6 +644,13 @@ async function settleMints(env: Env, now: number): Promise<void> {
               "UPDATE adventure_rewards SET mint_status='minted', mint_tx=?, mint_error=NULL, updated_at=? WHERE id=?",
             ).bind(row.tx_hash, now, row.reward_id),
           ]);
+          await logAdventureEvent(env, {
+            at: now,
+            owner: row.owner,
+            type: "mint",
+            mintStatus: "confirmed",
+            runId: row.reward_id,
+          });
           continue;
         }
         if (anyFail && !pending) {
@@ -610,6 +668,13 @@ async function settleMints(env: Env, now: number): Promise<void> {
           )
             .bind("mint_receipt_failed", now, row.reward_id)
             .run();
+          await logAdventureEvent(env, {
+            at: now,
+            owner: row.owner,
+            type: "mint",
+            mintStatus: "failed",
+            runId: row.reward_id,
+          });
           continue;
         }
         if (pending && now - row.updated_at >= RESUBMIT_AFTER_MS) {
@@ -799,9 +864,11 @@ async function startAdventure(
     throw new HttpError(400, "Unknown adventure duration");
   }
   const milestones = await loadMilestones(env, owner, now);
+  const live = await livePopupEvents(env, now);
   const access = locationAvailability(locationId, {
     completions: milestones.completed,
     now,
+    events: live,
   });
   if (!access.available) {
     throw new HttpError(403, access.reason ?? "This drop is still locked.");
@@ -856,6 +923,14 @@ async function startAdventure(
     .bind(id)
     .first<RunRow>();
   if (!run) throw new HttpError(500, "Adventure failed to start");
+  await logAdventureEvent(env, {
+    at: now,
+    owner,
+    type: "start",
+    locationId,
+    durationId,
+    runId: id,
+  });
   return {
     run,
     preview: estimateAdventure({
@@ -894,9 +969,35 @@ async function claimRun(
   }
   const rewards = await rewardsFor(env, run.id);
   const claimed = await creditRewards(env, run, rewards, claimId, now);
+  const credited = await rewardsFor(env, run.id);
+  for (const reward of credited) {
+    await logAdventureEvent(env, {
+      at: now,
+      owner,
+      type: "claim",
+      locationId: run.location_id,
+      durationId: run.duration_id,
+      outcome: run.outcome,
+      rarity: reward.rarity,
+      runId: run.id,
+    });
+    if (reward.mint_status && reward.mint_status !== "none") {
+      await logAdventureEvent(env, {
+        at: now,
+        owner,
+        type: "mint",
+        locationId: run.location_id,
+        durationId: run.duration_id,
+        rarity: reward.rarity,
+        mintStatus:
+          reward.mint_status === "minted" ? "confirmed" : reward.mint_status,
+        runId: run.id,
+      });
+    }
+  }
   return {
     run: claimed ?? run,
-    rewards: await rewardsFor(env, run.id),
+    rewards: credited,
     idempotent: false,
   };
 }
@@ -940,16 +1041,11 @@ export async function adventuresGet(
   const now = clock.now;
   const url = new URL(req.url);
   if (url.pathname === "/api/adventures/rates") {
+    const live = await livePopupEvents(env, now);
     return Response.json({
-      rates: publicAdventureRates(),
+      rates: await ratesFor(env, now),
       devClock: clock.devClock,
-      events: activeEvents(now).map((event) => ({
-        id: event.id,
-        name: event.name,
-        startsAt: event.startsAt,
-        endsAt: event.endsAt,
-        limitedCosmetics: event.limitedCosmetics,
-      })),
+      events: publicEvents(live),
     });
   }
   if (url.pathname === "/api/adventures/history") {
@@ -975,7 +1071,8 @@ export async function adventuresGet(
     }
   }
   await settleMints(env, now);
-  const rates = publicAdventureRates();
+  const rates = await ratesFor(env, now);
+  const live = await livePopupEvents(env, now);
   if (!owner) {
     return Response.json({
       locations: rates.locations,
@@ -984,6 +1081,7 @@ export async function adventuresGet(
       runs: [],
       slots: slotsForCompletions(0),
       preview: [],
+      events: publicEvents(live),
       devClock: clock.devClock,
     });
   }
@@ -1004,11 +1102,7 @@ export async function adventuresGet(
     pity: await loadPity(env, owner),
     styleLuck: snapshot,
     preview: await previewsFor(env, owner, now, snapshot, milestones.completed),
-    events: activeEvents(now).map((event) => ({
-      id: event.id,
-      name: event.name,
-      endsAt: event.endsAt,
-    })),
+    events: publicEvents(live),
     collection: await collectionFor(env, owner),
     devClock: clock.devClock,
   });

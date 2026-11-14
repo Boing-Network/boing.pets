@@ -33,7 +33,9 @@ import {
   durationLabel,
   emptyDispatchFilters,
   exclusiveCollectionFallback,
+  filterSummary,
   FILTER_RARITIES,
+  historyRowFromRun,
   formatAdventureClock,
   formatCountdown,
   lockedSlotMilestones,
@@ -46,11 +48,7 @@ import {
   type AdventureRunView,
   type DispatchFilters,
 } from "../ui/adventureHub";
-import {
-  buildAdventureReveal,
-  formatAcquiredAt,
-  formatOwnerCount,
-} from "../ui/adventureReveal";
+import { buildAdventureReveal, rarityStickerSvg } from "../ui/adventureReveal";
 import { showRewardModal } from "../ui/rewardModal";
 import { app } from "../ui/appRuntime";
 import { AdventureTutorialCard } from "./AdventureTutorialCard";
@@ -119,6 +117,7 @@ export function PastureDispatchMenu({
   const [panel, setPanel] = useState<
     "trips" | "luck" | "rates" | "collection" | "history"
   >("trips");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const applyDesk = useCallback(
     (next: AdventuresDesk) => {
@@ -203,14 +202,31 @@ export function PastureDispatchMenu({
           <p className="eyebrow">DISPATCH STATION</p>
           <h2 id={titleId}>Idle Adventures</h2>
         </div>
-        <button
-          type="button"
-          className="quiet pasture-station-close"
-          ref={closeRef}
-          onClick={onClose}
-        >
-          Close
-        </button>
+        <div className="adventure-head-actions">
+          {ready > 0 ? (
+            <button
+              type="button"
+              className="adventure-claim-all"
+              disabled={busy}
+              onClick={() =>
+                void act(async () => {
+                  const result = await claimAllAdventures();
+                  for (const run of result.claimed) revealFromRun(run);
+                }, "Claimed the ready trips.")
+              }
+            >
+              Claim all ({ready})
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="quiet pasture-station-close"
+            ref={closeRef}
+            onClick={onClose}
+          >
+            Close
+          </button>
+        </div>
       </div>
       <p className="subtle">
         Off-map trips from the depot. Time is real. The bag is not guaranteed.
@@ -272,26 +288,22 @@ export function PastureDispatchMenu({
             {label}
           </button>
         ))}
-        {ready > 0 ? (
-          <button
-            type="button"
-            className="adventure-claim-all"
-            disabled={busy}
-            onClick={() =>
-              void act(async () => {
-                const result = await claimAllAdventures();
-                for (const run of result.claimed) revealFromRun(run);
-              }, "Claimed the ready trips.")
-            }
-          >
-            Claim all ({ready})
-          </button>
-        ) : null}
       </div>
 
       {panel === "trips" ? (
         <>
-          <div className="adventure-filters">
+          <button
+            type="button"
+            className="adventure-filter-toggle"
+            aria-expanded={filtersOpen}
+            onClick={() => setFiltersOpen((open) => !open)}
+          >
+            Filters · {filterSummary(filters)}
+          </button>
+          <div
+            className={"adventure-filters" + (filtersOpen ? " is-open" : "")}
+            id="adventure-filters"
+          >
             <fieldset>
               <legend>Duration</legend>
               <button
@@ -424,32 +436,34 @@ export function PastureDispatchMenu({
                             ? "Landed. Claim it."
                             : `T-minus ${formatCountdown(run.endsAt - now)}`}
                         </p>
-                        {run.status === "ready" ? (
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() =>
-                              void act(async () => {
-                                const result = await claimAdventure(run.id);
-                                revealFromRun(result.run);
-                              }, "Claimed.")
-                            }
-                          >
-                            Claim
-                          </button>
-                        ) : desk?.devClock ? (
-                          <button
-                            type="button"
-                            className="quiet"
-                            disabled={busy}
-                            onClick={() => {
-                              setAdventureDevNow(run.endsAt + 1000);
-                              void reload();
-                            }}
-                          >
-                            Skip wait (local)
-                          </button>
-                        ) : null}
+                        <div className="adventure-card-actions">
+                          {run.status === "ready" ? (
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() =>
+                                void act(async () => {
+                                  const result = await claimAdventure(run.id);
+                                  revealFromRun(result.run);
+                                }, "Claimed.")
+                              }
+                            >
+                              Claim
+                            </button>
+                          ) : desk?.devClock ? (
+                            <button
+                              type="button"
+                              className="quiet"
+                              disabled={busy}
+                              onClick={() => {
+                                setAdventureDevNow(run.endsAt + 1000);
+                                void reload();
+                              }}
+                            >
+                              Skip wait (local)
+                            </button>
+                          ) : null}
+                        </div>
                       </>
                     ) : (
                       <>
@@ -470,20 +484,22 @@ export function PastureDispatchMenu({
                             {preview?.lockedReason}
                           </p>
                         ) : (
-                          <button
-                            type="button"
-                            disabled={busy || !app.owner}
-                            onClick={() =>
-                              void act(async () => {
-                                await startAdventure({
-                                  locationId: location.id,
-                                  durationId: durationFilter,
-                                });
-                              }, `Sent them to ${location.name}.`)
-                            }
-                          >
-                            Launch {duration?.name ?? "trip"}
-                          </button>
+                          <div className="adventure-card-actions">
+                            <button
+                              type="button"
+                              disabled={busy || !app.owner}
+                              onClick={() =>
+                                void act(async () => {
+                                  await startAdventure({
+                                    locationId: location.id,
+                                    durationId: durationFilter,
+                                  });
+                                }, `Sent them to ${location.name}.`)
+                              }
+                            >
+                              Launch {duration?.name ?? "trip"}
+                            </button>
+                          </div>
                         )}
                       </>
                     )}
@@ -624,6 +640,12 @@ export function PastureDispatchMenu({
               <li key={item.id} className={item.owned ? "is-owned" : ""}>
                 {item.name} · {item.rarity}
                 {item.owned ? " · in the stash" : " · still out there"}
+                {item.ownerCount != null ? (
+                  <span className="adventure-collection-owners">
+                    {" "}
+                    · {item.ownerCount} holders
+                  </span>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -634,34 +656,54 @@ export function PastureDispatchMenu({
         <section className="adventure-panel" aria-label="Adventure history">
           <h3>History</h3>
           {!history.length ? (
-            <p className="small">No claimed trips yet.</p>
+            <p className="adventure-history-empty">
+              The log is clean. Launch a trip from Dispatch and come back to see
+              what you pulled, how rare it was, and who else is holding it.
+            </p>
           ) : (
             <ul className="adventure-history">
-              {history.map((run) => (
-                <li key={run.id}>
-                  <button
-                    type="button"
-                    className="quiet"
-                    onClick={() => revealFromRun(run)}
-                  >
-                    {ADVENTURE_LOCATIONS.find(
-                      (row) => row.id === run.locationId,
-                    )?.name ?? run.locationId}{" "}
-                    · {durationLabel(run.durationId)} ·{" "}
-                    {run.outcome ?? "claimed"} ·{" "}
-                    {formatAcquiredAt(run.claimedAt)}
-                  </button>
-                  <span className="small">
-                    {(run.rewards ?? [])
-                      .map((row) =>
-                        row.gameItemId
-                          ? `${itemDisplayName(row.gameItemId)} (${formatOwnerCount(row.ownerCount ?? null)})`
-                          : row.kind,
-                      )
-                      .join(", ")}
-                  </span>
-                </li>
-              ))}
+              {history.map((run) => {
+                const row = historyRowFromRun(run);
+                return (
+                  <li key={run.id} className="adventure-history-row">
+                    <span
+                      aria-hidden="true"
+                      dangerouslySetInnerHTML={{
+                        __html: rarityStickerSvg(row.rarity),
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="quiet"
+                      onClick={() => revealFromRun(run)}
+                    >
+                      <strong>
+                        {row.locationName} · {row.durationName}
+                      </strong>
+                      {row.rewardName}
+                    </button>
+                    <div className="adventure-history-meta">
+                      <span
+                        className="adventure-rarity-pill"
+                        style={{ color: row.rarityColor }}
+                      >
+                        {row.rarityName}
+                      </span>
+                      <span className="adventure-outcome-pill">
+                        {row.outcomeLabel}
+                      </span>
+                      <time
+                        dateTime={new Date(row.acquiredAt ?? 0).toISOString()}
+                      >
+                        {row.acquiredLabel}
+                      </time>
+                      <span className="adventure-history-owners">
+                        {row.ownerCountLabel}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>

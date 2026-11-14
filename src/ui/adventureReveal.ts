@@ -114,6 +114,35 @@ export function rarityFx(rarity: string | null | undefined): AdventureRarityFx {
   return ADVENTURE_RARITY_FX.common;
 }
 
+export function rarityStickerSvg(rarity: string | null | undefined): string {
+  const fx = rarityFx(rarity);
+  const mark =
+    fx.id === "common"
+      ? '<rect x="7" y="10" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 14h18" fill="none" stroke="currentColor" stroke-width="2"/>'
+      : fx.id === "uncommon"
+        ? '<path d="M16 6l8 10-8 10-8-10z" fill="currentColor"/>'
+        : fx.id === "rare"
+          ? '<path d="M16 5l3 8h8l-6.5 5 2.5 8L16 21l-7 5 2.5-8L5 13h8z" fill="currentColor"/>'
+          : fx.id === "epic"
+            ? '<circle cx="16" cy="16" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 8v16M8 16h16" stroke="currentColor" stroke-width="2"/>'
+            : fx.id === "legendary"
+              ? '<path d="M8 20c2-8 4-12 8-12s6 4 8 12H8z" fill="currentColor"/><circle cx="16" cy="8" r="3" fill="currentColor"/>'
+              : fx.id === "mythic"
+                ? '<path d="M8 10h16l-2 6H10L8 10zm3 6v6h10v-6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10c0-3 8-3 8 0" fill="none" stroke="currentColor" stroke-width="2"/>'
+                : '<rect x="7" y="8" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="16" r="3" fill="currentColor"/>';
+  return (
+    '<svg class="adventure-rarity-sticker rarity-' +
+    fx.id +
+    '" viewBox="0 0 32 32" width="48" height="48" aria-hidden="true" style="color:' +
+    fx.color +
+    '"><title>' +
+    fx.name +
+    "</title>" +
+    mark +
+    "</svg>"
+  );
+}
+
 export function displayRarityName(rarity: string | null | undefined): string {
   const fx = rarityFx(rarity);
   if (rarity && isItemRarity(rarity)) {

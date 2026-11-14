@@ -46,6 +46,7 @@ import { treasureError, treasureGet, treasurePost } from "./treasure";
 import { gardeningError, gardeningGet, gardeningPost } from "./gardening";
 import { cookingError, cookingGet, cookingPost } from "./cooking";
 import { adventuresError, adventuresGet, adventuresPost } from "./adventures";
+import { adventureAdminError, adventureAdminPost } from "./adventureAdmin";
 import { craftingError, craftingGet, craftingPost } from "./crafting";
 import { miningError, miningGet, miningPost } from "./mining";
 import {
@@ -472,6 +473,14 @@ async function api(
     if (adventures) return adventures;
   } catch (error) {
     const mapped = adventuresError(error);
+    if (mapped) return mapped;
+    throw error;
+  }
+  try {
+    const adminAdv = await adventureAdminPost(url, env, body, now);
+    if (adminAdv) return adminAdv;
+  } catch (error) {
+    const mapped = adventureAdminError(error);
     if (mapped) return mapped;
     throw error;
   }

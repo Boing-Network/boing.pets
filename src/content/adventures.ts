@@ -2,7 +2,7 @@
 
 import { itemRarity } from "./items";
 import { ITEM_RARITIES, type ItemRarity } from "./rarities";
-import { activeEvents, type SeasonEvent } from "./seasons";
+import { activeEvents } from "./seasons";
 
 export const ADVENTURE_WEIGHT_TOTAL = 1_000_000;
 
@@ -668,7 +668,10 @@ export function tagsForItem(gameItemId: string): AdventureItemTag[] {
   );
 }
 
-export function styleLuckMultiplierFromPoints(rawPoints: number): {
+export function styleLuckMultiplierFromPoints(
+  rawPoints: number,
+  cap = STYLE_LUCK_MULTIPLIER_CAP,
+): {
   points: number;
   multiplier: number;
 } {
@@ -679,7 +682,7 @@ export function styleLuckMultiplierFromPoints(rawPoints: number): {
     1 +
     head * STYLE_LUCK_POINT_VALUE +
     tail * STYLE_LUCK_POINT_VALUE_DIMINISHED;
-  const multiplier = Math.min(STYLE_LUCK_MULTIPLIER_CAP, unclamped);
+  const multiplier = Math.min(cap, unclamped);
   return { points: raw, multiplier };
 }
 
@@ -736,22 +739,33 @@ export function snapshotStyleLuck(input: {
   now?: number;
   locationId?: string;
   durationId?: string;
+  rarityPoints?: Record<ItemRarity, number>;
+  multiplierCap?: number;
+  setBonusPoints?: Partial<Record<StyleSetId, number>>;
+  eventIds?: string[];
+  eventTags?: string[];
 }): AdventureStyleSnapshot {
   const equipped = [...new Set(input.equippedIds ?? [])].sort();
   const owned = [...new Set(input.ownedItemIds ?? equipped)].sort();
+  const rarityPoints = input.rarityPoints ?? STYLE_LUCK_RARITY_POINTS;
   let rawPoints = 0;
   for (const id of equipped) {
     const rarity =
       ADVENTURE_EXCLUSIVE_ITEMS[id]?.rarity ?? itemRarity(id) ?? "common";
-    rawPoints += STYLE_LUCK_RARITY_POINTS[rarity] ?? 0;
+    rawPoints += rarityPoints[rarity] ?? 0;
   }
   const sets = detectStyleSets(owned);
-  for (const id of sets) rawPoints += STYLE_SETS[id].points;
+  for (const id of sets)
+    rawPoints += input.setBonusPoints?.[id] ?? STYLE_SETS[id].points;
   const events = activeEvents(input.now ?? Date.now());
-  const eventIds = events.map((event) => event.id);
-  const eventTags = events.flatMap((event) => event.limitedCosmetics);
+  const eventIds = input.eventIds ?? events.map((event) => event.id);
+  const eventTags =
+    input.eventTags ?? events.flatMap((event) => event.limitedCosmetics);
   if (equipped.some((id) => eventTags.includes(id))) rawPoints += 4;
-  const { points, multiplier } = styleLuckMultiplierFromPoints(rawPoints);
+  const { points, multiplier } = styleLuckMultiplierFromPoints(
+    rawPoints,
+    input.multiplierCap ?? STYLE_LUCK_MULTIPLIER_CAP,
+  );
   const adventureBonus = adventureCompatibilityBonus(
     input.locationId ?? "",
     input.durationId ?? "",
@@ -784,8 +798,9 @@ export function styleLuck(
 
 export function tiltWeights(
   tilt: Partial<Record<ItemRarity, number>> | undefined,
+  base: Record<ItemRarity, number> = ADVENTURE_RARITY_WEIGHTS,
 ): Record<ItemRarity, number> {
-  const out = { ...ADVENTURE_RARITY_WEIGHTS };
+  const out = { ...base };
   if (!tilt) return out;
   for (const rarity of ITEM_RARITIES) {
     if (rarity === "common") continue;
@@ -805,11 +820,12 @@ export function effectiveRarityWeights(input: {
   adventureBonus?: number;
   sets?: readonly StyleSetId[];
   locationId?: string;
+  baseWeights?: Record<ItemRarity, number>;
 }): Record<ItemRarity, number> {
   const duration = input.durationId
     ? adventureDurationById(input.durationId)
     : null;
-  const base = tiltWeights(duration?.rarityTilt);
+  const base = tiltWeights(duration?.rarityTilt, input.baseWeights);
   const scale =
     Math.max(1, input.luckMultiplier ?? 1) * (input.adventureBonus ?? 1);
   const out = { ...base };
@@ -1177,7 +1193,7 @@ export function resolveAdventureRewards(input: {
 
 export function locationAvailability(
   locationId: string,
-  input: { completions?: number; now?: number; events?: SeasonEvent[] },
+  input: { completions?: number; now?: number; events?: Array<{ id: string }> },
 ): {
   available: boolean;
   reason: string | null;
@@ -1316,7 +1332,17 @@ export function estimateAdventure(input: {
   };
 }
 
-export function publicAdventureRates() {
+export function publicAdventureRates(overrides?: {
+  weights?: Record<ItemRarity, number>;
+  pityGrants?: ItemRarity;
+  styleLuckPoints?: Record<ItemRarity, number>;
+  multiplierCap?: number;
+  version?: number | null;
+}) {
+  const weights = overrides?.weights ?? ADVENTURE_RARITY_WEIGHTS;
+  const total =
+    ITEM_RARITIES.reduce((sum, id) => sum + Math.max(0, weights[id]), 0) ||
+    ADVENTURE_WEIGHT_TOTAL;
   return {
     source: "dispatch-station",
     note: "Adventures are off-map trips launched from the Dispatch station. City stations are not adventure locations.",
@@ -1328,22 +1354,23 @@ export function publicAdventureRates() {
           : id === "iconic"
             ? "Vaulted"
             : id[0]!.toUpperCase() + id.slice(1),
-      weight: ADVENTURE_RARITY_WEIGHTS[id],
-      chance: ADVENTURE_RARITY_WEIGHTS[id] / ADVENTURE_WEIGHT_TOTAL,
+      weight: weights[id],
+      chance: weights[id] / total,
     })),
-    weightTotal: ADVENTURE_WEIGHT_TOTAL,
+    weightTotal: total,
     pityCap: ADVENTURE_PITY_CAP,
-    pityGrants: "legendary" as const,
+    pityGrants: (overrides?.pityGrants ?? "legendary") as ItemRarity,
+    overrideVersion: overrides?.version ?? null,
     noPityFor: ["mythic", "iconic"] as const,
     styleLuckNeverGuarantees: ["mythic", "iconic"] as const,
     mythicCeiling: ADVENTURE_MYTHIC_CEILING_WEIGHT / ADVENTURE_WEIGHT_TOTAL,
     iconicCeiling: ADVENTURE_ICONIC_CEILING_WEIGHT / ADVENTURE_WEIGHT_TOTAL,
     styleLuck: {
-      rarityPoints: STYLE_LUCK_RARITY_POINTS,
+      rarityPoints: overrides?.styleLuckPoints ?? STYLE_LUCK_RARITY_POINTS,
       diminishAfter: STYLE_LUCK_DIMINISH_AFTER,
       pointValue: STYLE_LUCK_POINT_VALUE,
       diminishedPointValue: STYLE_LUCK_POINT_VALUE_DIMINISHED,
-      multiplierCap: STYLE_LUCK_MULTIPLIER_CAP,
+      multiplierCap: overrides?.multiplierCap ?? STYLE_LUCK_MULTIPLIER_CAP,
       formula:
         "final chance = base × Style Luck multiplier × adventure bonus, then Mythic/Iconic are capped. Pity never grants Mythic or Iconic.",
       sets: Object.entries(STYLE_SETS).map(([id, row]) => ({

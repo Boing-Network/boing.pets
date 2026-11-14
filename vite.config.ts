@@ -40,6 +40,7 @@ export default defineConfig({
         collections: resolve(root, "collections.html"),
         market: resolve(root, "market.html"),
         how: resolve(root, "how.html"),
+        adminAdventures: resolve(root, "admin-adventures.html"),
       },
       output: {
         manualChunks(id) {

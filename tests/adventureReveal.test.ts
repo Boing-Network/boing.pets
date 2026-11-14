@@ -4,6 +4,7 @@ import {
   adventureRevealClassName,
   buildAdventureReveal,
   displayRarityName,
+  rarityStickerSvg,
 } from "../src/ui/adventureReveal";
 import { ITEM_RARITIES } from "../src/content/rarities";
 
@@ -66,5 +67,24 @@ describe("adventure reward reveal", () => {
     expect(grail.holo).toBe(true);
     expect(grail.extraFlair).toBe(true);
     expect(adventureRevealClassName(grail)).toContain("has-flair");
+  });
+});
+
+describe("rarity stickers", () => {
+  it("gives each rarity its own sticker mark", () => {
+    const marks = [
+      "common",
+      "uncommon",
+      "rare",
+      "epic",
+      "legendary",
+      "mythic",
+      "iconic",
+    ].map((id) => rarityStickerSvg(id));
+    expect(new Set(marks).size).toBe(7);
+    for (const svg of marks) {
+      expect(svg).toContain("<svg");
+      expect(svg).toContain("adventure-rarity-sticker");
+    }
   });
 });

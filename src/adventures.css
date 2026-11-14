@@ -1,8 +1,10 @@
 /* Idle Adventures phase 2 — streetwear Dispatch hub and reveals. */
 
+.pasture-station-menu.dispatch-station-menu,
 .dispatch-station-menu {
   width: min(980px, 100%);
-  max-height: min(86vh, 900px);
+  max-height: min(92vh, calc(100% - 8px));
+  margin-top: 0;
   background: var(--paper);
   color: var(--ink);
   border: 3px solid var(--ink);
@@ -17,8 +19,20 @@
   z-index: 5;
   background: var(--paper);
   margin: -16px -16px 8px;
-  padding: 12px 16px 10px;
+  padding: 8px 16px 8px;
   border-bottom: 3px solid var(--ink);
+  gap: 8px;
+}
+.adventure-head-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.dispatch-station-menu .subtle,
+.adventure-lede {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
 }
 
 .dispatch-station-menu h2,
@@ -57,11 +71,11 @@
 
 .adventure-popup-strip {
   display: grid;
-  grid-template-columns: 92px 1fr;
-  gap: 12px;
+  grid-template-columns: 64px 1fr;
+  gap: 10px;
   align-items: center;
-  margin: 10px 0 14px;
-  padding: 8px;
+  margin: 4px 0 6px;
+  padding: 4px;
   background: var(--ink);
   color: var(--paper);
   border: 3px dashed var(--accent);
@@ -82,12 +96,25 @@
   align-items: center;
 }
 .adventure-toolbar {
-  margin: 8px 0 12px;
+  margin: 4px 0 8px;
+}
+.adventure-filter-toggle {
+  display: none;
+  width: 100%;
+  justify-content: space-between;
+  margin: 0 0 8px;
+}
+.adventure-filters {
+  margin: 0 0 8px;
 }
 .adventure-filters fieldset {
   border: 2px solid var(--ink);
-  padding: 8px;
-  margin: 0 0 10px;
+  padding: 4px 6px;
+  margin: 0 0 6px;
+}
+.adventure-filters button {
+  padding: 4px 8px;
+  font-size: 0.72rem;
 }
 .adventure-filters legend {
   font-size: 0.7rem;
@@ -119,11 +146,11 @@
 .adventure-locked-slots {
   list-style: none;
   padding: 0;
-  margin: 0 0 12px;
+  margin: 0 0 8px;
 }
 .adventure-locked-slots li {
   margin: 0 0 6px;
-  padding: 8px 10px;
+  padding: 4px 8px;
   border: 2px dashed var(--ink);
   background: repeating-linear-gradient(
     -45deg,
@@ -140,16 +167,59 @@
 .adventure-card-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
+}
+@media (min-width: 1100px) {
+  .pasture-station-menu.dispatch-station-menu,
+  .dispatch-station-menu {
+    width: min(1180px, 100%);
+  }
+  .adventure-card-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .adventure-card {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+  .adventure-card-body .small,
+  .adventure-rewards-preview {
+    -webkit-line-clamp: 1;
+  }
 }
 .adventure-card {
   display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: 10px;
-  padding: 8px;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 8px;
+  padding: 6px;
   background: var(--paper);
   border: 3px solid var(--ink);
   box-shadow: 3px 3px 0 var(--ink);
+  align-items: stretch;
+}
+.adventure-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  min-height: 0;
+}
+.adventure-card-body h3 {
+  font-size: 1rem;
+  margin: 0;
+}
+.adventure-card-body .small,
+.adventure-rewards-preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.adventure-card-actions {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 4px;
+  flex-shrink: 0;
 }
 .adventure-card.is-ready {
   box-shadow: 3px 3px 0 var(--accent);
@@ -162,6 +232,7 @@
   display: block;
   width: 100%;
   height: auto;
+  max-height: 88px;
   border: 2px solid var(--ink);
 }
 .adventure-rewards-preview,
@@ -314,10 +385,10 @@
   font-size: 0.88rem;
 }
 .adventure-popup-strip .adventure-poster {
-  max-width: 92px;
+  max-width: 64px;
 }
 .adventure-popup-strip .adventure-poster svg {
-  max-height: 92px;
+  max-height: 64px;
 }
 
 @media (max-width: 720px) {
@@ -372,4 +443,153 @@
 
 .pasture-3d-stage.is-station-menu-open .adventure-hud {
   display: none;
+}
+
+.adventure-history {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.adventure-history-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  gap: 8px 10px;
+  align-items: center;
+  padding: 8px;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+}
+.adventure-history-row strong {
+  display: block;
+}
+.adventure-history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+}
+.adventure-rarity-pill,
+.adventure-outcome-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 2px solid var(--ink);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.adventure-history-owners {
+  color: var(--ink);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.adventure-history-empty {
+  margin: 0;
+  padding: 16px;
+  border: 3px dashed var(--ink);
+  text-align: center;
+  font-weight: 700;
+}
+.adventure-rarity-sticker {
+  display: block;
+  flex-shrink: 0;
+}
+.reward-item-icon:has(.adventure-rarity-sticker) {
+  background: var(--ink);
+  border: 2px solid var(--paper);
+}
+.adventure-collection-owners {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.adventure-admin {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+.adventure-admin-head h1,
+.adventure-admin h2 {
+  font-family: "Arial Black", "Arial Narrow", Impact, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: -0.03em;
+}
+.adventure-admin-status {
+  padding: 8px 10px;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 700;
+}
+.adventure-admin-gate,
+.adventure-admin-form {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+  padding: 12px;
+  border: 3px solid var(--ink);
+}
+.adventure-admin label {
+  display: grid;
+  gap: 4px;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+}
+.adventure-admin input,
+.adventure-admin textarea {
+  font: inherit;
+  padding: 8px;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+}
+.adventure-admin-output pre {
+  overflow: auto;
+  max-height: 420px;
+  padding: 12px;
+  border: 2px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 0.8rem;
+}
+
+@media (max-width: 720px) {
+  .adventure-filter-toggle {
+    display: flex;
+  }
+  .adventure-filters:not(.is-open) {
+    display: none;
+  }
+  .adventure-filters.is-open {
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    border: 3px solid var(--ink);
+    background: var(--paper);
+    margin-bottom: 8px;
+  }
+  .adventure-card-grid {
+    grid-template-columns: 1fr;
+  }
+  .adventure-card {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+  .adventure-popup-strip {
+    grid-template-columns: 64px 1fr;
+    margin: 4px 0 6px;
+  }
+  .adventure-history-row {
+    grid-template-columns: 40px 1fr;
+  }
+  .adventure-history-meta {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+  .dispatch-station-menu .pasture-station-menu-head {
+    position: sticky;
+    top: -16px;
+  }
 }

@@ -15,7 +15,8 @@
     "preview": "vite preview --host 127.0.0.1",
     "smoke:rpc": "node scripts/smoke-rpc.mjs",
     "format:check": "prettier --check .",
-    "types:generate": "wrangler types worker/env.d.ts --include-runtime false --strict-vars false"
+    "types:generate": "wrangler types worker/env.d.ts --include-runtime false --strict-vars false",
+    "admin:adventures": "node scripts/admin-adventures.mjs"
   },
   "dependencies": {
     "@boing-network/boing-sdk": "0.5.41",

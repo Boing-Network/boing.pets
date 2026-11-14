@@ -11,6 +11,7 @@ import {
   adventureRevealClassName,
   formatAcquiredAt,
   formatOwnerCount,
+  rarityStickerSvg,
   type AdventureRevealReward,
 } from "./adventureReveal";
 
@@ -146,9 +147,7 @@ function mintLabel(status: AdventureRevealReward["mintStatus"]): string {
 }
 
 function adventureRewardMarkup(reward: AdventureRevealReward): string {
-  const itemIcon = reward.previewItemId
-    ? itemIconSvg(reward.previewItemId)
-    : collectionIconSvg("treasure");
+  const itemIcon = rarityStickerSvg(reward.rarity);
   return `
     <article class="${esc(adventureRevealClassName(reward))}" data-rarity="${esc(String(reward.rarity))}">
       <div class="reward-item">
@@ -242,7 +241,7 @@ function renderRewardCard(
           : ""
       }`
       }
-      <button type="button" id="reward-nice">${pending ? "Working…" : "Nice!"}</button>
+      <button type="button" id="reward-nice">${pending ? "Working…" : adventure.length ? "Cop it" : "Nice!"}</button>
     </div>
   `.replace(" data-flair", flairClass ? ` data-flair` : " data-flair");
 }
@@ -368,7 +367,8 @@ export function updateRewardChainStatus(
   const nice = root.querySelector<HTMLButtonElement>("#reward-nice");
   if (nice) {
     nice.disabled = status === "pending" && !saved?.adventureRewards?.length;
-    if (status !== "pending") nice.textContent = "Nice!";
+    if (status !== "pending")
+      nice.textContent = saved?.adventureRewards?.length ? "Cop it" : "Nice!";
   }
 }
 

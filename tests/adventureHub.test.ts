@@ -19,6 +19,8 @@ import {
   formatCountdown,
   lockedSlotMilestones,
   runProgress,
+  historyRowFromRun,
+  filterSummary,
 } from "../src/ui/adventureHub";
 import {
   estimateAdventure,
@@ -30,7 +32,7 @@ describe("Dispatch station wiring", () => {
     expect(DESK_STATION_KINDS).toContain("dispatch");
     const station = stationByKind(PASTURE_ZONE, "dispatch");
     expect(station).toBeTruthy();
-    expect(station?.position).toEqual({ x: 24, y: 0, z: 0 });
+    expect(station?.position).toEqual({ x: 24, y: 0, z: -18 });
     expect(stationPrompt(station!)).toMatch(/Dispatch/i);
     const land = PASTURE_ZONE.landmarks.find(
       (row) => row.id === "dispatch-station",
@@ -38,9 +40,9 @@ describe("Dispatch station wiring", () => {
     expect(land?.position).toEqual(station?.position);
     expect(yardLabelForKind("dispatch").title).toBe("DISPATCH");
     expect(MINIMAP_STATION_ICON.dispatch).toBe("A");
-    expect(CITY_RESERVED_LOTS.some((lot) => lot.x === 24 && lot.z === 0)).toBe(
-      true,
-    );
+    expect(
+      CITY_RESERVED_LOTS.some((lot) => lot.x === 24 && lot.z === -18),
+    ).toBe(true);
     expect(
       YARD_KIT_FOOTPRINTS.some((row) => row.landmarkId === "dispatch-station"),
     ).toBe(true);
@@ -94,5 +96,43 @@ describe("hub helpers", () => {
     };
     expect(runProgress(run, 50)).toBe(0.5);
     expect(lockedSlotMilestones(1)[0]?.slots).toBe(2);
+  });
+});
+
+describe("history rows", () => {
+  it("renders reward, rarity, outcome, duration, date, and owners", () => {
+    const row = historyRowFromRun({
+      id: "h1",
+      locationId: "underground-show",
+      durationId: "long",
+      slot: 1,
+      startedAt: Date.UTC(2026, 10, 13, 12),
+      endsAt: Date.UTC(2026, 10, 14, 12),
+      completedAt: Date.UTC(2026, 10, 14, 12),
+      outcome: "success",
+      status: "claimed",
+      claimedAt: Date.UTC(2026, 10, 14, 12, 28),
+      diminishing: 1,
+      rewards: [
+        {
+          id: "r1",
+          kind: "item",
+          gameItemId: "tee-bootleg",
+          currency: null,
+          qty: 1,
+          rarity: "rare",
+          duplicate: false,
+          mintStatus: "confirmed",
+          ownerCount: 7,
+        },
+      ],
+    });
+    expect(row.locationName).toMatch(/Underground/);
+    expect(row.durationName.toLowerCase()).toMatch(/day|long|1-day/);
+    expect(row.outcomeLabel).toBe("Success");
+    expect(row.rewardName.toLowerCase()).toMatch(/bootleg|tee/);
+    expect(row.rarityName).toMatch(/Heat Check|Rare/);
+    expect(row.ownerCountLabel).toBe("7 owners");
+    expect(filterSummary({ durationId: "all", rarity: "all" })).toMatch(/All/);
   });
 });
