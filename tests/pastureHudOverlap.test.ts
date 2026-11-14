@@ -15,6 +15,10 @@ import {
   PASTURE_TOUCH_CHAT_BOTTOM_PX,
   PASTURE_TOUCH_CHAT_CLEARANCE_PX,
   pastureHudRects,
+  pastureProgressChipBottom,
+  PASTURE_PROGRESS_CHIP_GAP_PX,
+  PASTURE_PROGRESS_CHIP_HEIGHT_PX,
+  PASTURE_STATION_PROMPT_HEIGHT_PX,
   pastureStationPromptBottom,
   rectsOverlap,
   waveButtonCenter,
@@ -60,6 +64,15 @@ describe("pasture chat stays clear of emotes and touch controls", () => {
     );
     expect(css).toMatch(
       /\.pasture-station-prompt\s*\{[^}]*bottom:\s*calc\(\s*var\(--pasture-chat-clearance/s,
+    );
+    expect(PASTURE_STATION_PROMPT_HEIGHT_PX).toBe(86);
+    expect(pastureProgressChipBottom(false)).toBe(230);
+    expect(pastureProgressChipBottom(true)).toBe(368);
+    expect(css).toMatch(/--pasture-station-prompt-height:\s*86px/);
+    expect(css).toMatch(/--pasture-progress-chip-gap:\s*12px/);
+    expect(css).toMatch(/\.pasture-dailies-chip\s*\{[^}]*bottom:\s*calc\(/s);
+    expect(css).not.toMatch(
+      /\.pasture-3d-stage\.is-touch-controls\s+\.pasture-dailies-chip\s*\{[^}]*top:\s*86px/s,
     );
   });
 
@@ -119,5 +132,33 @@ describe("pasture chat stays clear of emotes and touch controls", () => {
     expect(hitHudTarget(mobile, interact.x, interact.y)).toBe("interact");
     const chat = hudRectCenter(mobile.chat);
     expect(hitHudTarget(mobile, chat.x, chat.y)).toBe("chat");
+  });
+
+  it("keeps the daily progress chip above the prompt and clear of other HUD", () => {
+    const desktop = pastureHudRects({
+      width: 1280,
+      height: 800,
+      touchControls: false,
+    });
+    const mobile = pastureHudRects({
+      width: 390,
+      height: 844,
+      touchControls: true,
+    });
+    for (const layout of [desktop, mobile]) {
+      expect(layout.progress.bottom - layout.progress.top).toBe(
+        PASTURE_PROGRESS_CHIP_HEIGHT_PX,
+      );
+      expect(layout.progress.bottom).toBe(
+        layout.prompt.top - PASTURE_PROGRESS_CHIP_GAP_PX,
+      );
+      for (const other of [layout.prompt, layout.emote, layout.chat]) {
+        expect(rectsOverlap(layout.progress, other)).toBe(false);
+      }
+      const mid = hudRectCenter(layout.progress);
+      expect(hitHudTarget(layout, mid.x, mid.y)).toBe("progress");
+    }
+    expect(rectsOverlap(mobile.progress, mobile.joystick!)).toBe(false);
+    expect(rectsOverlap(mobile.progress, mobile.interact!)).toBe(false);
   });
 });

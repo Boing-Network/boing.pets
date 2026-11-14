@@ -1,44 +1,124 @@
 import { useEffect, useState } from "react";
+import { ACTIVITY_IDS, type ActivityId } from "../content/attempts";
+import type { DailyQuestView } from "../content/dailyQuests";
+import {
+  buildDailyProgress,
+  formatAreaLine,
+  formatDailyChipTitle,
+  type AreaAttemptSnapshot,
+  type AreaProgress,
+  type DailyProgress,
+} from "./dailyProgress";
 
-type DailyView = {
-  completeCount: number;
-  allComplete: boolean;
-  streak: number;
-  bonus: { eligible: boolean; claimed: boolean };
-};
+type DailyResponse = { dailies?: DailyQuestView };
+type AttemptResponse = AreaAttemptSnapshot & { activity: ActivityId };
 
-export function DailyQuestChip({ owner }: { owner: string | null }) {
-  const [view, setView] = useState<DailyView | null>(null);
+async function fetchDailyProgress(
+  owner: string | null,
+): Promise<DailyProgress> {
+  const ownerQ = owner ? "&owner=" + encodeURIComponent(owner) : "";
+  const ownerOnly = owner ? "?owner=" + encodeURIComponent(owner) : "";
+  const dailiesPath = "/api/content/dailies" + ownerOnly;
+  const attemptPaths = ACTIVITY_IDS.map(
+    (activity) => "/api/activity/attempts/status?activity=" + activity + ownerQ,
+  );
+  const [dailiesRes, ...attemptRes] = await Promise.all([
+    fetch(dailiesPath),
+    ...attemptPaths.map((path) => fetch(path)),
+  ]);
+  const dailiesBody = dailiesRes.ok
+    ? ((await dailiesRes.json()) as DailyResponse)
+    : null;
+  const attempts: Partial<Record<ActivityId, AreaAttemptSnapshot>> = {};
+  await Promise.all(
+    attemptRes.map(async (res, index) => {
+      if (!res.ok) return;
+      const body = (await res.json()) as AttemptResponse;
+      const activity = body.activity || ACTIVITY_IDS[index]!;
+      attempts[activity] = {
+        activity,
+        attemptsUsed: Number(body.attemptsUsed) || 0,
+        dailyCap: Number(body.dailyCap) || 0,
+        remaining: Number(body.remaining) || 0,
+      };
+    }),
+  );
+  return buildDailyProgress({
+    dailies: dailiesBody?.dailies,
+    attempts,
+  });
+}
+
+export function useDailyProgress(owner: string | null) {
+  const [progress, setProgress] = useState<DailyProgress | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    const path = owner
-      ? "/api/content/dailies?owner=" + encodeURIComponent(owner)
-      : "/api/content/dailies";
-    void fetch(path)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((body: { dailies?: DailyView } | null) => {
-        if (!cancelled && body?.dailies) setView(body.dailies);
-      })
-      .catch(() => undefined);
+    const load = () => {
+      void fetchDailyProgress(owner)
+        .then((next) => {
+          if (!cancelled) setProgress(next);
+        })
+        .catch(() => undefined);
+    };
+    load();
+    const timer = window.setInterval(load, 30_000);
+    const onFocus = () => load();
+    window.addEventListener("focus", onFocus);
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
     };
   }, [owner]);
 
-  if (!view) return null;
-  const label = view.bonus.claimed
-    ? "Streak claimed"
-    : view.bonus.eligible
-      ? "Claim streak bonus"
-      : view.allComplete
-        ? "Streak ready"
-        : "Daily goals " + view.completeCount + "/3";
-  const streak = view.streak > 0 ? " · " + view.streak + "-day streak" : "";
+  return progress;
+}
+
+export function DailyQuestChip({
+  progress,
+  nearby,
+}: {
+  progress: DailyProgress | null;
+  nearby?: AreaProgress | null;
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (!progress) return null;
+  const subtitle = nearby
+    ? formatAreaLine(nearby)
+    : progress.streak > 0
+      ? `${progress.streak}-day streak`
+      : "Today's area goals";
+
   return (
-    <a className="pasture-dailies-chip" href="/quests.html">
-      <strong>{label}</strong>
-      <span>{streak.trim() || "UTC daily quests"}</span>
-    </a>
+    <div className={"pasture-dailies-chip" + (open ? " is-open" : "")}>
+      <button
+        type="button"
+        className="pasture-dailies-toggle"
+        aria-expanded={open}
+        aria-controls="pasture-dailies-list"
+        onClick={() => setOpen((value) => !value)}
+      >
+        <strong>{formatDailyChipTitle(progress)}</strong>
+        <span>{subtitle}</span>
+      </button>
+      {open ? (
+        <ul id="pasture-dailies-list" className="pasture-dailies-list">
+          {progress.areas.map((area) => (
+            <li
+              key={area.activity}
+              className={
+                "pasture-dailies-item" +
+                (area.quest ? " is-quest" : "") +
+                (area.questComplete ? " is-complete" : "")
+              }
+            >
+              {formatAreaLine(area)}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }

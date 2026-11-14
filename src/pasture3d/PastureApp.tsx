@@ -74,7 +74,8 @@ import {
 } from "./pastureFocus";
 import { PastureAudioControls } from "./PastureAudioControls";
 import { WalkthroughCard } from "../onboarding/WalkthroughCard";
-import { DailyQuestChip } from "./DailyQuestChip";
+import { DailyQuestChip, useDailyProgress } from "./DailyQuestChip";
+import { areaProgressForStation, formatAreaLine } from "./dailyProgress";
 import { PastureTouchControls } from "./PastureTouchControls";
 import { PastureEmoteBar } from "./PastureEmoteBar";
 import { SocialPlayWatch } from "./SocialPlayWatch";
@@ -579,6 +580,11 @@ export function PastureApp({
     walkToAndOpen,
   ]);
 
+  const dailyProgress = useDailyProgress(owner);
+  const nearbyProgress = nearbyStation
+    ? areaProgressForStation(dailyProgress, nearbyStation.kind)
+    : null;
+
   return (
     <div
       className={
@@ -593,7 +599,7 @@ export function PastureApp({
           Growing the meadow…
         </div>
       ) : null}
-      <DailyQuestChip owner={owner} />
+      <DailyQuestChip progress={dailyProgress} nearby={nearbyProgress} />
       <WalkthroughCard
         scene="pasture"
         openMenuKind={stationMenu}
@@ -672,6 +678,11 @@ export function PastureApp({
       {nearbyStation && !stationMenu ? (
         <div className="pasture-station-prompt" role="status">
           <p>{stationPrompt(nearbyStation)}</p>
+          {nearbyProgress ? (
+            <p className="pasture-station-progress">
+              {formatAreaLine(nearbyProgress)}
+            </p>
+          ) : null}
           <button
             type="button"
             onClick={() => {

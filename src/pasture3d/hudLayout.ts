@@ -33,8 +33,23 @@ export const PASTURE_STATION_PROMPT_RAISE_PX =
 export const PASTURE_STATION_PROMPT_Z_INDEX = 18;
 export const PASTURE_EMOTE_Z_INDEX = 15;
 export const PASTURE_STATION_PROMPT_MAX_WIDTH_PX = 420;
-/** Typical prompt height with the action button; grows upward. */
-export const PASTURE_STATION_PROMPT_HEIGHT_PX = 66;
+/** Typical prompt height with the action button and a progress line. */
+export const PASTURE_STATION_PROMPT_HEIGHT_PX = 86;
+
+/** Compact daily progress chip on the right, above the station prompt. */
+export const PASTURE_PROGRESS_CHIP_WIDTH_PX = 180;
+export const PASTURE_PROGRESS_CHIP_HEIGHT_PX = 58;
+export const PASTURE_PROGRESS_CHIP_GAP_PX = PASTURE_HUD_GAP_PX;
+export const PASTURE_PROGRESS_CHIP_Z_INDEX = 15;
+export const PASTURE_PROGRESS_CHIP_RIGHT_PX = 16;
+
+export function pastureProgressChipBottom(touchControls: boolean): number {
+  return (
+    pastureStationPromptBottom(touchControls) +
+    PASTURE_STATION_PROMPT_HEIGHT_PX +
+    PASTURE_PROGRESS_CHIP_GAP_PX
+  );
+}
 
 export function pastureStationPromptBottom(touchControls: boolean): number {
   const emoteBottom = touchControls
@@ -73,6 +88,7 @@ export function pastureHudRects(opts: {
   chat: HudRect;
   emote: HudRect;
   prompt: HudRect;
+  progress: HudRect;
   joystick: HudRect | null;
   interact: HudRect | null;
 } {
@@ -110,8 +126,20 @@ export function pastureHudRects(opts: {
     top: height - promptBottom - PASTURE_STATION_PROMPT_HEIGHT_PX,
     bottom: height - promptBottom,
   };
+  const progressBottom = pastureProgressChipBottom(touchControls);
+  const progressWidth = Math.min(
+    PASTURE_PROGRESS_CHIP_WIDTH_PX,
+    Math.max(0, width - PASTURE_PROGRESS_CHIP_RIGHT_PX * 2),
+  );
+  const progress: HudRect = {
+    id: "progress",
+    left: width - PASTURE_PROGRESS_CHIP_RIGHT_PX - progressWidth,
+    right: width - PASTURE_PROGRESS_CHIP_RIGHT_PX,
+    top: height - progressBottom - PASTURE_PROGRESS_CHIP_HEIGHT_PX,
+    bottom: height - progressBottom,
+  };
   if (!touchControls) {
-    return { chat, emote, prompt, joystick: null, interact: null };
+    return { chat, emote, prompt, progress, joystick: null, interact: null };
   }
   const joy = PASTURE_TOUCH_JOYSTICK_SIZE_PX;
   const joyBottom = PASTURE_TOUCH_CONTROLS_BOTTOM_PX;
@@ -130,7 +158,7 @@ export function pastureHudRects(opts: {
     top: height - joyBottom - interactHeight,
     bottom: height - joyBottom,
   };
-  return { chat, emote, prompt, joystick, interact };
+  return { chat, emote, prompt, progress, joystick, interact };
 }
 
 /**
@@ -141,11 +169,12 @@ export function hitHudTarget(
   rects: ReturnType<typeof pastureHudRects>,
   x: number,
   y: number,
-): "chat" | "prompt" | "emote" | "joystick" | "interact" | null {
+): "chat" | "prompt" | "progress" | "emote" | "joystick" | "interact" | null {
   // Chat is a sibling of #pasture-3d and paints above the stage if they overlap.
   if (contains(rects.chat, x, y)) return "chat";
   // Inside the stage, the station prompt stacks above the emote bar.
   if (contains(rects.prompt, x, y)) return "prompt";
+  if (contains(rects.progress, x, y)) return "progress";
   if (rects.interact && contains(rects.interact, x, y)) return "interact";
   if (rects.joystick && contains(rects.joystick, x, y)) return "joystick";
   if (contains(rects.emote, x, y)) return "emote";
