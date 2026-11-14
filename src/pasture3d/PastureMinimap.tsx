@@ -6,28 +6,19 @@ import {
 } from "react";
 import type { LivePose } from "../world/scene/Player";
 import {
-  mapToWorld,
-  miniMapStations,
+  layoutMiniMapStations,
   pastureMiniMapBounds,
-  spreadMiniMapMarkers,
+  walkTargetFromMiniMapClick,
   worldToMap,
 } from "./minimap";
 
 export const PASTURE_MINIMAP_BOARD_SIZE = 140;
 
-const stations = miniMapStations();
 const bounds = pastureMiniMapBounds();
-const spreadStations = (() => {
-  const mapped = stations.map((station) =>
-    worldToMap(station, bounds, PASTURE_MINIMAP_BOARD_SIZE),
-  );
-  const spread = spreadMiniMapMarkers(mapped, PASTURE_MINIMAP_BOARD_SIZE);
-  return stations.map((station, index) => ({
-    ...station,
-    mapX: spread[index]!.x,
-    mapY: spread[index]!.y,
-  }));
-})();
+const spreadStations = layoutMiniMapStations(
+  PASTURE_MINIMAP_BOARD_SIZE,
+  bounds,
+);
 
 export function PastureMinimap({
   poseRef,
@@ -65,8 +56,13 @@ export function PastureMinimap({
       ((event.clientX - rect.left) / rect.width) * PASTURE_MINIMAP_BOARD_SIZE;
     const y =
       ((event.clientY - rect.top) / rect.height) * PASTURE_MINIMAP_BOARD_SIZE;
-    const world = mapToWorld({ x, y }, bounds, PASTURE_MINIMAP_BOARD_SIZE);
-    onWalk(world.x, world.z);
+    const target = walkTargetFromMiniMapClick(
+      { x, y },
+      PASTURE_MINIMAP_BOARD_SIZE,
+      spreadStations,
+      bounds,
+    );
+    onWalk(target.x, target.z);
   };
 
   return (

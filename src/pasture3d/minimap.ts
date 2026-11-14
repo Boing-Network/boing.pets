@@ -49,6 +49,7 @@ export type MiniMapMarker = {
   title: string;
   x: number;
   z: number;
+  radius: number;
 };
 
 export function pastureMiniMapBounds(): MiniMapBounds {
@@ -94,6 +95,7 @@ export function miniMapStations(): MiniMapMarker[] {
         : station.label,
       x: station.position.x,
       z: station.position.z,
+      radius: station.radius,
     };
   });
 }
@@ -105,7 +107,8 @@ export const MINIMAP_ICON_MARGIN_PX = 8;
 
 /**
  * Nudge overlapping mini-map markers apart with a few repulsion iterations.
- * Click-to-walk still uses the original board coordinates, not these offsets.
+ * Click-to-walk snaps to a nearby visible letter (or a point already
+ * inside that station's prompt radius) so arrival shows the interact prompt.
  */
 export function spreadMiniMapMarkers(
   points: { x: number; y: number }[],
@@ -145,4 +148,61 @@ export function spreadMiniMapMarkers(
     }
   }
   return pts;
+}
+
+export const MINIMAP_STATION_SNAP_PX = 16;
+
+export type LaidOutMiniMapStation = MiniMapMarker & {
+  mapX: number;
+  mapY: number;
+};
+
+export function layoutMiniMapStations(
+  size: number,
+  bounds: MiniMapBounds = pastureMiniMapBounds(),
+): LaidOutMiniMapStation[] {
+  const stations = miniMapStations();
+  const mapped = stations.map((station) => worldToMap(station, bounds, size));
+  const spread = spreadMiniMapMarkers(mapped, size);
+  return stations.map((station, index) => ({
+    ...station,
+    mapX: spread[index]!.x,
+    mapY: spread[index]!.y,
+  }));
+}
+
+export function snapMiniMapClick(
+  click: { x: number; y: number },
+  stations: readonly LaidOutMiniMapStation[],
+  snapPx = MINIMAP_STATION_SNAP_PX,
+): LaidOutMiniMapStation | null {
+  let best: LaidOutMiniMapStation | null = null;
+  let bestDist = snapPx;
+  for (const station of stations) {
+    const dist = Math.hypot(click.x - station.mapX, click.y - station.mapY);
+    if (dist <= bestDist) {
+      best = station;
+      bestDist = dist;
+    }
+  }
+  return best;
+}
+
+export function walkTargetFromMiniMapClick(
+  click: { x: number; y: number },
+  size: number,
+  stations: readonly LaidOutMiniMapStation[] = layoutMiniMapStations(size),
+  bounds: MiniMapBounds = pastureMiniMapBounds(),
+): { x: number; z: number; station: LaidOutMiniMapStation | null } {
+  const snapped = snapMiniMapClick(click, stations);
+  if (snapped) return { x: snapped.x, z: snapped.z, station: snapped };
+  const world = mapToWorld(click, bounds, size);
+  for (const station of stations) {
+    if (
+      Math.hypot(world.x - station.x, world.z - station.z) <= station.radius
+    ) {
+      return { x: station.x, z: station.z, station };
+    }
+  }
+  return { x: world.x, z: world.z, station: null };
 }

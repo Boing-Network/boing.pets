@@ -1,14 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { PASTURE_ZONE } from "../src/world/config/zones";
 import {
+  ACTIVITY_STATION_KINDS,
+  isWithinStationRadius,
+  stationByKind,
+} from "../src/pasture3d/stationInteract";
+import {
+  layoutMiniMapStations,
   mapToWorld,
   MINIMAP_ICON_MIN_DIST_PX,
   miniMapStations,
   pastureMiniMapBounds,
   spreadMiniMapMarkers,
+  walkTargetFromMiniMapClick,
   worldToMap,
 } from "../src/pasture3d/minimap";
-import { ACTIVITY_STATION_KINDS } from "../src/pasture3d/stationInteract";
 
 const SIZE = 140;
 
@@ -98,5 +104,42 @@ describe("pasture mini-map projection", () => {
       }
     }
     expect(minDist).toBeGreaterThanOrEqual(MINIMAP_ICON_MIN_DIST_PX - 0.5);
+  });
+
+  it("snaps a mini-map click to the station interact spot", () => {
+    const bounds = pastureMiniMapBounds();
+    const laidOut = layoutMiniMapStations(SIZE, bounds);
+    const kitchenIcon = laidOut.find((station) => station.kind === "cook");
+    expect(kitchenIcon).toBeTruthy();
+    const kitchen = stationByKind(PASTURE_ZONE, "cook")!;
+    const trueKitchen = worldToMap(kitchenIcon!, bounds, SIZE);
+    const fromIcon = walkTargetFromMiniMapClick(
+      { x: kitchenIcon!.mapX + 4, y: kitchenIcon!.mapY - 3 },
+      SIZE,
+      laidOut,
+      bounds,
+    );
+    expect(fromIcon.station?.kind).toBe("cook");
+    expect(fromIcon.x).toBe(kitchen.position.x);
+    expect(fromIcon.z).toBe(kitchen.position.z);
+    expect(isWithinStationRadius(fromIcon, kitchen)).toBe(true);
+
+    const inside = walkTargetFromMiniMapClick(
+      trueKitchen,
+      SIZE,
+      laidOut,
+      bounds,
+    );
+    expect(inside.station?.kind).toBe("cook");
+    expect(isWithinStationRadius(inside, kitchen)).toBe(true);
+
+    const raw = walkTargetFromMiniMapClick(
+      { x: 8, y: 8 },
+      SIZE,
+      laidOut,
+      bounds,
+    );
+    expect(raw.station).toBeNull();
+    expect(isWithinStationRadius(raw, kitchen)).toBe(false);
   });
 });
