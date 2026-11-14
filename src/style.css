@@ -2107,8 +2107,8 @@ a:hover {
   box-shadow: 0 8px 24px #0005;
 }
 .pasture-3d-stage.is-touch-controls .pasture-audio-panel {
-  width: min(196px, calc(100vw - 176px));
-  max-height: min(220px, calc(100dvh - 420px));
+  width: 156px;
+  max-height: 150px;
 }
 .pasture-audio-row {
   display: grid;

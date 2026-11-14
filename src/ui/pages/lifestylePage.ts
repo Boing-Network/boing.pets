@@ -10,6 +10,7 @@ import {
 } from "../minigames/playActivity";
 import type { ActivityId } from "../../content/attempts";
 import { formatKitchenSummary } from "../../content/cooking";
+import { itemDisplayName } from "../../content/items";
 
 const attemptStatus: Partial<
   Record<ActivityId, Awaited<ReturnType<typeof loadAttemptStatus>>>
@@ -270,7 +271,7 @@ export async function refreshKitchen() {
       const el = document.createElement("article");
       el.className = "market-card";
       const need = recipe.ingredients
-        .map((i) => `${i.qty}× ${i.itemId}`)
+        .map((i) => `${i.qty}× ${itemDisplayName(i.itemId)}`)
         .join(", ");
       const can = recipe.ingredients.every(
         (i) => (data.pantry[i.itemId] || 0) >= i.qty,
@@ -299,7 +300,7 @@ export async function refreshKitchen() {
         const recipe = data.recipes.find((r) => r.foodId === foodId);
         const el = document.createElement("article");
         el.className = "market-card";
-        el.innerHTML = `<h3>${recipe?.foodName || foodId}</h3><p class="subtle">×${qty}</p>`;
+        el.innerHTML = `<h3>${recipe?.foodName || itemDisplayName(foodId)}</h3><p class="subtle">×${qty}</p>`;
         const btn = document.createElement("button");
         btn.className = "secondary";
         btn.textContent = "Serve · sign";
