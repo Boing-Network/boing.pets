@@ -75,20 +75,20 @@ export function streetBodyPose(
   const swing = Math.sin(phase);
   const breathe = Math.sin(time * 2.2);
 
-  const ampLeg = idle ? 0.035 : run ? 0.72 : 0.46;
-  const ampArm = idle ? 0.06 : run ? 0.55 : 0.35;
-  const lean = idle ? 0 : run ? 0.12 : 0.06;
+  const ampLeg = idle ? 0.04 : run ? 0.88 : 0.62;
+  const ampArm = idle ? 0.07 : run ? 0.7 : 0.48;
+  const lean = idle ? 0 : run ? 0.16 : 0.09;
   const bob = idle
-    ? breathe * 0.012
-    : Math.abs(Math.cos(phase)) * (run ? 0.03 : 0.018);
+    ? breathe * 0.016
+    : Math.abs(Math.cos(phase)) * (run ? 0.05 : 0.032);
 
   // Left leg forward at phase 0 (swing = 0… actually sin(0)=0). Use a
   // consistent opposite-phase pairing; tests read left vs right signs at t
   // where sin is clearly positive (time = pi/(2*omega)).
   const leftLegX = -swing * ampLeg;
   const rightLegX = swing * ampLeg;
-  const leftKnee = Math.max(0, swing) * (idle ? 0.04 : run ? 0.7 : 0.45);
-  const rightKnee = Math.max(0, -swing) * (idle ? 0.04 : run ? 0.7 : 0.45);
+  const leftKnee = Math.max(0, swing) * (idle ? 0.05 : run ? 0.85 : 0.58);
+  const rightKnee = Math.max(0, -swing) * (idle ? 0.05 : run ? 0.85 : 0.58);
 
   return {
     hips: [lean * 0.4, 0, swing * (idle ? 0.01 : 0.03)],
@@ -101,8 +101,8 @@ export function streetBodyPose(
     // Arms opposite the legs.
     upperArmL: [swing * ampArm, 0, 0],
     upperArmR: [-swing * ampArm, 0, 0],
-    lowerArmL: [Math.max(0, -swing) * (idle ? 0.04 : 0.25), 0, 0],
-    lowerArmR: [Math.max(0, swing) * (idle ? 0.04 : 0.25), 0, 0],
+    lowerArmL: [Math.max(0, -swing) * (idle ? 0.05 : 0.34), 0, 0],
+    lowerArmR: [Math.max(0, swing) * (idle ? 0.05 : 0.34), 0, 0],
     upperLegL: [leftLegX, 0, 0],
     upperLegR: [rightLegX, 0, 0],
     lowerLegL: [leftKnee, 0, 0],

@@ -1,9 +1,11 @@
 {
   "sourceBytes": 425400,
-  "outBytes": 425448,
-  "verts": 5176,
-  "tris": 6162,
-  "height": 1.6088,
-  "lift": 0,
-  "joints": 20
+  "outBytes": 702988,
+  "verts": 9782,
+  "tris": 11668,
+  "height": 1.688,
+  "lift": 0.004,
+  "joints": 20,
+  "soleMeshes": ["FootSole_L", "FootSole_R"],
+  "hasSoles": 2
 }

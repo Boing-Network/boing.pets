@@ -42,7 +42,8 @@ function isBone(obj: THREE.Object3D): obj is THREE.Bone {
 
 function tintSlotForMesh(
   name: string,
-): "body" | "accent-surface" | "drip" | "face" {
+): "body" | "accent-surface" | "drip" | "face" | "sole" {
+  if (/FootSole_/.test(name)) return "sole";
   if (/ChestDrip/.test(name)) return "drip";
   if (/^(Nose|Ear_L|Ear_R|Neck|Elbow_|Knee_)/.test(name))
     return "accent-surface";
@@ -50,7 +51,7 @@ function tintSlotForMesh(
   return "body";
 }
 
-const TOON_STEPS = [72, 110, 170, 255];
+const TOON_STEPS = [48, 140, 255];
 
 function makeToonRamp(): THREE.DataTexture {
   const data = new Uint8Array(TOON_STEPS.length * 4);
@@ -104,7 +105,29 @@ function toonFrom(
     opacity: src.opacity,
     side: src.side,
   });
+  addToonRim(toon);
   return toon;
+}
+
+const RIM_HOOK =
+  "vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;";
+
+function addToonRim(mat: THREE.MeshToonMaterial): void {
+  mat.onBeforeCompile = (shader) => {
+    if (!shader.fragmentShader.includes(RIM_HOOK)) return;
+    shader.fragmentShader = shader.fragmentShader.replace(
+      RIM_HOOK,
+      RIM_HOOK +
+        `
+        float rim = pow(clamp(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0), 2.6);
+        outgoingLight += vec3(1.0, 0.86, 0.7) * rim * 0.32;
+        float luma = dot(outgoingLight, vec3(0.299, 0.587, 0.114));
+        float q = floor(luma * 3.0 + 0.28) / 3.0;
+        outgoingLight *= luma > 0.001 ? q / luma : 1.0;
+        `,
+    );
+  };
+  mat.customProgramCacheKey = () => "street-body-toon-rim-v3";
 }
 
 function stylizeMaterials(root: THREE.Object3D, ramp: THREE.DataTexture): void {
@@ -118,9 +141,13 @@ function stylizeMaterials(root: THREE.Object3D, ramp: THREE.DataTexture): void {
 }
 
 const OUTLINE_SKIP = /^(Pupil_|Catch_)/;
-const OUTLINE_INFLATE = 0.016;
+const OUTLINE_INFLATE = 0.03;
+const OUTLINE_INFLATE_FACE = 0.022;
 
-function inflateGeometry(source: THREE.BufferGeometry): THREE.BufferGeometry {
+function inflateGeometry(
+  source: THREE.BufferGeometry,
+  inflate: number,
+): THREE.BufferGeometry {
   const geom = source.clone();
   const pos = geom.getAttribute("position");
   const nrm = geom.getAttribute("normal");
@@ -128,9 +155,9 @@ function inflateGeometry(source: THREE.BufferGeometry): THREE.BufferGeometry {
   for (let i = 0; i < pos.count; i++) {
     pos.setXYZ(
       i,
-      pos.getX(i) + nrm.getX(i) * OUTLINE_INFLATE,
-      pos.getY(i) + nrm.getY(i) * OUTLINE_INFLATE,
-      pos.getZ(i) + nrm.getZ(i) * OUTLINE_INFLATE,
+      pos.getX(i) + nrm.getX(i) * inflate,
+      pos.getY(i) + nrm.getY(i) * inflate,
+      pos.getZ(i) + nrm.getZ(i) * inflate,
     );
   }
   pos.needsUpdate = true;
@@ -150,7 +177,11 @@ function addInvertedHullOutlines(root: THREE.Object3D): void {
     if (obj.name.endsWith("_Outline")) return;
     const parent = obj.parent;
     if (!parent) return;
-    const geom = inflateGeometry(obj.geometry);
+    const face = /^(Eye_|Brow_|Nose|Mouth|Ear_|Cheek|Skull)/.test(obj.name);
+    const geom = inflateGeometry(
+      obj.geometry,
+      face ? OUTLINE_INFLATE_FACE : OUTLINE_INFLATE,
+    );
     const mat = outlineMat.clone();
     let outline: THREE.Mesh | THREE.SkinnedMesh;
     if (isSkinnedMesh(obj)) {
@@ -180,10 +211,12 @@ function tintStreetBody(root: THREE.Object3D, look: PetModelLook): void {
     const slot = tintSlotForMesh(obj.name);
     if (slot === "face") return;
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    const sole = body.clone().lerp(new THREE.Color("#0c0a09"), 0.82);
     for (const mat of mats) {
       if (!(mat instanceof THREE.MeshToonMaterial)) continue;
       if (slot === "body") mat.color.copy(body);
       else if (slot === "accent-surface") mat.color.copy(dark);
+      else if (slot === "sole") mat.color.copy(sole);
       else mat.color.copy(accent);
       mat.needsUpdate = true;
     }

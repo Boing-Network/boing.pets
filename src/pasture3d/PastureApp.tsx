@@ -1536,6 +1536,12 @@ function LocalPet({
     } else {
       moving.current = false;
       speed.current = approachSpeed(speed.current, 0, delta);
+      // Honor debug setOwnYaw while standing still.
+      const nextYaw = livePose.current.yaw;
+      if (nextYaw !== undefined && nextYaw !== yaw.current) {
+        yaw.current = nextYaw;
+        node.rotation.y = yaw.current;
+      }
     }
     node.position.y = pasturePetY(node.position.x, node.position.z);
     livePose.current = {
