@@ -77,6 +77,7 @@ import { WalkthroughCard } from "../onboarding/WalkthroughCard";
 import { DailyQuestChip, useDailyProgress } from "./DailyQuestChip";
 import { noticeWalletError } from "../ui/appRuntime";
 import { PastureMinimap } from "./PastureMinimap";
+import { PastureInventory } from "./PastureInventory";
 import { areaProgressForStation, formatAreaLine } from "./dailyProgress";
 import { PastureTouchControls } from "./PastureTouchControls";
 import { PastureEmoteBar } from "./PastureEmoteBar";
@@ -130,6 +131,7 @@ export type PastureDebug = {
   closeStationMenu: () => void;
   walkToAndOpen: (kind: PastureStationKind) => void;
   showTxFeedback: (error: unknown, retry?: () => void) => void;
+  openInventory: () => void;
   getNearbyStation: () => { id: string; kind: string } | null;
   setOcclusionLook: (look: { x: number; y: number; z: number } | null) => void;
 };
@@ -221,6 +223,7 @@ export function PastureApp({
   const [stationMenu, setStationMenu] = useState<PastureStationKind | null>(
     null,
   );
+  const [inventoryOpen, setInventoryOpen] = useState(false);
   const [nearbyStation, setNearbyStation] = useState<WorldStation | null>(null);
   const [localEmotes, setLocalEmotes] = useState<
     Array<{ id: string; emote: EmoteId; at: number }>
@@ -551,6 +554,7 @@ export function PastureApp({
       closeStationMenu,
       walkToAndOpen,
       showTxFeedback: noticeWalletError,
+      openInventory: () => setInventoryOpen(true),
       getNearbyStation: () => {
         const near = nearbyInteractStation(
           { x: livePose.current.x, z: livePose.current.z },
@@ -605,6 +609,15 @@ export function PastureApp({
       ) : null}
       <DailyQuestChip progress={dailyProgress} nearby={nearbyProgress} />
       <PastureMinimap poseRef={livePose} onWalk={(x, z) => walkTo(x, z)} />
+      <PastureInventory
+        owner={owner}
+        open={inventoryOpen}
+        onToggle={() => setInventoryOpen((open) => !open)}
+        onUseArea={(area) => {
+          setInventoryOpen(false);
+          walkToAndOpen(area);
+        }}
+      />
       <WalkthroughCard
         scene="pasture"
         openMenuKind={stationMenu}

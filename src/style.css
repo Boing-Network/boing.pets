@@ -2452,3 +2452,121 @@ a:hover {
 .pasture-home-menu .home-grid {
   margin: 10px 0;
 }
+
+.pasture-inventory-btn {
+  position: absolute;
+  left: 12px;
+  top: 266px;
+  z-index: 15;
+  width: 140px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid #2a5a46;
+  background: #0c1c14ee;
+  color: #eef8ff;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  box-shadow: 0 8px 24px #0005;
+}
+.pasture-inventory-btn:focus-visible,
+.pasture-inventory-btn[aria-expanded="true"] {
+  outline: 2px solid #fff4b8;
+  outline-offset: 1px;
+}
+.pasture-inventory-panel {
+  position: absolute;
+  z-index: 19;
+  top: 12px;
+  left: 12px;
+  width: min(380px, calc(100% - 120px));
+  max-height: calc(
+    100% - var(--pasture-chat-clearance, 68px) -
+      var(--pasture-emote-height, 52px) - 24px
+  );
+  overflow: auto;
+  padding: 14px 14px 10px;
+  border-radius: 20px;
+  border: 1px solid #2a5a46;
+  background: linear-gradient(130deg, #101c35ee, #0b1225f2);
+  color: #eef8ff;
+  box-shadow: 0 16px 40px #0006;
+}
+.pasture-inventory-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.pasture-inventory-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.pasture-inventory-error,
+.pasture-inventory-flash,
+.pasture-inventory-empty {
+  margin: 6px 0;
+  font-size: 0.8rem;
+}
+.pasture-inventory-error {
+  color: #ffcebe;
+}
+.pasture-inventory-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+.pasture-inventory-tabs button {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #2a5a46;
+  background: #0c1c14aa;
+  color: inherit;
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.pasture-inventory-tabs button.is-active {
+  background: #fff4b8;
+  color: #1b3a28;
+  border-color: #e8c27a;
+}
+.pasture-inventory-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.pasture-inventory-row {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 0;
+  border-top: 1px solid #2a3a55;
+}
+.pasture-inventory-icon {
+  width: 40px;
+  height: 40px;
+  display: block;
+}
+.pasture-inventory-icon svg {
+  width: 40px;
+  height: 40px;
+  display: block;
+}
+.pasture-inventory-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 0.8rem;
+}
+.pasture-inventory-copy strong {
+  font-size: 0.85rem;
+}
+.pasture-inventory-actions {
+  display: flex;
+  gap: 4px;
+}

@@ -20,6 +20,10 @@ import {
   PASTURE_MINIMAP_LEFT_PX,
   PASTURE_MINIMAP_SIZE_PX,
   PASTURE_MINIMAP_TOP_PX,
+  PASTURE_INVENTORY_BTN_HEIGHT_PX,
+  PASTURE_INVENTORY_BTN_LEFT_PX,
+  PASTURE_INVENTORY_BTN_TOP_PX,
+  PASTURE_INVENTORY_BTN_WIDTH_PX,
   PASTURE_TX_TOAST_HEIGHT_PX,
   PASTURE_TX_TOAST_SIDE_CLEAR_PX,
   PASTURE_TX_TOAST_TOP_PX,
@@ -244,5 +248,43 @@ describe("pasture chat stays clear of emotes and touch controls", () => {
     }
     expect(rectsOverlap(mobile.txToast, mobile.joystick!)).toBe(false);
     expect(rectsOverlap(mobile.txToast, mobile.interact!)).toBe(false);
+  });
+
+  it("keeps the bag button under the mini-map and clear of other HUD", () => {
+    const desktop = pastureHudRects({
+      width: 1280,
+      height: 800,
+      touchControls: false,
+    });
+    const mobile = pastureHudRects({
+      width: 390,
+      height: 844,
+      touchControls: true,
+    });
+    expect(css).toMatch(/\.pasture-inventory-btn\s*\{[^}]*top:\s*266px/s);
+    for (const layout of [desktop, mobile]) {
+      expect(layout.inventory.top).toBe(PASTURE_INVENTORY_BTN_TOP_PX);
+      expect(layout.inventory.left).toBe(PASTURE_INVENTORY_BTN_LEFT_PX);
+      expect(layout.inventory.right - layout.inventory.left).toBe(
+        PASTURE_INVENTORY_BTN_WIDTH_PX,
+      );
+      expect(layout.inventory.bottom - layout.inventory.top).toBe(
+        PASTURE_INVENTORY_BTN_HEIGHT_PX,
+      );
+      for (const other of [
+        layout.minimap,
+        layout.txToast,
+        layout.progress,
+        layout.prompt,
+        layout.emote,
+        layout.chat,
+      ]) {
+        expect(rectsOverlap(layout.inventory, other)).toBe(false);
+      }
+      const mid = hudRectCenter(layout.inventory);
+      expect(hitHudTarget(layout, mid.x, mid.y)).toBe("inventory");
+    }
+    expect(rectsOverlap(mobile.inventory, mobile.joystick!)).toBe(false);
+    expect(rectsOverlap(mobile.inventory, mobile.interact!)).toBe(false);
   });
 });

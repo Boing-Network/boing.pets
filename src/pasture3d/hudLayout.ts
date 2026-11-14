@@ -59,6 +59,17 @@ export const PASTURE_TX_TOAST_MAX_WIDTH_PX = 360;
 export const PASTURE_TX_TOAST_HEIGHT_PX = 72;
 export const PASTURE_TX_TOAST_Z_INDEX = 20;
 
+/** Bag button sits under the mini-map on the left. */
+export const PASTURE_INVENTORY_BTN_LEFT_PX = PASTURE_MINIMAP_LEFT_PX;
+export const PASTURE_INVENTORY_BTN_GAP_PX = PASTURE_HUD_GAP_PX;
+export const PASTURE_INVENTORY_BTN_TOP_PX =
+  PASTURE_MINIMAP_TOP_PX +
+  PASTURE_MINIMAP_HEIGHT_PX +
+  PASTURE_INVENTORY_BTN_GAP_PX;
+export const PASTURE_INVENTORY_BTN_WIDTH_PX = PASTURE_MINIMAP_SIZE_PX;
+export const PASTURE_INVENTORY_BTN_HEIGHT_PX = 36;
+export const PASTURE_INVENTORY_BTN_Z_INDEX = 15;
+
 export function pastureProgressChipBottom(touchControls: boolean): number {
   return (
     pastureStationPromptBottom(touchControls) +
@@ -107,6 +118,7 @@ export function pastureHudRects(opts: {
   progress: HudRect;
   minimap: HudRect;
   txToast: HudRect;
+  inventory: HudRect;
   joystick: HudRect | null;
   interact: HudRect | null;
 } {
@@ -174,6 +186,13 @@ export function pastureHudRects(opts: {
     top: PASTURE_TX_TOAST_TOP_PX,
     bottom: PASTURE_TX_TOAST_TOP_PX + PASTURE_TX_TOAST_HEIGHT_PX,
   };
+  const inventory: HudRect = {
+    id: "inventory",
+    left: PASTURE_INVENTORY_BTN_LEFT_PX,
+    right: PASTURE_INVENTORY_BTN_LEFT_PX + PASTURE_INVENTORY_BTN_WIDTH_PX,
+    top: PASTURE_INVENTORY_BTN_TOP_PX,
+    bottom: PASTURE_INVENTORY_BTN_TOP_PX + PASTURE_INVENTORY_BTN_HEIGHT_PX,
+  };
   if (!touchControls) {
     return {
       chat,
@@ -182,6 +201,7 @@ export function pastureHudRects(opts: {
       progress,
       minimap,
       txToast,
+      inventory,
       joystick: null,
       interact: null,
     };
@@ -210,6 +230,7 @@ export function pastureHudRects(opts: {
     progress,
     minimap,
     txToast,
+    inventory,
     joystick,
     interact,
   };
@@ -229,6 +250,7 @@ export function hitHudTarget(
   | "progress"
   | "minimap"
   | "tx-toast"
+  | "inventory"
   | "emote"
   | "joystick"
   | "interact"
@@ -240,6 +262,7 @@ export function hitHudTarget(
   if (contains(rects.progress, x, y)) return "progress";
   if (contains(rects.minimap, x, y)) return "minimap";
   if (contains(rects.txToast, x, y)) return "tx-toast";
+  if (contains(rects.inventory, x, y)) return "inventory";
   if (rects.interact && contains(rects.interact, x, y)) return "interact";
   if (rects.joystick && contains(rects.joystick, x, y)) return "joystick";
   if (contains(rects.emote, x, y)) return "emote";
