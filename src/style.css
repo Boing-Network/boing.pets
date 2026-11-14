@@ -2412,6 +2412,7 @@ a:hover {
   pointer-events: auto;
   overflow: visible;
 }
+#pasture-canvas.is-touch-controls .pasture-tx-toast,
 .pasture-3d-stage.is-touch-controls .pasture-tx-toast {
   top: 314px;
   left: 16px;

@@ -127,13 +127,16 @@ function showPastureTxToast(text: string, error: boolean, retry?: () => void) {
     return;
   }
   if (!canvas) return;
+  const host = document.querySelector(".pasture-3d-stage") || canvas;
   if (!toast) {
     toast = document.createElement("div");
     toast.className = "pasture-tx-toast";
     toast.setAttribute("role", "status");
     toast.setAttribute("aria-live", "polite");
     toast.setAttribute("data-hud", "tx-toast");
-    canvas.append(toast);
+    host.append(toast);
+  } else if (toast.parentElement !== host) {
+    host.append(toast);
   }
   fillNotice(toast, text, error, retry);
 }
