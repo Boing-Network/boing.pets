@@ -7,6 +7,7 @@ import { PASTURE_ZONE } from "../world/config/zones";
 import { meadowHeight } from "./meadowHeight";
 import type { ActivityStationKind } from "./stationInteract";
 import { NeonHalo, YARD } from "./yardChrome";
+import { yardFacing } from "./yardFacing";
 import * as THREE from "three";
 
 function landmarkFor(id: string): WorldLandmark | undefined {
@@ -21,6 +22,7 @@ type SitProps = {
   x: number;
   z: number;
   y: number;
+  rotY?: number;
   onInteract: (event: ThreeEvent<PointerEvent>) => void;
 };
 
@@ -35,7 +37,7 @@ function hoverHandlers() {
   };
 }
 
-function CrystalQuarry({ x, z, y, onInteract }: SitProps) {
+function CrystalQuarry({ x, z, y, rotY = 0, onInteract }: SitProps) {
   const label = yardLabelForLandmark("crystal-quarry");
   const rocks: Array<[number, number, number, number, number, number]> = [
     [-0.9, 0.45, -0.6, 1.3, 0.9, 1.1],
@@ -44,7 +46,12 @@ function CrystalQuarry({ x, z, y, onInteract }: SitProps) {
     [-0.2, 0.25, 0.95, 0.8, 0.5, 0.7],
   ];
   return (
-    <group position={[x, y, z]} onPointerDown={onInteract} {...hoverHandlers()}>
+    <group
+      position={[x, y, z]}
+      rotation={[0, rotY, 0]}
+      onPointerDown={onInteract}
+      {...hoverHandlers()}
+    >
       <mesh position={[0, 0.03, 0]} receiveShadow>
         <boxGeometry args={[4.2, 0.08, 4.0]} />
         <meshStandardMaterial color={YARD.concreteDark} roughness={1} />
@@ -108,10 +115,15 @@ function CrystalQuarry({ x, z, y, onInteract }: SitProps) {
   );
 }
 
-function PondPier({ x, z, y, onInteract }: SitProps) {
+function PondPier({ x, z, y, rotY = 0, onInteract }: SitProps) {
   const label = yardLabelForLandmark("pond-pier");
   return (
-    <group position={[x, y, z]} onPointerDown={onInteract} {...hoverHandlers()}>
+    <group
+      position={[x, y, z]}
+      rotation={[0, rotY, 0]}
+      onPointerDown={onInteract}
+      {...hoverHandlers()}
+    >
       <mesh position={[0, 0.08, 0]} receiveShadow>
         <boxGeometry args={[2.6, 0.12, 2.0]} />
         <meshStandardMaterial color={YARD.concrete} roughness={0.9} />
@@ -164,10 +176,15 @@ function PondPier({ x, z, y, onInteract }: SitProps) {
   );
 }
 
-function TreasureDig({ x, z, y, onInteract }: SitProps) {
+function TreasureDig({ x, z, y, rotY = 0, onInteract }: SitProps) {
   const label = yardLabelForLandmark("treasure-dig");
   return (
-    <group position={[x, y, z]} onPointerDown={onInteract} {...hoverHandlers()}>
+    <group
+      position={[x, y, z]}
+      rotation={[0, rotY, 0]}
+      onPointerDown={onInteract}
+      {...hoverHandlers()}
+    >
       <mesh position={[0, 0.06, 0]} receiveShadow>
         <cylinderGeometry args={[1.75, 1.85, 0.14, 12]} />
         <meshStandardMaterial color={YARD.sand} roughness={1} />
@@ -234,7 +251,7 @@ function TreasureDig({ x, z, y, onInteract }: SitProps) {
   );
 }
 
-function GardenBeds({ x, z, y, onInteract }: SitProps) {
+function GardenBeds({ x, z, y, rotY = 0, onInteract }: SitProps) {
   const label = yardLabelForLandmark("garden-beds");
   const beds: Array<[number, number]> = [
     [-1.05, 0],
@@ -242,7 +259,12 @@ function GardenBeds({ x, z, y, onInteract }: SitProps) {
     [1.05, 0],
   ];
   return (
-    <group position={[x, y, z]} onPointerDown={onInteract} {...hoverHandlers()}>
+    <group
+      position={[x, y, z]}
+      rotation={[0, rotY, 0]}
+      onPointerDown={onInteract}
+      {...hoverHandlers()}
+    >
       <mesh position={[0, 0.02, 0]} receiveShadow>
         <boxGeometry args={[3.6, 0.06, 3.0]} />
         <meshStandardMaterial color={YARD.concreteDark} roughness={1} />
@@ -286,10 +308,15 @@ function GardenBeds({ x, z, y, onInteract }: SitProps) {
   );
 }
 
-function KitchenHut({ x, z, y, onInteract }: SitProps) {
+function KitchenHut({ x, z, y, rotY = 0, onInteract }: SitProps) {
   const label = yardLabelForLandmark("kitchen-hut");
   return (
-    <group position={[x, y, z]} onPointerDown={onInteract} {...hoverHandlers()}>
+    <group
+      position={[x, y, z]}
+      rotation={[0, rotY, 0]}
+      onPointerDown={onInteract}
+      {...hoverHandlers()}
+    >
       <mesh position={[0, 0.03, 0]} receiveShadow>
         <boxGeometry args={[3.4, 0.08, 2.8]} />
         <meshStandardMaterial color={YARD.concreteDark} roughness={1} />
@@ -311,15 +338,23 @@ function KitchenHut({ x, z, y, onInteract }: SitProps) {
           />
         </mesh>
       ))}
-      <mesh position={[0, 1.62, -0.9]}>
-        <boxGeometry args={[1.6, 0.1, 0.12]} />
+      <mesh position={[0, 1.55, 1.05]}>
+        <boxGeometry args={[2.2, 0.1, 0.12]} />
         <meshStandardMaterial
           color={YARD.accent}
           emissive={YARD.accent}
+          emissiveIntensity={1.15}
+        />
+      </mesh>
+      <mesh position={[0, 1.44, 1.05]}>
+        <boxGeometry args={[2.0, 0.05, 0.1]} />
+        <meshStandardMaterial
+          color="#2ec8e0"
+          emissive="#2ec8e0"
           emissiveIntensity={0.8}
         />
       </mesh>
-      <NeonHalo position={[0, 1.7, -0.7]} width={2} height={0.4} />
+      <NeonHalo position={[0, 1.6, 1.25]} width={2.4} height={0.45} />
       <mesh position={[0, 0.85, 0.95]} castShadow>
         <boxGeometry args={[2.0, 0.16, 0.6]} />
         <meshStandardMaterial
@@ -355,14 +390,19 @@ function KitchenHut({ x, z, y, onInteract }: SitProps) {
   );
 }
 
-function RaceGate({ x, z, y, onInteract }: SitProps) {
+function RaceGate({ x, z, y, rotY = 0, onInteract }: SitProps) {
   const label = yardLabelForLandmark("race-gate");
   const posts: Array<[number, number]> = [
     [-1.3, 0],
     [1.3, 0],
   ];
   return (
-    <group position={[x, y, z]} onPointerDown={onInteract} {...hoverHandlers()}>
+    <group
+      position={[x, y, z]}
+      rotation={[0, rotY, 0]}
+      onPointerDown={onInteract}
+      {...hoverHandlers()}
+    >
       <mesh position={[0, 0.03, 0]} receiveShadow>
         <boxGeometry args={[3.4, 0.06, 2.0]} />
         <meshStandardMaterial color={YARD.concreteDark} roughness={1} />
@@ -405,17 +445,22 @@ function RaceGate({ x, z, y, onInteract }: SitProps) {
           </mesh>
         )),
       )}
-      <mesh position={[-2.3, 0.02, 1.4]} rotation={[0, 0.3, 0]} receiveShadow>
-        <cylinderGeometry args={[1.6, 1.6, 0.08, 20]} />
-        <meshStandardMaterial color={YARD.concrete} roughness={0.9} />
-      </mesh>
-      <mesh position={[-2.3, -0.15, 1.4]} rotation={[0, 0.3, 0]}>
-        <cylinderGeometry args={[1.15, 1.15, 0.35, 20, 1, true]} />
+      <mesh
+        position={[3.35, 1.05, 2.1]}
+        rotation={[Math.PI, 0, 0]}
+        scale={[1, 0.48, 1]}
+        receiveShadow
+      >
+        <sphereGeometry args={[2.2, 24, 14, 0, Math.PI * 2, 0, Math.PI / 2]} />
         <meshStandardMaterial
           color={YARD.concreteDark}
           roughness={0.92}
           side={THREE.DoubleSide}
         />
+      </mesh>
+      <mesh position={[3.35, 1.05, 2.1]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[2.2, 0.16, 8, 28]} />
+        <meshStandardMaterial color={YARD.concreteLight} roughness={0.8} />
       </mesh>
       <PastureWorldText
         position={[0, 2.85, 0]}
@@ -461,6 +506,7 @@ export function PastureActivityAreas({
             x={land.position.x}
             z={land.position.z}
             y={meadowHeight(land.position.x, land.position.z)}
+            rotY={yardFacing(land.position.x, land.position.z)}
             onInteract={handle(station)}
           />
         );

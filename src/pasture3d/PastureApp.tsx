@@ -977,7 +977,7 @@ export function PastureApp({
         <Canvas
           shadows={!preferPerf}
           dpr={pastureMobileDpr(preferPerf)}
-          camera={{ position: [0, 11, 16], fov: 46, near: 0.1, far: 280 }}
+          camera={{ position: [0, 11, 16], fov: 46, near: 0.1, far: 420 }}
           gl={{
             antialias: !preferPerf,
             powerPreference: preferPerf ? "low-power" : "high-performance",
@@ -986,7 +986,9 @@ export function PastureApp({
           onCreated={({ gl }) => {
             gl.domElement.dataset.pastureCanvas = "1";
             gl.toneMapping = THREE.ACESFilmicToneMapping;
-            gl.toneMappingExposure = 1.05;
+            gl.toneMappingExposure = 1.18;
+            gl.shadowMap.enabled = !preferPerf;
+            gl.shadowMap.type = THREE.PCFSoftShadowMap;
             frameDpr.current = gl.getPixelRatio();
             setReady(true);
           }}

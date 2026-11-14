@@ -119,19 +119,19 @@ const KEYS: readonly Key[] = [
   },
   {
     hour: 17,
-    sunColor: "#ffb36a",
-    sunIntensity: 1.12,
-    fillColor: "#6a7a9a",
-    fillIntensity: 0.22,
-    ambient: 0.2,
-    hemiSky: "#f0c4a0",
-    hemiGround: "#6a5a48",
-    hemiIntensity: 0.4,
-    fogColor: "#c4a888",
-    fogNear: 36,
-    fogFar: 130,
-    background: "#d4a878",
-    exposure: 0.92,
+    sunColor: "#ffd08a",
+    sunIntensity: 1.55,
+    fillColor: "#ffc4a0",
+    fillIntensity: 0.48,
+    ambient: 0.46,
+    hemiSky: "#ffd4b4",
+    hemiGround: "#c8b49a",
+    hemiIntensity: 0.78,
+    fogColor: "#f0c8a8",
+    fogNear: 58,
+    fogFar: 175,
+    background: "#f2b888",
+    exposure: 1.18,
   },
   {
     hour: 19.5,
@@ -223,9 +223,12 @@ export function samplePastureDay(
   const span = b.hour - a.hour || 1;
   const t = Math.max(0, Math.min(1, (hour - a.hour) / span));
   const angle = ((hour - 6) / 12) * Math.PI;
-  const sunY = Math.max(0.12, Math.sin(angle) * 28);
+  let sunY = Math.max(0.12, Math.sin(angle) * 28);
   const sunX = Math.cos(angle) * 36;
   const sunZ = Math.sin(angle * 0.35) * 16;
+  // Hour 17 would otherwise graze the horizon and rake black streaks
+  // across the plaza. Keep a golden-hour elevation so dusk still reads warm.
+  if (hour >= 16 && hour < 18.5) sunY = Math.max(sunY, 16);
   const showFireflies = hour >= 19 || hour < 5.8;
   return {
     hour,

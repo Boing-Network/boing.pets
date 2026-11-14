@@ -64,7 +64,7 @@ export function PasturePaths({ preferPerf }: { preferPerf: boolean }) {
         ref={mat}
         map={map ?? undefined}
         vertexColors
-        color={map ? "#6a6964" : "#4a4944"}
+        color={map ? "#e8e4da" : "#c8c4ba"}
         roughness={0.98}
         metalness={0}
         transparent

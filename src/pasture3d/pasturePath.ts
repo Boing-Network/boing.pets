@@ -47,8 +47,8 @@ export type PathMeshData = {
   indices: Uint32Array;
 };
 
-const DIRT = { r: 0.42, g: 0.3, b: 0.18 };
-const WORN = { r: 0.4, g: 0.46, b: 0.26 };
+const DIRT = { r: 0.88, g: 0.86, b: 0.8 };
+const WORN = { r: 0.9, g: 0.88, b: 0.84 };
 
 /** Grid draped on meadowHeight; empty grass cells are omitted. */
 export function buildPasturePathMeshData(

@@ -11,7 +11,12 @@ import {
   MEADOW_ROCK_SPOTS,
   MEADOW_TREE_SPOTS,
 } from "./meadowLayout";
-import { makeChainTexture, makeGraffitiTexture, YARD } from "./yardChrome";
+import {
+  makeChainTexture,
+  makeGraffitiTexture,
+  makeWindowTexture,
+  YARD,
+} from "./yardChrome";
 
 const BOUNDS = PASTURE_ZONE.bounds;
 const PARAPET_INSET = 0.15;
@@ -47,7 +52,7 @@ function writeInstances(mesh: THREE.InstancedMesh | null, items: Spot[]) {
   mesh.instanceMatrix.needsUpdate = true;
 }
 
-function Parapet({ preferPerf }: { preferPerf: boolean }) {
+function Parapet() {
   const { minX, maxX, minZ, maxZ } = BOUNDS;
   const midX = (minX + maxX) / 2;
   const midZ = (minZ + maxZ) / 2;
@@ -84,17 +89,13 @@ function Parapet({ preferPerf }: { preferPerf: boolean }) {
     <group>
       {walls.map((wall, i) => (
         <group key={i}>
-          <mesh
-            position={[wall.x, y, wall.z]}
-            receiveShadow
-            castShadow={!preferPerf}
-          >
+          <mesh position={[wall.x, y, wall.z]} receiveShadow>
             <boxGeometry args={[wall.w, PARAPET_H, wall.d]} />
-            <meshStandardMaterial color={YARD.concreteDark} roughness={0.92} />
+            <meshStandardMaterial color={YARD.concrete} roughness={0.92} />
           </mesh>
-          <mesh position={[wall.x, PARAPET_H + 0.05, wall.z]}>
+          <mesh position={[wall.x, PARAPET_H + 0.05, wall.z]} receiveShadow>
             <boxGeometry args={[wall.w + 0.08, 0.1, wall.d + 0.08]} />
-            <meshStandardMaterial color={YARD.ink} roughness={0.7} />
+            <meshStandardMaterial color={YARD.concreteDark} roughness={0.8} />
           </mesh>
         </group>
       ))}
@@ -147,13 +148,14 @@ function ChainLink({ preferPerf }: { preferPerf: boolean }) {
           <planeGeometry args={[panel.w, 2.1]} />
           <meshStandardMaterial
             map={map ?? undefined}
-            color={YARD.metal}
+            color="#8a8a86"
             transparent
-            opacity={0.7}
+            opacity={0.92}
             side={THREE.DoubleSide}
             depthWrite={false}
-            roughness={0.45}
-            metalness={0.35}
+            roughness={0.4}
+            metalness={0.45}
+            alphaTest={0.12}
           />
         </mesh>
       ))}
@@ -174,35 +176,57 @@ function ChainLink({ preferPerf }: { preferPerf: boolean }) {
 
 function Skyline({ preferPerf }: { preferPerf: boolean }) {
   const count = preferPerf ? 22 : 50;
+  const capCount = preferPerf ? 0 : Math.floor(count * 0.45);
+  const windowMap = useMemo(
+    () => (preferPerf ? null : makeWindowTexture()),
+    [preferPerf],
+  );
   const spots = useMemo(() => {
     const items: Array<Spot & { color: string }> = [];
+    const caps: Spot[] = [];
     for (let i = 0; i < count; i++) {
       const a = (i / count) * Math.PI * 2 + mulberry(i) * 0.28;
-      const r = 70 + mulberry(i * 3) * 46;
-      const h = 10 + mulberry(i * 5) * 32;
-      const w = 3.2 + mulberry(i * 7) * 7;
-      const d = 3.2 + mulberry(i * 9) * 6;
+      const r = 72 + mulberry(i * 3) * 40;
+      const h = 14 + mulberry(i * 5) * 34;
+      const w = 4 + mulberry(i * 7) * 7;
+      const d = 4 + mulberry(i * 9) * 6;
+      const x = Math.cos(a) * r;
+      const z = Math.sin(a) * r;
       items.push({
-        x: Math.cos(a) * r,
-        y: -10 + h / 2,
-        z: Math.sin(a) * r,
-        rotY: a,
+        x,
+        y: -8 + h / 2,
+        z,
+        rotY: a + Math.PI / 2,
         scale: 1,
         sx: w,
         sy: h,
         sz: d,
-        color: i % 5 === 0 ? "#1a1a18" : i % 3 === 0 ? "#2a2a28" : "#141416",
+        color: "#ffffff",
       });
+      if (caps.length < capCount && i % 2 === 0) {
+        const capH = 6 + mulberry(i * 11) * 12;
+        caps.push({
+          x,
+          y: -8 + h + capH / 2,
+          z,
+          rotY: a + Math.PI / 2,
+          scale: 1,
+          sx: w * 0.62,
+          sy: capH,
+          sz: d * 0.62,
+        });
+      }
     }
-    return items;
-  }, [count]);
+    return { items, caps };
+  }, [count, capCount]);
   const mesh = useRef<THREE.InstancedMesh>(null);
+  const caps = useRef<THREE.InstancedMesh>(null);
   useLayoutEffect(() => {
     const inst = mesh.current;
     if (!inst) return;
     const dummy = new THREE.Object3D();
     const color = new THREE.Color();
-    spots.forEach((row, i) => {
+    spots.items.forEach((row, i) => {
       dummy.position.set(row.x, row.y, row.z);
       dummy.rotation.set(0, row.rotY, 0);
       dummy.scale.set(row.sx ?? 1, row.sy ?? 1, row.sz ?? 1);
@@ -211,24 +235,47 @@ function Skyline({ preferPerf }: { preferPerf: boolean }) {
       color.set(row.color);
       inst.setColorAt(i, color);
     });
-    inst.count = spots.length;
+    inst.count = spots.items.length;
     inst.instanceMatrix.needsUpdate = true;
     if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+    writeInstances(caps.current, spots.caps);
   }, [spots]);
   return (
-    <instancedMesh
-      ref={mesh}
-      args={[undefined, undefined, count]}
-      frustumCulled={false}
-    >
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial
-        roughness={0.85}
-        metalness={0.08}
-        emissive="#c4884a"
-        emissiveIntensity={preferPerf ? 0.08 : 0.18}
-      />
-    </instancedMesh>
+    <group>
+      <instancedMesh
+        ref={mesh}
+        args={[undefined, undefined, count]}
+        frustumCulled={false}
+      >
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial
+          map={windowMap ?? undefined}
+          emissiveMap={windowMap ?? undefined}
+          roughness={0.7}
+          metalness={0.12}
+          emissive="#ffd08a"
+          emissiveIntensity={preferPerf ? 0.2 : 0.7}
+        />
+      </instancedMesh>
+      {capCount ? (
+        <instancedMesh
+          ref={caps}
+          args={[undefined, undefined, capCount]}
+          frustumCulled={false}
+        >
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial
+            map={windowMap ?? undefined}
+            emissiveMap={windowMap ?? undefined}
+            color="#2a2a2c"
+            roughness={0.7}
+            metalness={0.12}
+            emissive="#ffd08a"
+            emissiveIntensity={0.65}
+          />
+        </instancedMesh>
+      ) : null}
+    </group>
   );
 }
 
@@ -236,28 +283,24 @@ function InstancedBoxes({
   items,
   color,
   roughness = 0.85,
-  preferPerf,
   geometry = "box",
 }: {
   items: Spot[];
   color: string;
   roughness?: number;
-  preferPerf: boolean;
-  geometry?: "box" | "cone" | "cylinder";
+  geometry?: "box" | "cone" | "cylinder" | "foliage";
 }) {
   const mesh = useRef<THREE.InstancedMesh>(null);
   useLayoutEffect(() => writeInstances(mesh.current, items), [items]);
   if (!items.length) return null;
   return (
-    <instancedMesh
-      ref={mesh}
-      args={[undefined, undefined, items.length]}
-      castShadow={!preferPerf}
-    >
+    <instancedMesh ref={mesh} args={[undefined, undefined, items.length]}>
       {geometry === "cone" ? (
         <coneGeometry args={[0.18, 0.42, 8]} />
       ) : geometry === "cylinder" ? (
-        <cylinderGeometry args={[0.22, 0.26, 0.55, 8]} />
+        <cylinderGeometry args={[0.28, 0.32, 0.5, 8]} />
+      ) : geometry === "foliage" ? (
+        <sphereGeometry args={[0.32, 8, 6]} />
       ) : (
         <boxGeometry args={[1, 1, 1]} />
       )}
@@ -288,15 +331,11 @@ function StickerWalls({ preferPerf }: { preferPerf: boolean }) {
   useLayoutEffect(() => writeInstances(mesh.current, spots), [spots]);
   if (!spots.length) return null;
   return (
-    <instancedMesh
-      ref={mesh}
-      args={[undefined, undefined, spots.length]}
-      castShadow={!preferPerf}
-    >
+    <instancedMesh ref={mesh} args={[undefined, undefined, spots.length]}>
       <boxGeometry args={[1, 1, 1]} />
       <meshStandardMaterial
         map={map ?? undefined}
-        color="#3a3a36"
+        color="#f0ece4"
         roughness={0.9}
       />
     </instancedMesh>
@@ -341,26 +380,28 @@ export function YardPlaza({ preferPerf }: { preferPerf: boolean }) {
   const decor = useMemo(() => plazaDecor(preferPerf), [preferPerf]);
   return (
     <group>
-      <Parapet preferPerf={preferPerf} />
+      <Parapet />
       <ChainLink preferPerf={preferPerf} />
       <Skyline preferPerf={preferPerf} />
       <StickerWalls preferPerf={preferPerf} />
-      <InstancedBoxes
-        items={decor.cones}
-        color={YARD.accent}
-        preferPerf={preferPerf}
-        geometry="cone"
-      />
-      <InstancedBoxes
-        items={decor.crates}
-        color="#6a5a3a"
-        preferPerf={preferPerf}
-      />
+      <InstancedBoxes items={decor.cones} color={YARD.accent} geometry="cone" />
+      <InstancedBoxes items={decor.crates} color="#d2b48a" />
       <InstancedBoxes
         items={decor.planters}
-        color={YARD.concreteDark}
-        preferPerf={preferPerf}
+        color={YARD.concrete}
         geometry="cylinder"
+      />
+      <InstancedBoxes
+        items={decor.planters.map((row) => ({
+          ...row,
+          y: row.y + 0.38,
+          scale: 1,
+          sx: undefined,
+          sy: undefined,
+          sz: undefined,
+        }))}
+        color={YARD.foliage}
+        geometry="foliage"
       />
     </group>
   );

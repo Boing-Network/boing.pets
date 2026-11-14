@@ -12,6 +12,7 @@ import { PASTURE_GROUND_RADIUS } from "./meadowLayout";
 import { makeConcreteTexture, YARD } from "./yardChrome";
 import { YardOak } from "./YardOak";
 import { YardPlaza } from "./YardPlaza";
+import { YardSky } from "./YardSky";
 
 function Terrain({
   preferPerf,
@@ -36,8 +37,8 @@ function Terrain({
       const y = meadowHeight(x, z);
       pos.setY(i, y);
       const n = Math.sin(x * 0.19) * Math.cos(z * 0.16);
-      const shade = 0.82 + n * 0.08;
-      color.setRGB(0.55 * shade, 0.54 * shade, 0.5 * shade);
+      const shade = 0.96 + n * 0.04;
+      color.setRGB(0.82 * shade, 0.8 * shade, 0.74 * shade);
       colors[i * 3] = color.r;
       colors[i * 3 + 1] = color.g;
       colors[i * 3 + 2] = color.b;
@@ -103,7 +104,7 @@ if (dot(pondDelta, pondDelta) < 1.0) discard;`,
         ref={mat}
         map={map ?? undefined}
         vertexColors
-        color={map ? "#c8c4ba" : YARD.concrete}
+        color={map ? "#f2eee6" : YARD.concreteLight}
         roughness={0.92}
         metalness={0}
       />
@@ -137,10 +138,12 @@ function Pond() {
         <boxGeometry args={[waterW, basinDepth, waterD]} />
         <meshStandardMaterial
           color={YARD.water}
-          roughness={0.18}
-          metalness={0.12}
+          emissive="#3a6a78"
+          emissiveIntensity={0.22}
+          roughness={0.16}
+          metalness={0.18}
           transparent
-          opacity={0.88}
+          opacity={0.82}
           depthWrite
         />
       </mesh>
@@ -267,6 +270,7 @@ export function Meadow({
 }) {
   return (
     <group>
+      <YardSky preferPerf={preferPerf} />
       <Terrain preferPerf={preferPerf} onWalk={onWalk} enabled={walkEnabled} />
       <YardPlaza preferPerf={preferPerf} />
       <Pond />

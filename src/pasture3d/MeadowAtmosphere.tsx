@@ -16,7 +16,6 @@ export const pastureHourOverride: { current: number | null } = {
 export function MeadowAtmosphere({
   preferPerf,
   reducedMotion = false,
-  followRef,
 }: {
   preferPerf: boolean;
   reducedMotion?: boolean;
@@ -45,10 +44,10 @@ export function MeadowAtmosphere({
     if (sun.current) {
       sun.current.color.set(day.sunColor);
       sun.current.intensity = day.sunIntensity;
-      const fx = followRef?.current.x ?? 0;
-      const fz = followRef?.current.z ?? 0;
-      sun.current.position.set(fx + day.sunX, day.sunY, fz + day.sunZ);
-      sun.current.target.position.set(fx, 0, fz);
+      // Pin the dusk key to the plaza so lighting matches the locked
+      // late-afternoon look instead of dragging long shadows with the pet.
+      sun.current.position.set(day.sunX, day.sunY, day.sunZ);
+      sun.current.target.position.set(0, 0, 0);
       sun.current.target.updateMatrixWorld();
     }
     if (fill.current) {
@@ -86,19 +85,22 @@ export function MeadowAtmosphere({
         castShadow={shadows}
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
-        shadow-camera-near={2}
-        shadow-camera-far={90}
-        shadow-camera-left={-40}
-        shadow-camera-right={40}
-        shadow-camera-top={40}
-        shadow-camera-bottom={-40}
-        shadow-bias={-0.0009}
+        shadow-camera-near={1}
+        shadow-camera-far={70}
+        shadow-camera-left={-32}
+        shadow-camera-right={32}
+        shadow-camera-top={32}
+        shadow-camera-bottom={-32}
+        shadow-bias={-0.0004}
+        shadow-normalBias={0.035}
+        shadow-radius={3}
+        shadow-intensity={0.42}
       />
       <directionalLight
         ref={fill}
         intensity={first.fillIntensity}
         color={first.fillColor}
-        position={[-18, 10, -12]}
+        position={[22, 14, -8]}
       />
     </>
   );

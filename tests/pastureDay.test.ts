@@ -40,9 +40,10 @@ it("locks the public pasture to late afternoon even at wall-clock night", () => 
   expect(locked.hour).toBe(PUBLIC_PASTURE_HOUR);
   expect(locked.showFireflies).toBe(false);
   expect(locked.isNight).toBe(false);
-  expect(locked.sunIntensity).toBeGreaterThan(0.9);
-  expect(locked.exposure).toBeGreaterThan(0.85);
-  expect(locked.exposure).toBeLessThan(1);
+  expect(locked.sunIntensity).toBeGreaterThan(1.2);
+  expect(locked.exposure).toBeGreaterThan(1.05);
+  expect(locked.exposure).toBeLessThan(1.35);
+  expect(locked.sunY).toBeGreaterThanOrEqual(16);
 
   const evening = new Date(2026, 10, 11, 21, 51, 0).getTime();
   const ifClockFollowed = samplePastureDay(evening);
