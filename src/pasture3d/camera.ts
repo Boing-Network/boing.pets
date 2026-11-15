@@ -7,7 +7,7 @@ import {
 } from "./cityLayout";
 import { yardKitCameraOccluders } from "./yardKitObstacles";
 
-/** Pure camera helpers for pasture zoom, ground clearance, and landmark occlusion. */
+/** Pure camera helpers for pasture zoom, ground clearance, and building clearance. */
 
 export const PASTURE_ZOOM_MIN = 6;
 export const PASTURE_ZOOM_MAX = 58;
@@ -162,116 +162,92 @@ export function cameraOffset(
   };
 }
 
-function insideXz(pos: Vec3, box: LandmarkBox, pad = 0): boolean {
+function pointInsideBox(pos: Vec3, box: LandmarkBox, pad: number): boolean {
   return (
-    Math.abs(pos.x - box.x) < box.halfW + pad &&
-    Math.abs(pos.z - box.z) < box.halfD + pad
+    pos.y >= box.minY - pad &&
+    pos.y <= box.maxY + pad &&
+    Math.abs(pos.x - box.x) <= box.halfW + pad &&
+    Math.abs(pos.z - box.z) <= box.halfD + pad
   );
 }
 
-/** Push a camera that has clipped into a landmark out to the nearest wall. */
-export function cameraOutsideLandmarks(
-  pos: Vec3,
-  boxes: LandmarkBox[],
-  padding = 0.55,
-): Vec3 {
-  let cur = { ...pos };
-  for (const box of boxes) {
-    if (cur.y > box.maxY + 0.2) continue;
-    if (!insideXz(cur, box, padding)) continue;
-    const dx = cur.x - box.x;
-    const dz = cur.z - box.z;
-    const limX = box.halfW + padding;
-    const limZ = box.halfD + padding;
-    const gapX = limX - Math.abs(dx);
-    const gapZ = limZ - Math.abs(dz);
-    if (gapX < gapZ) {
-      cur = {
-        ...cur,
-        x: box.x + Math.sign(dx || 1) * limX,
-      };
-    } else {
-      cur = {
-        ...cur,
-        z: box.z + Math.sign(dz || 1) * limZ,
-      };
-    }
-  }
-  return cur;
-}
-
 /**
- * Slab test: first hit of segment a?b against an axis-aligned box, or null.
- * Returns t in (0, 1) where a + t*(b-a) first touches the box.
+ * How far a unit ray must travel to leave an expanded box when `origin` is
+ * already inside it. Null when the origin is outside.
  */
-export function segmentHitsBox(
-  a: Vec3,
-  b: Vec3,
+function exitDistance(
+  origin: Vec3,
+  dir: Vec3,
   box: LandmarkBox,
+  pad: number,
 ): number | null {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const dz = b.z - a.z;
-  let tMin = 0;
-  let tMax = 1;
-
-  const slab = (
-    start: number,
-    dir: number,
-    min: number,
-    max: number,
-  ): boolean => {
-    if (Math.abs(dir) < 1e-8) return start >= min && start <= max;
-    const inv = 1 / dir;
-    let t1 = (min - start) * inv;
-    let t2 = (max - start) * inv;
+  const minX = box.x - box.halfW - pad;
+  const maxX = box.x + box.halfW + pad;
+  const minY = box.minY - pad;
+  const maxY = box.maxY + pad;
+  const minZ = box.z - box.halfD - pad;
+  const maxZ = box.z + box.halfD + pad;
+  let tMax = Infinity;
+  const axis = (o: number, d: number, min: number, max: number): boolean => {
+    if (Math.abs(d) < 1e-8) return o >= min && o <= max;
+    let t1 = (min - o) / d;
+    let t2 = (max - o) / d;
     if (t1 > t2) {
-      const tmp = t1;
+      const swap = t1;
       t1 = t2;
-      t2 = tmp;
+      t2 = swap;
     }
-    tMin = Math.max(tMin, t1);
+    if (t1 > 1e-5 || t2 < -1e-5) return false;
     tMax = Math.min(tMax, t2);
-    return tMin <= tMax;
+    return true;
   };
-
-  if (!slab(a.x, dx, box.x - box.halfW, box.x + box.halfW)) return null;
-  if (!slab(a.z, dz, box.z - box.halfD, box.z + box.halfD)) return null;
-  if (!slab(a.y, dy, box.minY, box.maxY)) return null;
-  if (tMin <= 0 || tMin >= 1) return null;
-  return tMin;
+  if (!axis(origin.x, dir.x, minX, maxX)) return null;
+  if (!axis(origin.y, dir.y, minY, maxY)) return null;
+  if (!axis(origin.z, dir.z, minZ, maxZ)) return null;
+  if (!Number.isFinite(tMax) || tMax < 0) return null;
+  return tMax;
 }
 
 /**
- * If a landmark sits between the camera and the look target, pull the camera
- * in to just in front of the occluder so the roof/walls don't clip the view.
+ * If the orbit point sits inside a building, slide the camera farther from
+ * the pet along the same ray until it is clear. Never shorten the rig: a
+ * building between the pet and the camera used to pull the view in, and that
+ * pull chattered while orbiting so the walls flickered.
  */
-export function pullCameraForOcclusion(
+export function pushCameraOutsideLandmarks(
   cam: Vec3,
   look: Vec3,
   boxes: LandmarkBox[],
-  margin = 0.7,
+  padding = 0.4,
 ): Vec3 {
-  let bestT: number | null = null;
-  for (const box of boxes) {
-    const t = segmentHitsBox(look, cam, box);
-    if (t === null) continue;
-    if (bestT === null || t < bestT) bestT = t;
+  const dx = cam.x - look.x;
+  const dy = cam.y - look.y;
+  const dz = cam.z - look.z;
+  const len = Math.hypot(dx, dy, dz);
+  if (len < 0.05) return cam;
+  const dir = { x: dx / len, y: dy / len, z: dz / len };
+  let dist = len;
+  const maxDist = len + 14;
+  for (let pass = 0; pass < 6; pass++) {
+    const pos = {
+      x: look.x + dir.x * dist,
+      y: look.y + dir.y * dist,
+      z: look.z + dir.z * dist,
+    };
+    let next = dist;
+    for (const box of boxes) {
+      if (!pointInsideBox(pos, box, padding)) continue;
+      const exit = exitDistance(pos, dir, box, padding);
+      next = Math.max(next, dist + (exit ?? 0.35) + 0.08);
+    }
+    if (next <= dist + 1e-4) break;
+    dist = Math.min(next, maxDist);
+    if (dist >= maxDist - 1e-4) break;
   }
-  if (bestT === null) return cam;
-  const t = Math.max(
-    0.12,
-    bestT -
-      margin /
-        Math.max(
-          0.01,
-          Math.hypot(cam.x - look.x, cam.y - look.y, cam.z - look.z),
-        ),
-  );
   return {
-    x: look.x + (cam.x - look.x) * t,
-    y: look.y + (cam.y - look.y) * t,
-    z: look.z + (cam.z - look.z) * t,
+    x: look.x + dir.x * dist,
+    y: look.y + dir.y * dist,
+    z: look.z + dir.z * dist,
   };
 }
 
@@ -301,13 +277,12 @@ export function resolveFollowCamera(
   pitch = PASTURE_CAM_PITCH,
 ): Vec3 {
   let cam = cameraOffset(look, distance, yaw, pitch);
-  cam = pullCameraForOcclusion(cam, look, boxes);
-  cam = cameraOutsideLandmarks(cam, boxes);
+  cam = pushCameraOutsideLandmarks(cam, look, boxes);
   cam = {
     ...cam,
     y: liftCameraAboveTerrain(cam.y, terrainAt(cam.x, cam.z)),
   };
-  cam = cameraOutsideLandmarks(cam, boxes);
+  cam = pushCameraOutsideLandmarks(cam, look, boxes);
   cam = {
     ...cam,
     y: liftCameraAboveTerrain(cam.y, terrainAt(cam.x, cam.z)),

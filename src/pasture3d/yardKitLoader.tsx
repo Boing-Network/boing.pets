@@ -74,19 +74,31 @@ export function restyleYardKit(root: THREE.Object3D): void {
       const isPaintedRoof =
         c.g > c.r + 0.08 && c.g > c.b + 0.08 && lum > 0.18 && lum < 0.65;
       const isRoof = lum < 0.28 || isPaintedRoof;
+      mat.metalness = 0;
+      mat.envMapIntensity = 0;
       if (isWindow) {
         mat.color = new THREE.Color("#d7e7f0");
         mat.emissive = new THREE.Color("#ffc888");
         mat.emissiveIntensity = 0.55;
-        mat.roughness = 0.35;
+        mat.roughness = 0.72;
+        // Windows sit on the wall plane. A small offset stops the two
+        // surfaces from flickering into static as the camera orbits.
+        mat.polygonOffset = true;
+        mat.polygonOffsetFactor = -1;
+        mat.polygonOffsetUnits = -2;
       } else if (isAwning) {
         mat.color = new THREE.Color(YARD.accent);
         mat.emissive = new THREE.Color(YARD.accent);
         mat.emissiveIntensity = 0.22;
+        mat.roughness = 1;
       } else if (isRoof) {
         mat.color = new THREE.Color("#1a1a1c");
+        mat.roughness = 1;
       } else if (lum > 0.72) {
         mat.color = new THREE.Color("#d6d2ca");
+        mat.roughness = 1;
+      } else {
+        mat.roughness = Math.max(mat.roughness, 0.92);
       }
       mat.needsUpdate = true;
     }

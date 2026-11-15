@@ -11,7 +11,7 @@ import {
   clampZoom,
   liftCameraAboveTerrain,
   dampFollowPoint,
-  pullCameraForOcclusion,
+  pushCameraOutsideLandmarks,
   resolveFollowCamera,
   zoomBySteps,
   zoomFromWheel,
@@ -52,12 +52,52 @@ describe("pasture camera", () => {
     expect(liftCameraAboveTerrain(8, 2, 1.25)).toBe(8);
   });
 
-  it("pulls the camera in when a landmark blocks the look vector", () => {
-    const look = { x: 0, y: 1, z: -6 };
-    const cam = { x: 0, y: 2, z: 12 };
-    const pulled = pullCameraForOcclusion(cam, look, [barn]);
-    expect(pulled.z).toBeLessThan(cam.z);
-    expect(Math.abs(pulled.x)).toBeLessThan(3);
+  it("does not zoom in when a building sits between the pet and the camera", () => {
+    const look = { x: 0, y: 1.2, z: 0 };
+    const wall: LandmarkBox = {
+      x: 0,
+      z: 4,
+      halfW: 3,
+      halfD: 1.2,
+      minY: 0,
+      maxY: 6,
+    };
+    const open = resolveFollowCamera(look, 14, () => 0, []);
+    const blocked = resolveFollowCamera(look, 14, () => 0, [wall]);
+    const openDist = Math.hypot(
+      open.x - look.x,
+      open.y - look.y,
+      open.z - look.z,
+    );
+    const blockedDist = Math.hypot(
+      blocked.x - look.x,
+      blocked.y - look.y,
+      blocked.z - look.z,
+    );
+    expect(blockedDist).toBeGreaterThanOrEqual(openDist - 0.05);
+  });
+
+  it("pushes an orbit that lands inside a building farther out", () => {
+    const look = { x: 0, y: 1.2, z: 0 };
+    const inside = { x: 0, y: 1.6, z: 1.2 };
+    const pushed = pushCameraOutsideLandmarks(inside, look, [barn]);
+    const before = Math.hypot(
+      inside.x - look.x,
+      inside.y - look.y,
+      inside.z - look.z,
+    );
+    const after = Math.hypot(
+      pushed.x - look.x,
+      pushed.y - look.y,
+      pushed.z - look.z,
+    );
+    expect(after).toBeGreaterThan(before);
+    const stillInside =
+      Math.abs(pushed.x) <= barn.halfW &&
+      Math.abs(pushed.z) <= barn.halfD &&
+      pushed.y >= barn.minY &&
+      pushed.y <= barn.maxY;
+    expect(stillInside).toBe(false);
   });
 
   it("orbits with the pointer and clamps pitch", () => {
