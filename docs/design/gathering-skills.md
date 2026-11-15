@@ -20,12 +20,12 @@ Phase 1 is Quarry only, off-chain, behind a flag. It replaces mining's stamina l
 
 Gathering is four stations in The Yard (`src/world/config/zones.ts`, zone `pasture`) plus a parallel signed-challenge API and a parallel mini-game API.
 
-| Family | Station | Items | Today's gate | Where the stack goes |
-| --- | --- | --- | --- | --- |
-| Ores | Crystal Quarry `pasture-mine` | 5, `src/content/mining.ts` | 10 stamina / UTC day. Pick tier gates the pool. 8 swings / minute. | `inventory` + Cred on confirm |
-| Fish | Pond Pier `pasture-fish` | 5, `src/content/fishing.ts` | 3 catches / UTC day. 8 casts / minute. | same |
-| Crops | Garden Beds `pasture-garden` | 5 crops, plus `crop-forage` from the mini-game | 3 plots. Grow 30–180s. No harvest-per-day cap on the signed loop. | same |
-| Treasure | Treasure Dig `pasture-treasure` | 5, `src/content/treasure.ts` | 3 digs / UTC day. | same |
+| Family   | Station                         | Items                                          | Today's gate                                                       | Where the stack goes          |
+| -------- | ------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------ | ----------------------------- |
+| Ores     | Crystal Quarry `pasture-mine`   | 5, `src/content/mining.ts`                     | 10 stamina / UTC day. Pick tier gates the pool. 8 swings / minute. | `inventory` + Cred on confirm |
+| Fish     | Pond Pier `pasture-fish`        | 5, `src/content/fishing.ts`                    | 3 catches / UTC day. 8 casts / minute.                             | same                          |
+| Crops    | Garden Beds `pasture-garden`    | 5 crops, plus `crop-forage` from the mini-game | 3 plots. Grow 30–180s. No harvest-per-day cap on the signed loop.  | same                          |
+| Treasure | Treasure Dig `pasture-treasure` | 5, `src/content/treasure.ts`                   | 3 digs / UTC day.                                                  | same                          |
 
 The mini-game path (`migrations/0020_activity_attempts.sql`, `ACTIVITY_ATTEMPT_DAILY_CAP = 3`) is a second door into the same items: server secret, 45s play window, claim signature, then the same inventory credit. Both doors write `inventory(owner, item_id, qty)` with no slot cap. Crafting, cooking, the market, housing, and withdraw all read that table. `inventory_acquisitions` is the audit trail (market hold, craft, drops). It is not a second balance.
 
@@ -43,12 +43,12 @@ Anti-abuse that this design keeps: per-IP buckets in `rate_limit_buckets` (120/m
 
 Skill id is stable. The display name is the street name. Nodes are the items that already exist. No new item ids.
 
-| Skill | Name | Station | Nodes, in unlock order |
-| --- | --- | --- | --- |
-| `quarry` | Quarry | Crystal Quarry | Lot Pebble, Spark Ore, Emberite, Yard Crystal, Aetherite |
-| `line` | Line | Pond Pier | Curb Minnow, Alleyfin, Copperfin, Night Koi, Starfin |
-| `plot` | Plot | Garden Beds | Curb Sprout, Lot Greens (`crop-forage`), Lot Berry, Honeyroot, Nightbloom, Highrise Bloom |
-| `sweep` | Sweep | Treasure Dig | Alley Pebble, Map Scrap, Chain Bell, Flare Shard, Signal Bead |
+| Skill    | Name   | Station        | Nodes, in unlock order                                                                    |
+| -------- | ------ | -------------- | ----------------------------------------------------------------------------------------- |
+| `quarry` | Quarry | Crystal Quarry | Lot Pebble, Spark Ore, Emberite, Yard Crystal, Aetherite                                  |
+| `line`   | Line   | Pond Pier      | Curb Minnow, Alleyfin, Copperfin, Night Koi, Starfin                                      |
+| `plot`   | Plot   | Garden Beds    | Curb Sprout, Lot Greens (`crop-forage`), Lot Berry, Honeyroot, Nightbloom, Highrise Bloom |
+| `sweep`  | Sweep  | Treasure Dig   | Alley Pebble, Map Scrap, Chain Bell, Flare Shard, Signal Bead                             |
 
 Not skills: Kitchen food, pickaxes, cosmetics, furniture, `mat-scrap` / `mat-thread` / `mat-resin`, cookbook `recipe-*` rows, race ribbons. Those stay on the kitchen, the crafting station, Dispatch, the catalog, and the track.
 
@@ -64,27 +64,27 @@ xpToReach(level) = floor(points / 4)
 ```
 
 | Level | XP to reach it |
-| --- | --- |
-| 1 | 0 |
-| 2 | 83 |
-| 10 | 1,154 |
-| 15 | 2,411 |
-| 20 | 4,470 |
-| 30 | 13,363 |
-| 35 | 22,406 |
-| 40 | 37,224 |
-| 50 | 101,333 |
+| ----- | -------------- |
+| 1     | 0              |
+| 2     | 83             |
+| 10    | 1,154          |
+| 15    | 2,411          |
+| 20    | 4,470          |
+| 30    | 13,363         |
+| 35    | 22,406         |
+| 40    | 37,224         |
+| 50    | 101,333        |
 
 Level 99 on this curve is 13,034,431 XP, about 129× level 50. That is the wrong cap for four skills on a testnet block whose sinks are 10 crafts a day and 5 cooks a day. XP past 101,333 is stored and does nothing. Level is derived from XP. It is not a column.
 
 XP is paid on a **successful** tick only. A dry tick still consumes the node and gives nothing.
 
-| Rarity | XP |
-| --- | --- |
-| common | 8 |
-| uncommon | 16 |
-| rare | 28 |
-| epic | 48 |
+| Rarity   | XP  |
+| -------- | --- |
+| common   | 8   |
+| uncommon | 16  |
+| rare     | 28  |
+| epic     | 48  |
 
 Rough clock, if the character re-clicks every time a node dies: about 300 successes an hour at level 1 (assumptions in section 2). Pebbles are 8 XP, so the first hour is about 2,400 XP, which clears level 15. Chasing the best unlocked node, Quarry 50 is on the order of **8–14 hours** of node-time. Sitting on Lot Pebble the whole way is closer to **40 hours**, because 101,333 / 8 / 300 ≈ 42. That gap is the reason to unlock the next node. These are planning numbers. XP values live in content, not in D1, so they can move without a migration.
 
@@ -98,44 +98,44 @@ Three effects, and only these:
 
 Quarry pool (base weights are the ones in `ORES`, already summing to 100):
 
-| Level | Item | Rarity | XP | Today's Cred | Cred once banked |
-| --- | --- | --- | --- | --- | --- |
-| 1 | Lot Pebble | common | 8 | 4 | 1 |
-| 1 | Spark Ore | uncommon | 16 | 10 | 1 |
-| 15 | Emberite | rare | 28 | 18 | 2 |
-| 20 | Yard Crystal | rare | 28 | 22 | 2 |
-| 35 | Aetherite | epic | 48 | 36 | 4 |
+| Level | Item         | Rarity   | XP  | Today's Cred | Cred once banked |
+| ----- | ------------ | -------- | --- | ------------ | ---------------- |
+| 1     | Lot Pebble   | common   | 8   | 4            | 1                |
+| 1     | Spark Ore    | uncommon | 16  | 10           | 1                |
+| 15    | Emberite     | rare     | 28  | 18           | 2                |
+| 20    | Yard Crystal | rare     | 28  | 22           | 2                |
+| 35    | Aetherite    | epic     | 48  | 36           | 4                |
 
 Line:
 
-| Level | Item | XP | Cred once banked |
-| --- | --- | --- | --- |
-| 1 | Curb Minnow | 8 | 1 |
-| 8 | Alleyfin | 16 | 1 |
-| 16 | Copperfin | 16 | 1 |
-| 28 | Night Koi | 28 | 2 |
-| 42 | Starfin | 48 | 4 |
+| Level | Item        | XP  | Cred once banked |
+| ----- | ----------- | --- | ---------------- |
+| 1     | Curb Minnow | 8   | 1                |
+| 8     | Alleyfin    | 16  | 1                |
+| 16    | Copperfin   | 16  | 1                |
+| 28    | Night Koi   | 28  | 2                |
+| 42    | Starfin     | 48  | 4                |
 
 Plot beds (the character picks the bed; yield is that crop, not a roll):
 
-| Level | Bed | XP | Cred once banked | Chain |
-| --- | --- | --- | --- | --- |
-| 1 | Curb Sprout | 8 | 1 | item 30 |
-| 1 | Lot Greens | 8 | 1 | never (no item id) |
-| 10 | Lot Berry | 16 | 1 | item 31 |
-| 18 | Honeyroot | 16 | 1 | item 33 |
-| 30 | Nightbloom | 28 | 2 | item 32 |
-| 44 | Highrise Bloom | 48 | 3 | item 34 |
+| Level | Bed            | XP  | Cred once banked | Chain              |
+| ----- | -------------- | --- | ---------------- | ------------------ |
+| 1     | Curb Sprout    | 8   | 1                | item 30            |
+| 1     | Lot Greens     | 8   | 1                | never (no item id) |
+| 10    | Lot Berry      | 16  | 1                | item 31            |
+| 18    | Honeyroot      | 16  | 1                | item 33            |
+| 30    | Nightbloom     | 28  | 2                | item 32            |
+| 44    | Highrise Bloom | 48  | 3                | item 34            |
 
 Sweep:
 
-| Level | Item | XP | Cred once banked |
-| --- | --- | --- | --- |
-| 1 | Alley Pebble | 8 | 1 |
-| 8 | Map Scrap | 16 | 1 |
-| 16 | Chain Bell | 16 | 1 |
-| 30 | Flare Shard | 28 | 3 |
-| 44 | Signal Bead | 48 | 5 |
+| Level | Item         | XP  | Cred once banked |
+| ----- | ------------ | --- | ---------------- |
+| 1     | Alley Pebble | 8   | 1                |
+| 8     | Map Scrap    | 16  | 1                |
+| 16    | Chain Bell   | 16  | 1                |
+| 30    | Flare Shard  | 28  | 3                |
+| 44    | Signal Bead  | 48  | 5                |
 
 Cred column is `max(1, floor(rewardBoinglets / 8))`, paid at the vault, and only for the first 80 banked units of that skill that UTC day. Detail in section 6. Laces are not a gather reward.
 
@@ -145,13 +145,13 @@ Pickaxes stay in the game. `pickaxeTier()` still reads the inventory. They do no
 
 Short, dry, on the station and in the toasts. No "buddy", no "little", no exclamation piles.
 
-| Moment | Quarry | Line | Plot | Sweep |
-| --- | --- | --- | --- | --- |
-| Idle hint | Press E to work the face. | Press E to hold the pier. | Press E to run the beds. | Press E to clear the block. |
-| Working | On the face. | Line's in. | Hands in the bed. | Sweeping. |
-| Node dies | Face is dead. Hit it again. | Line went slack. Cast again. | Bed's spent. Work it again. | Patch is cold. Sweep it again. |
-| Pack full | Pack's full. Bank it at the Block Vault. | same | same | same |
-| Level up | `QUARRY 12` | `LINE 12` | `PLOT 12` | `SWEEP 12` |
+| Moment    | Quarry                                   | Line                         | Plot                        | Sweep                          |
+| --------- | ---------------------------------------- | ---------------------------- | --------------------------- | ------------------------------ |
+| Idle hint | Press E to work the face.                | Press E to hold the pier.    | Press E to run the beds.    | Press E to clear the block.    |
+| Working   | On the face.                             | Line's in.                   | Hands in the bed.           | Sweeping.                      |
+| Node dies | Face is dead. Hit it again.              | Line went slack. Cast again. | Bed's spent. Work it again. | Patch is cold. Sweep it again. |
+| Pack full | Pack's full. Bank it at the Block Vault. | same                         | same                        | same                           |
+| Level up  | `QUARRY 12`                              | `LINE 12`                    | `PLOT 12`                   | `SWEEP 12`                     |
 
 The level-up toast is the skill name, safety orange, and the new level. Nothing else.
 
@@ -225,14 +225,14 @@ The pack is `gather_backpack`. It is invisible to craft, kitchen, market, housin
 
 New station in The Yard only.
 
-| Field | Value |
-| --- | --- |
-| id | `pasture-bank` |
-| label | Block Vault |
-| kind | `bank` (new union member on `WorldStation`) |
-| position | `(0, -8)` |
-| radius | 3.4 |
-| hint | Press E to bank. |
+| Field    | Value                                       |
+| -------- | ------------------------------------------- |
+| id       | `pasture-bank`                              |
+| label    | Block Vault                                 |
+| kind     | `bank` (new union member on `WorldStation`) |
+| position | `(0, -8)`                                   |
+| radius   | 3.4                                         |
+| hint     | Press E to bank.                            |
 
 That spot sits on the north-south path, about 10 units south of the welcome pad and about 12 from the Market Stall `(12, -8)` and the kitchen `(-12, -8)`. It is a walk from the quarry, the pier, the beds, and the dig, and it is not on top of any of them. Landmark is a low dark vault with one `#FF4D00` stripe, not a cottage. Starter Town does not get a vault in phase 1.
 
@@ -261,11 +261,11 @@ Unmapped and non-gather ids never enter the queue: `crop-forage`, `tool-pick-woo
 
 Gas, using 0.00084 BOING budgeted per leg:
 
-| What gets committed | Legs | Budget |
-| --- | --- | --- |
-| 28 Lot Pebbles, one id | 1 | 0.00084 BOING |
-| A mixed pack of 5 ore ids | 5 | 0.0042 BOING |
-| One mint per pebble, 28 txs | 28 | 0.02352 BOING |
+| What gets committed         | Legs | Budget        |
+| --------------------------- | ---- | ------------- |
+| 28 Lot Pebbles, one id      | 1    | 0.00084 BOING |
+| A mixed pack of 5 ore ids   | 5    | 0.0042 BOING  |
+| One mint per pebble, 28 txs | 28   | 0.02352 BOING |
 
 Expected fee at 42.8k gas is about half the budget (0.000428 per leg). Admit a phase-3 mint only when operator surplus covers pending legs × 0.00084 plus the existing 0.01 BOING floor (`canAdmitMarketPurchase` is the pattern). If the reserve is short, the vault move still stands and the mint stays `queued`. The player is not stuck at the door.
 
@@ -365,13 +365,13 @@ Columns mirror `operator_mint_queue` so the leg encoder can be shared. The debit
 
 All writes require the social session, and the session owner must be the hatch owner. No wallet signature per tick. Phase 3's on-chain send is the exception: it reuses the withdraw challenge signature.
 
-| Method | Path | Role |
-| --- | --- | --- |
-| GET | `/api/gather/status?owner=` | Skills, XP, derived level, pack, live session public fields, today's Cred count. Also settles a stale `running` row up to its cap. |
-| POST | `/api/gather/start` | Open a node. |
-| POST | `/api/gather/settle` | Grant elapsed ticks. Safe to retry. |
-| POST | `/api/gather/stop` | Close `running` without granting past `now`. |
-| POST | `/api/gather/bank` | Move the pack into `inventory`. Requires no `running` session. |
+| Method | Path                        | Role                                                                                                                               |
+| ------ | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/gather/status?owner=` | Skills, XP, derived level, pack, live session public fields, today's Cred count. Also settles a stale `running` row up to its cap. |
+| POST   | `/api/gather/start`         | Open a node.                                                                                                                       |
+| POST   | `/api/gather/settle`        | Grant elapsed ticks. Safe to retry.                                                                                                |
+| POST   | `/api/gather/stop`          | Close `running` without granting past `now`.                                                                                       |
+| POST   | `/api/gather/bank`          | Move the pack into `inventory`. Requires no `running` session.                                                                     |
 
 `status` and `settle` return `levelUps: [{ skill, level }]` when this call crossed one or more thresholds, so a backgrounded tab still toasts every level it actually gained. One node of commons is at most 24 × 8 = 192 XP, enough to cross level 2 and maybe 3, not enough to skip a tier.
 
@@ -395,12 +395,12 @@ WASD movement is unchanged. E on a live gather station opens the panel in the wo
 
 At the rates in section 2, a character who re-clicks for an hour takes on the order of **300** resources. Compare that with today:
 
-| Loop | Today, if you sit down | After this skill ships |
-| --- | --- | --- |
-| Mining | About 10 ores / day (stamina), Cred 4–36 each | ~300 ores / hour, Cred on the first 80 only |
-| Fishing | 3 fish / day | same jump, which is why Line is not in phase 1 |
-| Treasure | 3 digs / day | same |
-| Garden | Uncapped, but a watered crop is 30–180s and a signature each step. A dedicated gardener can already approach a few hundred crops / day, at full Cred | Plot is a similar item rate with the Cred cap, so it is a Cred nerf and an attention nerf (click when the bed dies, no grow timer) |
+| Loop     | Today, if you sit down                                                                                                                               | After this skill ships                                                                                                             |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Mining   | About 10 ores / day (stamina), Cred 4–36 each                                                                                                        | ~300 ores / hour, Cred on the first 80 only                                                                                        |
+| Fishing  | 3 fish / day                                                                                                                                         | same jump, which is why Line is not in phase 1                                                                                     |
+| Treasure | 3 digs / day                                                                                                                                         | same                                                                                                                               |
+| Garden   | Uncapped, but a watered crop is 30–180s and a signature each step. A dedicated gardener can already approach a few hundred crops / day, at full Cred | Plot is a similar item rate with the Cred cap, so it is a Cred nerf and an attention nerf (click when the bed dies, no grow timer) |
 
 Phase 1 turns the jump on for **ores only**. Fish, crops, and loot keep today's caps until their own flag. Craft stays 10/day. Cook stays 5/day. Those sinks will not eat 300 ore an hour. Ore prices on the testnet market should fall. That is accepted for phase 1 so we can watch one family before opening the others.
 
@@ -434,12 +434,12 @@ Do not lock a node a character can already receive.
 
 Quarry seed, once, when the flag turns on for that owner (lazy, on first `status`, not a batch job):
 
-| Already true | Starting XP |
-| --- | --- |
+| Already true                                          | Starting XP              |
+| ----------------------------------------------------- | ------------------------ |
 | `discovery:ore:ore-aetherite` **or** pickaxe tier ≥ 3 | `xpToReach(35)` = 22,406 |
-| `discovery:ore:ore-crystal` **or** pickaxe tier ≥ 2 | `xpToReach(20)` = 4,470 |
-| `discovery:ore:ore-emberite` and nothing higher | `xpToReach(15)` = 2,411 |
-| otherwise | 0 |
+| `discovery:ore:ore-crystal` **or** pickaxe tier ≥ 2   | `xpToReach(20)` = 4,470  |
+| `discovery:ore:ore-emberite` and nothing higher       | `xpToReach(15)` = 2,411  |
+| otherwise                                             | 0                        |
 
 Tier 2 today opens both Emberite and Yard Crystal. Seeding those owners at 20 keeps both. Discoveries live in `collection_unlocks`. There is no historical ore-count table; stamina rows are per day and undercount anyone who crafted or sold. Do not try to replay XP from `inventory.qty`.
 
