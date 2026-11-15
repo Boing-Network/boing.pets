@@ -25,6 +25,11 @@ export const SHORTCUT_HELP: ShortcutHelpRow[] = [
     touch: "Joystick",
   },
   {
+    key: "Mouse",
+    action: "Click the view to look around. Esc releases the cursor",
+    touch: "Joystick",
+  },
+  {
     key: "Arrows",
     action: "Move your character, relative to the camera",
     touch: "Joystick",

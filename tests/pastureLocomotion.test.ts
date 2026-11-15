@@ -187,6 +187,21 @@ describe("city locomotion", () => {
     expect(nextControlYaw(0.4, 1, true, 1)).toBe(0.4);
   });
 
+  it("keeps a manual look yaw while the pointer is locked", () => {
+    const aimed = simulateCityLocomotion(
+      { ...spawn, camYaw: 0.8, yaw: PASTURE_SPAWN_YAW, vx: 0, vz: 0 },
+      0,
+      0,
+      0.5,
+      OPEN,
+      CLEAR,
+      { lockCamera: true },
+    );
+    expect(aimed.camYaw).toBe(0.8);
+    const released = simulateCityLocomotion(aimed, 0, 0, 1.2, OPEN, CLEAR);
+    expect(Math.abs(released.camYaw - 0.8)).toBeGreaterThan(0.2);
+  });
+
   it("stays on the Yard avenue while holding W or D", () => {
     const obstacles = obstaclesForZone(PASTURE_ZONE);
     const south = hold(

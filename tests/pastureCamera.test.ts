@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  PASTURE_CAM_PITCH_MAX,
+  PASTURE_CAM_PITCH_MIN,
   PASTURE_ZOOM_DEFAULT,
   PASTURE_ZOOM_MAX,
   PASTURE_ZOOM_MIN,
+  applyPointerLook,
   cameraMinHeight,
+  isCanvasLookTarget,
   clampZoom,
   liftCameraAboveTerrain,
   dampFollowPoint,
@@ -54,6 +58,43 @@ describe("pasture camera", () => {
     const pulled = pullCameraForOcclusion(cam, look, [barn]);
     expect(pulled.z).toBeLessThan(cam.z);
     expect(Math.abs(pulled.x)).toBeLessThan(3);
+  });
+
+  it("orbits with the pointer and clamps pitch", () => {
+    const right = applyPointerLook(0, 0.52, 100, 0, 1);
+    expect(right.yaw).toBeCloseTo(0.3, 5);
+    expect(right.pitch).toBeCloseTo(0.52, 5);
+    const down = applyPointerLook(0, 0.52, 0, 40, 1);
+    expect(down.pitch).toBeGreaterThan(0.52);
+    expect(applyPointerLook(0, 0.2, 0, -5000, 1).pitch).toBe(
+      PASTURE_CAM_PITCH_MIN,
+    );
+    expect(applyPointerLook(0, 1, 0, 5000, 2).pitch).toBe(
+      PASTURE_CAM_PITCH_MAX,
+    );
+    const spiked = applyPointerLook(0, 0.52, 0, 5000, 1);
+    expect(spiked.pitch - 0.52).toBeGreaterThan(0.2);
+    expect(spiked.pitch - 0.52).toBeLessThan(0.35);
+    expect(applyPointerLook(1, 0.4, 0, 0, 1)).toEqual({ yaw: 1, pitch: 0.4 });
+  });
+
+  it("captures look only from a click on the view", () => {
+    const view = {
+      tagName: "CANVAS",
+      closest(selector: string) {
+        return selector === "canvas" ? view : null;
+      },
+    };
+    const button = {
+      tagName: "BUTTON",
+      closest(selector: string) {
+        if (selector.includes("button")) return button;
+        return null;
+      },
+    };
+    expect(isCanvasLookTarget(view as unknown as EventTarget)).toBe(true);
+    expect(isCanvasLookTarget(button as unknown as EventTarget)).toBe(false);
+    expect(isCanvasLookTarget(null)).toBe(false);
   });
 
   it("follows a straight run without yawing or stretching the view", () => {

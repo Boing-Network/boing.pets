@@ -14,6 +14,16 @@ export const PASTURE_ZOOM_MAX = 58;
 export const PASTURE_ZOOM_DEFAULT = 15;
 export const PASTURE_CAM_CLEARANCE = 1.25;
 export const PASTURE_CAM_PITCH = 0.52;
+/** Nearly behind the character, still high enough to see the street. */
+export const PASTURE_CAM_PITCH_MIN = 0.18;
+/** Steep enough to look down the block, short of a top-down flip. */
+export const PASTURE_CAM_PITCH_MAX = 1.05;
+/** Radians per pixel at sensitivity 1. Mouse right yaws the view right. */
+export const LOOK_YAW_RADIANS_PER_PX = 0.003;
+/** Mouse down pitches the view down. */
+export const LOOK_PITCH_RADIANS_PER_PX = 0.0022;
+/** Ignore a pointer-lock recenter spike without dulling a fast swipe. */
+export const LOOK_MAX_PIXELS_PER_EVENT = 140;
 
 export type Vec3 = { x: number; y: number; z: number };
 
@@ -78,6 +88,57 @@ export function liftCameraAboveTerrain(
 /** Yaw that places the camera behind the pet (looking along its facing). */
 export function cameraBehindYaw(petYaw: number): number {
   return petYaw + Math.PI;
+}
+
+export function clampPitch(
+  pitch: number,
+  min = PASTURE_CAM_PITCH_MIN,
+  max = PASTURE_CAM_PITCH_MAX,
+): number {
+  if (!Number.isFinite(pitch)) return PASTURE_CAM_PITCH;
+  return Math.min(max, Math.max(min, pitch));
+}
+
+/**
+ * Orbit from a locked pointer. `movementX` / `movementY` are the browser
+ * deltas (right and down are positive). Sensitivity matches the other
+ * camera controls, clamped to 0.4..2.
+ */
+export function applyPointerLook(
+  yaw: number,
+  pitch: number,
+  movementX: number,
+  movementY: number,
+  sensitivity = 1,
+): { yaw: number; pitch: number } {
+  const scale = Math.min(2, Math.max(0.4, sensitivity || 1));
+  const limit = LOOK_MAX_PIXELS_PER_EVENT;
+  const clampDelta = (value: number) => {
+    if (!Number.isFinite(value)) return 0;
+    return Math.min(limit, Math.max(-limit, value));
+  };
+  const dx = clampDelta(movementX);
+  const dy = clampDelta(movementY);
+  return {
+    yaw: yaw + dx * LOOK_YAW_RADIANS_PER_PX * scale,
+    pitch: clampPitch(pitch + dy * LOOK_PITCH_RADIANS_PER_PX * scale),
+  };
+}
+
+/** True when a press is on the 3D view, not a HUD control sitting on top of it. */
+export function isCanvasLookTarget(target: EventTarget | null): boolean {
+  if (!target || typeof target !== "object") return false;
+  const el = target as {
+    tagName?: string;
+    closest?: (selector: string) => unknown;
+  };
+  const blocked =
+    "button, a, input, textarea, select, label, .joystick, [role='dialog']";
+  if (typeof el.closest === "function") {
+    if (el.closest(blocked)) return false;
+    return !!el.closest("canvas");
+  }
+  return el.tagName === "CANVAS";
 }
 
 /** Seconds for the follow rig to catch a moving target. Shared by position and look-at. */

@@ -70,7 +70,9 @@ import {
 import {
   PASTURE_ZOOM_DEFAULT,
   PASTURE_CAM_PITCH,
+  applyPointerLook,
   cameraOccludersForZone,
+  isCanvasLookTarget,
   clampZoom,
   dampFollowPoint,
   resolveFollowCamera,
@@ -299,6 +301,8 @@ export function PastureApp({
     stickY: 0,
   });
   const camYawRef = useRef(0);
+  const lookActiveRef = useRef(false);
+  const canvasElRef = useRef<HTMLCanvasElement | null>(null);
   const livePose = useRef<LivePose>(
     (() => {
       const pose = {
@@ -628,6 +632,67 @@ export function PastureApp({
     };
   }, [applyZoom, dismissHint]);
 
+  useEffect(() => {
+    const canvas = canvasElRef.current;
+    if (!canvas || touchControls) return undefined;
+    const uiOpen = () =>
+      !!stationMenuRef.current || helpOpen || settingsOpen || inventoryOpen;
+    const requestLock = (event: PointerEvent) => {
+      if (event.button !== 0) return;
+      if (!isCanvasLookTarget(event.target)) return;
+      if (uiOpen()) return;
+      if (document.pointerLockElement === canvas) return;
+      const lock = canvas.requestPointerLock?.() as void | Promise<void>;
+      void Promise.resolve(lock).catch(() => undefined);
+    };
+    const onMove = (event: MouseEvent) => {
+      if (document.pointerLockElement !== canvas) return;
+      if (!event.movementX && !event.movementY) return;
+      const next = applyPointerLook(
+        camYawRef.current,
+        pitchRef.current,
+        event.movementX,
+        event.movementY,
+        getA11ySettings().cameraSensitivity,
+      );
+      camYawRef.current = next.yaw;
+      pitchRef.current = next.pitch;
+      lookActiveRef.current = true;
+      dismissHint();
+    };
+    const onLockChange = () => {
+      lookActiveRef.current = document.pointerLockElement === canvas;
+    };
+    const release = () => {
+      lookActiveRef.current = false;
+      if (document.pointerLockElement === canvas) document.exitPointerLock?.();
+    };
+    canvas.addEventListener("pointerdown", requestLock);
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("pointerlockchange", onLockChange);
+    window.addEventListener("blur", release);
+    return () => {
+      canvas.removeEventListener("pointerdown", requestLock);
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("pointerlockchange", onLockChange);
+      window.removeEventListener("blur", release);
+      release();
+    };
+  }, [
+    touchControls,
+    helpOpen,
+    settingsOpen,
+    inventoryOpen,
+    dismissHint,
+    ready,
+  ]);
+
+  useEffect(() => {
+    if (!stationMenu && !helpOpen && !settingsOpen && !inventoryOpen) return;
+    lookActiveRef.current = false;
+    if (document.pointerLockElement) document.exitPointerLock?.();
+  }, [stationMenu, helpOpen, settingsOpen, inventoryOpen]);
+
   const sendEmote = useCallback(
     (emote: ManualEmoteId) => {
       const at = Date.now();
@@ -666,6 +731,7 @@ export function PastureApp({
       const shortcut = shortcutFromEvent(event);
       if (shortcut) {
         if (shortcut.type === "dismiss") {
+          if (document.pointerLockElement) return;
           if (helpOpen) {
             event.preventDefault();
             event.stopPropagation();
@@ -1000,10 +1066,11 @@ export function PastureApp({
         <div className="pasture-hint" role="status">
           <p>
             WASD or the arrow keys move your character, relative to the camera.
-            You can also click the street to walk, or use the joystick. Press
-            Enter to chat. Walk ahead and right to The Drop, then along the east
-            avenue to the Print Shop or Fitting Room. Use + / - or the buttons
-            to zoom, and 0 to reset.
+            Click the view to look around with the mouse, and press Esc to
+            release the cursor. You can also click the street to walk, or use
+            the joystick. Press Enter to chat. Walk ahead and right to The Drop,
+            then along the east avenue to the Print Shop or Fitting Room. Use +
+            / - or the buttons to zoom, and 0 to reset.
           </p>
           <button type="button" className="quiet" onClick={dismissHint}>
             Got it
@@ -1165,6 +1232,7 @@ export function PastureApp({
             alpha: false,
           }}
           onCreated={({ gl }) => {
+            canvasElRef.current = gl.domElement;
             gl.domElement.dataset.pastureCanvas = "1";
             gl.toneMapping = THREE.ACESFilmicToneMapping;
             gl.toneMappingExposure = 1.18;
@@ -1259,6 +1327,7 @@ export function PastureApp({
               followOwner={!!mine}
               hideHudOverlays={!!stationMenu}
               camYawRef={camYawRef}
+              lookActiveRef={lookActiveRef}
               controls={controls}
               stickEnabled={!!mine && !stationMenu}
               onInspect={inspect}
@@ -1290,6 +1359,7 @@ function PastureWorld({
   followOwner,
   hideHudOverlays,
   camYawRef,
+  lookActiveRef,
   controls,
   stickEnabled,
   onInspect,
@@ -1318,6 +1388,7 @@ function PastureWorld({
   followOwner: boolean;
   hideHudOverlays: boolean;
   camYawRef: MutableRefObject<number>;
+  lookActiveRef: MutableRefObject<boolean>;
   controls: MutableRefObject<ControlState>;
   stickEnabled: boolean;
   onInspect: (pet: PasturePet) => void;
@@ -1383,6 +1454,7 @@ function PastureWorld({
           bubble={bubbleById.get(mine.owner)}
           hideHudOverlays={hideHudOverlays}
           camYawRef={camYawRef}
+          lookActiveRef={lookActiveRef}
           controls={controls}
           stickEnabled={stickEnabled}
           emote={latestEmoteFor(emotes, mine.owner)}
@@ -1554,6 +1626,7 @@ function LocalPet({
   bubble,
   hideHudOverlays,
   camYawRef,
+  lookActiveRef,
   controls,
   stickEnabled,
   emote,
@@ -1568,6 +1641,7 @@ function LocalPet({
   bubble?: string;
   hideHudOverlays?: boolean;
   camYawRef: MutableRefObject<number>;
+  lookActiveRef: MutableRefObject<boolean>;
   controls: MutableRefObject<ControlState>;
   stickEnabled: boolean;
   emote?: { id: EmoteId; at: number } | null;
@@ -1619,7 +1693,7 @@ function LocalPet({
         delta,
         PASTURE_ZONE,
         obstacles,
-        { reducedMotion },
+        { reducedMotion, lockCamera: lookActiveRef.current },
       );
       node.position.x = step.x;
       node.position.z = step.z;
@@ -1666,7 +1740,7 @@ function LocalPet({
       camYawRef.current = nextControlYaw(
         camYawRef.current,
         yaw.current,
-        false,
+        lookActiveRef.current,
         Math.min(Math.max(delta, 0), CITY_MAX_FRAME_DT),
         reducedMotion,
       );
@@ -1691,7 +1765,7 @@ function LocalPet({
       camYawRef.current = nextControlYaw(
         camYawRef.current,
         yaw.current,
-        false,
+        lookActiveRef.current,
         Math.min(Math.max(delta, 0), CITY_MAX_FRAME_DT),
         reducedMotion,
       );

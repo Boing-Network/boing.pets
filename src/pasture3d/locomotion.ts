@@ -91,6 +91,8 @@ export function stepCityLocomotion(
     decel?: number;
     turnRate?: number;
     reducedMotion?: boolean;
+    /** Pointer look owns the yaw. Do not ease it behind the body. */
+    lockCamera?: boolean;
   },
 ): LocoStep {
   const maxSpeed = opts?.maxSpeed ?? CITY_MOVE_SPEED;
@@ -149,7 +151,8 @@ export function stepCityLocomotion(
   }
 
   const speed = Math.hypot(vel.x, vel.z);
-  const lockCam = stickHeld || speed > CITY_CAM_LOCK_SPEED;
+  const lockCam =
+    !!opts?.lockCamera || stickHeld || speed > CITY_CAM_LOCK_SPEED;
   return {
     x,
     z,
