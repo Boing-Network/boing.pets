@@ -17,6 +17,9 @@
     "MARKET_WRITES": "on",
     // Quarry gather loop. Set to "off" and redeploy to close the face.
     "GATHER_QUARRY": "on",
+    "GATHER_LINE": "on",
+    "GATHER_PLOT": "on",
+    "GATHER_SWEEP": "on",
     // Vault mint. Set to "off" and redeploy to close minting without touching the quarry.
     "GATHER_MINT": "on",
     // Must match the browser origin exactly (care POSTs are origin-gated).

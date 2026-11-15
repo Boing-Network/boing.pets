@@ -7,6 +7,8 @@ import { ORES, PICKAXES, type OreDef } from "./mining";
 import { mulberry32, seedFromParts, type Rng } from "./adventures";
 
 export const GATHER_SKILL_QUARRY = "quarry" as const;
+export const GATHER_SKILL_IDS = ["quarry", "line", "plot", "sweep"] as const;
+export type GatherSkillId = (typeof GATHER_SKILL_IDS)[number];
 export const GATHER_PACK_UNITS = 28;
 export const GATHER_LEVEL_CAP = 50;
 export const GATHER_VIRTUAL_LEVEL_CAP = 120;
@@ -17,6 +19,83 @@ export const GATHER_TICK_MS_L1 = 4_000;
 export const GATHER_TICK_MS_CAP = 2_400;
 export const GATHER_RESTART_GAP_MS = 1_500;
 export const GATHER_FACE_ID = "quarry-face";
+
+export const GATHER_SKILL_META: Record<
+  GatherSkillId,
+  { name: string; stationId: string; faceId: string; usesPick: boolean }
+> = {
+  quarry: {
+    name: "Quarry",
+    stationId: "pasture-mine",
+    faceId: GATHER_FACE_ID,
+    usesPick: true,
+  },
+  line: {
+    name: "Line",
+    stationId: "pasture-fish",
+    faceId: "line-spot",
+    usesPick: false,
+  },
+  plot: {
+    name: "Plot",
+    stationId: "pasture-garden",
+    faceId: "plot-bed",
+    usesPick: false,
+  },
+  sweep: {
+    name: "Sweep",
+    stationId: "pasture-treasure",
+    faceId: "sweep-patch",
+    usesPick: false,
+  },
+};
+
+export const GATHER_SKILL_PROMPT: Record<
+  GatherSkillId,
+  {
+    working: string;
+    depleted: string;
+    act: string;
+    again: string;
+    idle: string;
+  }
+> = {
+  quarry: {
+    working: "On the face.",
+    depleted: "Face is dead. Hit it again.",
+    act: "Work the face",
+    again: "Hit it again",
+    idle: "Hit the face. It dies on its own.",
+  },
+  line: {
+    working: "On the line.",
+    depleted: "The spot went quiet. Cast again.",
+    act: "Cast",
+    again: "Cast again",
+    idle: "Cast into the canal. The spot dies on its own.",
+  },
+  plot: {
+    working: "On the bed.",
+    depleted: "The bed is spent. Tend it again.",
+    act: "Tend",
+    again: "Tend again",
+    idle: "Tend the bed. It dies on its own.",
+  },
+  sweep: {
+    working: "Sweeping.",
+    depleted: "The patch is clean. Sweep again.",
+    act: "Sweep",
+    again: "Sweep again",
+    idle: "Sweep the patch. It dies on its own.",
+  },
+};
+
+export function isGatherSkill(value: unknown): value is GatherSkillId {
+  return (
+    typeof value === "string" &&
+    (GATHER_SKILL_IDS as readonly string[]).includes(value)
+  );
+}
 export const MINT_BATCH_PRESETS = [10, 100, 1_000, 10_000] as const;
 export const MINT_BATCH_MAX = 10_000;
 
@@ -126,14 +205,20 @@ export function skillProgress(xp: number): SkillProgress {
   };
 }
 
-export function levelUpLabel(level: number, prestige: number): string {
-  if (prestige > 0) return `QUARRY P${prestige}`;
-  return `QUARRY ${level}`;
+export function levelUpLabel(
+  level: number,
+  prestige: number,
+  skill: GatherSkillId = GATHER_SKILL_QUARRY,
+): string {
+  const name = GATHER_SKILL_META[skill].name.toUpperCase();
+  if (prestige > 0) return `${name} P${prestige}`;
+  return `${name} ${level}`;
 }
 
 export function levelsCrossed(
   beforeXp: number,
   afterXp: number,
+  skill: GatherSkillId = GATHER_SKILL_QUARRY,
 ): Array<{ level: number; prestige: number; label: string }> {
   const from = virtualLevel(beforeXp);
   const to = virtualLevel(afterXp);
@@ -141,7 +226,11 @@ export function levelsCrossed(
   for (let virtual = from + 1; virtual <= to; virtual++) {
     const level = Math.min(GATHER_LEVEL_CAP, virtual);
     const prestige = Math.max(0, virtual - GATHER_LEVEL_CAP);
-    crossed.push({ level, prestige, label: levelUpLabel(level, prestige) });
+    crossed.push({
+      level,
+      prestige,
+      label: levelUpLabel(level, prestige, skill),
+    });
   }
   return crossed;
 }
@@ -165,6 +254,75 @@ export function rollDepleteTicks(rng: Rng, tick: number): number {
 
 export function nodeLifeMs(depleteTicks: number, tick: number): number {
   return depleteTicks * tick;
+}
+
+const XP_FOR_RARITY = XP_BY_RARITY;
+
+function skillNode(
+  id: string,
+  name: string,
+  rarity: OreDef["rarity"],
+  minLevel: number,
+  weight: number,
+  rewardBoinglets: number,
+): QuarryNode {
+  return {
+    id,
+    name,
+    rarity,
+    minLevel,
+    minTier: 1,
+    weight,
+    rewardBoinglets,
+    xp: XP_FOR_RARITY[rarity],
+  };
+}
+
+export const LINE_NODES: readonly QuarryNode[] = [
+  skillNode("fish-ripple", "Curb Minnow", "common", 1, 48, 4),
+  skillNode("fish-boingfin", "Alleyfin", "uncommon", 10, 24, 10),
+  skillNode("fish-copperfin", "Copperfin", "uncommon", 20, 16, 12),
+  skillNode("fish-moonkoi", "Night Koi", "rare", 35, 9, 22),
+  skillNode("fish-starfin", "Starfin", "epic", 45, 3, 34),
+];
+
+export const PLOT_NODES: readonly QuarryNode[] = [
+  skillNode("crop-sprout", "Curb Sprout", "common", 1, 40, 6),
+  skillNode("crop-forage", "Lot Greens", "common", 1, 28, 4),
+  skillNode("crop-berry", "Lot Berry", "uncommon", 15, 18, 10),
+  skillNode("crop-honeyroot", "Honeyroot", "uncommon", 20, 14, 12),
+  skillNode("crop-moonbloom", "Nightbloom", "rare", 35, 8, 16),
+  skillNode("crop-starglider", "Highrise Bloom", "epic", 45, 3, 24),
+];
+
+export const SWEEP_NODES: readonly QuarryNode[] = [
+  skillNode("loot-pebble", "Alley Pebble", "common", 1, 46, 5),
+  skillNode("loot-map-scrap", "Map Scrap", "uncommon", 10, 24, 12),
+  skillNode("loot-wind-bell", "Chain Bell", "uncommon", 20, 16, 14),
+  skillNode("loot-sun-shard", "Flare Shard", "rare", 35, 10, 28),
+  skillNode("loot-comet-bead", "Signal Bead", "epic", 45, 4, 40),
+];
+
+export function nodesForSkill(
+  skill: GatherSkillId,
+  level: number,
+  pickTier = 1,
+): QuarryNode[] {
+  if (skill === GATHER_SKILL_QUARRY) return quarryNodesFor(level, pickTier);
+  const table =
+    skill === "line" ? LINE_NODES : skill === "plot" ? PLOT_NODES : SWEEP_NODES;
+  const lv = Math.min(GATHER_LEVEL_CAP, Math.max(1, Math.floor(level)));
+  return table
+    .filter((node) => lv >= node.minLevel)
+    .map((node) => ({ ...node }));
+}
+
+export function skillForItem(itemId: string): GatherSkillId | null {
+  if (QUARRY_NODES.some((node) => node.id === itemId)) return "quarry";
+  if (LINE_NODES.some((node) => node.id === itemId)) return "line";
+  if (PLOT_NODES.some((node) => node.id === itemId)) return "plot";
+  if (SWEEP_NODES.some((node) => node.id === itemId)) return "sweep";
+  return null;
 }
 
 export function quarryNodesFor(level: number, pickTier: number): QuarryNode[] {
@@ -234,6 +392,7 @@ export function applyGatherTicks(input: {
   packUnits: number;
   level: number;
   pickTier: number;
+  nodes?: QuarryNode[];
 }): {
   consumed: number;
   packed: boolean;
@@ -241,7 +400,7 @@ export function applyGatherTicks(input: {
   xp: number;
   packUnits: number;
 } {
-  const nodes = quarryNodesFor(input.level, input.pickTier);
+  const nodes = input.nodes ?? quarryNodesFor(input.level, input.pickTier);
   const items: Record<string, number> = {};
   let packUnits = input.packUnits;
   let xp = 0;
@@ -275,7 +434,12 @@ export function credPerUnit(rewardBoinglets: number): number {
 }
 
 export function credForOre(itemId: string): number {
-  const node = QUARRY_NODES.find((row) => row.id === itemId);
+  const node = [
+    ...QUARRY_NODES,
+    ...LINE_NODES,
+    ...PLOT_NODES,
+    ...SWEEP_NODES,
+  ].find((row) => row.id === itemId);
   if (!node) return 0;
   return credPerUnit(node.rewardBoinglets);
 }
@@ -365,11 +529,45 @@ export function dueTicks(input: {
 }
 
 export function gatherQuarryEnabled(env: { GATHER_QUARRY?: string }): boolean {
+  return gatherSkillEnabled(env, GATHER_SKILL_QUARRY);
+}
+
+export function gatherSkillEnabled(
+  env: {
+    GATHER_QUARRY?: string;
+    GATHER_LINE?: string;
+    GATHER_PLOT?: string;
+    GATHER_SWEEP?: string;
+  },
+  skill: GatherSkillId,
+): boolean {
+  const key =
+    skill === "line"
+      ? "GATHER_LINE"
+      : skill === "plot"
+        ? "GATHER_PLOT"
+        : skill === "sweep"
+          ? "GATHER_SWEEP"
+          : "GATHER_QUARRY";
   return (
-    String(env.GATHER_QUARRY ?? "off")
+    String(env[key] ?? "off")
       .trim()
       .toLowerCase() === "on"
   );
+}
+
+export function gatherSkillFlags(env: {
+  GATHER_QUARRY?: string;
+  GATHER_LINE?: string;
+  GATHER_PLOT?: string;
+  GATHER_SWEEP?: string;
+}): Record<GatherSkillId, boolean> {
+  return {
+    quarry: gatherSkillEnabled(env, "quarry"),
+    line: gatherSkillEnabled(env, "line"),
+    plot: gatherSkillEnabled(env, "plot"),
+    sweep: gatherSkillEnabled(env, "sweep"),
+  };
 }
 
 /** Vault mint submits only when this is on. The default in wrangler is off. */

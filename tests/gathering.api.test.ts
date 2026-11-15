@@ -475,4 +475,38 @@ describe("quarry API", () => {
       expect(["ore-pebble", "ore-spark"]).toContain(row.item_id);
     }
   });
+
+  it("trains Line into the pack and banks the fish", async () => {
+    (env as { GATHER_LINE: string }).GATHER_LINE = "on";
+    const start = await request("/api/gather/start", {
+      owner,
+      skill: "line",
+    });
+    expect(start.status).toBe(200);
+    const opened = (await start.json()) as {
+      skill: { id: string; level: number };
+      nodes: Array<{ id: string }>;
+    };
+    expect(opened.skill.id).toBe("line");
+    expect(opened.skill.level).toBe(1);
+    expect(opened.nodes.map((node) => node.id)).toEqual(["fish-ripple"]);
+    now += 6 * 60_000;
+    const settled = await request("/api/gather/settle", {
+      owner,
+      skill: "line",
+    });
+    expect(settled.status).toBe(200);
+    const settledBody = (await settled.json()) as {
+      skill: { id: string; xp: number };
+      pack: { items: Array<{ itemId: string }> };
+    };
+    expect(settledBody.skill.id).toBe("line");
+    for (const row of settledBody.pack.items) {
+      expect(row.itemId).toBe("fish-ripple");
+    }
+    const stop = await request("/api/gather/stop", { owner, skill: "line" });
+    expect(stop.status).toBe(200);
+    const bank = await request("/api/gather/bank", { owner, skill: "line" });
+    expect(bank.status).toBe(200);
+  });
 });

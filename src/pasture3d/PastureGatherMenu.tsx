@@ -28,7 +28,7 @@ export function GatherPanel({
   onMint,
   onClose,
 }: {
-  mode: "quarry" | "bank";
+  mode: "quarry" | "line" | "plot" | "sweep" | "bank";
   status: GatherStatus | null;
   busy: boolean;
   notice: string;
@@ -46,16 +46,18 @@ export function GatherPanel({
   const skill = status?.skill;
   const pack = status?.pack;
   const session = status?.session;
+  const training = mode !== "bank";
   const running = session?.status === "running";
   const depleted = session?.status === "depleted";
   const packed = (pack?.units ?? 0) >= (pack?.cap ?? 28);
+  const prompt = status?.prompt;
   const line = packed
     ? GATHER_COPY.packed
     : depleted
-      ? GATHER_COPY.depleted
+      ? (prompt?.depleted ?? GATHER_COPY.depleted)
       : running
-        ? GATHER_COPY.working
-        : "Hit the face. It dies on its own.";
+        ? (prompt?.working ?? GATHER_COPY.working)
+        : (prompt?.idle ?? "Hit the face. It dies on its own.");
   const mintOn = status?.mintEnabled === true;
   const bank = status?.bank ?? [];
   const selected = bank.some((row) => row.itemId === itemId)
@@ -79,10 +81,12 @@ export function GatherPanel({
       <div className="pasture-station-menu-head">
         <div>
           <p className="eyebrow">
-            {mode === "bank" ? "BLOCK VAULT" : "QUARRY"}
+            {mode === "bank"
+              ? "BLOCK VAULT"
+              : (skill?.name ?? mode).toUpperCase()}
           </p>
           <h2 id={titleId}>
-            {mode === "bank" ? "Bank the pack" : "Work the face"}
+            {mode === "bank" ? "Bank the pack" : `Train ${skill?.name ?? mode}`}
           </h2>
         </div>
         <button
@@ -94,10 +98,13 @@ export function GatherPanel({
         </button>
       </div>
       {skill ? (
-        <div className="gather-xp" aria-label={`Quarry level ${skill.level}`}>
+        <div
+          className="gather-xp"
+          aria-label={`${skill.name ?? "Skill"} level ${skill.level}`}
+        >
           <div className="gather-xp-label">
             <strong>
-              QUARRY {skill.level}
+              {(skill.name ?? "SKILL").toUpperCase()} {skill.level}
               {skill.prestige > 0 ? `  P${skill.prestige}` : ""}
             </strong>
             <span>
@@ -142,9 +149,12 @@ export function GatherPanel({
           ? ` · CRED ${status.cred.paidUnits}/${status.cred.cap} today`
           : ""}
         {status?.pickaxeTier ? ` · PICK T${status.pickaxeTier}` : ""}
+        {training && status?.nodes?.length
+          ? ` · ${status.nodes.map((node) => node.name).join(", ")}`
+          : ""}
       </p>
       <div className="gather-actions">
-        {mode === "quarry" ? (
+        {training ? (
           running ? (
             <button type="button" disabled={busy} onClick={onStop}>
               Stop
@@ -155,7 +165,9 @@ export function GatherPanel({
               disabled={busy || packed || !app.owner}
               onClick={onWork}
             >
-              {depleted ? "Hit it again" : "Work the face"}
+              {depleted
+                ? (prompt?.again ?? "Hit it again")
+                : (prompt?.act ?? "Work the face")}
             </button>
           )
         ) : (
@@ -254,7 +266,7 @@ export function PastureGatherMenu({
   onClose,
   onStatus,
 }: {
-  mode: "quarry" | "bank";
+  mode: "quarry" | "line" | "plot" | "sweep" | "bank";
   onClose: () => void;
   onStatus?: (status: GatherStatus) => void;
 }) {
@@ -265,7 +277,7 @@ export function PastureGatherMenu({
   useEffect(() => {
     if (!app.owner) return;
     let dead = false;
-    void gatherStatus(app.owner)
+    void gatherStatus(app.owner, mode === "bank" ? undefined : mode)
       .then((next) => {
         if (dead) return;
         setStatus(next);
@@ -287,7 +299,7 @@ export function PastureGatherMenu({
     const tick = Math.max(2400, status.session.tickMs);
     const id = window.setInterval(() => {
       if (!app.owner) return;
-      void gatherAct("/api/gather/settle", app.owner)
+      void gatherAct("/api/gather/settle", app.owner, status.session?.skill)
         .then((next) => {
           setStatus(next);
           onStatus?.(next);
@@ -336,7 +348,11 @@ export function PastureGatherMenu({
     setBusy(true);
     setNotice("");
     try {
-      const next = await gatherAct(path, app.owner);
+      const next = await gatherAct(
+        path,
+        app.owner,
+        mode === "bank" ? undefined : mode,
+      );
       setStatus(next);
       onStatus?.(next);
       if (path === "/api/gather/bank") {
@@ -398,7 +414,7 @@ export function GatherHud({
       <div className="gather-xp gather-xp-hud">
         <div className="gather-xp-label">
           <strong>
-            QUARRY {status.skill.level}
+            {(status.skill.name ?? "QUARRY").toUpperCase()} {status.skill.level}
             {status.skill.prestige > 0 ? `  P${status.skill.prestige}` : ""}
           </strong>
         </div>

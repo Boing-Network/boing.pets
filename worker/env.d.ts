@@ -6,6 +6,9 @@ interface __BaseEnv_Env {
 	RPC_URL: string;
 	MARKET_WRITES: string;
 	GATHER_QUARRY: string;
+	GATHER_LINE?: string;
+	GATHER_PLOT?: string;
+	GATHER_SWEEP?: string;
 	GATHER_MINT: string;
 	APP_ORIGIN: string;
 	MULTI_TOKEN_CONTRACT: string;

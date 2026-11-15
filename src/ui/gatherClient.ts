@@ -12,16 +12,32 @@ export type GatherStatus = {
   enabled: boolean;
   mintEnabled: boolean;
   packCap?: number;
+  pack?: { units: number; cap: number; items: GatherItem[] };
   skill?: {
+    id?: string;
+    name?: string;
     xp: number;
     level: number;
     prestige: number;
     xpAtLevel: number;
     xpAtNext: number;
   };
-  pack?: { units: number; cap: number; items: GatherItem[] };
+  prompt?: {
+    working: string;
+    depleted: string;
+    act: string;
+    again: string;
+    idle: string;
+  };
+  skills?: {
+    quarry: boolean;
+    line: boolean;
+    plot: boolean;
+    sweep: boolean;
+  };
   session?: {
     id: string;
+    skill?: string;
     status: string;
     tickMs: number;
     ticksSettled: number;
@@ -68,17 +84,39 @@ export async function gatherQuiet(owner: string): Promise<GatherStatus | null> {
 }
 
 export async function gatherEnabled(): Promise<boolean> {
+  const flags = await gatherFlags();
+  return flags.quarry;
+}
+
+export async function gatherFlags(): Promise<
+  NonNullable<GatherStatus["skills"]>
+> {
+  const closed = {
+    quarry: false,
+    line: false,
+    plot: false,
+    sweep: false,
+  };
   try {
     const status = await apiFetch<GatherStatus>("/api/gather/status");
-    return status.enabled === true;
+    return (
+      status.skills ?? {
+        ...closed,
+        quarry: status.enabled === true,
+      }
+    );
   } catch {
-    return false;
+    return closed;
   }
 }
 
-export function gatherStatus(owner: string): Promise<GatherStatus> {
+export function gatherStatus(
+  owner: string,
+  skill?: string,
+): Promise<GatherStatus> {
+  const query = skill ? `&skill=${encodeURIComponent(skill)}` : "";
   return sessionApi<GatherStatus>(
-    `/api/gather/status?owner=${encodeURIComponent(owner)}`,
+    `/api/gather/status?owner=${encodeURIComponent(owner)}${query}`,
   );
 }
 
@@ -89,8 +127,12 @@ export function gatherAct(
     | "/api/gather/stop"
     | "/api/gather/bank",
   owner: string,
+  skill?: string,
 ): Promise<GatherStatus> {
-  return sessionApi<GatherStatus>(path, { owner, skill: "quarry" });
+  return sessionApi<GatherStatus>(path, {
+    owner,
+    ...(skill ? { skill } : {}),
+  });
 }
 
 export function gatherMint(

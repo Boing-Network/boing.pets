@@ -7,23 +7,30 @@
 import { dayOf, hex32 } from "../src/core";
 import {
   GATHER_COPY,
-  GATHER_FACE_ID,
   GATHER_PACK_UNITS,
   GATHER_RESTART_GAP_MS,
+  GATHER_SKILL_IDS,
+  GATHER_SKILL_META,
+  GATHER_SKILL_PROMPT,
   GATHER_SKILL_QUARRY,
   applyGatherTicks,
   dueTicks,
   gatherMintEnabled,
   gatherQuarryEnabled,
+  gatherSkillEnabled,
+  gatherSkillFlags,
+  isGatherSkill,
   levelsCrossed,
   mintPresets,
+  nodesForSkill,
   planBankCred,
-  quarryNodesFor,
   quarrySeedXp,
   pickTierFromIds,
   rollDepleteTicks,
+  skillForItem,
   skillProgress,
   tickMs,
+  type GatherSkillId,
 } from "../src/content/gathering";
 import { mulberry32, seedFromParts } from "../src/content/adventures";
 import { itemDisplayName } from "../src/content/items";
@@ -108,27 +115,35 @@ async function discoveredOres(env: Env, owner: string): Promise<string[]> {
   );
 }
 
-async function ensureSkill(env: Env, owner: string, now: number) {
+async function ensureSkill(
+  env: Env,
+  owner: string,
+  now: number,
+  skill: GatherSkillId = GATHER_SKILL_QUARRY,
+) {
   const existing = await env.DB.prepare(
     "SELECT xp FROM gather_skills WHERE owner=? AND skill=?",
   )
-    .bind(owner, GATHER_SKILL_QUARRY)
+    .bind(owner, skill)
     .first<{ xp: number }>();
   if (existing) return existing.xp;
-  const xp = quarrySeedXp({
-    pickTier: await pickTier(env, owner),
-    discoveredIds: await discoveredOres(env, owner),
-  });
+  const xp =
+    skill === GATHER_SKILL_QUARRY
+      ? quarrySeedXp({
+          pickTier: await pickTier(env, owner),
+          discoveredIds: await discoveredOres(env, owner),
+        })
+      : 0;
   await env.DB.prepare(
     `INSERT INTO gather_skills(owner, skill, xp, updated_at) VALUES(?,?,?,?)
      ON CONFLICT(owner, skill) DO NOTHING`,
   )
-    .bind(owner, GATHER_SKILL_QUARRY, xp, now)
+    .bind(owner, skill, xp, now)
     .run();
   const row = await env.DB.prepare(
     "SELECT xp FROM gather_skills WHERE owner=? AND skill=?",
   )
-    .bind(owner, GATHER_SKILL_QUARRY)
+    .bind(owner, skill)
     .first<{ xp: number }>();
   return row?.xp ?? xp;
 }
@@ -141,13 +156,22 @@ async function liveSession(env: Env, owner: string) {
     .first<SessionRow>();
 }
 
-async function credToday(env: Env, owner: string, now: number) {
+async function credToday(
+  env: Env,
+  owner: string,
+  now: number,
+  skill: GatherSkillId = GATHER_SKILL_QUARRY,
+) {
   const row = await env.DB.prepare(
     "SELECT cred_items, cred_paid FROM gather_daily WHERE owner=? AND skill=? AND day_key=?",
   )
-    .bind(owner, GATHER_SKILL_QUARRY, dayKey(now))
+    .bind(owner, skill, dayKey(now))
     .first<{ cred_items: number; cred_paid: number }>();
   return { credItems: row?.cred_items ?? 0, credPaid: row?.cred_paid ?? 0 };
+}
+
+function asSkill(value: string | null | undefined): GatherSkillId {
+  return isGatherSkill(value) ? value : GATHER_SKILL_QUARRY;
 }
 
 function publicSession(row: SessionRow | null) {
@@ -172,22 +196,30 @@ function bankView(rows: Array<{ item_id: string; qty: number }>) {
   }));
 }
 
-async function publicState(env: Env, owner: string, now: number) {
+async function publicState(
+  env: Env,
+  owner: string,
+  now: number,
+  skill: GatherSkillId = GATHER_SKILL_QUARRY,
+) {
   await settleGatherMints(env, now, owner);
-  const xp = await ensureSkill(env, owner, now);
+  const live = await liveSession(env, owner);
+  const active = skill;
+  const meta = GATHER_SKILL_META[active];
+  const xp = await ensureSkill(env, owner, now, active);
   const progress = skillProgress(xp);
-  const tier = await pickTier(env, owner);
-  const nodes = quarryNodesFor(progress.level, tier);
+  const tier = meta.usesPick ? await pickTier(env, owner) : 1;
+  const nodes = nodesForSkill(active, progress.level, tier);
   const pack = await packRows(env, owner);
   const bank = await loadMintableBank(env, owner);
   const cred = await credToday(env, owner, now);
   const session =
-    (await liveSession(env, owner)) ??
+    (live && asSkill(live.skill) === active ? live : null) ??
     (await env.DB.prepare(
       `SELECT * FROM gather_sessions WHERE owner=? AND skill=?
        ORDER BY updated_at DESC LIMIT 1`,
     )
-      .bind(owner, GATHER_SKILL_QUARRY)
+      .bind(owner, active)
       .first<SessionRow>());
   const show =
     session && now - session.updated_at < 10 * 60_000 ? session : null;
@@ -196,10 +228,11 @@ async function publicState(env: Env, owner: string, now: number) {
     mintEnabled: gatherMintEnabled(env),
     bank: bankView(bank),
     skill: {
-      id: GATHER_SKILL_QUARRY,
-      name: "Quarry",
+      id: active,
+      name: meta.name,
       ...progress,
     },
+    prompt: GATHER_SKILL_PROMPT[active],
     pack: {
       units: packUnits(pack),
       cap: GATHER_PACK_UNITS,
@@ -215,7 +248,7 @@ async function publicState(env: Env, owner: string, now: number) {
       paid: cred.credPaid,
       cap: 80,
     },
-    pickaxeTier: tier,
+    pickaxeTier: meta.usesPick ? tier : undefined,
     nodes: nodes.map((node) => ({
       id: node.id,
       name: node.name,
@@ -245,9 +278,11 @@ async function settleOwner(env: Env, owner: string, now: number) {
   const tickCount = due - session.ticks_settled;
   if (tickCount <= 0) return { levelUps: [] as Array<{ label: string }> };
 
-  const xpBefore = await ensureSkill(env, owner, now);
+  const skill = asSkill(session.skill);
+  const meta = GATHER_SKILL_META[skill];
+  const xpBefore = await ensureSkill(env, owner, now, skill);
   const progress = skillProgress(xpBefore);
-  const tier = await pickTier(env, owner);
+  const tier = meta.usesPick ? await pickTier(env, owner) : 1;
   const pack = await packRows(env, owner);
   const applied = applyGatherTicks({
     tickCount,
@@ -256,6 +291,7 @@ async function settleOwner(env: Env, owner: string, now: number) {
     packUnits: packUnits(pack),
     level: progress.level,
     pickTier: tier,
+    nodes: nodesForSkill(skill, progress.level, tier),
   });
   const ticksSettled = session.ticks_settled + applied.consumed;
   let status = "running";
@@ -278,7 +314,7 @@ async function settleOwner(env: Env, owner: string, now: number) {
     statements.push(
       env.DB.prepare(
         `UPDATE gather_skills SET xp=xp+?, updated_at=? WHERE owner=? AND skill=?`,
-      ).bind(applied.xp, now, owner, GATHER_SKILL_QUARRY),
+      ).bind(applied.xp, now, owner, skill),
     );
   }
   for (const [itemId, qty] of Object.entries(applied.items)) {
@@ -291,11 +327,13 @@ async function settleOwner(env: Env, owner: string, now: number) {
   }
   if (statements.length) await env.DB.batch(statements);
   return {
-    levelUps: levelsCrossed(xpBefore, xpBefore + applied.xp).map((row) => ({
-      label: row.label,
-      level: row.level,
-      prestige: row.prestige,
-    })),
+    levelUps: levelsCrossed(xpBefore, xpBefore + applied.xp, skill).map(
+      (row) => ({
+        label: row.label,
+        level: row.level,
+        prestige: row.prestige,
+      }),
+    ),
   };
 }
 
@@ -307,11 +345,14 @@ export async function gatheringGet(
   const url = new URL(req.url);
   if (url.pathname !== "/api/gather/status") return null;
   const mintEnabled = gatherMintEnabled(env);
-  if (!gatherQuarryEnabled(env)) {
+  const skills = gatherSkillFlags(env);
+  const anySkill = GATHER_SKILL_IDS.some((skill) => skills[skill]);
+  if (!anySkill) {
     const ownerParam = url.searchParams.get("owner");
     if (!ownerParam || !mintEnabled) {
       return Response.json({
         enabled: false,
+        skills,
         mintEnabled,
         packCap: GATHER_PACK_UNITS,
         now,
@@ -323,6 +364,7 @@ export async function gatheringGet(
     const bank = await loadMintableBank(env, owner);
     return Response.json({
       enabled: false,
+      skills,
       mintEnabled,
       packCap: GATHER_PACK_UNITS,
       bank: bankView(bank),
@@ -336,7 +378,8 @@ export async function gatheringGet(
   const ownerParam = url.searchParams.get("owner");
   if (!ownerParam) {
     return Response.json({
-      enabled: true,
+      enabled: skills.quarry,
+      skills,
       mintEnabled: gatherMintEnabled(env),
       packCap: GATHER_PACK_UNITS,
       copy: GATHER_COPY,
@@ -345,8 +388,14 @@ export async function gatheringGet(
   }
   const owner = hex32(ownerParam);
   await requireSocialSession(req, env, owner, now);
+  const requested = url.searchParams.get("skill");
   await settleOwner(env, owner, now);
-  return Response.json(await publicState(env, owner, now));
+  const live = await liveSession(env, owner);
+  const skill = isGatherSkill(requested) ? requested : asSkill(live?.skill);
+  if (!gatherSkillEnabled(env, skill)) {
+    throw new HttpError(403, `${GATHER_SKILL_META[skill].name} is closed.`);
+  }
+  return Response.json(await publicState(env, owner, now, skill));
 }
 
 export async function gatheringPost(
@@ -366,13 +415,20 @@ export async function gatheringPost(
   if (url.pathname === "/api/gather/mint") {
     if (!gatherMintEnabled(env))
       throw new HttpError(403, GATHER_COPY.mintClosed);
-  } else if (!gatherQuarryEnabled(env)) {
+  } else if (
+    !GATHER_SKILL_IDS.some((skill) => gatherSkillEnabled(env, skill))
+  ) {
     throw new HttpError(403, "Quarry is closed.");
   }
 
   const owner = hex32(body.owner);
   await requireSocialSession(req, env, owner, now);
   await requireCharacter(env, owner);
+  const shownSkill = async (): Promise<GatherSkillId> => {
+    if (isGatherSkill(body.skill)) return body.skill;
+    const live = await liveSession(env, owner);
+    return asSkill(live?.skill);
+  };
 
   if (url.pathname === "/api/gather/mint") {
     const mint = await queueGatherMint(env, owner, body, now);
@@ -388,13 +444,13 @@ export async function gatheringPost(
         now,
       });
     }
-    const state = await publicState(env, owner, now);
+    const state = await publicState(env, owner, now, await shownSkill());
     return Response.json({ ...state, mint });
   }
 
   if (url.pathname === "/api/gather/settle") {
     const levelUps = await settleOwner(env, owner, now);
-    const state = await publicState(env, owner, now);
+    const state = await publicState(env, owner, now, await shownSkill());
     return Response.json({ ...state, levelUps: levelUps.levelUps });
   }
 
@@ -406,13 +462,19 @@ export async function gatheringPost(
     )
       .bind(now, owner)
       .run();
-    const state = await publicState(env, owner, now);
+    const state = await publicState(env, owner, now, await shownSkill());
     return Response.json({ ...state, levelUps: levelUps.levelUps });
   }
 
   if (url.pathname === "/api/gather/start") {
-    if (body.skill !== undefined && body.skill !== GATHER_SKILL_QUARRY) {
+    const skill = asSkill(
+      typeof body.skill === "string" ? body.skill : GATHER_SKILL_QUARRY,
+    );
+    if (!isGatherSkill(body.skill ?? GATHER_SKILL_QUARRY)) {
       throw new HttpError(403, "That skill is not open.");
+    }
+    if (!gatherSkillEnabled(env, skill)) {
+      throw new HttpError(403, `${GATHER_SKILL_META[skill].name} is closed.`);
     }
     const live = await liveSession(env, owner);
     if (live) throw new HttpError(409, "The face is already working.");
@@ -429,11 +491,12 @@ export async function gatheringPost(
     if (packUnits(rows) >= GATHER_PACK_UNITS) {
       throw new HttpError(409, GATHER_COPY.packed);
     }
-    const xp = await ensureSkill(env, owner, now);
+    const meta = GATHER_SKILL_META[skill];
+    const xp = await ensureSkill(env, owner, now, skill);
     const progress = skillProgress(xp);
-    const tier = await pickTier(env, owner);
-    if (!quarryNodesFor(progress.level, tier).length) {
-      throw new HttpError(403, "No ore on this face for that pick.");
+    const tier = meta.usesPick ? await pickTier(env, owner) : 1;
+    if (!nodesForSkill(skill, progress.level, tier).length) {
+      throw new HttpError(403, "Nothing here is open at this level.");
     }
     const tick = tickMs(progress.level);
     const rng = mulberry32(seedFromParts(owner, now, crypto.randomUUID()));
@@ -448,9 +511,9 @@ export async function gatheringPost(
       .bind(
         id,
         owner,
-        GATHER_SKILL_QUARRY,
-        GATHER_FACE_ID,
-        "pasture-mine",
+        skill,
+        meta.faceId,
+        meta.stationId,
         tick,
         deplete,
         seed,
@@ -458,7 +521,7 @@ export async function gatheringPost(
         now,
       )
       .run();
-    const state = await publicState(env, owner, now);
+    const state = await publicState(env, owner, now, skill);
     return Response.json({ ...state, levelUps: [] });
   }
 
@@ -468,7 +531,7 @@ export async function gatheringPost(
     }
     const rows = await packRows(env, owner);
     if (!rows.length) {
-      const state = await publicState(env, owner, now);
+      const state = await publicState(env, owner, now, await shownSkill());
       return Response.json({
         ...state,
         banked: [],
@@ -476,18 +539,38 @@ export async function gatheringPost(
         levelUps: [],
       });
     }
-    const credRow = await credToday(env, owner, now);
-    const plan = planBankCred(
-      rows.map((row) => ({ itemId: row.item_id, qty: row.qty })),
-      credRow.credItems,
-    );
+    const bySkill = new Map<GatherSkillId, typeof rows>();
+    for (const row of rows) {
+      const skill = skillForItem(row.item_id) ?? GATHER_SKILL_QUARRY;
+      const list = bySkill.get(skill) ?? [];
+      list.push(row);
+      bySkill.set(skill, list);
+    }
+    const plans = new Map<GatherSkillId, ReturnType<typeof planBankCred>>();
+    for (const [skill, lines] of bySkill) {
+      const credRow = await credToday(env, owner, now, skill);
+      plans.set(
+        skill,
+        planBankCred(
+          lines.map((row) => ({ itemId: row.item_id, qty: row.qty })),
+          credRow.credItems,
+        ),
+      );
+    }
+    const plan = {
+      cred: [...plans.values()].reduce((sum, row) => sum + row.cred, 0),
+      byItem: Object.assign(
+        {},
+        ...[...plans.values()].map((row) => row.byItem),
+      ) as Record<string, number>,
+    };
     const deleted = await env.DB.prepare(
       "DELETE FROM gather_backpack WHERE owner=?",
     )
       .bind(owner)
       .run();
     if (writeChanges(deleted) === 0) {
-      const state = await publicState(env, owner, now);
+      const state = await publicState(env, owner, now, await shownSkill());
       return Response.json({
         ...state,
         banked: [],
@@ -532,23 +615,33 @@ export async function gatheringPost(
         );
       }
     }
-    statements.push(
-      env.DB.prepare(
-        `INSERT INTO gather_daily(owner, skill, day_key, cred_items, cred_paid)
-         VALUES(?,?,?,?,?)
-         ON CONFLICT(owner, skill, day_key) DO UPDATE SET
-           cred_items=cred_items+excluded.cred_items,
-           cred_paid=cred_paid+excluded.cred_paid`,
-      ).bind(
-        owner,
-        GATHER_SKILL_QUARRY,
-        dayKey(now),
-        plan.paidUnits,
-        plan.cred,
-      ),
-    );
-    const party = await resolvePartyBonus(env, owner, "quarry", plan.cred, now);
-    statements.push(...party.statements);
+    const partyActivity = {
+      quarry: "quarry",
+      line: "fishing",
+      plot: "garden_harvest",
+      sweep: "treasure",
+    } as const;
+    for (const [skill, skillPlan] of plans) {
+      statements.push(
+        env.DB.prepare(
+          `INSERT INTO gather_daily(owner, skill, day_key, cred_items, cred_paid)
+           VALUES(?,?,?,?,?)
+           ON CONFLICT(owner, skill, day_key) DO UPDATE SET
+             cred_items=cred_items+excluded.cred_items,
+             cred_paid=cred_paid+excluded.cred_paid`,
+        ).bind(owner, skill, dayKey(now), skillPlan.paidUnits, skillPlan.cred),
+      );
+      if (skillPlan.cred > 0) {
+        const party = await resolvePartyBonus(
+          env,
+          owner,
+          partyActivity[skill],
+          skillPlan.cred,
+          now,
+        );
+        statements.push(...party.statements);
+      }
+    }
     try {
       await env.DB.batch(statements);
     } catch (error) {
@@ -562,7 +655,7 @@ export async function gatheringPost(
       }
       throw error;
     }
-    const state = await publicState(env, owner, now);
+    const state = await publicState(env, owner, now, await shownSkill());
     return Response.json({
       ...state,
       banked: rows.map((row) => ({ itemId: row.item_id, qty: row.qty })),

@@ -43,7 +43,7 @@ import { preloadYardKits } from "./yardKitLoader";
 import { PastureActivityAreas } from "./PastureActivityAreas";
 import { GatherHud, PastureGatherMenu } from "./PastureGatherMenu";
 import {
-  gatherEnabled,
+  gatherFlags,
   gatherQuiet,
   type GatherStatus,
 } from "../ui/gatherClient";
@@ -334,10 +334,18 @@ export function PastureApp({
     null,
   );
   const [quarryOn, setQuarryOn] = useState(false);
+  const [skillFlags, setSkillFlags] = useState({
+    quarry: false,
+    line: false,
+    plot: false,
+    sweep: false,
+  });
+  const gatherOn =
+    skillFlags.quarry || skillFlags.line || skillFlags.plot || skillFlags.sweep;
   const [gatherState, setGatherState] = useState<GatherStatus | null>(null);
   const skipStations = useMemo(
-    () => (quarryOn ? undefined : new Set(["bank"])),
-    [quarryOn],
+    () => (gatherOn ? undefined : new Set(["bank"])),
+    [gatherOn],
   );
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [mapVisible, setMapVisible] = useState(true);
@@ -473,8 +481,10 @@ export function PastureApp({
 
   useEffect(() => {
     let dead = false;
-    void gatherEnabled().then((on) => {
-      if (!dead) setQuarryOn(on);
+    void gatherFlags().then((flags) => {
+      if (dead) return;
+      setSkillFlags(flags);
+      setQuarryOn(flags.quarry);
     });
     return () => {
       dead = true;
@@ -482,7 +492,7 @@ export function PastureApp({
   }, []);
 
   useEffect(() => {
-    if (!quarryOn || !owner) return;
+    if (!gatherOn || !owner) return;
     let dead = false;
     const pull = () => {
       void gatherQuiet(owner).then((next) => {
@@ -500,7 +510,7 @@ export function PastureApp({
       window.clearInterval(id);
     };
   }, [
-    quarryOn,
+    gatherOn,
     owner,
     gatherState?.session?.status,
     gatherState?.session?.tickMs,
@@ -1145,7 +1155,7 @@ export function PastureApp({
           {fullScreen ? "Exit" : "Full"}
         </button>
       </div>
-      {quarryOn ? (
+      {gatherOn ? (
         <GatherHud
           status={gatherState}
           onOpenPack={() => openStationMenu("bank")}
@@ -1208,9 +1218,27 @@ export function PastureApp({
                 onClose={closeStationMenu}
                 onStatus={setGatherState}
               />
-            ) : stationMenu === "mine" && quarryOn ? (
+            ) : stationMenu === "mine" && skillFlags.quarry ? (
               <PastureGatherMenu
                 mode="quarry"
+                onClose={closeStationMenu}
+                onStatus={setGatherState}
+              />
+            ) : stationMenu === "fish" && skillFlags.line ? (
+              <PastureGatherMenu
+                mode="line"
+                onClose={closeStationMenu}
+                onStatus={setGatherState}
+              />
+            ) : stationMenu === "garden" && skillFlags.plot ? (
+              <PastureGatherMenu
+                mode="plot"
+                onClose={closeStationMenu}
+                onStatus={setGatherState}
+              />
+            ) : stationMenu === "treasure" && skillFlags.sweep ? (
+              <PastureGatherMenu
+                mode="sweep"
                 onClose={closeStationMenu}
                 onStatus={setGatherState}
               />

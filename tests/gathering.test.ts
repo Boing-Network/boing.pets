@@ -13,6 +13,7 @@ import {
   nodeLifeMs,
   parseMintQty,
   planBankCred,
+  nodesForSkill,
   quarryNodesFor,
   quarrySeedXp,
   rollDepleteTicks,
@@ -65,6 +66,22 @@ describe("quarry skill rules", () => {
     expect(quarrySeedXp({ pickTier: 2, discoveredIds: [] })).toBe(
       xpToReach(20),
     );
+  });
+
+  it("opens fish, crops, and finds by level", () => {
+    expect(nodesForSkill("line", 1).map((node) => node.id)).toEqual([
+      "fish-ripple",
+    ]);
+    expect(nodesForSkill("line", 45).map((node) => node.id)).toContain(
+      "fish-starfin",
+    );
+    expect(nodesForSkill("plot", 1).map((node) => node.id)).toContain(
+      "crop-forage",
+    );
+    expect(nodesForSkill("sweep", 1).map((node) => node.id)).toEqual([
+      "loot-pebble",
+    ]);
+    expect(nodesForSkill("plot", 45).length).toBeGreaterThan(4);
   });
 
   it("rolls a node life of about 2 to 5 minutes", () => {
