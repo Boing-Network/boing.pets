@@ -493,7 +493,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       kind: "info",
       position: { x: 0, y: 0, z: 2 },
       radius: 2.2,
-      hint: "WASD or click the ground to walk. Press Enter to chat. Click another character to pull up.",
+      hint: "WASD to walk. Press Enter to chat. Click another character to pull up.",
     },
     {
       id: "pasture-craft",

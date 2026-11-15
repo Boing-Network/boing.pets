@@ -89,13 +89,13 @@ describe("pasture keyboard shortcuts", () => {
     const stick = keyboardStick(flags);
     expect(stick.y).toBeGreaterThan(0);
     expect(stick.x).toBeLessThan(0);
-    // Camera yaw 0 looks toward -Z, so W should move north (negative Z).
-    const north = stickWorldDelta(0, 1, 0);
-    expect(north.x).toBeCloseTo(0, 5);
-    expect(north.z).toBeCloseTo(-1, 5);
-    const east = stickWorldDelta(1, 0, 0);
-    expect(east.x).toBeCloseTo(1, 5);
-    expect(east.z).toBeCloseTo(0, 5);
+    // W runs up the screen (toward the camera, +Z) and D strafes screen-left.
+    const forward = stickWorldDelta(0, 1, 0);
+    expect(forward.x).toBeCloseTo(0, 5);
+    expect(forward.z).toBeCloseTo(1, 5);
+    const right = stickWorldDelta(1, 0, 0);
+    expect(right.x).toBeCloseTo(-1, 5);
+    expect(right.z).toBeCloseTo(0, 5);
     const input = { tagName: "INPUT" } as unknown as EventTarget;
     const blocked = { forward: false, back: false, left: false, right: false };
     expect(applyMoveKey(blocked, { key: "w", target: input }, true)).toBe(

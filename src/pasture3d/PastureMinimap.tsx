@@ -1,15 +1,9 @@
-import {
-  useEffect,
-  useRef,
-  type MouseEvent,
-  type MutableRefObject,
-} from "react";
+import { useEffect, useRef, type MutableRefObject } from "react";
 import type { LivePose } from "../world/scene/Player";
 import {
   layoutMiniMapStations,
   miniMapStreets,
   pastureMiniMapBounds,
-  walkTargetFromMiniMapClick,
   worldToMap,
 } from "./minimap";
 
@@ -23,12 +17,10 @@ const spreadStations = layoutMiniMapStations(
 
 export function PastureMinimap({
   poseRef,
-  onWalk,
   visible = true,
   onToggle,
 }: {
   poseRef: MutableRefObject<LivePose>;
-  onWalk: (x: number, z: number) => void;
   visible?: boolean;
   onToggle?: () => void;
 }) {
@@ -52,24 +44,6 @@ export function PastureMinimap({
     return () => cancelAnimationFrame(raf);
   }, [poseRef]);
 
-  const onActivate = (event: MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const node = event.currentTarget;
-    const rect = node.getBoundingClientRect();
-    const x =
-      ((event.clientX - rect.left) / rect.width) * PASTURE_MINIMAP_BOARD_SIZE;
-    const y =
-      ((event.clientY - rect.top) / rect.height) * PASTURE_MINIMAP_BOARD_SIZE;
-    const target = walkTargetFromMiniMapClick(
-      { x, y },
-      PASTURE_MINIMAP_BOARD_SIZE,
-      spreadStations,
-      bounds,
-    );
-    onWalk(target.x, target.z);
-  };
-
   return (
     <div
       className={"pasture-minimap" + (visible ? "" : " is-collapsed")}
@@ -91,11 +65,9 @@ export function PastureMinimap({
         ) : null}
       </div>
       {visible ? (
-        <button
-          type="button"
+        <div
           className="pasture-minimap-board"
-          aria-label="Walk to a point on the pasture"
-          onClick={onActivate}
+          aria-label="Pasture map"
           style={{
             width: PASTURE_MINIMAP_BOARD_SIZE,
             height: PASTURE_MINIMAP_BOARD_SIZE,
@@ -139,7 +111,7 @@ export function PastureMinimap({
             className="pasture-minimap-player"
             title="You"
           />
-        </button>
+        </div>
       ) : null}
     </div>
   );

@@ -42,7 +42,7 @@ export const WALKTHROUGH_STEPS: readonly WalkthroughStep[] = [
   {
     id: "enter-pasture",
     title: "Enter The Yard",
-    body: "Every character lives in The Yard. Hit the Tutorial Meadow Gate, press Esc, or use Back to The Yard to head over. WASD or click the streets to move.",
+    body: "Every character lives in The Yard. Hit the Tutorial Meadow Gate, press Esc, or use Back to The Yard to head over. WASD moves you around.",
     scene: "starter-town",
     primaryLabel: "Go to the pasture",
   },

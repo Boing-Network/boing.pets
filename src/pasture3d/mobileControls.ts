@@ -9,13 +9,16 @@ export function stickWorldDelta(
   stickY: number,
   cameraYaw: number,
 ): { x: number; z: number } {
+  // Camera yaw 0 sits on +Z and looks toward -Z, so screen-up is -Z and
+  // screen-right is +X. The follow felt backwards (W toward the camera,
+  // A to screen-left), so the stick is applied opposite that basis.
   const forwardX = -Math.sin(cameraYaw);
   const forwardZ = -Math.cos(cameraYaw);
   const rightX = Math.cos(cameraYaw);
   const rightZ = -Math.sin(cameraYaw);
   return {
-    x: stickX * rightX + stickY * forwardX,
-    z: stickX * rightZ + stickY * forwardZ,
+    x: -(stickX * rightX + stickY * forwardX),
+    z: -(stickX * rightZ + stickY * forwardZ),
   };
 }
 
