@@ -49,7 +49,7 @@ export const WALKTHROUGH_STEPS: readonly WalkthroughStep[] = [
   {
     id: "visit-area",
     title: "Visit an activity area",
-    body: "Daily play runs on lots around the block. Walk west from spawn along the side street to the Crystal Yard and check the mine.",
+    body: "Skills are trained on painted lots. Walk west to the Quarry and work the ore face. Plot, Line, and Sweep are on the other outer streets.",
     scene: "pasture",
     guide: { kind: "mine" },
     primaryLabel: "Take me there",
@@ -64,16 +64,16 @@ export const WALKTHROUGH_STEPS: readonly WalkthroughStep[] = [
   },
   {
     id: "pet-care",
-    title: "Check in on your buddy",
-    body: "Open the Buddy chip to greet, play, or groom. Daily care stacks streaks, XP, and Boinglets.",
+    title: "Train a skill",
+    body: "There are no quests, and nothing needs feeding. Walk to a resource lot and press E. Bank a full pack at the Block Vault.",
     scene: "pasture",
-    guide: { kind: "buddy" },
-    primaryLabel: "Open Buddy card",
+    guide: { kind: "mine" },
+    primaryLabel: "Take me to the Quarry",
   },
   {
     id: "done",
     title: "You're set",
-    body: "That's the tour. Walk the block, run a lot, hit a shop, and check in when you want.",
+    body: "That's the tour. Train a skill, bank what you gather, and sell or craft it. No quest log.",
     scene: "pasture",
     primaryLabel: "Start exploring",
   },
@@ -278,7 +278,7 @@ export function menuCompletesStep(
   menuKind: string | null | undefined,
 ): boolean {
   if (!menuKind) return false;
-  if (step === "visit-area") return menuKind === "mine";
+  if (step === "visit-area" || step === "pet-care") return menuKind === "mine";
   if (step === "visit-station") return menuKind === "craft";
   return false;
 }

@@ -13,8 +13,8 @@ describe("empty states and skeletons", () => {
   it("points an empty bag pocket at the place to get those items", () => {
     expect(bagEmptyCopy("items", false).title).toContain("Connect");
     expect(bagEmptyCopy("items", true).hint).toContain("The Drop");
-    expect(BAG_EMPTY_COPY.crops.hint).toContain("City Garden");
-    expect(BAG_EMPTY_COPY.fish.hint).toContain("The Canal");
+    expect(BAG_EMPTY_COPY.crops.hint).toContain("Plot");
+    expect(BAG_EMPTY_COPY.fish.hint).toContain("Line");
     expect(BAG_EMPTY_COPY.recipes.hint).toContain("Street Kitchen");
   });
 

@@ -38,39 +38,8 @@ export function controls() {
   const play = $maybe("#play");
   const groom = $maybe("#groom");
   const feed = $maybe("#feed");
-  if (checkin) {
-    checkin.hidden = !app.mine;
-    checkin.toggleAttribute(
-      "disabled",
-      app.busy || !!app.mine?.state.checkedIn,
-    );
-    checkin.textContent = app.mine?.state.checkedIn
-      ? "Hello sent today ✓"
-      : "Daily hello · sign only";
-  }
-  if (play) {
-    play.hidden = !app.mine;
-    play.toggleAttribute("disabled", app.busy || !!app.mine?.state.playedToday);
-    play.textContent = app.mine?.state.playedToday
-      ? "Played today ✓"
-      : "Play · sign only";
-  }
-  if (groom) {
-    groom.hidden = !app.mine;
-    groom.toggleAttribute(
-      "disabled",
-      app.busy || !!app.mine?.state.groomedToday,
-    );
-    groom.textContent = app.mine?.state.groomedToday
-      ? "Groomed today ✓"
-      : "Groom · sign only";
-  }
-  if (feed) {
-    feed.hidden = !app.mine;
-    feed.toggleAttribute("disabled", app.busy || !!app.mine?.state.fedToday);
-    feed.textContent = app.mine?.state.fedToday
-      ? "Fed today ✓"
-      : "Feed · tiny transaction";
+  for (const button of [checkin, play, groom, feed]) {
+    if (button) button.hidden = true;
   }
   const retry = $maybe("#retry");
   const forget = $maybe("#forget");
@@ -115,7 +84,7 @@ export function card(p: ViewPet) {
   const mind = p.mind
     ? `<p class="mind"><b>${p.mind.mood}</b> · ${p.mind.suggestion}</p><p class="subtle">${(p.mind.cues || []).slice(0, 2).join(" · ")}</p>`
     : "";
-  el.innerHTML = `<div class="pet-picture">${petSvg(p.traits, ["scruffy", "stray"].includes(p.state.status))}</div><p class="pet-kicker">PASTURE · LIVE</p><div class="card-head"><h3>${p.traits.species}</h3><span class="sticker sticker-accent">${p.owner === app.owner ? "YOUR BUDDY" : p.state.status.toUpperCase()}</span></div><p class="pet-serial">${petSerialLabel(p.hatch_tx)}</p><p class="subtle">${p.traits.personality} · ${p.state.stage} · ${p.state.skills.focus}</p><p class="subtle">${p.state.streak} day streak · ${p.state.xp} XP · ${p.state.boinglets} Boinglets · ${p.state.status}</p>${mind}${meter("Belly", p.state.hunger)}${meter("Joy", p.state.happiness)}${meter("Energy", p.state.energy)}${meter("Hygiene", p.state.hygiene)}${meter("Health", p.state.health)}${badges ? `<div class="ach-row">${badges}</div>` : ""}<p class="small">${p.owner.slice(0, 10)}…${p.owner.slice(-6)}</p><a class="small" target="_blank" rel="noreferrer" href="https://boing.observer/tx/${p.hatch_tx}">Hatch transaction ↗</a>`;
+  el.innerHTML = `<div class="pet-picture">${petSvg(p.traits, false)}</div><p class="pet-kicker">THE YARD</p><div class="card-head"><h3>${p.traits.species}</h3><span class="sticker sticker-accent">${p.owner === app.owner ? "YOUR CHARACTER" : p.state.status.toUpperCase()}</span></div><p class="pet-serial">${petSerialLabel(p.hatch_tx)}</p><p class="subtle">${p.traits.personality} · ${p.state.stage}</p><p class="subtle">${p.state.xp} XP · ${p.state.boinglets} Boinglets</p>${mind}${badges ? `<div class="ach-row">${badges}</div>` : ""}<p class="small">${p.owner.slice(0, 10)}…${p.owner.slice(-6)}</p><a class="small" target="_blank" rel="noreferrer" href="https://boing.observer/tx/${p.hatch_tx}">Hatch transaction ↗</a>`;
   return el;
 }
 export async function refreshBuddyCard() {

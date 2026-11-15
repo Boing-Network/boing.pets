@@ -30,18 +30,18 @@ export const PAGE_META: Record<
   },
   fishing: {
     path: "/fishing.html",
-    title: "Fishing",
-    docTitle: "Boing Pets · Fishing",
+    title: "Line",
+    docTitle: "Boing Pets · Line",
   },
   treasure: {
     path: "/treasure.html",
-    title: "Treasure",
-    docTitle: "Boing Pets · Treasure Dig",
+    title: "Sweep",
+    docTitle: "Boing Pets · Sweep",
   },
   garden: {
     path: "/garden.html",
-    title: "Garden",
-    docTitle: "Boing Pets · Garden",
+    title: "Plot",
+    docTitle: "Boing Pets · Plot",
   },
   kitchen: {
     path: "/kitchen.html",
@@ -55,8 +55,8 @@ export const PAGE_META: Record<
   },
   mining: {
     path: "/mining.html",
-    title: "Mine",
-    docTitle: "Boing Pets · Mining",
+    title: "Quarry",
+    docTitle: "Boing Pets · Quarry",
   },
   racing: {
     path: "/racing.html",
@@ -126,7 +126,7 @@ function dropdown(
 }
 
 export function renderHeader(active: PageId): string {
-  return `<header><a class="brand" href="/">boing<span>pets</span><i>✦</i></a><nav aria-label="Main">${dropdown("Play", ["pasture", "home"], active, '<a href="/world.html">Starter Town</a>')}${dropdown("Activities", ["fishing", "treasure", "garden", "kitchen", "craft", "mining", "racing"], active)}${dropdown("Social", ["friends"], active)}${dropdown("Progress", ["quests", "collections"], active)}${link("market", active)}${dropdown("Help", ["how"], active, '<a href="https://boing.network/testnet" target="_blank" rel="noreferrer">Boing Network ↗</a>')}</nav><div class="wallet-ctl"><button id="connect" type="button" aria-haspopup="menu" aria-expanded="false">Connect Express</button><div id="wallet-menu" class="wallet-menu" hidden role="menu"><button type="button" id="disconnect" role="menuitem">Disconnect</button></div></div></header>`;
+  return `<header><a class="brand" href="/">boing<span>pets</span><i>✦</i></a><nav aria-label="Main">${dropdown("Play", ["pasture", "home"], active, '<a href="/world.html">Starter Town</a>')}${dropdown("Skills", ["mining", "fishing", "garden", "treasure", "kitchen", "craft", "racing"], active)}${dropdown("Social", ["friends"], active)}${dropdown("Collection", ["collections"], active)}${link("market", active)}${dropdown("Help", ["how"], active, '<a href="https://boing.network/testnet" target="_blank" rel="noreferrer">Boing Network ↗</a>')}</nav><div class="wallet-ctl"><button id="connect" type="button" aria-haspopup="menu" aria-expanded="false">Connect Express</button><div id="wallet-menu" class="wallet-menu" hidden role="menu"><button type="button" id="disconnect" role="menuitem">Disconnect</button></div></div></header>`;
 }
 
 export function isPageId(value: string): value is PageId {

@@ -192,11 +192,11 @@ export const CITY_RESERVED_LOTS: readonly {
   { x: 43, z: 25, r: 7 }, // fitting room
   { x: 25, z: 43, r: 7 }, // home stoop
   { x: 7, z: -43, r: 8 }, // dispatch depot
-  { x: -43, z: -7, r: 8 }, // crystal yard
+  { x: -40, z: -9, r: 8 }, // quarry
   { x: -25, z: -25, r: 7 }, // kitchen
   { x: -29, z: 32, r: 12 }, // race bowl
-  { x: -11, z: 43, r: 7 }, // treasure lot
-  { x: -25, z: -43, r: 7 }, // garden
+  { x: -9, z: 40, r: 7 }, // sweep
+  { x: -12, z: -40, r: 7 }, // plot
   { x: 11, z: -27, r: 6 }, // block vault
   { x: 20, z: -50, r: 12 }, // canal
   { x: 32, z: -50, r: 6 }, // pier

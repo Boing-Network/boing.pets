@@ -24,12 +24,6 @@ export async function refresh(page: PageId) {
       /* economy tables may be missing until migration 0004 */
     });
   }
-  if (page === "quests") {
-    const { refreshQuests } = await import("./progressPage");
-    await refreshQuests().catch(() => {
-      /* content tables may be missing until migration 0005 */
-    });
-  }
   if (page === "collections") {
     const { refreshCollections } = await import("./progressPage");
     await refreshCollections().catch(() => {

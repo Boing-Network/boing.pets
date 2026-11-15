@@ -14,8 +14,8 @@ describe("multipage nav", () => {
     const html = renderHeader("fishing");
     expect(html).toContain('aria-current="page"');
     expect(html).toContain('href="/fishing.html"');
-    expect(html).toContain("Activities");
-    expect(html).toContain("Progress");
+    expect(html).toContain("Skills");
+    expect(html).not.toContain("/quests.html");
     expect(html).toContain("/world.html");
   });
 

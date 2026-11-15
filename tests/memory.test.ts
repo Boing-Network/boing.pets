@@ -22,7 +22,7 @@ describe("pet mind / memory engine", () => {
     ).toBe("play");
   });
 
-  it("suggests feed when neglected and play when playful", () => {
+  it("points a quiet character at the quarry and a playful one at the city", () => {
     const lonely = buildPetMind(
       pet,
       [{ action: "hatch", created_at: pet.created_at }],
@@ -30,7 +30,7 @@ describe("pet mind / memory engine", () => {
       pet.created_at + 5 * DAY,
     );
     expect(lonely.mood).toBe("lonely");
-    expect(lonely.suggestion.toLowerCase()).toContain("feed");
+    expect(lonely.suggestion.toLowerCase()).toContain("quarry");
 
     const playful = buildPetMind(
       pet,
@@ -44,7 +44,7 @@ describe("pet mind / memory engine", () => {
       pet.created_at + 2 * DAY,
     );
     expect(playful.favoriteActivity).toBe("play");
-    expect(playful.suggestion.toLowerCase()).toMatch(/play|lake/);
+    expect(playful.suggestion.toLowerCase()).toMatch(/canal|skate/);
     expect(playful.cues.length).toBeGreaterThan(0);
   });
 });

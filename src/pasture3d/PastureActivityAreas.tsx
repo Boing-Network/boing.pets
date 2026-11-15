@@ -46,6 +46,41 @@ function hoverHandlers() {
   };
 }
 
+/** Large painted lot so a resource site reads from the street. */
+function ResourceLot({ color, size = 11 }: { color: string; size?: number }) {
+  const half = size / 2 - 0.35;
+  return (
+    <group>
+      <mesh position={[0, 0.012, 0]} receiveShadow>
+        <boxGeometry args={[size, 0.03, size * 0.82]} />
+        <meshStandardMaterial color={color} roughness={0.96} />
+      </mesh>
+      {(
+        [
+          [-half, -half * 0.82],
+          [half, -half * 0.82],
+          [-half, half * 0.82],
+          [half, half * 0.82],
+        ] as const
+      ).map(([px, pz]) => (
+        <mesh key={`${px}:${pz}`} position={[px, 0.35, pz]} castShadow>
+          <boxGeometry args={[0.16, 0.7, 0.16]} />
+          <meshStandardMaterial color={YARD.ink} roughness={0.75} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[size * 0.34, size * 0.38, 4]} />
+        <meshStandardMaterial
+          color={YARD.accent}
+          emissive={YARD.accent}
+          emissiveIntensity={0.35}
+          roughness={0.55}
+        />
+      </mesh>
+    </group>
+  );
+}
+
 function CrystalQuarry({ x, z, y, rotY = 0, onInteract }: SitProps) {
   const label = yardLabelForLandmark("crystal-quarry");
   const rocks: Array<[number, number, number, number, number, number]> = [
@@ -61,6 +96,7 @@ function CrystalQuarry({ x, z, y, rotY = 0, onInteract }: SitProps) {
       onPointerDown={onInteract}
       {...hoverHandlers()}
     >
+      <ResourceLot color="#6e737a" />
       <mesh position={[0, 0.03, 0]} receiveShadow>
         <boxGeometry args={[4.2, 0.08, 4.0]} />
         <meshStandardMaterial color={YARD.concreteDark} roughness={1} />
@@ -114,7 +150,7 @@ function CrystalQuarry({ x, z, y, rotY = 0, onInteract }: SitProps) {
       <YardCrystalKit />
       <PastureWorldText
         position={[0, 2.45, 0]}
-        fontSize={0.34}
+        fontSize={0.46}
         anchorX="center"
         anchorY="middle"
         tag={label.tag}
@@ -134,6 +170,7 @@ function PondPier({ x, z, y, rotY = 0, onInteract }: SitProps) {
       onPointerDown={onInteract}
       {...hoverHandlers()}
     >
+      <ResourceLot color="#1a6a78" size={9} />
       <mesh position={[0, 0.08, 0]} receiveShadow>
         <boxGeometry args={[2.6, 0.12, 2.0]} />
         <meshStandardMaterial color={YARD.concrete} roughness={0.9} />
@@ -175,7 +212,7 @@ function PondPier({ x, z, y, rotY = 0, onInteract }: SitProps) {
           POND_PIER_LABEL_LOCAL.y,
           POND_PIER_LABEL_LOCAL.z,
         ]}
-        fontSize={0.32}
+        fontSize={0.46}
         anchorX="center"
         anchorY="middle"
         tag={label.tag}
@@ -195,6 +232,7 @@ function TreasureDig({ x, z, y, rotY = 0, onInteract }: SitProps) {
       onPointerDown={onInteract}
       {...hoverHandlers()}
     >
+      <ResourceLot color="#8a6a3a" />
       <mesh position={[0, 0.06, 0]} receiveShadow>
         <cylinderGeometry args={[1.75, 1.85, 0.14, 12]} />
         <meshStandardMaterial color={YARD.sand} roughness={1} />
@@ -251,7 +289,7 @@ function TreasureDig({ x, z, y, rotY = 0, onInteract }: SitProps) {
       <YardTreasureKit />
       <PastureWorldText
         position={[0, 2.45, 0]}
-        fontSize={0.32}
+        fontSize={0.46}
         anchorX="center"
         anchorY="middle"
         tag={label.tag}
@@ -276,6 +314,7 @@ function GardenBeds({ x, z, y, rotY = 0, onInteract }: SitProps) {
       onPointerDown={onInteract}
       {...hoverHandlers()}
     >
+      <ResourceLot color="#2d4f34" />
       <mesh position={[0, 0.02, 0]} receiveShadow>
         <boxGeometry args={[3.6, 0.06, 3.0]} />
         <meshStandardMaterial color={YARD.concreteDark} roughness={1} />
@@ -309,7 +348,7 @@ function GardenBeds({ x, z, y, rotY = 0, onInteract }: SitProps) {
       <YardGardenKit />
       <PastureWorldText
         position={[0, 2.4, 0]}
-        fontSize={0.32}
+        fontSize={0.46}
         anchorX="center"
         anchorY="middle"
         tag={label.tag}

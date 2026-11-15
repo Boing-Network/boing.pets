@@ -32,19 +32,19 @@ const EXPECTED: Record<
   { x: number; z: number; landmarkId: string; label: string }
 > = {
   mine: {
-    x: -43,
-    z: -7,
+    x: -40,
+    z: -9,
     landmarkId: "crystal-quarry",
     label: "Crystal Quarry",
   },
   fish: { x: 32, z: -50, landmarkId: "pond-pier", label: "Pond Pier" },
   treasure: {
-    x: -11,
-    z: 43,
+    x: -9,
+    z: 40,
     landmarkId: "treasure-dig",
     label: "Treasure Dig",
   },
-  garden: { x: -25, z: -43, landmarkId: "garden-beds", label: "Garden Beds" },
+  garden: { x: -12, z: -40, landmarkId: "garden-beds", label: "Garden Beds" },
   cook: { x: -25, z: -25, landmarkId: "kitchen-hut", label: "Pasture Kitchen" },
   race: { x: -29, z: 32, landmarkId: "race-gate", label: "Race Track" },
 };
@@ -171,12 +171,12 @@ describe("public pasture activity areas", () => {
         stationByKind(PASTURE_ZONE, "fish")!,
       ),
     ).toBe(true);
-    expect(stationPrompt(quarry)).toMatch(/mine/i);
+    expect(stationPrompt(quarry)).toMatch(/quarry/i);
     expect(stationActionLabel(stationByKind(PASTURE_ZONE, "fish")!)).toMatch(
-      /fish/i,
+      /line/i,
     );
     expect(stationPrompt(stationByKind(PASTURE_ZONE, "garden")!)).toMatch(
-      /garden/i,
+      /plot/i,
     );
   });
 

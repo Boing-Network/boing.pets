@@ -125,11 +125,16 @@ function lastOf(
   return Math.max(pet.created_at, ...times);
 }
 
-function decay(from: number, now: number, perDay: number): number {
-  return Math.max(
-    0,
-    Math.round(100 - (perDay * Math.max(0, now - from)) / DAY),
-  );
+/** Care no longer declines. Hello, play, groom, and feed are not required. */
+function fullCareVitals() {
+  return {
+    hunger: 100,
+    happiness: 100,
+    energy: 100,
+    hygiene: 100,
+    health: 100,
+    status: "bouncy" as const,
+  };
 }
 
 export function growthStage(pet: Pet, careDays: number, now: number): Stage {
@@ -179,16 +184,6 @@ export function state(pet: Pet, events: CareEvent[], now: number) {
   );
   const lastCare = Math.max(pet.created_at, ...valid.map((e) => e.created_at));
   const lastFed = lastOf(pet, valid, (e) => e.action === "feed");
-  const lastPlay = lastOf(
-    pet,
-    valid,
-    (e) => e.action === "play" || e.action === "hatch",
-  );
-  const lastGroom = lastOf(
-    pet,
-    valid,
-    (e) => e.action === "groom" || e.action === "hatch",
-  );
   const days = new Set([
     dayOf(pet.created_at),
     ...valid.map((e) => dayOf(e.created_at)),
@@ -200,21 +195,8 @@ export function state(pet: Pet, events: CareEvent[], now: number) {
     streak++;
     cursor--;
   }
-  const hunger = decay(lastFed, now, 25);
-  const happiness = decay(lastCare, now, 20);
-  const energy = decay(lastPlay, now, 15);
-  const hygiene = decay(lastGroom, now, 18);
-  const health = Math.round(
-    hunger * 0.3 + happiness * 0.25 + energy * 0.2 + hygiene * 0.25,
-  );
-  const status =
-    now - lastFed >= 4 * DAY
-      ? "stray"
-      : now - lastFed >= 2 * DAY
-        ? "scruffy"
-        : hunger < 75
-          ? "peckish"
-          : "bouncy";
+  const { hunger, happiness, energy, hygiene, health, status } =
+    fullCareVitals();
   const today = dayOf(now);
   const todayActions = new Set(
     valid.filter((e) => dayOf(e.created_at) === today).map((e) => e.action),
@@ -551,21 +533,8 @@ export function stateFromRollup(pet: Pet, rollup: CareRollup, now: number) {
     streak++;
     cursor--;
   }
-  const hunger = decay(rollup.lastFed, now, 25);
-  const happiness = decay(rollup.lastCare, now, 20);
-  const energy = decay(rollup.lastPlay, now, 15);
-  const hygiene = decay(rollup.lastGroom, now, 18);
-  const health = Math.round(
-    hunger * 0.3 + happiness * 0.25 + energy * 0.2 + hygiene * 0.25,
-  );
-  const status =
-    now - rollup.lastFed >= 4 * DAY
-      ? "stray"
-      : now - rollup.lastFed >= 2 * DAY
-        ? "scruffy"
-        : hunger < 75
-          ? "peckish"
-          : "bouncy";
+  const { hunger, happiness, energy, hygiene, health, status } =
+    fullCareVitals();
   let boinglets = 0;
   let xp = 0;
   for (const action of ACTIONS) {

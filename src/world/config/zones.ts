@@ -139,7 +139,7 @@ export const STARTER_TOWN: WorldZoneConfig = {
       kind: "care",
       position: { x: -7, y: 0, z: -7 },
       radius: 2.2,
-      hint: "Feed restores belly. Tiny testnet self-transfer.",
+      hint: "Feeding is optional. Gather on the Quarry, Plot, Line, and Sweep lots in The Yard.",
       careHref: "/#buddy",
     },
     {
@@ -148,7 +148,7 @@ export const STARTER_TOWN: WorldZoneConfig = {
       kind: "care",
       position: { x: 3, y: 0, z: 4 },
       radius: 2.6,
-      hint: "Play is a free daily signature that restores energy.",
+      hint: "Playtime is optional. The Yard resource lots do not require it.",
       careHref: "/#buddy",
     },
     {
@@ -407,7 +407,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "crystal-quarry",
       label: "Crystal Quarry",
-      position: { x: -43, y: 0, z: -7 },
+      position: { x: -40, y: 0, z: -9 },
       color: "#8a8f96",
       height: 2.2,
       width: 3.6,
@@ -425,7 +425,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "treasure-dig",
       label: "Treasure Dig",
-      position: { x: -11, y: 0, z: 43 },
+      position: { x: -9, y: 0, z: 40 },
       color: "#c9a66b",
       height: 1.15,
       width: 3.2,
@@ -434,7 +434,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "garden-beds",
       label: "Garden Beds",
-      position: { x: -25, y: 0, z: -43 },
+      position: { x: -12, y: 0, z: -40 },
       color: "#7eab62",
       height: 1.15,
       width: 3.6,
@@ -523,7 +523,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       id: "pasture-mine",
       label: "Crystal Quarry",
       kind: "mine",
-      position: { x: -43, y: 0, z: -7 },
+      position: { x: -40, y: 0, z: -9 },
       radius: 3.4,
       hint: "Press E to mine",
     },
@@ -539,7 +539,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       id: "pasture-treasure",
       label: "Treasure Dig",
       kind: "treasure",
-      position: { x: -11, y: 0, z: 43 },
+      position: { x: -9, y: 0, z: 40 },
       radius: 3.4,
       hint: "Press E to dig",
     },
@@ -547,7 +547,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       id: "pasture-garden",
       label: "Garden Beds",
       kind: "garden",
-      position: { x: -25, y: 0, z: -43 },
+      position: { x: -12, y: 0, z: -40 },
       radius: 3.4,
       hint: "Press E to tend the garden",
     },
@@ -602,6 +602,19 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       { x: 20, y: 0.02, z: -46.88 },
       { x: 28.12, y: 0.02, z: -50 },
       { x: 25.742, y: 0.02, z: -47.794 },
+    ],
+    // Short spurs from the outer streets onto the resource lots.
+    [
+      { x: -36, y: 0.02, z: -9 },
+      { x: -40, y: 0.02, z: -9 },
+    ],
+    [
+      { x: -12, y: 0.02, z: -36 },
+      { x: -12, y: 0.02, z: -40 },
+    ],
+    [
+      { x: -9, y: 0.02, z: 36 },
+      { x: -9, y: 0.02, z: 40 },
     ],
   ],
 };

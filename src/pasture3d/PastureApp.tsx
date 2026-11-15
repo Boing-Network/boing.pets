@@ -109,7 +109,7 @@ import {
 } from "./fullscreen";
 import { WalkthroughCard } from "../onboarding/WalkthroughCard";
 import { AdventureHudChip, useAdventureDesk } from "./AdventureHudChip";
-import { DailyQuestChip, useDailyProgress } from "./DailyQuestChip";
+import { useDailyProgress } from "./DailyQuestChip";
 import { PastureSessionRecap } from "./PastureSessionRecap";
 import { noticeWalletError } from "../ui/appRuntime";
 import { careVitalsFromPet } from "./petMood";
@@ -1011,7 +1011,6 @@ export function PastureApp({
         </div>
       ) : null}
       <PastureSessionRecap owner={owner} onOpenChange={setRecapOpen} />
-      <DailyQuestChip progress={dailyProgress} nearby={nearbyProgress} />
       <AdventureHudChip
         desk={adventureDesk}
         hidden={!!stationMenu}
@@ -1042,9 +1041,7 @@ export function PastureApp({
         onGuideTo={(step) => {
           if (step === "visit-area") walkToAndOpen("mine");
           else if (step === "visit-station") walkToAndOpen("craft");
-          else if (step === "pet-care") {
-            document.getElementById("buddy-chip")?.click();
-          }
+          else if (step === "pet-care") walkToAndOpen("mine");
         }}
       />
       <PastureTouchControls
@@ -1066,10 +1063,10 @@ export function PastureApp({
           <p>
             WASD or the arrow keys move your character, relative to the camera.
             Click the view to look around with the mouse, and press Esc to
-            release the cursor. Use the joystick on a small screen. Press Enter
-            to chat. The Drop is a couple of blocks southeast, and each other
-            station has its own block. Use + / - or the buttons to zoom, and 0
-            to reset.
+            release the cursor. Train on the painted lots: Quarry on the west
+            avenue, Plot on the south street, Sweep on the north street, and
+            Line at the canal. Bank at the Block Vault. There are no quests, and
+            the character does not need feeding or playtime.
           </p>
           <button type="button" className="quiet" onClick={dismissHint}>
             Got it
@@ -1266,7 +1263,7 @@ export function PastureApp({
             <PastureActivityAreas
               preferPerf={preferPerf}
               onInteract={onStationInteract}
-              showVault={quarryOn}
+              showVault
             />
             <StationProximity
               poseRef={livePose}

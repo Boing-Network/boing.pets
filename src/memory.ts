@@ -130,24 +130,18 @@ export function buildPetMind(
     mood = "tired";
 
   const cues: string[] = [];
-  if (daysSinceFeed >= 2)
-    cues.push("Belly rumbles — a feed would mean the world.");
-  if (daysSinceCare >= 1 && daysSinceCare < 3)
-    cues.push("Missed yesterday's bounce a little.");
   if (favorite !== "none")
     cues.push(`Favorite ritual lately: ${ACTIVITY_LABEL[favorite]}.`);
   cues.push(personalityCue(personality, favorite));
+  cues.push("Quarry, Plot, Line, and Sweep are on the outer streets.");
 
-  let suggestion = "A short hello keeps the bond warm.";
-  if (daysSinceFeed >= 2) suggestion = "Please feed me before we explore.";
-  else if (favorite === "play" || mood === "playful")
-    suggestion = "Can we play, then visit the lake pads in Starter Town?";
-  else if (favorite === "groom")
-    suggestion = "A groom would make me parade-ready for the plaza.";
+  let suggestion = "The resource lots are open. Nothing here needs feeding.";
+  if (favorite === "play" || mood === "playful")
+    suggestion = "The canal and the skate park are both a short walk.";
   else if (mood === "curious")
     suggestion = "Let's peek at the Marketplace board together.";
   else if (mood === "lonely")
-    suggestion = "Just checking in would help me feel found again.";
+    suggestion = "The Quarry on the west avenue is a good place to start.";
 
   return {
     mood,
@@ -191,24 +185,18 @@ export function buildPetMindFromRollup(
     mood = "tired";
 
   const cues: string[] = [];
-  if (daysSinceFeed >= 2)
-    cues.push("Belly rumbles — a feed would mean the world.");
-  if (daysSinceCare >= 1 && daysSinceCare < 3)
-    cues.push("Missed yesterday's bounce a little.");
   if (favorite !== "none")
     cues.push(`Favorite ritual lately: ${ACTIVITY_LABEL[favorite]}.`);
   cues.push(personalityCue(personality, favorite));
+  cues.push("Quarry, Plot, Line, and Sweep are on the outer streets.");
 
-  let suggestion = "A short hello keeps the bond warm.";
-  if (daysSinceFeed >= 2) suggestion = "Please feed me before we explore.";
-  else if (favorite === "play" || mood === "playful")
-    suggestion = "Can we play, then visit the lake pads in Starter Town?";
-  else if (favorite === "groom")
-    suggestion = "A groom would make me parade-ready for the plaza.";
+  let suggestion = "The resource lots are open. Nothing here needs feeding.";
+  if (favorite === "play" || mood === "playful")
+    suggestion = "The canal and the skate park are both a short walk.";
   else if (mood === "curious")
     suggestion = "Let's peek at the Marketplace board together.";
   else if (mood === "lonely")
-    suggestion = "Just checking in would help me feel found again.";
+    suggestion = "The Quarry on the west avenue is a good place to start.";
 
   return {
     mood,

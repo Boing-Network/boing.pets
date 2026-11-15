@@ -71,31 +71,44 @@ describe("lazy care and streaks", () => {
       xp: 0,
     });
   });
-  it("becomes scruffy then stray without deleting identity", () => {
-    expect(state(pet, [], created + 2 * DAY).status).toBe("scruffy");
+  it("stays full without feeding or play, and keeps its identity", () => {
+    expect(state(pet, [], created + 2 * DAY).status).toBe("bouncy");
     expect(state(pet, [], created + 4 * DAY)).toMatchObject({
-      hunger: 0,
-      status: "stray",
+      hunger: 100,
+      energy: 100,
+      hygiene: 100,
+      happiness: 100,
+      status: "bouncy",
       streak: 0,
     });
   });
-  it("a feed always revives, even after a year", () => {
+  it("a feed still logs, and vitals stay full after a year", () => {
     const now = created + 365 * DAY;
     expect(
       state(pet, [{ action: "feed", created_at: now }], now),
-    ).toMatchObject({ hunger: 100, status: "bouncy", streak: 1 });
+    ).toMatchObject({
+      hunger: 100,
+      status: "bouncy",
+      streak: 1,
+      fedToday: true,
+    });
   });
-  it("a signed hello increases joy, but does not feed a stray", () => {
+  it("a signed hello does not change vitals", () => {
     const now = created + 5 * DAY;
     expect(
       state(pet, [{ action: "checkin", created_at: now }], now),
-    ).toMatchObject({ happiness: 100, hunger: 0, status: "stray" });
+    ).toMatchObject({
+      happiness: 100,
+      hunger: 100,
+      status: "bouncy",
+      checkedIn: true,
+    });
   });
-  it("play and groom restore energy and hygiene", () => {
+  it("play and groom stay logged while energy and hygiene stay full", () => {
     const now = created + 3 * DAY;
-    const tired = state(pet, [], now);
-    expect(tired.energy).toBeLessThan(100);
-    expect(tired.hygiene).toBeLessThan(100);
+    const idle = state(pet, [], now);
+    expect(idle.energy).toBe(100);
+    expect(idle.hygiene).toBe(100);
     expect(
       state(
         pet,

@@ -22,11 +22,11 @@ export const BAG_EMPTY_COPY: Record<
   },
   crops: {
     title: "No crops in the bag yet.",
-    hint: "Tend the City Garden on the block, then harvest to fill this pocket.",
+    hint: "Tend Plot on the south street, then harvest to fill this pocket.",
   },
   fish: {
     title: "No fish in the bag yet.",
-    hint: "Walk to The Canal and fish to catch something for this pocket.",
+    hint: "Walk to Line on the canal and fish to catch something for this pocket.",
   },
   recipes: {
     title: "No recipes ready to cook.",
