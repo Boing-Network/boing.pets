@@ -1,0 +1,17 @@
+{
+  "itemId": 83,
+  "gameItemId": "hat-phones",
+  "name": "Yard Cans",
+  "description": "Chunky headphones. Cosmetic only.",
+  "image": "https://boing-pets.nico-chikuji.workers.dev/items/hat-phones.svg",
+  "attributes": [
+    {
+      "trait_type": "Category",
+      "value": "Cosmetic"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Rare"
+    }
+  ]
+}

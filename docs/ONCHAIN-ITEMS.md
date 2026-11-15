@@ -133,7 +133,7 @@ contract admin, withdrawals pause with 503 and no inventory is touched.
 ## Prepared metadata for new item ids (do not broadcast yet)
 
 New mapped ids fill reserved gaps in each band: ores 4-5, fish 13-14, loot
-23-24, crops 33-34, food 43-44, tools 63, cosmetics 77-79. Reserved ids 50-52
+23-24, crops 33-34, food 43-44, tools 63, cosmetics 77-86. Reserved ids 50-52
 and 60 stay unused. JSON drafts for the new ids are in `docs/metadata/items/`,
 including name, description, the hosted image URL
 (`https://boing-pets.nico-chikuji.workers.dev/items/<gameItemId>.svg`),

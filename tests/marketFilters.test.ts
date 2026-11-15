@@ -180,7 +180,7 @@ describe("market listing filters", () => {
 describe("item guide membership", () => {
   it("assigns a rarity and market category to every mapped item", () => {
     const rows = itemGuide().filter((row) => row.onChain);
-    expect(rows.length).toBe(38);
+    expect(rows.length).toBe(45);
     for (const row of rows) {
       expect(row.rarity).toBeTruthy();
       expect(row.category).toBeTruthy();
@@ -191,6 +191,9 @@ describe("item guide membership", () => {
     expect(itemRarity("hat-stardust")).toBe("legendary");
     expect(itemMarketCategory("furn-lantern")).toBe("furniture");
     expect(itemMarketCategory("hat-leaf")).toBe("cosmetics");
+    expect(itemMarketCategory("hat-beanie")).toBe("cosmetics");
+    expect(itemMarketCategory("frame-shades")).toBe("cosmetics");
+    expect(isSellableItem("hat-phones")).toBe(true);
   });
 
   it("keeps reserved ids off the market and off the on-chain map", () => {

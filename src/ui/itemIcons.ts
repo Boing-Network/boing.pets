@@ -176,6 +176,27 @@ const ITEM_ICONS: Record<string, string> = {
   "hat-leaf": svg(
     '<rect width="64" height="64" rx="16" fill="#16321c"/><ellipse cx="32" cy="42" rx="16" ry="9" fill="#3d5a3a"/><path d="M20 30c8-16 24-16 24 2-8 2-16 2-24-2z" fill="#7ddea0"/><path d="M32 16v20" stroke="#16321c" stroke-width="2"/>',
   ),
+  "hat-beanie": svg(
+    '<rect width="64" height="64" rx="16" fill="#1a1a1c"/><path d="M14 36c4-14 32-14 36 0v8H14z" fill="#2a2a30"/><rect x="14" y="36" width="36" height="8" rx="3" fill="#ff4d00"/><circle cx="34" cy="28" r="3" fill="#f5f5f0"/>',
+  ),
+  "hat-cap": svg(
+    '<rect width="64" height="64" rx="16" fill="#141418"/><path d="M18 34h28v8H18z" fill="#1c1c22"/><path d="M16 40h36l-4 6H20z" fill="#2a2a30"/><rect x="28" y="30" width="8" height="6" fill="#ff4d00"/>',
+  ),
+  "hat-bucket": svg(
+    '<rect width="64" height="64" rx="16" fill="#2a2316"/><path d="M20 28h24v12H20z" fill="#e8d7b0"/><path d="M12 38h40v4H12z" fill="#f4ead0"/><rect x="20" y="32" width="24" height="3" fill="#ff4d00"/>',
+  ),
+  "hat-phones": svg(
+    '<rect width="64" height="64" rx="16" fill="#1a1a1c"/><path d="M18 24c0-8 28-8 28 0" fill="none" stroke="#2a2a30" stroke-width="4"/><rect x="12" y="24" width="10" height="16" rx="4" fill="#2a2a30"/><rect x="42" y="24" width="10" height="16" rx="4" fill="#2a2a30"/><rect x="14" y="28" width="6" height="8" rx="2" fill="#ff4d00"/>',
+  ),
+  "frame-chain": svg(
+    '<rect width="64" height="64" rx="16" fill="#2a2316"/><circle cx="20" cy="36" r="5" fill="#e8b15a"/><circle cx="32" cy="40" r="5" fill="#e8b15a"/><circle cx="44" cy="36" r="5" fill="#e8b15a"/>',
+  ),
+  "frame-hoops": svg(
+    '<rect width="64" height="64" rx="16" fill="#1c242c"/><circle cx="22" cy="32" r="10" fill="none" stroke="#d7dde8" stroke-width="4"/><circle cx="42" cy="32" r="10" fill="none" stroke="#d7dde8" stroke-width="4"/>',
+  ),
+  "frame-shades": svg(
+    '<rect width="64" height="64" rx="16" fill="#141418"/><rect x="10" y="26" width="18" height="12" rx="2" fill="#1c2430"/><rect x="36" y="26" width="18" height="12" rx="2" fill="#1c2430"/><rect x="28" y="30" width="8" height="3" fill="#2a2a30"/><rect x="14" y="29" width="10" height="6" fill="#7fd0ff"/><rect x="40" y="29" width="10" height="6" fill="#ff4d00"/>',
+  ),
   "hat-comet": svg(
     '<rect width="64" height="64" rx="16" fill="#121830"/><ellipse cx="32" cy="42" rx="14" ry="8" fill="#7fa7ff"/><path d="M18 30c8-8 16-14 22-16 2 6 2 12-2 16-8 2-16 2-20 0z" fill="#8fd4ff"/><circle cx="42" cy="16" r="5" fill="#ffd27a"/>',
   ),

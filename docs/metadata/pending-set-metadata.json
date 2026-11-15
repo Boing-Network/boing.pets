@@ -145,6 +145,76 @@
       "metadataHash": "0xf378ed9fbd1c675caea54508230945d4ade743b40a12e07fe6627db990494474",
       "calldata": "0x0000000000000000000000000000000000000000000000000000000000000023000000000000000000000000000000000000000000000000000000000000004ff378ed9fbd1c675caea54508230945d4ade743b40a12e07fe6627db990494474",
       "command": "boing items set-metadata --item 79 --file docs/metadata/items/79-hat-comet.json"
+    },
+    {
+      "itemId": 80,
+      "gameItemId": "hat-beanie",
+      "name": "Night Beanie",
+      "metadataFile": "docs/metadata/items/80-hat-beanie.json",
+      "image": "https://boing-pets.nico-chikuji.workers.dev/items/hat-beanie.svg",
+      "metadataHash": "0x72bdea78a9e1a655e8d9686ef0297eedda1c46c394525b44617fbd637abc4118",
+      "calldata": "0x0000000000000000000000000000000000000000000000000000000000000023000000000000000000000000000000000000000000000000000000000000005072bdea78a9e1a655e8d9686ef0297eedda1c46c394525b44617fbd637abc4118",
+      "command": "boing items set-metadata --item 80 --file docs/metadata/items/80-hat-beanie.json"
+    },
+    {
+      "itemId": 81,
+      "gameItemId": "hat-cap",
+      "name": "Block Cap",
+      "metadataFile": "docs/metadata/items/81-hat-cap.json",
+      "image": "https://boing-pets.nico-chikuji.workers.dev/items/hat-cap.svg",
+      "metadataHash": "0x50ade253f7bfc84064d785191b4fcfc63bcac03db4655aee64d5f07fe1013955",
+      "calldata": "0x0000000000000000000000000000000000000000000000000000000000000023000000000000000000000000000000000000000000000000000000000000005150ade253f7bfc84064d785191b4fcfc63bcac03db4655aee64d5f07fe1013955",
+      "command": "boing items set-metadata --item 81 --file docs/metadata/items/81-hat-cap.json"
+    },
+    {
+      "itemId": 82,
+      "gameItemId": "hat-bucket",
+      "name": "Lot Bucket",
+      "metadataFile": "docs/metadata/items/82-hat-bucket.json",
+      "image": "https://boing-pets.nico-chikuji.workers.dev/items/hat-bucket.svg",
+      "metadataHash": "0x5963b73ef016c4abd61b82209849d43d9a9f2643d615b79c60a29665678983c1",
+      "calldata": "0x000000000000000000000000000000000000000000000000000000000000002300000000000000000000000000000000000000000000000000000000000000525963b73ef016c4abd61b82209849d43d9a9f2643d615b79c60a29665678983c1",
+      "command": "boing items set-metadata --item 82 --file docs/metadata/items/82-hat-bucket.json"
+    },
+    {
+      "itemId": 83,
+      "gameItemId": "hat-phones",
+      "name": "Yard Cans",
+      "metadataFile": "docs/metadata/items/83-hat-phones.json",
+      "image": "https://boing-pets.nico-chikuji.workers.dev/items/hat-phones.svg",
+      "metadataHash": "0x57c2e68a0ca74ba4a125d711f2c86fbc6c6ad0d7ee7b3c7b473d7074650dce0a",
+      "calldata": "0x0000000000000000000000000000000000000000000000000000000000000023000000000000000000000000000000000000000000000000000000000000005357c2e68a0ca74ba4a125d711f2c86fbc6c6ad0d7ee7b3c7b473d7074650dce0a",
+      "command": "boing items set-metadata --item 83 --file docs/metadata/items/83-hat-phones.json"
+    },
+    {
+      "itemId": 84,
+      "gameItemId": "frame-chain",
+      "name": "Curb Chain",
+      "metadataFile": "docs/metadata/items/84-frame-chain.json",
+      "image": "https://boing-pets.nico-chikuji.workers.dev/items/frame-chain.svg",
+      "metadataHash": "0x2aa42601162f3908bb251b4617e09c1bb0b8425c44ef3335793a12dbbe12a27c",
+      "calldata": "0x000000000000000000000000000000000000000000000000000000000000002300000000000000000000000000000000000000000000000000000000000000542aa42601162f3908bb251b4617e09c1bb0b8425c44ef3335793a12dbbe12a27c",
+      "command": "boing items set-metadata --item 84 --file docs/metadata/items/84-frame-chain.json"
+    },
+    {
+      "itemId": 85,
+      "gameItemId": "frame-hoops",
+      "name": "Signal Hoops",
+      "metadataFile": "docs/metadata/items/85-frame-hoops.json",
+      "image": "https://boing-pets.nico-chikuji.workers.dev/items/frame-hoops.svg",
+      "metadataHash": "0x85c9f6912cb77c74705074edfd3944898050f4cfcbd99771061e1207026823db",
+      "calldata": "0x0000000000000000000000000000000000000000000000000000000000000023000000000000000000000000000000000000000000000000000000000000005585c9f6912cb77c74705074edfd3944898050f4cfcbd99771061e1207026823db",
+      "command": "boing items set-metadata --item 85 --file docs/metadata/items/85-frame-hoops.json"
+    },
+    {
+      "itemId": 86,
+      "gameItemId": "frame-shades",
+      "name": "Block Shades",
+      "metadataFile": "docs/metadata/items/86-frame-shades.json",
+      "image": "https://boing-pets.nico-chikuji.workers.dev/items/frame-shades.svg",
+      "metadataHash": "0x920ff0a70144a68de9d87032ebb7bc201259d67982ae30dd60cb23f078d1fad7",
+      "calldata": "0x00000000000000000000000000000000000000000000000000000000000000230000000000000000000000000000000000000000000000000000000000000056920ff0a70144a68de9d87032ebb7bc201259d67982ae30dd60cb23f078d1fad7",
+      "command": "boing items set-metadata --item 86 --file docs/metadata/items/86-frame-shades.json"
     }
   ]
 }

@@ -103,6 +103,9 @@ describe("item expansion recipes and drops", () => {
     expect(onchainItemByGameId("fish-starfin")?.itemId).toBe(14);
     expect(onchainItemByGameId("tool-pick-aether")?.itemId).toBe(63);
     expect(onchainItemByGameId("hat-comet")?.itemId).toBe(79);
+    expect(onchainItemByGameId("hat-beanie")?.itemId).toBe(80);
+    expect(onchainItemByGameId("hat-phones")?.itemId).toBe(83);
+    expect(onchainItemByGameId("frame-shades")?.itemId).toBe(86);
     for (const reserved of ONCHAIN_RESERVED_ITEM_IDS) {
       expect(onchainItemByGameId(reserved.gameItemId)).toBeUndefined();
       expect(isSellableItem(reserved.gameItemId)).toBe(false);

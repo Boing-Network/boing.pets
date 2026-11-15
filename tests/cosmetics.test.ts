@@ -12,6 +12,10 @@ describe("cosmetic slots", () => {
     expect(slotForCosmetic("hat-antenna")).toBe("hat");
     expect(slotForCosmetic("hat-leaf")).toBe("hat");
     expect(slotForCosmetic("hat-comet")).toBe("hat");
+    expect(slotForCosmetic("hat-beanie")).toBe("hat");
+    expect(slotForCosmetic("hat-phones")).toBe("hat");
+    expect(slotForCosmetic("frame-chain")).toBe("accessory");
+    expect(slotForCosmetic("frame-shades")).toBe("accessory");
     expect(slotForCosmetic("hat-stardust")).toBe("hat");
     expect(slotForCosmetic("frame-gold")).toBe("accessory");
     expect(slotForCosmetic("frame-aurora")).toBe("accessory");

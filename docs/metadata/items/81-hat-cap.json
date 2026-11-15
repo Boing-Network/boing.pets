@@ -1,0 +1,17 @@
+{
+  "itemId": 81,
+  "gameItemId": "hat-cap",
+  "name": "Block Cap",
+  "description": "A snapback with a flat brim. Cosmetic only.",
+  "image": "https://boing-pets.nico-chikuji.workers.dev/items/hat-cap.svg",
+  "attributes": [
+    {
+      "trait_type": "Category",
+      "value": "Cosmetic"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Common"
+    }
+  ]
+}

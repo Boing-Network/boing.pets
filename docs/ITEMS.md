@@ -65,6 +65,13 @@ touches the operator key).
 | 77  | hat-leaf          | Leaf Cap         | Cosmetics | Uncommon  | Care drop, craft, or catalog          | yes      | yes      |
 | 78  | furn-lantern      | Glow Lantern     | Furniture | Rare      | Care drop, craft, or catalog          | yes      | yes      |
 | 79  | hat-comet         | Comet Pin        | Cosmetics | Epic      | Care drop, craft, or Sparkles catalog | yes      | yes      |
+| 80  | hat-beanie        | Night Beanie     | Cosmetics | Uncommon  | Catalog or Night Market dispatch      | yes      | yes      |
+| 81  | hat-cap           | Block Cap        | Cosmetics | Common    | Catalog                               | yes      | yes      |
+| 82  | hat-bucket        | Lot Bucket       | Cosmetics | Uncommon  | Catalog                               | yes      | yes      |
+| 83  | hat-phones        | Yard Cans        | Cosmetics | Rare      | Catalog                               | yes      | yes      |
+| 84  | frame-chain       | Curb Chain       | Cosmetics | Rare      | Catalog                               | yes      | yes      |
+| 85  | frame-hoops       | Signal Hoops     | Cosmetics | Epic      | Catalog                               | yes      | yes      |
+| 86  | frame-shades      | Block Shades     | Cosmetics | Uncommon  | Catalog                               | yes      | yes      |
 | -   | crop-forage       | Foraged Greens   | Crops     | Common    | Garden forage (off-chain craft input) | no       | no       |
 
 Market exclusions are unchanged: pets, Wood Pick, ribbons 50-52, equipped or

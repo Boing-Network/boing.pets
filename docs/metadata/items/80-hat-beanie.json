@@ -1,0 +1,17 @@
+{
+  "itemId": 80,
+  "gameItemId": "hat-beanie",
+  "name": "Night Beanie",
+  "description": "A slouchy vinyl beanie. Cosmetic only.",
+  "image": "https://boing-pets.nico-chikuji.workers.dev/items/hat-beanie.svg",
+  "attributes": [
+    {
+      "trait_type": "Category",
+      "value": "Cosmetic"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Uncommon"
+    }
+  ]
+}

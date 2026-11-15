@@ -16,7 +16,10 @@ import { itemGuide } from "../src/content/items";
 import { hasItemIcon, itemIconSvg } from "../src/ui/itemIcons";
 
 const ORIGIN = "https://boing-pets.nico-chikuji.workers.dev";
-const NEW_ITEM_IDS = [4, 5, 13, 14, 23, 24, 33, 34, 43, 44, 63, 77, 78, 79];
+const NEW_ITEM_IDS = [
+  4, 5, 13, 14, 23, 24, 33, 34, 43, 44, 63, 77, 78, 79, 80, 81, 82, 83, 84, 85,
+  86,
+];
 
 type PendingWrite = {
   itemId: number;

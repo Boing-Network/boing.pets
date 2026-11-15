@@ -101,6 +101,10 @@ function Hat({ id, hatY }: { id: string; hatY?: number }) {
   if (id === "hat-stardust") return <NeonHalo y={y} />;
   if (id === "hat-leaf") return <FernCap y={y} />;
   if (id === "hat-comet") return <CometPin y={y} />;
+  if (id === "hat-beanie") return <NightBeanie y={y} />;
+  if (id === "hat-cap") return <BlockCap y={y} />;
+  if (id === "hat-bucket") return <LotBucket y={y} />;
+  if (id === "hat-phones") return <YardCans y={y} />;
   return <StreetRibbon y={y} />;
 }
 
@@ -229,6 +233,97 @@ function CometPin({ y }: { y: number }) {
   );
 }
 
+function NightBeanie({ y }: { y: number }) {
+  return (
+    <group position={[0, y, 0]}>
+      <ToonPart color="#1c1c22" position={[0, 0.1, 0]}>
+        <sphereGeometry
+          args={[0.2, 16, 12, 0, Math.PI * 2, 0, Math.PI / 1.7]}
+        />
+      </ToonPart>
+      <ToonPart color="#ff4d00" position={[0, 0.02, 0]}>
+        <cylinderGeometry args={[0.2, 0.205, 0.05, 16]} />
+      </ToonPart>
+      <ToonPart color="#f5f5f0" position={[0.02, 0.16, 0.04]}>
+        <sphereGeometry args={[0.035, 8, 8]} />
+      </ToonPart>
+    </group>
+  );
+}
+
+function BlockCap({ y }: { y: number }) {
+  return (
+    <group position={[0, y, 0]}>
+      <ToonPart color="#141418" position={[0, 0.08, 0]}>
+        <cylinderGeometry args={[0.16, 0.17, 0.12, 16]} />
+      </ToonPart>
+      <ToonPart color="#141418" position={[0, 0.14, 0]}>
+        <sphereGeometry args={[0.15, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
+      </ToonPart>
+      <ToonPart
+        color="#2a2a30"
+        position={[0, 0.02, 0.12]}
+        rotation={[0.15, 0, 0]}
+      >
+        <boxGeometry args={[0.28, 0.025, 0.16]} />
+      </ToonPart>
+      <ToonPart color="#ff4d00" position={[0, 0.08, 0.16]}>
+        <boxGeometry args={[0.08, 0.04, 0.012]} />
+      </ToonPart>
+    </group>
+  );
+}
+
+function LotBucket({ y }: { y: number }) {
+  return (
+    <group position={[0, y, 0]}>
+      <ToonPart color="#e8d7b0" position={[0, 0.08, 0]}>
+        <cylinderGeometry args={[0.16, 0.18, 0.12, 16]} />
+      </ToonPart>
+      <ToonPart
+        color="#f4ead0"
+        position={[0, 0.02, 0]}
+        rotation={[Math.PI / 2, 0, 0]}
+      >
+        <cylinderGeometry args={[0.28, 0.28, 0.02, 20]} />
+      </ToonPart>
+      <ToonPart color="#ff4d00" position={[0, 0.08, 0]}>
+        <torusGeometry args={[0.17, 0.012, 8, 20]} />
+      </ToonPart>
+    </group>
+  );
+}
+
+function YardCans({ y }: { y: number }) {
+  return (
+    <group position={[0, y - 0.22, 0]}>
+      <ToonPart color="#1c1c22">
+        <torusGeometry args={[0.2, 0.022, 8, 20, Math.PI]} />
+      </ToonPart>
+      {([-0.2, 0.2] as const).map((x) => (
+        <ToonPart
+          key={x}
+          color="#2a2a30"
+          position={[x, 0, 0.02]}
+          rotation={[0, 0, Math.PI / 2]}
+        >
+          <cylinderGeometry args={[0.078, 0.078, 0.055, 12]} />
+        </ToonPart>
+      ))}
+      {([-0.2, 0.2] as const).map((x) => (
+        <ToonPart
+          key={`pad-${x}`}
+          color="#ff4d00"
+          position={[x * 0.86, 0, 0.03]}
+          rotation={[0, 0, Math.PI / 2]}
+        >
+          <cylinderGeometry args={[0.045, 0.045, 0.016, 10]} />
+        </ToonPart>
+      ))}
+    </group>
+  );
+}
+
 function Accessory({
   id,
   y,
@@ -238,6 +333,9 @@ function Accessory({
   y?: number;
   radius?: number;
 }) {
+  if (id === "frame-chain") return <CurbChain y={y} />;
+  if (id === "frame-hoops") return <SignalHoops y={y} />;
+  if (id === "frame-shades") return <BlockShades y={y} />;
   const aurora = id === "frame-aurora";
   const ring = radius ?? 0.34;
   return (
@@ -315,6 +413,79 @@ export function HeldPick({ id }: { id: string }) {
         rotation={[0.5, 0, 0.9]}
       >
         <coneGeometry args={[0.035, 0.1, 6]} />
+      </ToonPart>
+    </group>
+  );
+}
+
+function CurbChain({ y }: { y?: number }) {
+  const beads = [-0.9, -0.45, 0, 0.45, 0.9];
+  return (
+    <group position={[0, (y ?? 0.32) - 0.08, 0]}>
+      {beads.map((angle) => (
+        <ToonPart
+          key={angle}
+          color="#e8b15a"
+          emissive="#8a5a18"
+          emissiveIntensity={0.15}
+          position={[
+            Math.sin(angle) * 0.22,
+            -Math.cos(angle) * 0.04,
+            Math.cos(angle) * 0.16,
+          ]}
+        >
+          <sphereGeometry args={[0.035, 10, 8]} />
+        </ToonPart>
+      ))}
+    </group>
+  );
+}
+
+function SignalHoops({ y }: { y?: number }) {
+  return (
+    <group position={[0, (y ?? 0.32) + 0.39, 0.02]}>
+      {([-0.22, 0.22] as const).map((x) => (
+        <ToonPart
+          key={x}
+          color="#d7dde8"
+          emissive="#8aa0b8"
+          emissiveIntensity={0.12}
+          position={[x, 0, 0]}
+          rotation={[0, Math.PI / 2, 0]}
+        >
+          <torusGeometry args={[0.07, 0.014, 8, 18]} />
+        </ToonPart>
+      ))}
+    </group>
+  );
+}
+
+function BlockShades({ y }: { y?: number }) {
+  return (
+    <group position={[0, (y ?? 0.32) + 0.4, 0.2]}>
+      <ToonPart color="#141418" position={[0, 0, 0]}>
+        <boxGeometry args={[0.34, 0.016, 0.016]} />
+      </ToonPart>
+      {([-0.1, 0.1] as const).map((x) => (
+        <ToonPart key={x} color="#1c2430" position={[x, -0.02, 0.012]}>
+          <boxGeometry args={[0.15, 0.07, 0.016]} />
+        </ToonPart>
+      ))}
+      <ToonPart
+        color="#7fd0ff"
+        emissive="#3aa0ff"
+        emissiveIntensity={0.25}
+        position={[-0.1, -0.02, 0.022]}
+      >
+        <boxGeometry args={[0.1, 0.04, 0.008]} />
+      </ToonPart>
+      <ToonPart
+        color="#ff4d00"
+        emissive="#ff6a1a"
+        emissiveIntensity={0.2}
+        position={[0.1, -0.02, 0.022]}
+      >
+        <boxGeometry args={[0.1, 0.04, 0.008]} />
       </ToonPart>
     </group>
   );

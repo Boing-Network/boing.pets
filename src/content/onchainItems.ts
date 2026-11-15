@@ -38,7 +38,7 @@ export interface OnchainItemDef {
 /**
  * Fixed item-id table for every stackable, tradable inventory item.
  * New ids fill reserved gaps in each band (ores 4-5, fish 13-14, loot 23-24,
- * crops 33-34, food 43-44, tools 63, cosmetics 77-79).
+ * crops 33-34, food 43-44, tools 63, cosmetics 77-86).
  * Gaps between bands are reserved for future items in that category.
  * Pets stay unique NFTs (not listed here). Species/discovery collection
  * entries and cook-book recipe defs are achievements or recipes, not inventory
@@ -264,6 +264,48 @@ export const ONCHAIN_ITEMS: readonly OnchainItemDef[] = [
     gameItemId: "hat-comet",
     itemId: 79,
     name: "Comet Pin",
+    category: "cosmetic",
+  },
+  {
+    gameItemId: "hat-beanie",
+    itemId: 80,
+    name: "Night Beanie",
+    category: "cosmetic",
+  },
+  {
+    gameItemId: "hat-cap",
+    itemId: 81,
+    name: "Block Cap",
+    category: "cosmetic",
+  },
+  {
+    gameItemId: "hat-bucket",
+    itemId: 82,
+    name: "Lot Bucket",
+    category: "cosmetic",
+  },
+  {
+    gameItemId: "hat-phones",
+    itemId: 83,
+    name: "Yard Cans",
+    category: "cosmetic",
+  },
+  {
+    gameItemId: "frame-chain",
+    itemId: 84,
+    name: "Curb Chain",
+    category: "cosmetic",
+  },
+  {
+    gameItemId: "frame-hoops",
+    itemId: 85,
+    name: "Signal Hoops",
+    category: "cosmetic",
+  },
+  {
+    gameItemId: "frame-shades",
+    itemId: 86,
+    name: "Block Shades",
     category: "cosmetic",
   },
 ];

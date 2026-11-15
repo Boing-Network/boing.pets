@@ -1,0 +1,17 @@
+{
+  "itemId": 85,
+  "gameItemId": "frame-hoops",
+  "name": "Signal Hoops",
+  "description": "A pair of hoop earrings. Cosmetic only.",
+  "image": "https://boing-pets.nico-chikuji.workers.dev/items/frame-hoops.svg",
+  "attributes": [
+    {
+      "trait_type": "Category",
+      "value": "Cosmetic"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Epic"
+    }
+  ]
+}
