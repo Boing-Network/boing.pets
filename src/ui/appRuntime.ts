@@ -16,6 +16,7 @@ import {
   saveSocialSession,
 } from "../social/sessionCache";
 import type { BoingProvider, WalletProviderKind } from "../wallet/session";
+import { pastureToastDismissMs } from "./toastDismiss";
 
 export type Provider = BoingProvider;
 export type ViewPet = Pet & {
@@ -115,14 +116,34 @@ function fillNotice(
   }
 }
 
+let pastureToastTimer: ReturnType<typeof setTimeout> | null = null;
+
+function armPastureToastDismiss(toast: HTMLElement, retry?: () => void) {
+  if (pastureToastTimer) {
+    clearTimeout(pastureToastTimer);
+    pastureToastTimer = null;
+  }
+  const ms = pastureToastDismissMs(retry);
+  if (ms == null) return;
+  pastureToastTimer = setTimeout(() => {
+    toast.hidden = true;
+    pastureToastTimer = null;
+  }, ms);
+}
+
 function showPastureTxToast(text: string, error: boolean, retry?: () => void) {
   const canvas = $maybe("#pasture-canvas");
   let toast = document.querySelector(".pasture-tx-toast") as HTMLElement | null;
   if (!error && !retry) {
     if (toast && !document.querySelector("#notice")) {
       fillNotice(toast, text, false);
+      armPastureToastDismiss(toast);
     } else if (toast) {
       toast.hidden = true;
+      if (pastureToastTimer) {
+        clearTimeout(pastureToastTimer);
+        pastureToastTimer = null;
+      }
     }
     return;
   }
@@ -139,6 +160,7 @@ function showPastureTxToast(text: string, error: boolean, retry?: () => void) {
     host.append(toast);
   }
   fillNotice(toast, text, error, retry);
+  armPastureToastDismiss(toast, retry);
 }
 
 export function noticeWalletError(error: unknown, retry?: () => void) {
