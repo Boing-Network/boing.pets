@@ -15,8 +15,8 @@
     "RPC_URL": "https://testnet-rpc.boing.network",
     // Flip to "off" and redeploy to halt new lists/buys without touching payouts.
     "MARKET_WRITES": "on",
-    // Quarry gather loop. Off until a deploy is approved and migration 0030 is applied.
-    "GATHER_QUARRY": "off",
+    // Quarry gather loop. Set to "off" and redeploy to close the face.
+    "GATHER_QUARRY": "on",
     // Reserved. This build never mints, even if the var is flipped on.
     "GATHER_MINT": "off",
     // Must match the browser origin exactly (care POSTs are origin-gated).
