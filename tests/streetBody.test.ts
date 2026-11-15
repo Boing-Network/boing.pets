@@ -51,7 +51,8 @@ describe("StreetBody anchors and gait", () => {
     expect(streetBodyGait(STREET_BODY_RUN_SPEED, true)).toBe("run");
   });
 
-  it("drops T-pose arms and walks with opposite-phase legs facing +Z", () => {
+  it("keeps the authored A-pose and walks with opposite-phase legs facing +Z", () => {
+    expect(STREET_BODY_ARM_DROP).toBe(0);
     const rest = streetBodyPose("idle", 0, true);
     expect(rest.shoulderL[2]).toBeCloseTo(STREET_BODY_ARM_DROP);
     expect(rest.shoulderR[2]).toBeCloseTo(-STREET_BODY_ARM_DROP);

@@ -6,10 +6,12 @@ export type StreetBodyGait = "idle" | "walk" | "run";
 export const STREET_BODY_RUN_SPEED = 3.2;
 export const STREET_BODY_MOVE_SPEED = 0.2;
 
-/** ~10 deg A-pose flare so arms do not glue to the torso from the front. */
-export const STREET_BODY_ARM_FLARE = (10 * Math.PI) / 180;
-/** Rest-pose arm drop from T-pose, radians about Z (L +, R -). */
-export const STREET_BODY_ARM_DROP = Math.PI / 2 - STREET_BODY_ARM_FLARE;
+/**
+ * v2 is authored in an A-pose (~27.5 deg down from horizontal), so no
+ * extra rest drop is applied. Limb swing is applied in StreetBodyModel
+ * as a world-X hinge because v2 limb bones are not axis-aligned.
+ */
+export const STREET_BODY_ARM_DROP = 0;
 
 export function streetBodyGait(speed: number, moving: boolean): StreetBodyGait {
   if (!moving || speed < STREET_BODY_MOVE_SPEED) return "idle";

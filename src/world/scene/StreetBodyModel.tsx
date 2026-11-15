@@ -40,17 +40,14 @@ function isBone(obj: THREE.Object3D): obj is THREE.Bone {
   return (obj as THREE.Bone).isBone;
 }
 
-function tintSlotForMesh(
-  name: string,
-): "body" | "accent-surface" | "drip" | "face" | "sole" | "limb" {
-  if (/FootSole_/.test(name)) return "sole";
-  if (/ChestDrip/.test(name)) return "drip";
-  if (/^(Nose|Ear_L|Ear_R|Neck|Elbow_|Knee_)/.test(name))
-    return "accent-surface";
-  if (/^(Eye_|Pupil_|Catch_|Brow_|Mouth|Cheek)/.test(name)) return "face";
-  if (/^(Shoulder_|UpperArm_|Forearm_|Wrist_|Palm_|Thumb_|Finger_)/.test(name))
-    return "limb";
-  return "body";
+function tintSlotForMaterial(
+  matName: string,
+): "body" | "face" | "sole" | "clothes" | "skip" {
+  if (/^(EyeWhite|Pupil|Brow|Mouth)$/.test(matName)) return "face";
+  if (matName === "Sole") return "sole";
+  if (/^(Tank|Shorts)$/.test(matName)) return "clothes";
+  if (matName === "Body") return "body";
+  return "skip";
 }
 
 const TOON_STEPS = [48, 140, 255];
@@ -86,17 +83,21 @@ function toonFrom(
   ramp: THREE.DataTexture,
   name: string,
 ): THREE.Material {
-  if (/^Catch_/.test(name)) {
-    return new THREE.MeshBasicMaterial({
+  if (/^Catch_/.test(name) || mat.name === "Catch") {
+    const basic = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       toneMapped: false,
     });
+    basic.name = mat.name || name;
+    return basic;
   }
-  if (/^Pupil_/.test(name)) {
-    return new THREE.MeshToonMaterial({
+  if (/^Pupil_/.test(name) || mat.name === "Pupil") {
+    const pupil = new THREE.MeshToonMaterial({
       color: 0x141018,
       gradientMap: ramp,
     });
+    pupil.name = mat.name || "Pupil";
+    return pupil;
   }
   const src = mat as THREE.MeshStandardMaterial;
   const toon = new THREE.MeshToonMaterial({
@@ -107,6 +108,7 @@ function toonFrom(
     opacity: src.opacity,
     side: src.side,
   });
+  toon.name = mat.name;
   addToonRim(toon);
   return toon;
 }
@@ -142,24 +144,46 @@ function stylizeMaterials(root: THREE.Object3D, ramp: THREE.DataTexture): void {
   });
 }
 
-const OUTLINE_SKIP = /^(Pupil_|Catch_)/;
-const OUTLINE_INFLATE = 0.03;
-const OUTLINE_INFLATE_FACE = 0.022;
+const OUTLINE_SKIP = /^(Pupil_|Catch_|EyeWhite_|Lid_)/;
+const OUTLINE_INFLATE = 0.012;
+const OUTLINE_INFLATE_FACE = 0.008;
+
+function detachGeometry(source: THREE.BufferGeometry): THREE.BufferGeometry {
+  const geom = new THREE.BufferGeometry();
+  for (const name of Object.keys(source.attributes)) {
+    const attr = source.getAttribute(name);
+    const Ctor = attr.array.constructor as new (
+      len: number,
+    ) => ArrayLike<number> & {
+      [i: number]: number;
+    };
+    const array = new (Ctor as unknown as new (len: number) => Float32Array)(
+      attr.count * attr.itemSize,
+    );
+    const copy = new THREE.BufferAttribute(
+      array,
+      attr.itemSize,
+      attr.normalized,
+    );
+    for (let i = 0; i < attr.count; i++) {
+      for (let k = 0; k < attr.itemSize; k++) {
+        copy.setComponent(i, k, attr.getComponent(i, k));
+      }
+    }
+    geom.setAttribute(name, copy);
+  }
+  if (source.index) geom.setIndex(source.index.clone());
+  return geom;
+}
 
 function inflateGeometry(
   source: THREE.BufferGeometry,
   inflate: number,
 ): THREE.BufferGeometry {
-  const geom = source.clone();
+  const geom = detachGeometry(source);
   const pos = geom.getAttribute("position");
   const nrm = geom.getAttribute("normal");
   if (!pos || !nrm) return geom;
-  if (!geom.boundingBox) geom.computeBoundingBox();
-  const box = geom.boundingBox;
-  const sx = box ? box.max.x - box.min.x : 0;
-  const sy = box ? box.max.y - box.min.y : 0;
-  const sz = box ? box.max.z - box.min.z : 0;
-  const axis = sy >= sx && sy >= sz ? 1 : sz >= sx ? 2 : 0;
   for (let i = 0; i < pos.count; i++) {
     let nx = nrm.getX(i);
     let ny = nrm.getY(i);
@@ -168,21 +192,14 @@ function inflateGeometry(
     nx /= len;
     ny /= len;
     nz /= len;
-    const nAxis = axis === 0 ? nx : axis === 1 ? ny : nz;
-    const cap = Math.abs(nAxis) > 0.62;
-    const scale = cap ? inflate * 0.12 : inflate;
-    let ix = nx * scale;
-    let iy = ny * scale;
-    let iz = nz * scale;
-    if (cap) {
-      if (axis === 0) ix *= 0.05;
-      if (axis === 1) iy *= 0.05;
-      if (axis === 2) iz *= 0.05;
-    }
-    pos.setXYZ(i, pos.getX(i) + ix, pos.getY(i) + iy, pos.getZ(i) + iz);
+    pos.setXYZ(
+      i,
+      pos.getX(i) + nx * inflate,
+      pos.getY(i) + ny * inflate,
+      pos.getZ(i) + nz * inflate,
+    );
   }
   pos.needsUpdate = true;
-  geom.computeVertexNormals();
   geom.computeBoundingBox();
   return geom;
 }
@@ -198,10 +215,9 @@ function addInvertedHullOutlines(root: THREE.Object3D): void {
     if (!isMesh(obj)) return;
     if (OUTLINE_SKIP.test(obj.name)) return;
     if (obj.name.endsWith("_Outline")) return;
-    if (/^(Elbow_|Knee_|Wrist_)/.test(obj.name)) return;
     const parent = obj.parent;
     if (!parent) return;
-    const face = /^(Eye_|Brow_|Nose|Mouth|Ear_|Cheek|Skull)/.test(obj.name);
+    const face = /^(Brow_|Mouth|Head)/.test(obj.name);
     const geom = inflateGeometry(
       obj.geometry,
       face ? OUTLINE_INFLATE_FACE : OUTLINE_INFLATE,
@@ -227,23 +243,16 @@ function addInvertedHullOutlines(root: THREE.Object3D): void {
 
 function tintStreetBody(root: THREE.Object3D, look: PetModelLook): void {
   const body = petMaterialColor(look.hue, "body");
-  const accent = petMaterialColor(look.accent, "accent");
-  const dark = body.clone().lerp(new THREE.Color("#2a1810"), 0.35);
   root.traverse((obj) => {
     if (!isMesh(obj)) return;
     if (obj.name.endsWith("_Outline")) return;
-    const slot = tintSlotForMesh(obj.name);
-    if (slot === "face") return;
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    const sole = body.clone().lerp(new THREE.Color("#0c0a09"), 0.82);
-    const limb = body.clone().lerp(new THREE.Color("#2a1810"), 0.22);
     for (const mat of mats) {
       if (!(mat instanceof THREE.MeshToonMaterial)) continue;
-      if (slot === "body") mat.color.copy(body);
-      else if (slot === "limb") mat.color.copy(limb);
-      else if (slot === "accent-surface") mat.color.copy(dark);
-      else if (slot === "sole") mat.color.copy(sole);
-      else mat.color.copy(accent);
+      const slot = tintSlotForMaterial(mat.name);
+      // Tank / Shorts stay a dark ink base; Sole stays dark; face is untinted.
+      if (slot !== "body") continue;
+      mat.color.copy(body);
       mat.needsUpdate = true;
     }
   });
@@ -304,6 +313,35 @@ function applyEulerDelta(
   bone.quaternion.copy(rest).multiply(scratch);
 }
 
+const WORLD_X = new THREE.Vector3(1, 0, 0);
+
+/**
+ * Apply a world-space hinge on top of the authored rest pose. v2 limb
+ * bones are not axis-aligned, so a local Euler X swings them sideways.
+ */
+function applyWorldAxisDelta(
+  bone: THREE.Bone | undefined,
+  rest: THREE.Quaternion | undefined,
+  angle: number,
+  scratchQ: THREE.Quaternion,
+  parentWQ: THREE.Quaternion,
+  restWQ: THREE.Quaternion,
+): void {
+  if (!bone || !rest) return;
+  if (angle === 0) {
+    bone.quaternion.copy(rest);
+    return;
+  }
+  const parent = bone.parent;
+  if (!parent) return;
+  parent.updateMatrixWorld(true);
+  parent.getWorldQuaternion(parentWQ);
+  restWQ.copy(parentWQ).multiply(rest);
+  scratchQ.setFromAxisAngle(WORLD_X, angle);
+  scratchQ.multiply(restWQ);
+  bone.quaternion.copy(parentWQ).invert().multiply(scratchQ);
+}
+
 export function StreetBodyModel({
   look,
   moving = false,
@@ -322,6 +360,8 @@ export function StreetBodyModel({
   const restRef = useRef<Map<string, THREE.Quaternion>>(new Map());
   const scratchQ = useMemo(() => new THREE.Quaternion(), []);
   const scratchE = useMemo(() => new THREE.Euler(), []);
+  const parentWQ = useMemo(() => new THREE.Quaternion(), []);
+  const restWQ = useMemo(() => new THREE.Quaternion(), []);
   const lookRef = useRef(look);
   lookRef.current = look;
 
@@ -334,6 +374,9 @@ export function StreetBodyModel({
         const ramp = makeToonRamp();
         stylizeMaterials(clone, ramp);
         addInvertedHullOutlines(clone);
+        clone.traverse((obj) => {
+          if (isMesh(obj)) obj.frustumCulled = false;
+        });
         clone.position.y = STREET_BODY_GROUND_LIFT;
         const bones = collectBones(clone);
         attachAnchors(clone, bones);
@@ -412,75 +455,85 @@ export function StreetBodyModel({
       scratchQ,
       scratchE,
     );
-    applyEulerDelta(
+    applyWorldAxisDelta(
       bones.get("UpperArm_L"),
       rest.get("UpperArm_L"),
-      pose.upperArmL,
+      pose.upperArmL[0],
       scratchQ,
-      scratchE,
+      parentWQ,
+      restWQ,
     );
-    applyEulerDelta(
+    applyWorldAxisDelta(
       bones.get("UpperArm_R"),
       rest.get("UpperArm_R"),
-      pose.upperArmR,
+      pose.upperArmR[0],
       scratchQ,
-      scratchE,
+      parentWQ,
+      restWQ,
     );
-    applyEulerDelta(
+    applyWorldAxisDelta(
       bones.get("LowerArm_L"),
       rest.get("LowerArm_L"),
-      pose.lowerArmL,
+      pose.lowerArmL[0],
       scratchQ,
-      scratchE,
+      parentWQ,
+      restWQ,
     );
-    applyEulerDelta(
+    applyWorldAxisDelta(
       bones.get("LowerArm_R"),
       rest.get("LowerArm_R"),
-      pose.lowerArmR,
+      pose.lowerArmR[0],
       scratchQ,
-      scratchE,
+      parentWQ,
+      restWQ,
     );
-    applyEulerDelta(
+    applyWorldAxisDelta(
       bones.get("UpperLeg_L"),
       rest.get("UpperLeg_L"),
-      pose.upperLegL,
+      pose.upperLegL[0],
       scratchQ,
-      scratchE,
+      parentWQ,
+      restWQ,
     );
-    applyEulerDelta(
+    applyWorldAxisDelta(
       bones.get("UpperLeg_R"),
       rest.get("UpperLeg_R"),
-      pose.upperLegR,
+      pose.upperLegR[0],
       scratchQ,
-      scratchE,
+      parentWQ,
+      restWQ,
     );
-    applyEulerDelta(
+    applyWorldAxisDelta(
       bones.get("LowerLeg_L"),
       rest.get("LowerLeg_L"),
-      pose.lowerLegL,
+      pose.lowerLegL[0],
       scratchQ,
-      scratchE,
+      parentWQ,
+      restWQ,
     );
-    applyEulerDelta(
+    applyWorldAxisDelta(
       bones.get("LowerLeg_R"),
       rest.get("LowerLeg_R"),
-      pose.lowerLegR,
+      pose.lowerLegR[0],
       scratchQ,
-      scratchE,
+      parentWQ,
+      restWQ,
     );
-    applyEulerDelta(
+    applyWorldAxisDelta(
       bones.get("Foot_L"),
       rest.get("Foot_L"),
-      pose.footL,
+      pose.footL[0],
       scratchQ,
-      scratchE,
+      parentWQ,
+      restWQ,
     );
-    applyEulerDelta(
+    applyWorldAxisDelta(
       bones.get("Foot_R"),
       rest.get("Foot_R"),
-      pose.footR,
+      pose.footR[0],
       scratchQ,
-      scratchE,
+      parentWQ,
+      restWQ,
     );
   });
 

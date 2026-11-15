@@ -1,11 +1,12 @@
 /**
- * Stylize StreetBody into a clearly cartoon, streetwear-proportioned mesh.
+ * Stylize the original boxy StreetBody (v1) into a cartoon mesh.
  *
- * Reads public/characters/street-body.source.glb, subdivides and rounds the
- * boxy body segments, then applies a bold bind-pose proportion / expression
- * pass and writes public/characters/street-body.glb.
+ * Reads public/characters/street-body.source.glb and writes
+ * public/characters/street-body.v1.glb. This script is kept for history
+ * and is not used in the build. The runtime character is authored
+ * StreetBody v2 at public/characters/street-body.glb.
  *
- * Skeleton (20 named joints), skin weights, +Z facing, and y=0 feet are kept.
+ * Do not point the output at street-body.glb — that would overwrite v2.
  *
  * Usage: node scripts/stylize-street-body.mjs
  */
@@ -16,7 +17,7 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sourcePath = join(root, "public", "characters", "street-body.source.glb");
-const outPath = join(root, "public", "characters", "street-body.glb");
+const outPath = join(root, "public", "characters", "street-body.v1.glb");
 const shippedPath = outPath;
 
 const COMP = {
