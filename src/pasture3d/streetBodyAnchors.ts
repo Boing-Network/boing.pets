@@ -3,8 +3,25 @@
 export const STREET_BODY_URL = "/characters/street-body.glb";
 
 /**
+ * Per-material tint slot. Only `body` takes the per-NFT color.
+ * `Shoe` is the sneaker upper (authored safety orange); `Sole` is the
+ * platform; `Tank` and `Shorts` stay dark ink; the face stays authored.
+ */
+export type StreetBodyTintSlot =
+  "body" | "face" | "sole" | "clothes" | "shoe" | "skip";
+
+export function streetBodyTintSlot(matName: string): StreetBodyTintSlot {
+  if (/^(EyeWhite|Pupil|Brow|Mouth)$/.test(matName)) return "face";
+  if (matName === "Sole") return "sole";
+  if (matName === "Shoe") return "shoe";
+  if (/^(Tank|Shorts)$/.test(matName)) return "clothes";
+  if (matName === "Body") return "body";
+  return "skip";
+}
+
+/**
  * Runtime model is authored StreetBody v3:
- *   public/characters/street-body.glb (447 KB, uncompressed).
+ *   public/characters/street-body.glb (458 KB, uncompressed).
  * Meshopt + KHR_mesh_quantization is not applied: on v2 it stored
  * positions in a [-1,1] local range with per-mesh scales, which blew
  * up the inverted-hull outline.

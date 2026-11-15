@@ -1,10 +1,16 @@
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { MeshToonMaterial } from "three";
+import type { Material, Mesh, Object3D } from "three";
 import {
   STREET_BODY_ANCHOR_SLOTS,
   STREET_BODY_ANCHORS,
   STREET_BODY_JOINTS,
   STREET_BODY_URL,
+  streetBodyTintSlot,
 } from "../src/pasture3d/streetBodyAnchors";
+import { styleStreetBody } from "../src/world/scene/StreetBodyModel";
 import {
   STREET_BODY_ARM_DROP,
   STREET_BODY_RUN_SPEED,
@@ -66,6 +72,240 @@ describe("StreetBody anchors and gait", () => {
     expect(pose.shoulderR[2]).toBeCloseTo(-STREET_BODY_ARM_DROP);
   });
 });
+
+describe("StreetBody v3 shoe GLB", () => {
+  const glb = readStreetBodyGlb();
+
+  it("ships an uncompressed skin with Shoe, Body, and Sole split apart", () => {
+    expect(existsSync("public/characters/street-body.v1.glb")).toBe(true);
+    expect(existsSync("public/characters/street-body.v2.glb")).toBe(true);
+    expect(glb.byteLength).toBe(468552);
+    expect(glb.json.extensionsUsed).toBeUndefined();
+    expect(glb.json.extensionsRequired).toBeUndefined();
+    expect(glb.json.skins).toHaveLength(1);
+    expect(glb.json.skins?.[0]?.joints).toHaveLength(20);
+    expect(glb.json.materials?.map((mat) => mat.name)).toEqual([
+      "EyeWhite",
+      "Pupil",
+      "Body",
+      "Brow",
+      "Mouth",
+      "Sole",
+      "Shoe",
+      "Tank",
+      "Shorts",
+    ]);
+    const shoe = glb.json.materials?.find((mat) => mat.name === "Shoe");
+    expect(shoe?.pbrMetallicRoughness?.baseColorFactor).toEqual([
+      1, 0.07421356837213867, 0.010329823026364548, 1,
+    ]);
+    for (const accessor of glb.json.accessors ?? []) {
+      if (accessor.type !== "VEC3") continue;
+      expect(accessor.componentType).toBe(5126);
+      expect(accessor.normalized).toBeUndefined();
+    }
+    expect(triangleCount(glb.json)).toBe(11116);
+  });
+
+  it("keeps the sneaker upper off the per-NFT tint", () => {
+    expect(streetBodyTintSlot("Body")).toBe("body");
+    expect(streetBodyTintSlot("Shoe")).toBe("shoe");
+    expect(streetBodyTintSlot("Sole")).toBe("sole");
+    expect(streetBodyTintSlot("Tank")).toBe("clothes");
+    expect(streetBodyTintSlot("Shorts")).toBe("clothes");
+    expect(streetBodyTintSlot("EyeWhite")).toBe("face");
+    expect(streetBodyTintSlot("Pupil")).toBe("face");
+    expect(streetBodyTintSlot("Brow")).toBe("face");
+    expect(streetBodyTintSlot("Mouth")).toBe("face");
+    const tinted = (glb.json.materials ?? [])
+      .map((mat) => mat.name ?? "")
+      .filter((name) => streetBodyTintSlot(name) === "body");
+    expect(tinted).toEqual(["Body"]);
+  });
+
+  it("cuts the upper on a welded cuff at y = 0.22", () => {
+    const mesh = glb.json.meshes?.at(-1);
+    const body = mesh?.primitives.find(
+      (prim) => glb.json.materials?.[prim.material ?? -1]?.name === "Body",
+    );
+    const shoe = mesh?.primitives.find(
+      (prim) => glb.json.materials?.[prim.material ?? -1]?.name === "Shoe",
+    );
+    expect(body?.attributes.POSITION).toBe(shoe?.attributes.POSITION);
+    const shoeVerts = primitivePositions(glb, shoe!);
+    const bodyVerts = primitivePositions(glb, body!);
+    const ring = shoeVerts.filter((p) => p[1] > 0.2195);
+    expect(ring.length).toBeGreaterThan(0);
+    for (const p of ring) expect(p[1]).toBeCloseTo(0.22, 4);
+    for (const p of ring) {
+      expect(
+        bodyVerts.some(
+          (q) =>
+            Math.abs(q[0] - p[0]) < 1e-5 &&
+            Math.abs(q[1] - p[1]) < 1e-5 &&
+            Math.abs(q[2] - p[2]) < 1e-5,
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("gives Shoe the toon ramp and an outline without the body tint", async () => {
+    const buf = readFileSync("public/characters/street-body.glb");
+    const gltf = await parseGlb(buf);
+    styleStreetBody(gltf.scene, { hue: 200, accent: 20 });
+    const shoes = meshesNamed(gltf.scene, "Shoe");
+    expect(shoes.length).toBeGreaterThan(0);
+    for (const mesh of shoes) {
+      const mat = mesh.material as MeshToonMaterial;
+      expect(mat).toBeInstanceOf(MeshToonMaterial);
+      expect(mat.gradientMap).toBeTruthy();
+      expect(mat.customProgramCacheKey()).toBe("street-body-toon-rim-v3");
+      expect(mat.color.getHexString()).toBe("ff4d1a");
+      const outline = mesh.parent?.children.find(
+        (child) => child.name === `${mesh.name}_Outline`,
+      );
+      expect(outline).toBeTruthy();
+    }
+    const bodies = meshesNamed(gltf.scene, "Body");
+    expect(bodies.length).toBeGreaterThan(0);
+    for (const mesh of bodies) {
+      const mat = mesh.material as MeshToonMaterial;
+      expect(mat.color.getHexString()).not.toBe("ff4d1a");
+      expect(mat.gradientMap).toBeTruthy();
+    }
+    const soles = meshesNamed(gltf.scene, "Sole");
+    expect(soles.length).toBeGreaterThan(0);
+    for (const mesh of soles) {
+      expect((mesh.material as MeshToonMaterial).color.getHexString()).not.toBe(
+        "ff4d1a",
+      );
+    }
+  });
+});
+
+type GltfJson = {
+  extensionsUsed?: string[];
+  extensionsRequired?: string[];
+  materials?: {
+    name?: string;
+    pbrMetallicRoughness?: { baseColorFactor?: number[] };
+  }[];
+  meshes?: {
+    primitives: {
+      material?: number;
+      mode?: number;
+      indices?: number;
+      attributes: { POSITION?: number };
+    }[];
+  }[];
+  accessors?: {
+    bufferView?: number;
+    byteOffset?: number;
+    componentType?: number;
+    count: number;
+    type?: string;
+    normalized?: boolean;
+  }[];
+  bufferViews?: { byteOffset?: number; byteStride?: number }[];
+  skins?: { joints?: number[] }[];
+};
+
+type StreetBodyGlb = { json: GltfJson; bin: Buffer; byteLength: number };
+
+function meshesNamed(root: Object3D, materialName: string): Mesh[] {
+  const found: Mesh[] = [];
+  root.traverse((obj) => {
+    const mesh = obj as Mesh;
+    if (!mesh.isMesh || mesh.name.endsWith("_Outline")) return;
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    if (mats.some((mat: Material) => mat.name === materialName))
+      found.push(mesh);
+  });
+  return found;
+}
+
+function parseGlb(buf: Buffer) {
+  const loader = new GLTFLoader();
+  const bytes = new ArrayBuffer(buf.byteLength);
+  new Uint8Array(bytes).set(buf);
+  return new Promise<{ scene: Object3D }>((resolve, reject) => {
+    loader.parse(bytes, "", (gltf) => resolve(gltf), reject);
+  });
+}
+
+function readStreetBodyGlb(): StreetBodyGlb {
+  const buf = readFileSync("public/characters/street-body.glb");
+  let offset = 12;
+  let json: GltfJson | null = null;
+  let bin: Buffer | null = null;
+  while (offset + 8 <= buf.length) {
+    const chunkLen = buf.readUInt32LE(offset);
+    const chunkType = buf.readUInt32LE(offset + 4);
+    const data = buf.subarray(offset + 8, offset + 8 + chunkLen);
+    if (chunkType === 0x4e4f534a) json = JSON.parse(data.toString("utf8"));
+    if (chunkType === 0x004e4942) bin = data;
+    offset += 8 + chunkLen;
+  }
+  if (!json || !bin) throw new Error("street-body.glb is missing a chunk");
+  return { json, bin, byteLength: buf.length };
+}
+
+function triangleCount(json: GltfJson): number {
+  let total = 0;
+  for (const mesh of json.meshes ?? []) {
+    for (const prim of mesh.primitives) {
+      const mode = prim.mode ?? 4;
+      const count =
+        prim.indices != null
+          ? (json.accessors?.[prim.indices]?.count ?? 0)
+          : (json.accessors?.[prim.attributes.POSITION ?? -1]?.count ?? 0);
+      if (mode === 4) total += count / 3;
+      else if (mode === 5 || mode === 6) total += Math.max(0, count - 2);
+    }
+  }
+  return total;
+}
+
+function primitivePositions(
+  glb: StreetBodyGlb,
+  prim: NonNullable<GltfJson["meshes"]>[number]["primitives"][number],
+): number[][] {
+  const json = glb.json;
+  const posAcc = json.accessors?.[prim.attributes.POSITION ?? -1];
+  const idxAcc =
+    prim.indices != null ? json.accessors?.[prim.indices] : undefined;
+  if (!posAcc || posAcc.bufferView == null) return [];
+  const posView = json.bufferViews?.[posAcc.bufferView];
+  if (!posView) return [];
+  const stride = posView.byteStride ?? 12;
+  const posStart = (posView.byteOffset ?? 0) + (posAcc.byteOffset ?? 0);
+  const unique = new Map<number, number[]>();
+  const push = (vi: number) => {
+    if (unique.has(vi)) return;
+    const o = posStart + vi * stride;
+    unique.set(vi, [
+      glb.bin.readFloatLE(o),
+      glb.bin.readFloatLE(o + 4),
+      glb.bin.readFloatLE(o + 8),
+    ]);
+  };
+  if (!idxAcc) {
+    const count = posAcc.count;
+    for (let i = 0; i < count; i++) push(i);
+    return [...unique.values()];
+  }
+  const idxView = json.bufferViews?.[idxAcc.bufferView ?? -1];
+  if (!idxView) return [];
+  const idxStart = (idxView.byteOffset ?? 0) + (idxAcc.byteOffset ?? 0);
+  for (let i = 0; i < idxAcc.count; i++) {
+    const vi =
+      idxAcc.componentType === 5125
+        ? glb.bin.readUInt32LE(idxStart + i * 4)
+        : glb.bin.readUInt16LE(idxStart + i * 2);
+    push(vi);
+  }
+  return [...unique.values()];
+}
 
 describe("Nico streetwear props", () => {
   it("ships the 11 singles from /street-props, skipping the kit bundles", () => {

@@ -5,7 +5,7 @@ Same drop-in as v2, with the proportion, pose, ground, tank, and hinge fixes.
 |           |                                                                                                                                                      |
 | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | File      | `street-body-v3.glb`                                                                                                                                 |
-| Triangles | 10,944                                                                                                                                               |
+| Triangles | 11,116                                                                                                                                               |
 | Height    | 1.664 m                                                                                                                                              |
 | Ground    | sole contact at y = 0. The sole mesh min Y is 0, and the composed world min is 0                                                                     |
 | Head      | 0.39 m from the chin (y = 1.27) to the crown, about 4.2 heads, cranium about 0.37 m wide                                                             |
@@ -32,6 +32,7 @@ Local +Y points down the bone toward the child. Local +X is the bend and swing h
 - Hands are a chunky mitt with a thumb, readable from the front.
 - High-tops with a bulbous toe box and a 7.2 cm sole that shows under the upper from a slightly raised front camera.
 - The tank has straps over the shoulders. `Tank` and `Shorts` stay off the tint.
+- Sneaker uppers are a `Shoe` material (safety orange), cut on a straight cuff at y = 0.22. Legs stay on `Body` and the platform stays on `Sole`. The cuff verts are welded, and `Shoe` is not part of the per-NFT tint.
 - The A-pose is lower. v2’s shoulder-to-hand line was about 27.5°.
 
 ## Still off the letter of the brief

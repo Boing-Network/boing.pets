@@ -16,6 +16,7 @@ import {
   STREET_BODY_ANCHORS,
   STREET_BODY_GROUND_LIFT,
   STREET_BODY_URL,
+  streetBodyTintSlot,
 } from "../../pasture3d/streetBodyAnchors";
 import { streetBodyGait, streetBodyPose } from "../../pasture3d/streetBodyAnim";
 import { loadYardGltf } from "../../pasture3d/yardKitLoader";
@@ -38,16 +39,6 @@ function isSkinnedMesh(obj: THREE.Object3D): obj is THREE.SkinnedMesh {
 
 function isBone(obj: THREE.Object3D): obj is THREE.Bone {
   return (obj as THREE.Bone).isBone;
-}
-
-function tintSlotForMaterial(
-  matName: string,
-): "body" | "face" | "sole" | "clothes" | "skip" {
-  if (/^(EyeWhite|Pupil|Brow|Mouth)$/.test(matName)) return "face";
-  if (matName === "Sole") return "sole";
-  if (/^(Tank|Shorts)$/.test(matName)) return "clothes";
-  if (matName === "Body") return "body";
-  return "skip";
 }
 
 const TOON_STEPS = [48, 140, 255];
@@ -241,6 +232,16 @@ function addInvertedHullOutlines(root: THREE.Object3D): void {
   for (const item of pending) item.parent.add(item.outline);
 }
 
+/** Toon ramp, inverted-hull outline, then the per-NFT body tint. */
+export function styleStreetBody(
+  root: THREE.Object3D,
+  look: PetModelLook,
+): void {
+  stylizeMaterials(root, makeToonRamp());
+  addInvertedHullOutlines(root);
+  tintStreetBody(root, look);
+}
+
 function tintStreetBody(root: THREE.Object3D, look: PetModelLook): void {
   const body = petMaterialColor(look.hue, "body");
   root.traverse((obj) => {
@@ -249,8 +250,9 @@ function tintStreetBody(root: THREE.Object3D, look: PetModelLook): void {
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     for (const mat of mats) {
       if (!(mat instanceof THREE.MeshToonMaterial)) continue;
-      const slot = tintSlotForMaterial(mat.name);
-      // Tank / Shorts stay a dark ink base; Sole stays dark; face is untinted.
+      const slot = streetBodyTintSlot(mat.name);
+      // Only Body takes the per-NFT tint. Tank / Shorts stay dark ink,
+      // Sole stays dark, Shoe keeps its authored color, face is untinted.
       if (slot !== "body") continue;
       mat.color.copy(body);
       mat.needsUpdate = true;
@@ -362,16 +364,13 @@ export function StreetBodyModel({
       .then((gltf) => {
         if (!live) return;
         const clone = SkeletonUtils.clone(gltf.scene) as THREE.Group;
-        const ramp = makeToonRamp();
-        stylizeMaterials(clone, ramp);
-        addInvertedHullOutlines(clone);
+        styleStreetBody(clone, lookRef.current);
         clone.traverse((obj) => {
           if (isMesh(obj)) obj.frustumCulled = false;
         });
         clone.position.y = STREET_BODY_GROUND_LIFT;
         const bones = collectBones(clone);
         attachAnchors(clone, bones);
-        tintStreetBody(clone, lookRef.current);
         bonesRef.current = bones;
         restRef.current = captureRest(bones);
         setRoot(clone);
