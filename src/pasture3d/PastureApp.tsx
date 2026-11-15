@@ -156,6 +156,7 @@ import {
   pushMusicDuck,
   startPastureMusic,
   stopPastureMusic,
+  unlockAudio,
 } from "../audio";
 
 ensureWorldFontConfig();
@@ -855,9 +856,17 @@ export function PastureApp({
     const stop = onAudioUnlocked(() => {
       startPastureMusic();
     });
+    const onVisible = () => {
+      if (document.hidden) return;
+      void unlockAudio().then((ok) => {
+        if (ok) startPastureMusic();
+      });
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       disarm();
       stop();
+      document.removeEventListener("visibilitychange", onVisible);
       stopPastureMusic();
     };
   }, []);

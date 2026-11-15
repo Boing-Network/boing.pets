@@ -1,14 +1,14 @@
-/** Pure pasture-music plan so the loop can be tested and rendered offline. */
+/** Street-beat plan for The Yard. Original, procedural, and loopable. */
 
-export const MUSIC_BPM = 120;
+export const MUSIC_BPM = 96;
 export const MUSIC_BEAT = 60 / MUSIC_BPM;
 export const MUSIC_BAR = MUSIC_BEAT * 4;
-/** Eight-bar form that loops back to the tonic. */
+/** Eight-bar form that lands back on the tonic. */
 export const MUSIC_LOOP_BARS = 8;
-/** G3 — G major, bright and pastoral. */
-export const MUSIC_ROOT_HZ = 196;
-/** Ionian / major scale degrees in semitones from the root. */
-export const MUSIC_MAJOR_SCALE = [0, 2, 4, 5, 7, 9, 11, 12] as const;
+/** A2. Minor pentatonic, the pocket under a street tag. */
+export const MUSIC_ROOT_HZ = 110;
+/** Minor pentatonic degrees in semitones from the root. */
+export const MUSIC_SCALE = [0, 3, 5, 7, 10, 12] as const;
 
 export type MusicToneEvent = {
   kind: "tone";
@@ -31,20 +31,20 @@ export type MusicNoiseEvent = {
 
 export type MusicEvent = MusicToneEvent | MusicNoiseEvent;
 
-/** I I IV I | V IV I V — cheerful major loop that resolves on repeat. */
-const BAR_CHORD_DEGREE = [0, 0, 3, 0, 4, 3, 0, 4];
+/** i i bVII iv | i bIII iv i */
+const BAR_CHORD_DEGREE = [0, 0, 4, 2, 0, 1, 2, 0];
 
-const MELODY_A = [4, 2, 0, 2, 5, 4, 2, 0];
-const MELODY_B = [4, 5, 7, 5, 4, 2, 0, 2];
-const MELODY_C = [7, 5, 4, 2, 4, 5, 7, 9];
-const MELODY_D = [9, 7, 5, 4, 5, 4, 2, 0];
+const MELODY_A = [0, 2, 4, 2, 1, 0, 2, 4];
+const MELODY_B = [4, 3, 2, 0, 2, 4, 3, 1];
+const MELODY_C = [1, 2, 4, 3, 2, 1, 0, 2];
+const MELODY_D = [4, 2, 1, 0, 2, 1, 0, 0];
 const MELODY_PHRASES = [MELODY_A, MELODY_B, MELODY_C, MELODY_D];
 
 export function scaleHz(degree: number, octave = 0): number {
-  const span = MUSIC_MAJOR_SCALE.length - 1;
+  const span = MUSIC_SCALE.length - 1;
   const wrapped = ((degree % span) + span) % span;
   const oct = octave + Math.floor(degree / span);
-  const semitones = MUSIC_MAJOR_SCALE[wrapped]! + oct * 12;
+  const semitones = MUSIC_SCALE[wrapped]! + oct * 12;
   return MUSIC_ROOT_HZ * Math.pow(2, semitones / 12);
 }
 
@@ -53,12 +53,12 @@ export function chordDegree(barIndex: number): number {
   return BAR_CHORD_DEGREE[i]!;
 }
 
-export function isMajorScaleFrequency(freq: number): boolean {
+export function isScaleFrequency(freq: number): boolean {
   if (!(freq > 0) || !Number.isFinite(freq)) return false;
   const raw = 12 * Math.log2(freq / MUSIC_ROOT_HZ);
   let semi = raw % 12;
   if (semi < 0) semi += 12;
-  return MUSIC_MAJOR_SCALE.some((s) => Math.abs(semi - (s % 12)) < 0.08);
+  return MUSIC_SCALE.some((s) => Math.abs(semi - (s % 12)) < 0.08);
 }
 
 /** Events for one bar, with times relative to the bar start. */
@@ -72,120 +72,93 @@ export function planPastureMusicBar(barIndex: number): MusicEvent[] {
           2,
       )
     ]!;
-  const bounce = barIndex % 2 === 0 ? 0 : 4;
 
-  // Soft major pad (root + third + fifth of the bar chord).
-  events.push({
-    kind: "tone",
-    at: 0,
-    freq: scaleHz(chord, -1),
-    dur: MUSIC_BAR * 0.96,
-    gain: 0.038,
-    type: "sine",
-    attack: 0.1,
-  });
-  events.push({
-    kind: "tone",
-    at: 0,
-    freq: scaleHz(chord + 2, -1),
-    dur: MUSIC_BAR * 0.96,
-    gain: 0.024,
-    type: "sine",
-    attack: 0.12,
-  });
-  events.push({
-    kind: "tone",
-    at: 0,
-    freq: scaleHz(chord + 4, -1),
-    dur: MUSIC_BAR * 0.96,
-    gain: 0.02,
-    type: "sine",
-    attack: 0.14,
-  });
-
-  // Bouncy bass: short notes on beats 1, the "and" of 2, 3, and 4.
-  const bassSteps: Array<{ beat: number; deg: number; oct: number }> = [
-    { beat: 0, deg: chord, oct: -1 },
-    { beat: 1.5, deg: chord + 4, oct: -1 },
-    { beat: 2, deg: chord, oct: -1 },
-    { beat: 3, deg: chord + bounce, oct: 0 },
-  ];
-  for (const step of bassSteps) {
+  // Low minor pad: root, minor third, fifth.
+  for (const [step, gain, attack] of [
+    [0, 0.034, 0.08],
+    [1, 0.022, 0.1],
+    [3, 0.018, 0.12],
+  ] as const) {
     events.push({
       kind: "tone",
-      at: step.beat * MUSIC_BEAT,
-      freq: scaleHz(step.deg, step.oct),
-      dur: MUSIC_BEAT * 0.42,
-      gain: step.beat === 0 ? 0.09 : 0.07,
+      at: 0,
+      freq: scaleHz(chord + step, 0),
+      dur: MUSIC_BAR * 0.98,
+      gain,
+      type: "sine",
+      attack,
+    });
+  }
+
+  // Syncopated bass. Short enough to read as notes, low enough to sit under the beat.
+  const bassSteps = [0, 0.75, 2, 2.75];
+  bassSteps.forEach((beat, i) => {
+    const step = [0, 3, 0, 4][i]!;
+    events.push({
+      kind: "tone",
+      at: beat * MUSIC_BEAT,
+      freq: scaleHz(chord + step, 0),
+      dur: MUSIC_BEAT * 0.38,
+      gain: beat === 0 ? 0.12 : 0.09,
       type: "triangle",
+      attack: 0.008,
+    });
+  });
+
+  // Sparse hook. Two-bar phrases, only the strong 8ths, an octave up.
+  const start = (barIndex % 2) * 4;
+  for (let i = 0; i < 4; i++) {
+    if (i === 1) continue;
+    const degree = phrase[start + i]!;
+    events.push({
+      kind: "tone",
+      at: i * MUSIC_BEAT + (i === 3 ? MUSIC_BEAT * 0.5 : 0.01),
+      freq: scaleHz(degree, 2),
+      dur: MUSIC_BEAT * 0.34,
+      gain: i === 0 ? 0.05 : 0.038,
+      type: "square",
       attack: 0.012,
     });
   }
 
-  // Cheerful melody in two-bar phrases, with an 8th-note skip on odd bars.
-  const start = (barIndex % 2) * 4;
-  for (let i = 0; i < 4; i++) {
-    const degree = phrase[start + i]!;
-    const pickup = barIndex % 2 === 1 && i === 3;
-    events.push({
-      kind: "tone",
-      at: i * MUSIC_BEAT + 0.02,
-      freq: scaleHz(degree, 1),
-      dur: MUSIC_BEAT * (pickup ? 0.85 : 0.62),
-      gain: i === 0 ? 0.07 : 0.055,
-      type: "triangle",
-      attack: 0.03,
-    });
-    if (pickup) {
-      events.push({
-        kind: "tone",
-        at: i * MUSIC_BEAT + MUSIC_BEAT * 0.5,
-        freq: scaleHz(0, 1),
-        dur: MUSIC_BEAT * 0.28,
-        gain: 0.04,
-        type: "triangle",
-        attack: 0.02,
-      });
-    }
-  }
-
-  // Light percussion: soft kick, offbeat shaker, clap on 2 and 4.
-  for (const beat of [0, 2]) {
+  // Boom-bap: kick on 1 and the "and" of 3, snare on 2 and 4, swung hats.
+  for (const beat of [0, 2.5]) {
     events.push({
       kind: "tone",
       at: beat * MUSIC_BEAT,
-      freq: 120,
-      dur: 0.11,
-      gain: 0.1,
+      freq: 78,
+      dur: 0.16,
+      gain: beat === 0 ? 0.16 : 0.11,
       type: "sine",
-      slide: 48,
-      attack: 0.004,
+      slide: 36,
+      attack: 0.003,
     });
   }
   for (let i = 0; i < 8; i++) {
-    const accent = i % 2 === 1;
+    const swung = i % 2 === 1;
+    const step = MUSIC_BEAT / 2;
     events.push({
       kind: "noise",
-      at: i * (MUSIC_BEAT / 2) + 0.005,
-      dur: accent ? 0.045 : 0.03,
-      gain: accent ? 0.032 : 0.018,
-      hp: accent ? 5200 : 7000,
+      at: i * step + (swung ? step * 0.22 : 0),
+      dur: swung ? 0.03 : 0.022,
+      gain: swung ? 0.028 : 0.016,
+      hp: swung ? 6400 : 7800,
     });
   }
   for (const beat of [1, 3]) {
     events.push({
       kind: "noise",
       at: beat * MUSIC_BEAT,
-      dur: 0.055,
-      gain: 0.045,
-      hp: 1600,
+      dur: 0.07,
+      gain: 0.055,
+      hp: 1400,
     });
     events.push({
       kind: "noise",
-      at: beat * MUSIC_BEAT + 0.018,
-      dur: 0.04,
-      gain: 0.028,
-      hp: 2000,
+      at: beat * MUSIC_BEAT + 0.016,
+      dur: 0.045,
+      gain: 0.03,
+      hp: 2200,
     });
   }
 

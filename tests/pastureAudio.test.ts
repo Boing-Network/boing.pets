@@ -22,9 +22,9 @@ import {
   updateAudioSettings,
   MUSIC_BPM,
   MUSIC_LOOP_BARS,
-  MUSIC_MAJOR_SCALE,
+  MUSIC_SCALE,
   chordDegree,
-  isMajorScaleFrequency,
+  isScaleFrequency,
   musicLoopDuration,
   planPastureMusicBar,
   planPastureMusicLoop,
@@ -159,40 +159,40 @@ describe("pasture audio gesture gate", () => {
   });
 });
 
-describe("upbeat pasture music plan", () => {
-  it("is a major-key loop at a brisk, loopable tempo", () => {
-    expect(MUSIC_BPM).toBeGreaterThanOrEqual(110);
-    expect(MUSIC_BPM).toBeLessThanOrEqual(128);
-    expect(MUSIC_MAJOR_SCALE).toEqual([0, 2, 4, 5, 7, 9, 11, 12]);
+describe("street pasture music plan", () => {
+  it("is a minor-pentatonic loop at a head-nod tempo", () => {
+    expect(MUSIC_BPM).toBeGreaterThanOrEqual(90);
+    expect(MUSIC_BPM).toBeLessThanOrEqual(100);
+    expect(MUSIC_SCALE).toEqual([0, 3, 5, 7, 10, 12]);
     expect(MUSIC_LOOP_BARS).toBe(8);
     expect(musicLoopDuration()).toBeCloseTo(
       (60 / MUSIC_BPM) * 4 * MUSIC_LOOP_BARS,
     );
   });
 
-  it("uses I/IV/V chords and keeps pitched notes in G major", () => {
+  it("moves i, bIII, iv, and bVII and stays in the pentatonic", () => {
     const chords = Array.from({ length: MUSIC_LOOP_BARS }, (_, i) =>
       chordDegree(i),
     );
-    expect(new Set(chords)).toEqual(new Set([0, 3, 4]));
+    expect(new Set(chords)).toEqual(new Set([0, 1, 2, 4]));
     expect(chords[0]).toBe(0);
-    expect(chords[MUSIC_LOOP_BARS - 1]).toBe(4);
+    expect(chords[MUSIC_LOOP_BARS - 1]).toBe(0);
     for (const ev of planPastureMusicLoop()) {
       if (ev.kind !== "tone" || ev.slide) continue;
-      expect(isMajorScaleFrequency(ev.freq)).toBe(true);
+      expect(isScaleFrequency(ev.freq)).toBe(true);
     }
   });
 
-  it("schedules a bouncy bass, a cheerful melody, and light percussion", () => {
+  it("schedules a syncopated bass, a sparse hook, and a swung kit", () => {
     const bar = planPastureMusicBar(0);
     const tones = bar.filter((e) => e.kind === "tone");
     const noise = bar.filter((e) => e.kind === "noise");
     const bass = tones.filter(
       (e) => e.type === "triangle" && e.freq < 400 && e.dur < 0.3,
     );
-    const melody = tones.filter((e) => e.type === "triangle" && e.freq >= 350);
+    const melody = tones.filter((e) => e.type === "square" && e.freq >= 350);
     expect(bass.length).toBeGreaterThanOrEqual(4);
-    expect(melody.length).toBeGreaterThanOrEqual(4);
+    expect(melody.length).toBeGreaterThanOrEqual(3);
     expect(noise.length).toBeGreaterThanOrEqual(8);
     expect(tones.some((e) => e.kind === "tone" && !!e.slide)).toBe(true);
   });

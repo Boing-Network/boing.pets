@@ -27,7 +27,7 @@ export {
   MUSIC_BAR,
   MUSIC_BPM,
   MUSIC_LOOP_BARS,
-  MUSIC_MAJOR_SCALE,
+  MUSIC_SCALE,
   MUSIC_ROOT_HZ,
 } from "./pastureMusic";
 

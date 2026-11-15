@@ -1,7 +1,8 @@
 # Pasture audio credits
 
 All background music and sound effects in the public pasture are original
-procedural Web Audio graphs generated at runtime by Boing Pets. There are no
+procedural Web Audio graphs generated at runtime by Boing Pets. The Yard loop
+is an eight-bar minor-pentatonic street beat at 96 BPM. There are no
 third-party samples, recordings, or copyrighted loops.
 
 The synthesizer code lives in `src/audio/engine.ts` and is covered by the
