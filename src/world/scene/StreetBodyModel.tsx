@@ -94,8 +94,8 @@ function stylizeMaterials(root: THREE.Object3D, ramp: THREE.DataTexture): void {
 }
 
 const OUTLINE_SKIP = /^(Pupil_|Catch_|EyeWhite_|Lid_)/;
-const OUTLINE_INFLATE = 0.012;
-const OUTLINE_INFLATE_FACE = 0.008;
+const OUTLINE_INFLATE = 0.006;
+const OUTLINE_INFLATE_FACE = 0.0035;
 
 function detachGeometry(source: THREE.BufferGeometry): THREE.BufferGeometry {
   const geom = new THREE.BufferGeometry();
@@ -157,7 +157,7 @@ function addInvertedHullOutlines(root: THREE.Object3D): void {
   const pending: Array<{ parent: THREE.Object3D; outline: THREE.Object3D }> =
     [];
   const outlineMat = new THREE.MeshBasicMaterial({
-    color: 0x1a0c08,
+    color: 0x2a1612,
     side: THREE.BackSide,
   });
   root.traverse((obj) => {

@@ -159,7 +159,7 @@ describe("StreetBody v3 shoe GLB", () => {
       const mat = mesh.material as MeshToonMaterial;
       expect(mat).toBeInstanceOf(MeshToonMaterial);
       expect(mat.gradientMap).toBeTruthy();
-      expect(mat.customProgramCacheKey()).toBe("street-body-toon-rim-v3");
+      expect(mat.customProgramCacheKey()).toBe("street-body-vinyl-v1");
       expect(mat.color.getHexString()).toBe("ff4d1a");
       const outline = mesh.parent?.children.find(
         (child) => child.name === `${mesh.name}_Outline`,

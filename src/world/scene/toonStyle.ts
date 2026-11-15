@@ -1,8 +1,12 @@
-/** Shared three-step toon ramp and warm rim used by the StreetBody and gear. */
+/**
+ * Vinyl-toy shading for the StreetBody and its gear.
+ * A few soft steps, a cool edge, and a tight plastic highlight.
+ * Not a hard comic posterize.
+ */
 
 import * as THREE from "three";
 
-const TOON_STEPS = [48, 140, 255];
+const TOON_STEPS = [96, 150, 190, 225, 255];
 
 const RIM_HOOK =
   "vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;";
@@ -38,15 +42,15 @@ export function addToonRim(mat: THREE.MeshToonMaterial): void {
       RIM_HOOK,
       RIM_HOOK +
         `
-        float rim = pow(clamp(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0), 2.6);
-        outgoingLight += vec3(1.0, 0.86, 0.7) * rim * 0.32;
-        float luma = dot(outgoingLight, vec3(0.299, 0.587, 0.114));
-        float q = floor(luma * 3.0 + 0.28) / 3.0;
-        outgoingLight *= luma > 0.001 ? q / luma : 1.0;
+        float ndv = clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0);
+        float edge = pow(1.0 - ndv, 2.4);
+        outgoingLight += vec3(0.82, 0.9, 1.0) * edge * 0.16;
+        float gloss = pow(ndv, 10.0);
+        outgoingLight += vec3(1.0, 0.98, 0.94) * gloss * 0.2;
         `,
     );
   };
-  mat.customProgramCacheKey = () => "street-body-toon-rim-v3";
+  mat.customProgramCacheKey = () => "street-body-vinyl-v1";
 }
 
 export function cartoonMaterial(opts: {

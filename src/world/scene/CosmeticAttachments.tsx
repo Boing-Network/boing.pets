@@ -12,14 +12,14 @@ import { MeshBasicMaterial, BackSide } from "three";
 import type { EquippedCosmetics } from "../../content/cosmetics";
 import { cartoonMaterial } from "./toonStyle";
 
-const INK = "#1a0c08";
+const INK = "#2a1612";
 
 /** Solid piece with the StreetBody toon ramp, warm rim, and ink shell. */
 function ToonPart({
   color,
   emissive,
   emissiveIntensity = 0,
-  inflate = 0.07,
+  inflate = 0.04,
   position,
   rotation,
   children,
