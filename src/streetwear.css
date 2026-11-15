@@ -1513,3 +1513,119 @@ button.btn-accent,
     0 0 0 2px var(--ink),
     0 0 0 3px var(--accent);
 }
+
+.gather-hud {
+  position: absolute;
+  z-index: 4;
+  top: 12px;
+  left: 12px;
+  display: grid;
+  gap: 8px;
+  width: min(280px, calc(100% - 24px));
+  pointer-events: none;
+}
+.gather-hud .gather-pack-chip,
+.gather-hud .gather-alert,
+.gather-hud .gather-toast {
+  pointer-events: auto;
+}
+.gather-pack-chip,
+.gather-panel button {
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.gather-pack-chip {
+  justify-self: start;
+  border: 2px solid #ff4d00;
+  background: #0a0a0a;
+  color: #ff4d00;
+  padding: 6px 10px;
+  box-shadow: 3px 3px 0 #ff4d00;
+}
+.gather-xp-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #f5f5f0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.gather-xp-label strong {
+  color: #ff4d00;
+}
+.gather-xp-bar {
+  height: 8px;
+  background: #1a1a1a;
+  border: 1px solid #ff4d00;
+}
+.gather-xp-bar > span {
+  display: block;
+  height: 100%;
+  background: #ff4d00;
+}
+.gather-alert,
+.gather-toast {
+  margin: 0;
+  padding: 8px 10px;
+  background: #0a0a0a;
+  color: #ff4d00;
+  border: 1px solid #ff4d00;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.gather-panel {
+  background: #0a0a0a;
+  color: #f5f5f0;
+  border: 2px solid #ff4d00;
+  box-shadow: 6px 6px 0 #ff4d00;
+}
+.gather-panel .eyebrow {
+  color: #ff4d00;
+}
+.gather-line,
+.gather-note {
+  margin: 10px 0;
+}
+.gather-pack-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.gather-pack-list li {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  border-bottom: 1px solid #2a2a2a;
+  padding-bottom: 4px;
+}
+.gather-icon svg {
+  width: 28px;
+  height: 28px;
+  display: block;
+}
+.gather-actions,
+.gather-mint-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.gather-panel button {
+  background: #ff4d00;
+  color: #0a0a0a;
+  border: 0;
+  padding: 8px 12px;
+}
+.gather-panel button:disabled {
+  background: #2a2a2a;
+  color: #a3a3a3;
+}
+.gather-mint {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #2a2a2a;
+}

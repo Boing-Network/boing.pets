@@ -12,7 +12,13 @@ export const PARTY_BONUS_MIN_CARE_EVENTS = 3;
 export const PARTY_BONUS_MIN_FRIENDSHIP_MS = 12 * 60 * 60_000;
 
 export type PartyActivity =
-  "fishing" | "mining" | "racing" | "treasure" | "garden_harvest" | "cook";
+  | "fishing"
+  | "mining"
+  | "racing"
+  | "treasure"
+  | "garden_harvest"
+  | "cook"
+  | "quarry";
 
 export interface PartyBonusInput {
   partySize: number;

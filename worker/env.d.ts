@@ -4,6 +4,8 @@ interface __BaseEnv_Env {
 	DB: D1Database;
 	ASSETS: Fetcher;
 	MARKET_WRITES: string;
+	GATHER_QUARRY?: string;
+	GATHER_MINT?: string;
 	MULTI_TOKEN_CONTRACT: string;
 	APP_ORIGIN: string;
 	RPC_URL: string;
@@ -21,7 +23,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "MARKET_WRITES" | "MULTI_TOKEN_CONTRACT" | "APP_ORIGIN" | "RPC_URL">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "MARKET_WRITES" | "GATHER_QUARRY" | "GATHER_MINT" | "MULTI_TOKEN_CONTRACT" | "APP_ORIGIN" | "RPC_URL">> {}
 }
 declare module "*.txt" {
 	const value: string;

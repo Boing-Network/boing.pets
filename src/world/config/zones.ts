@@ -22,7 +22,8 @@ export interface WorldStation {
     | "cook"
     | "race"
     | "home"
-    | "dispatch";
+    | "dispatch"
+    | "bank";
   position: WorldPoint;
   radius: number;
   hint: string;
@@ -467,6 +468,15 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       depth: 5.2,
     },
     {
+      id: "block-vault",
+      label: "Block Vault",
+      position: { x: 0, y: 0, z: -8 },
+      color: "#141414",
+      height: 2.4,
+      width: 3.2,
+      depth: 2.6,
+    },
+    {
       id: "dispatch-station",
       label: "Dispatch",
       position: { x: 24, y: 0, z: -18 },
@@ -565,6 +575,14 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       radius: 3.4,
       hint: "Walk onto your plot to place furniture. The 2D home page is still a fallback.",
       careHref: "/home.html",
+    },
+    {
+      id: "pasture-bank",
+      label: "Block Vault",
+      kind: "bank",
+      position: { x: 0, y: 0, z: -8 },
+      radius: 3.4,
+      hint: "Press E to bank.",
     },
     {
       id: "pasture-dispatch",

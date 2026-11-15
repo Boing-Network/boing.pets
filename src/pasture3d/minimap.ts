@@ -17,6 +17,7 @@ export const MINIMAP_STATION_ICON: Record<PastureStationKind, string> = {
   cook: "K",
   race: "R",
   home: "H",
+  bank: "B",
 };
 
 export const MINIMAP_STATION_COLOR: Record<PastureStationKind, string> = {
@@ -31,6 +32,7 @@ export const MINIMAP_STATION_COLOR: Record<PastureStationKind, string> = {
   cook: "#FF4D00",
   race: "#F5F5F0",
   home: "#A3A3A3",
+  bank: "#FF4D00",
 };
 
 export type MiniMapBounds = {

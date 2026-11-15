@@ -13,6 +13,7 @@ import {
   strikeDelayMs,
 } from "../src/content/mining";
 import { hex32 } from "../src/core";
+import { GATHER_COPY, gatherQuarryEnabled } from "../src/content/gathering";
 import { ledgerCreditPair } from "./ledger";
 import { resolvePartyBonus } from "./partyBonus";
 
@@ -102,6 +103,13 @@ export async function miningPost(
   body: Record<string, unknown>,
   now: number,
 ): Promise<Response | null> {
+  if (
+    (url.pathname === "/api/mining/challenge" ||
+      url.pathname === "/api/mining/confirm") &&
+    gatherQuarryEnabled(env)
+  ) {
+    throw new HttpError(409, GATHER_COPY.retired);
+  }
   if (url.pathname === "/api/mining/challenge") {
     const owner = hex32(body.owner);
     const pet = await env.DB.prepare("SELECT owner FROM pets WHERE owner=?")

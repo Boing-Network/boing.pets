@@ -6,8 +6,9 @@ export type DeskStationKind = "craft" | "market" | "customize" | "dispatch";
 export type ActivityStationKind =
   "mine" | "fish" | "treasure" | "garden" | "cook" | "race";
 export type HomeStationKind = "home";
+export type BankStationKind = "bank";
 export type PastureStationKind =
-  DeskStationKind | ActivityStationKind | HomeStationKind;
+  DeskStationKind | ActivityStationKind | HomeStationKind | BankStationKind;
 
 export const DESK_STATION_KINDS: readonly DeskStationKind[] = [
   "craft",
@@ -43,6 +44,7 @@ export const CUSTOM_PASTURE_LANDMARK_IDS = [
   "kitchen-hut",
   "race-gate",
   "home-plot",
+  "block-vault",
   "old-oak",
   "lily-pond",
   "wildflowers",
@@ -69,7 +71,10 @@ export function isPastureStationKind(
   kind: WorldStation["kind"],
 ): kind is PastureStationKind {
   return (
-    isDeskStationKind(kind) || isActivityStationKind(kind) || kind === "home"
+    isDeskStationKind(kind) ||
+    isActivityStationKind(kind) ||
+    kind === "home" ||
+    kind === "bank"
   );
 }
 
@@ -106,10 +111,12 @@ export function isWithinStationRadius(
 export function nearbyInteractStation(
   pos: { x: number; z: number },
   zone: WorldZoneConfig,
+  skipKinds?: ReadonlySet<string>,
 ): WorldStation | null {
   let best: WorldStation | null = null;
   let bestDist = Infinity;
   for (const station of interactStations(zone)) {
+    if (skipKinds?.has(station.kind)) continue;
     const dist = distanceToStation(pos, station);
     if (dist <= station.radius && dist < bestDist) {
       best = station;
@@ -131,6 +138,7 @@ export function stationPrompt(station: WorldStation): string {
   if (station.kind === "cook") return "Press E to cook";
   if (station.kind === "race") return "Press E to race";
   if (station.kind === "home") return "Press E to open your home plot";
+  if (station.kind === "bank") return "Press E to bank.";
   return station.hint;
 }
 
@@ -146,5 +154,6 @@ export function stationActionLabel(station: WorldStation): string {
   if (station.kind === "cook") return "Cook";
   if (station.kind === "race") return "Race";
   if (station.kind === "home") return "Open home plot";
+  if (station.kind === "bank") return "Bank";
   return "Interact";
 }

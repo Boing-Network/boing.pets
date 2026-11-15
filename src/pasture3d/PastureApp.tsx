@@ -41,6 +41,12 @@ import { PastureStations } from "./PastureStations";
 import { YARD_KIT_PRELOAD } from "./YardKits";
 import { preloadYardKits } from "./yardKitLoader";
 import { PastureActivityAreas } from "./PastureActivityAreas";
+import { GatherHud, PastureGatherMenu } from "./PastureGatherMenu";
+import {
+  gatherEnabled,
+  gatherQuiet,
+  type GatherStatus,
+} from "../ui/gatherClient";
 import {
   isActivityStationKind,
   isPastureStationKind,
@@ -322,6 +328,12 @@ export function PastureApp({
   const [stationMenu, setStationMenu] = useState<PastureStationKind | null>(
     null,
   );
+  const [quarryOn, setQuarryOn] = useState(false);
+  const [gatherState, setGatherState] = useState<GatherStatus | null>(null);
+  const skipStations = useMemo(
+    () => (quarryOn ? undefined : new Set(["bank"])),
+    [quarryOn],
+  );
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [mapVisible, setMapVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -453,6 +465,41 @@ export function PastureApp({
     );
     walkTarget.current = retarget(walkTarget.current, target);
   }, []);
+
+  useEffect(() => {
+    let dead = false;
+    void gatherEnabled().then((on) => {
+      if (!dead) setQuarryOn(on);
+    });
+    return () => {
+      dead = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!quarryOn || !owner) return;
+    let dead = false;
+    const pull = () => {
+      void gatherQuiet(owner).then((next) => {
+        if (!dead && next) setGatherState(next);
+      });
+    };
+    pull();
+    const tick = Math.max(2400, gatherState?.session?.tickMs ?? 4000);
+    const id = window.setInterval(
+      pull,
+      gatherState?.session?.status === "running" ? tick : 4000,
+    );
+    return () => {
+      dead = true;
+      window.clearInterval(id);
+    };
+  }, [
+    quarryOn,
+    owner,
+    gatherState?.session?.status,
+    gatherState?.session?.tickMs,
+  ]);
 
   const closeStationMenu = useCallback(() => {
     stationMenuRef.current = null;
@@ -600,13 +647,14 @@ export function PastureApp({
     const near = nearbyInteractStation(
       { x: livePose.current.x, z: livePose.current.z },
       PASTURE_ZONE,
+      skipStations,
     );
     if (near && isPastureStationKind(near.kind)) {
       openStationMenu(near.kind);
       return true;
     }
     return false;
-  }, [openStationMenu]);
+  }, [openStationMenu, skipStations]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -825,6 +873,7 @@ export function PastureApp({
         const near = nearbyInteractStation(
           { x: livePose.current.x, z: livePose.current.z },
           PASTURE_ZONE,
+          skipStations,
         );
         return near ? { id: near.id, kind: near.kind } : null;
       },
@@ -859,6 +908,7 @@ export function PastureApp({
     closeStationMenu,
     walkToAndOpen,
     preferPerf,
+    skipStations,
   ]);
 
   useEffect(() => {
@@ -1023,13 +1073,23 @@ export function PastureApp({
           {fullScreen ? "Exit" : "Full"}
         </button>
       </div>
+      {quarryOn ? (
+        <GatherHud
+          status={gatherState}
+          onOpenPack={() => openStationMenu("bank")}
+        />
+      ) : null}
       {nearbyStation && !stationMenu ? (
         <div className="pasture-station-prompt" role="status">
           <p className="pasture-station-prompt-copy">
             <kbd className="keycap" aria-hidden="true">
               E
             </kbd>
-            <span>{stationPrompt(nearbyStation)}</span>
+            <span>
+              {quarryOn && nearbyStation.kind === "mine"
+                ? "Press E to work the face."
+                : stationPrompt(nearbyStation)}
+            </span>
           </p>
           {nearbyProgress ? (
             <p className="pasture-station-progress">
@@ -1043,7 +1103,9 @@ export function PastureApp({
                 openStationMenu(nearbyStation.kind);
             }}
           >
-            {stationActionLabel(nearbyStation)}
+            {quarryOn && nearbyStation.kind === "mine"
+              ? "Work the face"
+              : stationActionLabel(nearbyStation)}
           </button>
         </div>
       ) : null}
@@ -1067,6 +1129,18 @@ export function PastureApp({
                 onClose={closeStationMenu}
                 desk={adventureDesk}
                 onDesk={() => undefined}
+              />
+            ) : stationMenu === "bank" ? (
+              <PastureGatherMenu
+                mode="bank"
+                onClose={closeStationMenu}
+                onStatus={setGatherState}
+              />
+            ) : stationMenu === "mine" && quarryOn ? (
+              <PastureGatherMenu
+                mode="quarry"
+                onClose={closeStationMenu}
+                onStatus={setGatherState}
               />
             ) : isActivityStationKind(stationMenu) ? (
               <PastureActivityMenu
@@ -1125,12 +1199,14 @@ export function PastureApp({
             <PastureActivityAreas
               preferPerf={preferPerf}
               onInteract={onStationInteract}
+              showVault={quarryOn}
             />
             <StationProximity
               poseRef={livePose}
               pendingOpenRef={pendingOpenRef}
               onNearby={setNearbyStation}
               onArrive={openStationMenu}
+              skipKinds={skipStations}
             />
             <PasturePaths preferPerf={preferPerf} />
             <StarterTown
@@ -1851,15 +1927,23 @@ function StationProximity({
   pendingOpenRef,
   onNearby,
   onArrive,
+  skipKinds,
 }: {
   poseRef: { current: { x: number; z: number } };
   pendingOpenRef: { current: PastureStationKind | null };
   onNearby: (station: WorldStation | null) => void;
   onArrive: (kind: PastureStationKind) => void;
+  skipKinds?: ReadonlySet<string>;
 }) {
   const lastId = useRef<string>("");
+  const skipRef = useRef(skipKinds);
+  skipRef.current = skipKinds;
   useFrame(() => {
-    const near = nearbyInteractStation(poseRef.current, PASTURE_ZONE);
+    const near = nearbyInteractStation(
+      poseRef.current,
+      PASTURE_ZONE,
+      skipRef.current,
+    );
     const pending = pendingOpenRef.current;
     if (
       pending &&

@@ -501,11 +501,56 @@ function RaceGate({ x, z, y, rotY = 0, onInteract }: SitProps) {
   );
 }
 
+function BlockVault({ x, z, y, rotY = 0, onInteract }: SitProps) {
+  const label = yardLabelForLandmark("block-vault");
+  return (
+    <group
+      position={[x, y, z]}
+      rotation={[0, rotY, 0]}
+      onPointerDown={onInteract}
+      {...hoverHandlers()}
+    >
+      <mesh position={[0, 0.9, 0]} castShadow receiveShadow>
+        <boxGeometry args={[3.1, 1.8, 2.4]} />
+        <meshStandardMaterial
+          color="#141414"
+          roughness={0.85}
+          metalness={0.2}
+        />
+      </mesh>
+      <mesh position={[0, 1.15, 1.22]}>
+        <boxGeometry args={[3.15, 0.18, 0.08]} />
+        <meshStandardMaterial
+          color="#FF4D00"
+          emissive="#FF4D00"
+          emissiveIntensity={0.55}
+          roughness={0.4}
+        />
+      </mesh>
+      <mesh position={[0, 0.55, 1.22]}>
+        <boxGeometry args={[0.7, 1.05, 0.06]} />
+        <meshStandardMaterial color="#2a2a2a" roughness={0.6} metalness={0.4} />
+      </mesh>
+      <PastureWorldText
+        position={[0, 2.15, 0]}
+        fontSize={0.26}
+        anchorX="center"
+        anchorY="middle"
+        tag={label.tag}
+      >
+        {label.title}
+      </PastureWorldText>
+    </group>
+  );
+}
+
 export function PastureActivityAreas({
   onInteract,
+  showVault = false,
 }: {
   preferPerf?: boolean;
   onInteract: (station: WorldStation) => void;
+  showVault?: boolean;
 }) {
   const handle =
     (station: WorldStation | undefined) =>
@@ -538,6 +583,24 @@ export function PastureActivityAreas({
           />
         );
       })}
+      {showVault
+        ? (() => {
+            const station = PASTURE_ZONE.stations.find(
+              (item) => item.kind === "bank",
+            );
+            const land = landmarkFor("block-vault");
+            if (!station || !land) return null;
+            return (
+              <BlockVault
+                x={land.position.x}
+                z={land.position.z}
+                y={meadowHeight(land.position.x, land.position.z)}
+                rotY={yardFacing(land.position.x, land.position.z)}
+                onInteract={handle(station)}
+              />
+            );
+          })()
+        : null}
       <YardCanalKit />
     </group>
   );

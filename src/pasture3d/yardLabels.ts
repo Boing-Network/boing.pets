@@ -21,6 +21,7 @@ const BY_LANDMARK_ID: Record<string, YardLabelSpec> = {
   "old-oak": { title: "OLD OAK", tag: "LANDMARK" },
   "home-plot": { title: "HOME STOOP", tag: "DESK" },
   "dispatch-station": { title: "DISPATCH", tag: "TRIPS" },
+  "block-vault": { title: "BLOCK VAULT", tag: "BANK" },
   wildflowers: { title: "PLANTERS", tag: "DECOR" },
   "snack-barn": { title: "STORAGE", tag: "STORAGE" },
 };
@@ -37,6 +38,7 @@ const BY_KIND: Record<PastureStationKind, YardLabelSpec> = {
   mine: BY_LANDMARK_ID["crystal-quarry"]!,
   garden: BY_LANDMARK_ID["garden-beds"]!,
   home: BY_LANDMARK_ID["home-plot"]!,
+  bank: BY_LANDMARK_ID["block-vault"]!,
 };
 
 export function yardLabelForLandmark(id: string, fallback = ""): YardLabelSpec {

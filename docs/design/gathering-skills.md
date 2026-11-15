@@ -1,20 +1,51 @@
 # Gathering skills
 
-Design only. No gameplay code in this change, no Worker deploy, and no D1 migration applied. The next schema file, when a later change is allowed to add one, is `migrations/0030_gathering_skills.sql`. Tip today is `0029_adventure_admin.sql`. Do not add a cron trigger. The Free plan is already at 5/5.
+Phase 1 (Quarry, off-chain) is in the tree behind `GATHER_QUARRY`, default **off**. `GATHER_MINT` is reserved and this build never submits a mint. Migration `migrations/0030_gathering_skills.sql` is local/test only. Do not apply it remotely and do not deploy from this change. No cron. The Free plan is already at 5/5.
 
-Player-facing copy in this design says **character**, not pet. The hatch row stays in the `pets` table. Accent color for the new HUD is safety orange `#FF4D00`.
+Player-facing copy says **character**, not pet. The hatch row stays in the `pets` table. Accent color is safety orange `#FF4D00`.
+
+## Decisions
+
+Owner calls, then the defaults used for everything they left open.
+
+| #   | Call                                                                                                                    | Status             |
+| --- | ----------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| 1   | Unlock cap 50. Prestige past 50 is a cosmetic count and opens nothing.                                                  | Owner              |
+| 2   | Pack is 28 units (`sum(qty)`), not 28 item types.                                                                       | Decided by default |
+| 3   | Cred is `floor(reward/8)` for the first 80 banked units per skill per UTC day, then items and XP only.                  | Owner              |
+| 4   | Pickaxe tier stays a hard lock on top of level. The pick also keeps its success multiplier.                             | Owner              |
+| 5   | When a skill flag is on, that family's old signed loop and mini-game both 409. Phase 1 retires mining only.             | Owner              |
+| 6   | The vault banks the whole pack. No partial deposit in v1.                                                               | Decided by default |
+| 7   | Mint is an explicit action at the Block Vault, in batches, one leg per item id. Banked items stay off-chain until then. | Owner              |
+| 8   | A character can gather while a Dispatch run is out.                                                                     | Decided by default |
+| 9   | Lot Greens stay a level-1 Plot bed and never mint. Plot itself is not in phase 1.                                       | Decided by default |
+| 10  | Nodes are instanced per character.                                                                                      | Decided by default |
+| 11  | Node life is 2–5 minutes of wall clock, not 8–24 ticks.                                                                 | Owner              |
+| 12  | No daily item heat in phase 1. Ore supply may fall in price on testnet. Cred is the brake.                              | Decided by default |
+| 13  | The vault is in The Yard only.                                                                                          | Decided by default |
+| 14  | Dispatch loot does not grant Sweep XP.                                                                                  | Decided by default |
+
+Marketplace rule, deferred: only minted items should be listable, and unminted banked items stay usable in craft, kitchen, housing, and care. Phase 1 does **not** enforce that. Listings today escrow `inventory.qty`. There is no minted balance in D1, and open listings already hold that escrow. Turning the rule on while mint is closed would reject every new list and would not know what to do with rows already `open`. Existing listings and the existing withdraw/deposit path stay as they are.
+
+When mint ships, the cutover is:
+
+- `item_mint_balance` (created empty in 0030) is the listable qty. Do not copy `inventory` into it. Current stacks are banked, not minted.
+- A confirmed vault mint debits `inventory` and credits `item_mint_balance`. A failed mint refunds the qty onto `inventory`.
+- New listings escrow `item_mint_balance`. Add `marketplace_listings.escrow` (`inventory` or `minted`) so rows created before the cutover keep the old debit and the old expiry refund. Do not cancel them.
+- Wallet balances from the old withdraw flow are already off the bank. Leave them. A later deposit should credit `item_mint_balance` (they were minted) instead of `inventory`, or a round trip becomes unlistable. That deposit change waits for the mint phase.
+- `gather_mint_queue` is the batch queue. It does not reuse `operator_mint_queue.reward_id`, because that settler writes `adventure_rewards`. Nonces still come from the same operator counter (`nextOperatorNonce` must max across both).
 
 ## Summary
 
 Four gathering skills, one per resource family the world already drops: **Quarry** (ores), **Line** (fish), **Plot** (crops, including off-chain Lot Greens), **Sweep** (treasure). Food, tools, cosmetics, furniture, race ribbons, cookbook defs, and Idle Adventure materials are not gathering skills.
 
-Levels use the Old School RuneScape XP curve and stop at **50** (101,333 XP). Level unlocks the next node in that family. Tick speed and drop weights improve with level. Pickaxes stay, as a Quarry speed bonus, not as the lock.
+Levels use the Old School RuneScape XP curve. Unlocks, tick speed, and drop weights stop at **50** (101,333 XP). XP past that still counts. Prestige is `virtualLevel - 50` and opens nothing. The toast is `QUARRY P1`.
 
-A node runs on the Worker clock. At start the server rolls a hidden life of 8–24 ticks and never tells the client the number. The client polls; the server grants only the ticks that wall-clock time has earned, then the node dies and the character has to click it again. Closing the tab does not earn past that one node. No cron and no Durable Object: one D1 row per character, settled on the next request, same pattern as adventure claims and mint receipts.
+A node runs on the Worker clock. Life is a hidden **2–5 minutes**. The client polls; the server grants only ticks the wall clock has earned. When the face dies, or the pack hits 28, the character clicks again or walks to the vault. Closing the tab does not earn past that one node. No cron and no Durable Object.
 
-The pack holds **28** resources. Gathering stops when it is full. Banking at the **Block Vault** in The Yard moves the pack into the existing `inventory` table, which is what crafting, the kitchen, the market, housing, and withdraw already read. Ticks never mint. A later phase can enqueue **one** `mint(to, itemId, amount)` leg per item id for the stack just banked. That is the gas save versus a mint per tick. Unmapped ids (`crop-forage`, the Wood Pick, ribbons, recipe defs) stay off-chain. XP, levels, the pack, Cred, and Laces stay off-chain.
+Banking at the Block Vault `(0, -8)` moves the pack into `inventory`. Ticks never mint. Mint, later, is a button on that vault: presets 10, 100, 1,000, and 10,000, plus a custom amount up to the banked qty and 10,000. One item id is one `mint(to, itemId, amount)` leg, so gas stays ~0.00084 BOING budgeted per leg, not per unit. Presets larger than the banked stack are disabled, not clamped. A `client_key` makes a double submit return the same queue row. States are `queued`, `submitted`, `minted`, and `failed` (failed refunds the qty to the bank).
 
-Phase 1 is Quarry only, off-chain, behind a flag. It replaces mining's stamina loop and the mining mini-game. Line, Plot, and Sweep wait so fish, crops, and loot do not jump from a handful a day to hundreds an hour in the same ship.
+Phase 1 is Quarry only. `GATHER_QUARRY=off` in `wrangler.jsonc`. Set it to `on` only after 0030 is applied. `POST /api/gather/mint` returns 403 even if `GATHER_MINT=on`. Line, Plot, and Sweep wait.
 
 ## What the repo does today
 
@@ -75,7 +106,7 @@ xpToReach(level) = floor(points / 4)
 | 40    | 37,224         |
 | 50    | 101,333        |
 
-Level 99 on this curve is 13,034,431 XP, about 129× level 50. That is the wrong cap for four skills on a testnet block whose sinks are 10 crafts a day and 5 cooks a day. XP past 101,333 is stored and does nothing. Level is derived from XP. It is not a column.
+Level 99 on this curve is 13,034,431 XP, about 129× level 50. Unlocks stop at 50. The same curve keeps going, up to virtual level 120, and the extra levels are prestige. Prestige does not change tick speed, drop weights, or which ore the pick can reach. Level is derived from XP. It is not a column.
 
 XP is paid on a **successful** tick only. A dry tick still consumes the node and gives nothing.
 
@@ -139,7 +170,7 @@ Sweep:
 
 Cred column is `max(1, floor(rewardBoinglets / 8))`, paid at the vault, and only for the first 80 banked units of that skill that UTC day. Detail in section 6. Laces are not a gather reward.
 
-Pickaxes stay in the game. `pickaxeTier()` still reads the inventory. They do not gate ores anymore, because the level does. They multiply Quarry success by 1.00 / 1.08 / 1.15 / 1.22 for wood / iron / crystal / aether, then the chance is clamped at 0.72. The Wood Pick stays the free off-chain starter (reserved id 60). Losing the pick does not close a node the character has already unlocked.
+Pickaxes stay a hard lock on top of level. An ore rolls only when `level >= minLevel` and `pickaxeTier >= minTier`. Wood (tier 1, free, off-chain, reserved id 60) reaches Lot Pebble and Spark Ore. Iron (tier 2) is required for Emberite and Yard Crystal. Crystal or better (tier 3) is required for Aetherite. The pick also multiplies face success by 1.00 / 1.08 / 1.15 / 1.22, then the chance is clamped at 0.72. A level-50 character with a wood pick still cannot pull Aetherite. Seeded XP does not waive the pick.
 
 ### Copy
 
@@ -151,7 +182,7 @@ Short, dry, on the station and in the toasts. No "buddy", no "little", no exclam
 | Working   | On the face.                             | Line's in.                   | Hands in the bed.           | Sweeping.                      |
 | Node dies | Face is dead. Hit it again.              | Line went slack. Cast again. | Bed's spent. Work it again. | Patch is cold. Sweep it again. |
 | Pack full | Pack's full. Bank it at the Block Vault. | same                         | same                        | same                           |
-| Level up  | `QUARRY 12`                              | `LINE 12`                    | `PLOT 12`                   | `SWEEP 12`                     |
+| Level up  | `QUARRY 12` or `QUARRY P1`               | `LINE 12`                    | `PLOT 12`                   | `SWEEP 12`                     |
 
 The level-up toast is the skill name, safety orange, and the new level. Nothing else.
 
@@ -170,9 +201,9 @@ The client does not report ticks, successes, or timestamps. It asks the server t
 - this owner has no `running` session
 - the previous session ended at least 1.5s ago
 
-Then it inserts one row: `tickMs` from the level, `depleteTicks` uniform in **8–24 inclusive** (mean 16), `seed` from `crypto.getRandomValues`, `startedAt = now`. The response returns `sessionId`, `tickMs`, `serverNow`, skill, node, XP, level, and pack. It does **not** return `depleteTicks` or the seed.
+Then it inserts one row: `tickMs` from the level, a hidden life whose wall clock is uniform from **120s to 300s** (tick count is `round(lifeMs / tickMs)`, so a faster level does not shorten the AFK window), `seed` from `crypto.getRandomValues`, `startedAt = now`. The response does **not** return `depleteTicks` or the seed.
 
-Mean node life is 16 × 4.0s = 64s at level 1 (range 32–96s) and 16 × 2.4s = 38s at level 50 (range 19–58s). That is the AFK window. Look away, come back, click again. It is not an overnight.
+That is the AFK window: look away for two to five minutes, then click again. It is not an overnight. Lengthening the node does not raise the hourly ceiling. Items still come from tick rate times success (~300 an hour at level 1 if the character re-clicks every time). What changes is loot per unattended click. One node is at most one pack, because ~5 items a minute fills 28 units in about five minutes, and a closed tab cannot start the next node. Cred still stops at 80 units a day. Fewer clicks (about 12–30 an hour instead of one a minute) is the point. The item faucet does not grow with the AFK window.
 
 ### Settle
 
@@ -249,31 +280,40 @@ Bank does not end a `running` session by itself. If the pack filled, the session
 
 ### What hits the chain, and what does not
 
-Phase 1 and 2: nothing hits the chain. The vault is a D1 move. Gas is zero. This matches mining and fishing today, and it keeps the operator's BOING reserve for the market and for adventures.
+Phase 1: nothing hits the chain. Banking is a D1 move into `inventory`. `POST /api/gather/mint` is 403. The vault UI shows the batch presets disabled and the line "Mint is closed."
 
-Phase 3, opt-in, and only if the operator key and `MULTI_TOKEN_CONTRACT` are configured:
+Mint, when it ships, is a separate button on the Block Vault. The player picks one item id and an amount:
 
-The player signs a withdraw-style challenge for the stacks they want on-chain (a stolen session must not be able to mint). The Worker collapses each item id to **one** leg: `mint(to, itemId, amount)` or a transfer if the operator already holds stock, same `planOperatorDelivery` split withdraw uses today. Qty per leg is capped at `ONCHAIN_WITHDRAW_MAX_QTY` (100). Overflow stays in `inventory` for a later withdraw. The debit of `inventory` and the queue insert are one batch. Receipt settlement stays lazy on the next items or gather status call. No cron.
+- presets **10, 100, 1,000, 10,000**, plus a custom whole number
+- a preset larger than the banked qty of that item is disabled
+- custom amount must be `1 .. min(banked, 10000)`
+- one item id, one `mint(to, itemId, amount)` leg, however large the amount (this is not the withdraw cap of 100)
+- `client_key` is unique per owner; a repeat returns the existing row and does not debit twice
+- queue states: `queued`, `submitted`, `minted`, `failed`
+- `failed` refunds that qty onto `inventory` exactly once
+- `minted` credits `item_mint_balance` and that qty has left the bank
+- the debit of `inventory` and the queue insert are one transaction
+- receipt settlement stays lazy on the next gather or items request
+- admit the leg only when operator surplus covers pending legs × 0.00084 BOING plus the 0.01 floor
+- if the reserve is short, the row stays `queued` and the banked stack is not stuck in limbo: either it was not debited yet, or a failed receipt refunds it
 
-Do not also leave the qty in `inventory`. Adventures currently credit the stack and mint a second copy to the wallet. Gathering will not.
+Do not also leave the qty in `inventory`. Adventures currently credit a stack and mint a second copy. Vault mint will not.
 
-Unmapped and non-gather ids never enter the queue: `crop-forage`, `tool-pick-wood`, `ribbon-*`, `recipe-*`, adventure cosmetics that have no item id, XP, levels, seeds, Cred, Laces.
+Unmapped ids never enter the queue: `crop-forage`, `tool-pick-wood`, `ribbon-*`, `recipe-*`, XP, levels, seeds, Cred, Laces.
 
-Gas, using 0.00084 BOING budgeted per leg:
+Gas, 0.00084 BOING budgeted per leg (about 0.000428 expected at 42.8k gas):
 
-| What gets committed         | Legs | Budget        |
-| --------------------------- | ---- | ------------- |
-| 28 Lot Pebbles, one id      | 1    | 0.00084 BOING |
-| A mixed pack of 5 ore ids   | 5    | 0.0042 BOING  |
-| One mint per pebble, 28 txs | 28   | 0.02352 BOING |
+| Batch                               | Legs   | Budget        |
+| ----------------------------------- | ------ | ------------- |
+| 10, 100, 1,000, or 10,000 of one id | 1      | 0.00084 BOING |
+| Five ids, one batch each            | 5      | 0.0042 BOING  |
+| One tx per unit of a 10,000 stack   | 10,000 | 8.4 BOING     |
 
-Expected fee at 42.8k gas is about half the budget (0.000428 per leg). Admit a phase-3 mint only when operator surplus covers pending legs × 0.00084 plus the existing 0.01 BOING floor (`canAdmitMarketPurchase` is the pattern). If the reserve is short, the vault move still stands and the mint stays `queued`. The player is not stuck at the door.
-
-There is no contract change. "Batch" means one amount per item id, N legs for N ids, submitted from the one bank action. A true multi-id mint would be a different contract and is out of scope.
+A true multi-id mint would be a different contract and is out of scope. Listing stays on `inventory` until the mint phase, for the reason in Decisions.
 
 ## 4. Data model
 
-Proposed `migrations/0030_gathering_skills.sql`. Not in `migrations/` until implementation is approved. D1 is SQLite, so the partial unique index is valid.
+`migrations/0030_gathering_skills.sql` is in the repo. Apply it locally or in tests only. `deplete_ticks` is `BETWEEN 30 AND 140` so a 2.4s tick can still cover a 5 minute face. `gather_mint_queue` and `item_mint_balance` are created empty. Phase 1 does not write them. The embedded sketch below matches that file; the file wins if they drift.
 
 ```sql
 CREATE TABLE IF NOT EXISTS gather_skills (
@@ -291,7 +331,7 @@ CREATE TABLE IF NOT EXISTS gather_sessions (
   node_id TEXT NOT NULL,
   station_id TEXT NOT NULL,
   tick_ms INTEGER NOT NULL,
-  deplete_ticks INTEGER NOT NULL CHECK(deplete_ticks BETWEEN 8 AND 24),
+  deplete_ticks INTEGER NOT NULL CHECK(deplete_ticks BETWEEN 30 AND 140),
   ticks_settled INTEGER NOT NULL DEFAULT 0 CHECK(ticks_settled >= 0),
   seed TEXT NOT NULL,
   status TEXT NOT NULL CHECK(status IN ('running','depleted','packed','stopped')),
@@ -333,9 +373,7 @@ CREATE INDEX IF NOT EXISTS gather_bank_log_owner
 
 `gather_skills.xp` is the only progression number. Level is computed. `gather_daily.day_key` uses the existing `d:${dayOf(now)}` shape. `cred_items` counts banked units that were allowed to pay Cred, capped at 80.
 
-No new column on `inventory`. The vault writes the rows that are already there.
-
-Phase 3, separate file `0031`, only if mint-at-bank is approved. Do not reuse `operator_mint_queue.reward_id` as a foreign key into `adventure_rewards` by accident: that queue's settler updates `adventure_rewards`. A sibling table keeps the two settlers apart, and `nextOperatorNonce` must max() across both nonce columns so a gather leg cannot reuse an adventure nonce.
+No new column on `inventory`. The vault writes the rows that are already there. `gather_mint_queue` is keyed by `(owner, client_key)`, not by an adventure reward id. `item_mint_balance` stays empty until a mint receipt lands. Do not backfill it from `inventory` or from open listings.
 
 ```sql
 CREATE TABLE IF NOT EXISTS gather_mint_queue (
@@ -420,7 +458,7 @@ Party bonus and the variety-day bonus key off the **bank**, once, with activity 
 Leave them alone.
 
 - `adventure_xp` is not Quarry XP. Do not add them, do not spend one to boost the other.
-- A running adventure does not block a gather session, and a gather session does not block Dispatch. One is "send the character out for 45 minutes to 3 days". The other is "stand on the block for about a minute, then click".
+- A running adventure does not block a gather session, and a gather session does not block Dispatch. One is "send the character out for 45 minutes to 3 days". The other is "stand on the block for two to five minutes, then click".
 - Adventure loot that overlaps Sweep (`loot-map-scrap`, `loot-sun-shard`, `loot-wind-bell`, `loot-comet-bead`) does not grant Sweep XP. Those stacks land in `inventory` as they do now, already banked, not in the pack.
 - Do not add ores or fish to adventure tables to "use the new skills".
 - Style luck, slots, pity, and the admin CLI stay as they are.
@@ -449,27 +487,14 @@ While a skill flag is on, that family's old doors return 409 with one line of co
 
 ### Phases
 
-**Phase 1, smallest ship.** Quarry, pack, Block Vault, XP bar, toasts, pack panel, vault panel. Migration 0030. Flag default off. Off-chain only. Old mining doors 409 when the flag is on. No cron, no DO, no new token id, no change to adventures. Watch ore listings before anything else.
+**Phase 1, shipped dark.** Quarry, 28-unit pack, Block Vault, XP bar, level and prestige toasts, pack chip, depleted prompt, vault panel with mint presets shown and disabled. `GATHER_QUARRY` default `off`. Mint route closed. Old mining doors 409 when the flag is on. Migration 0030 present, not applied remotely. No cron, no DO, no listing-rule change.
 
-**Phase 2.** Line, Plot, Sweep on the same tables, one flag each, with the discovery seed. Retire that family's old doors when its flag turns on. Plot replaces grow timers for the skill; the three `garden_plots` rows are not the pack.
+**Phase 2.** Line, Plot, Sweep on the same tables, one flag each, with the discovery seed. Retire that family's old doors when its flag turns on.
 
-**Phase 3.** Optional signed batch mint at the vault, migration 0031, shared nonce with the adventure queue, reserve check, lazy receipts. Still no cron.
+**Phase 3.** Vault batch mint for real: one leg per item id, `client_key` idempotency, queued / submitted / minted / failed-with-refund, shared operator nonce, reserve check, lazy receipts. Then enforce "only `item_mint_balance` can be listed", with the escrow column so current listings keep working. Still no cron.
 
-**Phase 4, only if a shared face is actually wanted.** One rock, many characters, conditional D1 update first. A DO only if that update loses. Still no cron.
+**Phase 4, only if a shared face is actually wanted.** One rock, many characters. A DO only if a conditional D1 update loses. Still no cron.
 
 ## 7. Open questions
 
-1. Level 50 at 101,333 XP is the cap proposed here. Do you want the same curve pushed to 99, a prestige number past 50 that unlocks nothing, or a higher XP-per-tick so 50 takes an afternoon instead of a day of node-time?
-2. Is 28 units the right pack? A stack cap (for example 10 per id) would force mixed gathering; a pure unit cap lets someone bank 28 pebbles and nothing else.
-3. Cred at `floor(reward / 8)` for the first 80 banked units per skill per day, then items and XP only. Is that the brake you want, or should gathering pay no Cred at all?
-4. Pickaxes become a Quarry speed bonus, and the level becomes the lock. Prefer to keep today's tier lock and stack the level on top, so an Iron Pick is still required for Yard Crystal even at level 20?
-5. When a skill flag turns on, the old mini-game and the old signed challenge both 409. Should the mini-game stay as a faster "focus" action with the daily cap of 3, on top of the AFK node?
-6. Bank-all is the v1 vault. Do you want to deposit one stack and keep gathering the rest?
-7. Phase 3 mints at the vault, one leg per item id, and debits `inventory` so the stack is not duplicated. Prefer to leave the chain on the existing withdraw button forever, and never mint from the vault?
-8. A character can gather in The Yard while a Dispatch run is out. Confirm that, or should the two be mutually exclusive?
-9. Lot Greens are a level-1 Plot bed and never mint. Confirm they belong on Plot, rather than staying a mini-game-only craft input.
-10. Nodes are instanced per character. Do you want one shared quarry face for the whole Yard in a later phase?
-11. Node life is 8–24 ticks, about half a minute to a minute and a half. Longer lives mean fewer clicks and more real AFK. What window do you actually want?
-12. Phase 1 lets ore supply jump and relies on the Cred cap plus "ores only" to limit the damage. Do you also want a daily item heat (success chance falls after N ores), or is a soft testnet price drop acceptable?
-13. The vault is The Yard only. Starter Town's old pads (`station-mine` and the rest) stay portals to the 2D pages. Should those pads gain the new loop too?
-14. Adventure loot that shares a Sweep item does not grant Sweep XP. Confirm, or should a Dispatch find count as training?
+None. The table at the top is the decision list. The marketplace cutover is specified, not optional, and it waits until mint can actually move a stack.

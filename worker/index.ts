@@ -49,6 +49,7 @@ import { adventuresError, adventuresGet, adventuresPost } from "./adventures";
 import { adventureAdminError, adventureAdminPost } from "./adventureAdmin";
 import { craftingError, craftingGet, craftingPost } from "./crafting";
 import { miningError, miningGet, miningPost } from "./mining";
+import { gatheringError, gatheringGet, gatheringPost } from "./gathering";
 import {
   onchainItemsError,
   onchainItemsGet,
@@ -289,6 +290,14 @@ async function api(
       throw error;
     }
     try {
+      const gather = await gatheringGet(req, env, now);
+      if (gather) return gather;
+    } catch (error) {
+      const mapped = gatheringError(error);
+      if (mapped) return mapped;
+      throw error;
+    }
+    try {
       const mining = await miningGet(req, env, now);
       if (mining) return mining;
     } catch (error) {
@@ -489,6 +498,14 @@ async function api(
     if (craft) return craft;
   } catch (error) {
     const mapped = craftingError(error);
+    if (mapped) return mapped;
+    throw error;
+  }
+  try {
+    const gather = await gatheringPost(req, url, env, body, now);
+    if (gather) return gather;
+  } catch (error) {
+    const mapped = gatheringError(error);
     if (mapped) return mapped;
     throw error;
   }

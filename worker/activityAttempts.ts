@@ -55,6 +55,7 @@ import {
 } from "../src/minigames/cookGame";
 import { ledgerCreditPair } from "./ledger";
 import { resolvePartyBonus } from "./partyBonus";
+import { GATHER_COPY, gatherQuarryEnabled } from "../src/content/gathering";
 import { HttpError, requireSocialSession } from "./social";
 
 type AttemptStatus =
@@ -377,6 +378,9 @@ export async function activityAttemptsPost(
   if (url.pathname === "/api/activity/attempt/start") {
     const activity = String(body.activity || "");
     if (!isActivityId(activity)) throw new HttpError(400, "Unknown activity");
+    if (activity === "mining" && gatherQuarryEnabled(env)) {
+      throw new HttpError(409, GATHER_COPY.retired);
+    }
     const owner = hex32(body.owner);
     await requireSocialSession(req, env, owner, now);
     await requirePet(env, owner);
@@ -465,6 +469,9 @@ export async function activityAttemptsPost(
       .bind(id, owner)
       .first<AttemptRow>();
     if (!row) throw new HttpError(404, "Attempt not found");
+    if (row.activity === "mining" && gatherQuarryEnabled(env)) {
+      throw new HttpError(409, GATHER_COPY.retired);
+    }
     if (row.status !== "open") {
       if (row.status === "success_pending") {
         const pub = JSON.parse(row.public_json) as { claimMessage?: string };
@@ -566,6 +573,9 @@ export async function activityAttemptsPost(
       .bind(id, owner)
       .first<AttemptRow>();
     if (!row) throw new HttpError(404, "Attempt not found");
+    if (row.activity === "mining" && gatherQuarryEnabled(env)) {
+      throw new HttpError(409, GATHER_COPY.retired);
+    }
     if (row.status !== "success_pending")
       throw new HttpError(409, "Nothing to claim for this attempt");
     if (!row.claim_expires_at || row.claim_expires_at < now) {
