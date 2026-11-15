@@ -1,6 +1,6 @@
 # Gathering skills
 
-Phase 1 (Quarry, off-chain) is in the tree behind `GATHER_QUARRY`, default **off**. `GATHER_MINT` is reserved and this build never submits a mint. Migration `migrations/0030_gathering_skills.sql` is local/test only. Do not apply it remotely and do not deploy from this change. No cron. The Free plan is already at 5/5.
+Phase 1 (Quarry, off-chain) is in the tree behind `GATHER_QUARRY`, default **off**. Vault mint is behind `GATHER_MINT`, also default **off**. When that flag is on, `POST /api/gather/mint` queues one operator leg per item id. When it is off, the route stays 403 and does not move items. Migrations `0030_gathering_skills.sql` and `0031_market_listing_escrow.sql` are local/test only until a deploy is approved. Do not apply them remotely from an unapproved change, and do not deploy from this note. No cron. The Free plan is already at 5/5.
 
 Player-facing copy says **character**, not pet. The hatch row stays in the `pets` table. Accent color is safety orange `#FF4D00`.
 
@@ -25,15 +25,15 @@ Owner calls, then the defaults used for everything they left open.
 | 13  | The vault is in The Yard only.                                                                                          | Decided by default |
 | 14  | Dispatch loot does not grant Sweep XP.                                                                                  | Decided by default |
 
-Marketplace rule, deferred: only minted items should be listable, and unminted banked items stay usable in craft, kitchen, housing, and care. Phase 1 does **not** enforce that. Listings today escrow `inventory.qty`. There is no minted balance in D1, and open listings already hold that escrow. Turning the rule on while mint is closed would reject every new list and would not know what to do with rows already `open`. Existing listings and the existing withdraw/deposit path stay as they are.
+Marketplace rule, enforced: only minted items can be listed. Unminted banked items stay usable in craft, kitchen, housing, and care. `item_mint_balance.qty` is the listable amount. `assertListable` rejects a list with 409 `Only minted items can be listed` when that balance is short. Do not copy `inventory` into `item_mint_balance`. Stacks people already hold are banked, not minted.
 
-When mint ships, the cutover is:
+The cutover:
 
-- `item_mint_balance` (created empty in 0030) is the listable qty. Do not copy `inventory` into it. Current stacks are banked, not minted.
-- A confirmed vault mint debits `inventory` and credits `item_mint_balance`. A failed mint refunds the qty onto `inventory`.
-- New listings escrow `item_mint_balance`. Add `marketplace_listings.escrow` (`inventory` or `minted`) so rows created before the cutover keep the old debit and the old expiry refund. Do not cancel them.
-- Wallet balances from the old withdraw flow are already off the bank. Leave them. A later deposit should credit `item_mint_balance` (they were minted) instead of `inventory`, or a round trip becomes unlistable. That deposit change waits for the mint phase.
-- `gather_mint_queue` is the batch queue. It does not reuse `operator_mint_queue.reward_id`, because that settler writes `adventure_rewards`. Nonces still come from the same operator counter (`nextOperatorNonce` must max across both).
+- New listings set `marketplace_listings.escrow='minted'` (migration `0031_market_listing_escrow.sql`) and debit `item_mint_balance` on confirm. Cancel, expiry, and sale credit that same table.
+- Rows that were already `open` default to `escrow='inventory'`. Cancel, expiry, and sale of those rows still credit `inventory`. Do not cancel them.
+- A confirmed vault mint debits `inventory` when the row is queued and credits `item_mint_balance` when the receipt succeeds. A failed submit or receipt refunds the qty onto `inventory`.
+- Wallet balances from the old withdraw flow stay where they are. `POST /api/items/deposit/confirm` credits `item_mint_balance`, not `inventory`, because those tokens were already minted. The on-chain status shows `minted_qty` beside the banked `offchain_qty`.
+- `gather_mint_queue` is the batch queue. It does not reuse `operator_mint_queue.reward_id`, because that settler writes `adventure_rewards`. `nextOperatorNonce` takes the max nonce across withdrawals, `operator_mint_queue`, and `gather_mint_queue`.
 
 ## Summary
 
@@ -45,7 +45,7 @@ A node runs on the Worker clock. Life is a hidden **2–5 minutes**. The client 
 
 Banking at the Block Vault `(0, -8)` moves the pack into `inventory`. Ticks never mint. Mint, later, is a button on that vault: presets 10, 100, 1,000, and 10,000, plus a custom amount up to the banked qty and 10,000. One item id is one `mint(to, itemId, amount)` leg, so gas stays ~0.00084 BOING budgeted per leg, not per unit. Presets larger than the banked stack are disabled, not clamped. A `client_key` makes a double submit return the same queue row. States are `queued`, `submitted`, `minted`, and `failed` (failed refunds the qty to the bank).
 
-Phase 1 is Quarry only. `GATHER_QUARRY=off` in `wrangler.jsonc`. Set it to `on` only after 0030 is applied. `POST /api/gather/mint` returns 403 even if `GATHER_MINT=on`. Line, Plot, and Sweep wait.
+Phase 1 is Quarry only. `GATHER_QUARRY=off` and `GATHER_MINT=off` in `wrangler.jsonc`. Set `GATHER_QUARRY` to `on` only after 0030 is applied. Set `GATHER_MINT` to `on` only after 0030 and 0031 are applied and the operator key (`MULTI_TOKEN_CONTRACT`, `MULTI_TOKEN_ADMIN_SECRET_KEY`) is configured. While `GATHER_MINT` is off, `POST /api/gather/mint` returns 403 and does not move items. Line, Plot, and Sweep wait.
 
 ## What the repo does today
 
@@ -280,24 +280,24 @@ Bank does not end a `running` session by itself. If the pack filled, the session
 
 ### What hits the chain, and what does not
 
-Phase 1: nothing hits the chain. Banking is a D1 move into `inventory`. `POST /api/gather/mint` is 403. The vault UI shows the batch presets disabled and the line "Mint is closed."
+Banking is a D1 move into `inventory`. It does not mint. `POST /api/gather/mint` is 403 while `GATHER_MINT` is off, and the Block Vault shows the batch presets disabled with "Mint is closed."
 
-Mint, when it ships, is a separate button on the Block Vault. The player picks one item id and an amount:
+When `GATHER_MINT` is on, the Block Vault calls `POST /api/gather/mint`. The player picks one banked item id and an amount:
 
 - presets **10, 100, 1,000, 10,000**, plus a custom whole number
 - a preset larger than the banked qty of that item is disabled
 - custom amount must be `1 .. min(banked, 10000)`
-- one item id, one `mint(to, itemId, amount)` leg, however large the amount (this is not the withdraw cap of 100)
+- one item id per request, however large the amount (this is not the withdraw cap of 100). Delivery goes through `planOperatorDelivery`
 - `client_key` is unique per owner; a repeat returns the existing row and does not debit twice
 - queue states: `queued`, `submitted`, `minted`, `failed`
 - `failed` refunds that qty onto `inventory` exactly once
 - `minted` credits `item_mint_balance` and that qty has left the bank
-- the debit of `inventory` and the queue insert are one transaction
-- receipt settlement stays lazy on the next gather or items request
-- admit the leg only when operator surplus covers pending legs × 0.00084 BOING plus the 0.01 floor
-- if the reserve is short, the row stays `queued` and the banked stack is not stuck in limbo: either it was not debited yet, or a failed receipt refunds it
+- the debit of `inventory` and the queue insert are one transaction, and only after the operator config exists, the reserve check passes, and the leg is signed (and simulated when it is next in line). Missing operator config returns 503 and does not debit
+- receipt settlement stays lazy on the next gather or items request, `LIMIT 8`, no cron
+- admit the leg only when the mint operator's native balance covers pending legs × 0.00084 BOING plus the 0.01 floor. A short reserve returns 503 and does not debit
+- a failed submit or a failed receipt refunds that qty onto `inventory` exactly once
 
-Do not also leave the qty in `inventory`. Adventures currently credit a stack and mint a second copy. Vault mint will not.
+Do not also leave the qty in `inventory`. Adventures currently credit a stack and mint a second copy. Vault mint will not. `planOperatorDelivery` spends one queue row on one item id. If the operator already holds some of that id, the row can contain a transfer leg plus a mint of the shortfall. The stored nonce is the highest leg, so the next operator action starts after it.
 
 Unmapped ids never enter the queue: `crop-forage`, `tool-pick-wood`, `ribbon-*`, `recipe-*`, XP, levels, seeds, Cred, Laces.
 
@@ -309,11 +309,11 @@ Gas, 0.00084 BOING budgeted per leg (about 0.000428 expected at 42.8k gas):
 | Five ids, one batch each            | 5      | 0.0042 BOING  |
 | One tx per unit of a 10,000 stack   | 10,000 | 8.4 BOING     |
 
-A true multi-id mint would be a different contract and is out of scope. Listing stays on `inventory` until the mint phase, for the reason in Decisions.
+A true multi-id mint would be a different contract and is out of scope. Listing reads `item_mint_balance`, not raw `inventory`. See the marketplace rule in Decisions.
 
 ## 4. Data model
 
-`migrations/0030_gathering_skills.sql` is in the repo. Apply it locally or in tests only. `deplete_ticks` is `BETWEEN 30 AND 140` so a 2.4s tick can still cover a 5 minute face. `gather_mint_queue` and `item_mint_balance` are created empty. Phase 1 does not write them. The embedded sketch below matches that file; the file wins if they drift.
+`migrations/0030_gathering_skills.sql` creates the gather tables and the empty mint tables. `migrations/0031_market_listing_escrow.sql` adds `marketplace_listings.escrow` with default `inventory`. Apply both locally or in tests only until a deploy is approved. `deplete_ticks` is `BETWEEN 30 AND 140` so a 2.4s tick can still cover a 5 minute face. Quarry ticks do not write `gather_mint_queue` or `item_mint_balance`. The vault mint path does, and only when `GATHER_MINT` is on. The embedded sketch below matches 0030; the file wins if they drift.
 
 ```sql
 CREATE TABLE IF NOT EXISTS gather_skills (
@@ -401,15 +401,16 @@ Columns mirror `operator_mint_queue` so the leg encoder can be shared. The debit
 
 ## 5. Worker API and the HUD
 
-All writes require the social session, and the session owner must be the hatch owner. No wallet signature per tick. Phase 3's on-chain send is the exception: it reuses the withdraw challenge signature.
+All writes require the social session, and the session owner must be the hatch owner. No wallet signature per tick. Vault mint uses that same session.
 
-| Method | Path                        | Role                                                                                                                               |
-| ------ | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/api/gather/status?owner=` | Skills, XP, derived level, pack, live session public fields, today's Cred count. Also settles a stale `running` row up to its cap. |
-| POST   | `/api/gather/start`         | Open a node.                                                                                                                       |
-| POST   | `/api/gather/settle`        | Grant elapsed ticks. Safe to retry.                                                                                                |
-| POST   | `/api/gather/stop`          | Close `running` without granting past `now`.                                                                                       |
-| POST   | `/api/gather/bank`          | Move the pack into `inventory`. Requires no `running` session.                                                                     |
+| Method | Path                        | Role                                                                                                                                      |
+| ------ | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/gather/status?owner=` | Skills, XP, derived level, pack, live session public fields, today's Cred count. Also settles a stale `running` row up to its cap.        |
+| POST   | `/api/gather/start`         | Open a node.                                                                                                                              |
+| POST   | `/api/gather/settle`        | Grant elapsed ticks. Safe to retry.                                                                                                       |
+| POST   | `/api/gather/stop`          | Close `running` without granting past `now`.                                                                                              |
+| POST   | `/api/gather/bank`          | Move the pack into `inventory`. Requires no `running` session.                                                                            |
+| POST   | `/api/gather/mint`          | When `GATHER_MINT` is on, queue one item id. 403 and no balance move when the flag is off. 503 and no debit when the operator is missing. |
 
 `status` and `settle` return `levelUps: [{ skill, level }]` when this call crossed one or more thresholds, so a backgrounded tab still toasts every level it actually gained. One node of commons is at most 24 × 8 = 192 XP, enough to cross level 2 and maybe 3, not enough to skip a tier.
 
@@ -422,7 +423,7 @@ Extend `WorldHud`. Do not send the player to `mining.html` for a skill that is o
 - **XP bar**, under the station prompt while a gather session is open. Track `#1a1a1a`, fill `#FF4D00`. Label is `QUARRY 12` and `2411 / 4470` style numbers (XP into this level, threshold of the next). At 50 the bar is full and the label is `QUARRY 50`.
 - **Level-up toast**, top of the HUD, the same `QUARRY 12` string, orange, about 2.2s, stacked if a settle crossed two levels. `aria-live="polite"`.
 - **Pack**, a HUD button always available in The Yard: `PACK 7/28`, opening a panel of stacks (icon from `itemIcons`, qty, name). When it hits 28, the quarry panel replaces the work line with "Pack's full. Bank it at the Block Vault."
-- **Vault panel**, on `pasture-bank`: the pack, the Cred this deposit will actually pay (after the daily 80), and one Bank button. No partial deposit in v1.
+- **Vault panel**, on `pasture-bank`: the pack, the Cred this deposit will actually pay (after the daily 80), and one Bank button. No partial deposit in v1. Mint presets and a custom amount call `/api/gather/mint` when `mintEnabled` is true. While the flag is off they stay disabled and the line is "Mint is closed."
 - The client polls `settle` about once per `tickMs` while the panel is open, and once when the tab becomes visible. A slow poll does not lose ticks. The grant is the wall clock.
 
 WASD movement is unchanged. E on a live gather station opens the panel in the world. Esc closes it and leaves the character where they stand. The 2D activity pages stay as fallbacks until that skill's flag retires them, the same way `/craft` is a fallback for the crafting station.
@@ -487,14 +488,14 @@ While a skill flag is on, that family's old doors return 409 with one line of co
 
 ### Phases
 
-**Phase 1, shipped dark.** Quarry, 28-unit pack, Block Vault, XP bar, level and prestige toasts, pack chip, depleted prompt, vault panel with mint presets shown and disabled. `GATHER_QUARRY` default `off`. Mint route closed. Old mining doors 409 when the flag is on. Migration 0030 present, not applied remotely. No cron, no DO, no listing-rule change.
+**Phase 1, shipped dark.** Quarry, 28-unit pack, Block Vault, XP bar, level and prestige toasts, pack chip, depleted prompt. `GATHER_QUARRY` default `off`. Old mining doors 409 when that flag is on. Migration 0030 present, not applied remotely. No cron, no DO.
 
 **Phase 2.** Line, Plot, Sweep on the same tables, one flag each, with the discovery seed. Retire that family's old doors when its flag turns on.
 
-**Phase 3.** Vault batch mint for real: one leg per item id, `client_key` idempotency, queued / submitted / minted / failed-with-refund, shared operator nonce, reserve check, lazy receipts. Then enforce "only `item_mint_balance` can be listed", with the escrow column so current listings keep working. Still no cron.
+**Phase 3, shipped dark.** Vault batch mint: one queue row per item id, `client_key` idempotency, queued / submitted / minted / failed-with-refund, shared operator nonce, reserve check, lazy receipts. New lists require `item_mint_balance` and set `escrow='minted'`. Open rows from before 0031 keep `escrow='inventory'`. `GATHER_MINT` default `off`. Still no cron.
 
 **Phase 4, only if a shared face is actually wanted.** One rock, many characters. A DO only if a conditional D1 update loses. Still no cron.
 
 ## 7. Open questions
 
-None. The table at the top is the decision list. The marketplace cutover is specified, not optional, and it waits until mint can actually move a stack.
+None. The table at the top is the decision list. The marketplace rule is enforced. Turn mint on with `GATHER_MINT=on` after 0030 and 0031 are applied and the operator key is set. Leave the var `off` until then. The route stays 403 and does not move items while it is off. Missing operator config returns 503 and does not debit.

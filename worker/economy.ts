@@ -89,17 +89,47 @@ async function claimedCare(env: Env, owner: string): Promise<number> {
   return Number(row?.bal || 0);
 }
 
-async function inventoryQty(
+async function mintedQty(
   env: Env,
   owner: string,
   itemId: string,
 ): Promise<number> {
   const row = await env.DB.prepare(
-    "SELECT qty FROM inventory WHERE owner=? AND item_id=?",
+    "SELECT qty FROM item_mint_balance WHERE owner=? AND item_id=?",
   )
     .bind(owner, itemId)
     .first<{ qty: number }>();
   return Number(row?.qty || 0);
+}
+
+type ListingEscrow = "inventory" | "minted";
+
+function listingEscrow(value: unknown): ListingEscrow {
+  return value === "minted" ? "minted" : "inventory";
+}
+
+function creditEscrow(
+  statements: D1PreparedStatement[],
+  env: Env,
+  owner: string,
+  itemId: string,
+  qty: number,
+  escrow: unknown,
+) {
+  if (listingEscrow(escrow) === "minted") {
+    statements.push(
+      env.DB.prepare(
+        `INSERT INTO item_mint_balance(owner,item_id,qty) VALUES(?,?,?)
+         ON CONFLICT(owner,item_id) DO UPDATE SET qty=qty+excluded.qty`,
+      ).bind(owner, itemId, qty),
+    );
+    return;
+  }
+  statements.push(
+    env.DB.prepare(
+      "INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,?) ON CONFLICT(owner,item_id) DO UPDATE SET qty=qty+excluded.qty",
+    ).bind(owner, itemId, qty),
+  );
 }
 
 async function lastAcquisition(
@@ -134,10 +164,16 @@ async function recordAcquisition(
 
 async function expireOpenListings(env: Env, now: number) {
   const expired = await env.DB.prepare(
-    "SELECT id,seller,item_id,qty FROM marketplace_listings WHERE status='open' AND expires_at IS NOT NULL AND expires_at<=?",
+    "SELECT id,seller,item_id,qty,escrow FROM marketplace_listings WHERE status='open' AND expires_at IS NOT NULL AND expires_at<=?",
   )
     .bind(now)
-    .all<{ id: string; seller: string; item_id: string; qty: number }>();
+    .all<{
+      id: string;
+      seller: string;
+      item_id: string;
+      qty: number;
+      escrow: string | null;
+    }>();
   if (!expired.results.length) return;
   const statements: D1PreparedStatement[] = [];
   for (const row of expired.results) {
@@ -145,10 +181,8 @@ async function expireOpenListings(env: Env, now: number) {
       env.DB.prepare(
         "UPDATE marketplace_listings SET status='expired', updated_at=? WHERE id=? AND status='open'",
       ).bind(now, row.id),
-      env.DB.prepare(
-        "INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,?) ON CONFLICT(owner,item_id) DO UPDATE SET qty=qty+excluded.qty",
-      ).bind(row.seller, row.item_id, row.qty),
     );
+    creditEscrow(statements, env, row.seller, row.item_id, row.qty, row.escrow);
   }
   await env.DB.batch(statements);
 }
@@ -196,8 +230,15 @@ async function assertListable(
   const acquired = await lastAcquisition(env, owner, itemId);
   if (stillInHold(acquired?.created_at, now))
     throw new HttpError(409, "This item is still in its listing hold period");
-  if ((await inventoryQty(env, owner, itemId)) < qty)
-    throw new HttpError(409, "You do not own enough of that item");
+  const minted = await mintedQty(env, owner, itemId);
+  if (minted < qty) {
+    throw new HttpError(
+      409,
+      minted > 0
+        ? "You do not have enough minted items to list"
+        : "Only minted items can be listed",
+    );
+  }
 }
 
 async function rateLimit(env: Env, owner: string, now: number) {
@@ -314,6 +355,13 @@ export async function economyGet(
         claimable: sparklesClaimedToday ? 0 : SPARKLES_DAILY,
       },
       inventory: inventory.results,
+      minted: (
+        await env.DB.prepare(
+          "SELECT item_id,qty FROM item_mint_balance WHERE owner=? AND qty>0",
+        )
+          .bind(owner)
+          .all<{ item_id: string; qty: number }>()
+      ).results,
       now,
     });
   }
@@ -719,11 +767,30 @@ export async function economyPost(
       const expires = Number(payload.expires_at) || listingExpiresAt(now);
       statements.push(
         env.DB.prepare(
-          "UPDATE inventory SET qty=qty-? WHERE owner=? AND item_id=? AND qty>=?",
-        ).bind(qty, c.owner, itemId, qty),
+          `INSERT INTO marketplace_listings(id,seller,item_id,qty,price_boinglets,price_boing,status,expires_at,created_at,updated_at,escrow)
+           SELECT ?,?,?,?,?,?,'open',?,?,?,'minted'
+           WHERE EXISTS (
+             SELECT 1 FROM item_mint_balance WHERE owner=? AND item_id=? AND qty>=?
+           )`,
+        ).bind(
+          c.id,
+          c.owner,
+          itemId,
+          qty,
+          null,
+          priceBoing,
+          expires,
+          now,
+          now,
+          c.owner,
+          itemId,
+          qty,
+        ),
         env.DB.prepare(
-          "INSERT INTO marketplace_listings(id,seller,item_id,qty,price_boinglets,price_boing,status,expires_at,created_at,updated_at) VALUES(?,?,?,?,?,?,'open',?,?,?)",
-        ).bind(c.id, c.owner, itemId, qty, null, priceBoing, expires, now, now),
+          `UPDATE item_mint_balance SET qty=qty-?
+           WHERE owner=? AND item_id=? AND qty>=?
+           AND EXISTS (SELECT 1 FROM marketplace_listings WHERE id=?)`,
+        ).bind(qty, c.owner, itemId, qty, c.id),
       );
     }
 
@@ -739,6 +806,7 @@ export async function economyPost(
           item_id: string;
           qty: number;
           price_boing: string | null;
+          escrow?: string | null;
         }>();
       if (!listing) throw new HttpError(409, "Listing was not available");
       if (listing.seller === c.owner)
@@ -815,9 +883,14 @@ export async function economyPost(
           now,
           now,
         ),
-        env.DB.prepare(
-          "INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,?) ON CONFLICT(owner,item_id) DO UPDATE SET qty=qty+excluded.qty",
-        ).bind(c.owner, listing.item_id, listing.qty),
+      );
+      creditEscrow(
+        statements,
+        env,
+        c.owner,
+        listing.item_id,
+        listing.qty,
+        listing.escrow,
       );
       await recordAcquisition(
         statements,
@@ -838,15 +911,20 @@ export async function economyPost(
         "SELECT * FROM marketplace_listings WHERE id=? AND status='open' AND seller=?",
       )
         .bind(listingId, c.owner)
-        .first<{ item_id: string; qty: number }>();
+        .first<{ item_id: string; qty: number; escrow?: string | null }>();
       if (!listing) throw new HttpError(409, "Listing already closed");
       statements.push(
         env.DB.prepare(
           "UPDATE marketplace_listings SET status='cancelled', updated_at=? WHERE id=? AND status='open'",
         ).bind(now, listingId),
-        env.DB.prepare(
-          "INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,?) ON CONFLICT(owner,item_id) DO UPDATE SET qty=qty+excluded.qty",
-        ).bind(c.owner, listing.item_id, listing.qty),
+      );
+      creditEscrow(
+        statements,
+        env,
+        c.owner,
+        listing.item_id,
+        listing.qty,
+        listing.escrow,
       );
     }
 
@@ -857,6 +935,15 @@ export async function economyPost(
         409,
         "Economy action could not complete. Refresh and retry.",
       );
+    }
+    if (c.kind === "list") {
+      const listed = await env.DB.prepare(
+        "SELECT id FROM marketplace_listings WHERE id=?",
+      )
+        .bind(c.id)
+        .first();
+      if (!listed)
+        throw new HttpError(409, "You do not have enough minted items to list");
     }
     await env.DB.prepare("DELETE FROM economy_challenges WHERE id=?")
       .bind(c.id)

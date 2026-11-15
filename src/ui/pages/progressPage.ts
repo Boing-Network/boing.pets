@@ -478,16 +478,17 @@ export async function refreshEconomy() {
   if (!$maybe("#economy-summary") || !$maybe("#catalog")) return;
   const claimBtn = $("#claim") as HTMLButtonElement;
   const sparklesBtn = $("#claim-sparkles") as HTMLButtonElement;
-  let inventory: Array<{ item_id: string; qty: number }> = [];
+  let mintedStacks: Array<{ item_id: string; qty: number }> = [];
   if (app.owner) {
     const bal = await api<{
       balances: { boinglets: number; sparkles: number };
       care: { earned: number; claimed: number; claimable: number };
       sparklesFaucet: { daily: number; claimable: number };
       inventory: Array<{ item_id: string; qty: number }>;
+      minted?: Array<{ item_id: string; qty: number }>;
     }>("/api/economy/balance?owner=" + app.owner);
-    inventory = bal.inventory;
-    summary = `${bal.balances.boinglets} ${currencyLabel("boinglets")} · ${bal.balances.sparkles} ${currencyLabel("sparkles")} · ${bal.care.claimable} care claimable · ${bal.inventory.length} inventory stacks`;
+    mintedStacks = bal.minted ?? [];
+    summary = `${bal.balances.boinglets} ${currencyLabel("boinglets")} · ${bal.balances.sparkles} ${currencyLabel("sparkles")} · ${bal.care.claimable} care claimable · ${bal.inventory.length} inventory stacks · ${mintedStacks.length} minted`;
     claimBtn.hidden = false;
     claimBtn.disabled = app.busy || bal.care.claimable <= 0;
     claimBtn.textContent =
@@ -533,7 +534,7 @@ export async function refreshEconomy() {
   const listForm = $maybe<HTMLFormElement>("#list-form");
   const listSubmit = $maybe<HTMLButtonElement>("#list-submit");
   if (listItem) {
-    const sellable = inventory.filter((row) => isSellableItem(row.item_id));
+    const sellable = mintedStacks.filter((row) => isSellableItem(row.item_id));
     listItem.replaceChildren(
       ...sellable.map((row) => {
         const opt = document.createElement("option");
@@ -546,7 +547,7 @@ export async function refreshEconomy() {
       const opt = document.createElement("option");
       opt.value = "";
       opt.textContent = app.owner
-        ? "No sellable items in inventory"
+        ? "No minted items to list"
         : "Connect to list an item";
       listItem.append(opt);
     }

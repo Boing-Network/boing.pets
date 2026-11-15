@@ -13,7 +13,8 @@
  *
  * Deposit flow: the player signs `transfer(operator, item, qty)` in Express and submits
  * it themselves (v1 has no burn). `POST /api/items/deposit/confirm` verifies the included
- * receipt and credits inventory exactly once per tx hash.
+ * receipt and credits `item_mint_balance` exactly once per tx hash. Those units were
+ * already minted, so the market can list them. The bank (`inventory`) is unchanged.
  */
 import * as ed from "@noble/ed25519";
 import { blake3 } from "@noble/hashes/blake3";
@@ -274,9 +275,19 @@ export async function nextOperatorNonce(
   } catch {
     queued = null;
   }
+  let gatherQueued: { n: number | null } | null = null;
+  try {
+    gatherQueued = await env.DB.prepare(
+      `SELECT MAX(admin_nonce) AS n FROM gather_mint_queue
+       WHERE status IN ('queued','submitted') AND admin_nonce IS NOT NULL`,
+    ).first<{ n: number | null }>();
+  } catch {
+    gatherQueued = null;
+  }
   const taken = [
     withdrawn?.n == null ? -1 : Number(withdrawn.n),
     queued?.n == null ? -1 : Number(queued.n),
+    gatherQueued?.n == null ? -1 : Number(gatherQueued.n),
   ];
   const maxTaken = Math.max(-1, ...taken);
   return {
@@ -698,7 +709,7 @@ async function confirmDeposit(
          VALUES(?,?,?,?,?,?,?)`,
       ).bind(txHash, owner, def.gameItemId, def.itemId, qty, cfg.contract, now),
       env.DB.prepare(
-        `INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,?)
+        `INSERT INTO item_mint_balance(owner,item_id,qty) VALUES(?,?,?)
          ON CONFLICT(owner,item_id) DO UPDATE SET qty=qty+excluded.qty`,
       ).bind(owner, def.gameItemId, qty),
     ]);
@@ -747,12 +758,33 @@ export async function onchainItemsGet(
     .bind(owner)
     .all<WithdrawalRow>();
   for (const w of pending.results) await settle(env, cfg, w, now);
+  try {
+    const { settleGatherMints } = await import("./gatherMint");
+    await settleGatherMints(env, now, owner);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (!/no such table/i.test(message)) throw error;
+  }
   const inv = await env.DB.prepare(
     "SELECT item_id,qty FROM inventory WHERE owner=?",
   )
     .bind(owner)
     .all<{ item_id: string; qty: number }>();
   const offchain = new Map(inv.results.map((r) => [r.item_id, Number(r.qty)]));
+  const minted = new Map<string, number>();
+  try {
+    const mintedRows = await env.DB.prepare(
+      "SELECT item_id, qty FROM item_mint_balance WHERE owner=?",
+    )
+      .bind(owner)
+      .all<{ item_id: string; qty: number }>();
+    for (const row of mintedRows.results) {
+      minted.set(row.item_id, Number(row.qty));
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (!/no such table/i.test(message)) throw error;
+  }
   const items = await mapPool(ONCHAIN_ITEMS, 4, async (def) => {
     let onchain: number | null = null;
     try {
@@ -763,6 +795,7 @@ export async function onchainItemsGet(
     return {
       ...def,
       offchain_qty: offchain.get(def.gameItemId) || 0,
+      minted_qty: minted.get(def.gameItemId) || 0,
       onchain_qty: onchain,
     };
   });

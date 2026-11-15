@@ -1,9 +1,10 @@
 import { useEffect, useId, useState } from "react";
-import { mintPresets } from "../content/gathering";
+import { MINT_BATCH_MAX, mintPresets } from "../content/gathering";
 import { itemIconSvg } from "../ui/itemIcons";
 import {
   GATHER_COPY,
   gatherAct,
+  gatherMint,
   gatherStatus,
   type GatherStatus,
 } from "../ui/gatherClient";
@@ -24,6 +25,7 @@ export function GatherPanel({
   onWork,
   onStop,
   onBank,
+  onMint,
   onClose,
 }: {
   mode: "quarry" | "bank";
@@ -33,9 +35,14 @@ export function GatherPanel({
   onWork: () => void;
   onStop: () => void;
   onBank: () => void;
+  onMint: (itemId: string, qty: number) => void;
   onClose: () => void;
 }) {
   const titleId = useId();
+  const itemSelectId = useId();
+  const customId = useId();
+  const [itemId, setItemId] = useState("");
+  const [custom, setCustom] = useState("");
   const skill = status?.skill;
   const pack = status?.pack;
   const session = status?.session;
@@ -49,7 +56,19 @@ export function GatherPanel({
       : running
         ? GATHER_COPY.working
         : "Hit the face. It dies on its own.";
-  const presets = mintPresets(0);
+  const mintOn = status?.mintEnabled === true;
+  const bank = status?.bank ?? [];
+  const selected = bank.some((row) => row.itemId === itemId)
+    ? itemId
+    : (bank[0]?.itemId ?? "");
+  const selectedQty = bank.find((row) => row.itemId === selected)?.qty ?? 0;
+  const presets = mintPresets(mintOn ? selectedQty : 0);
+  const customQty = Number(custom);
+  const customOk =
+    Number.isInteger(customQty) &&
+    customQty >= 1 &&
+    customQty <= selectedQty &&
+    customQty <= MINT_BATCH_MAX;
   return (
     <div
       className="pasture-station-menu gather-panel"
@@ -150,23 +169,77 @@ export function GatherPanel({
         )}
       </div>
       {mode === "bank" ? (
-        <div className="gather-mint" aria-disabled="true">
+        <div className="gather-mint" aria-disabled={mintOn ? "false" : "true"}>
           <p className="eyebrow">MINT</p>
           <p className="small">
-            {GATHER_COPY.mintClosed} Banked stacks stay off-chain.
+            {mintOn
+              ? "Only minted items can be listed. Pick a banked stack."
+              : `${GATHER_COPY.mintClosed} Banked stacks stay off-chain.`}
           </p>
+          {mintOn ? (
+            <label htmlFor={itemSelectId}>
+              Banked item
+              <select
+                id={itemSelectId}
+                value={selected}
+                disabled={busy || !bank.length}
+                onChange={(event) => setItemId(event.target.value)}
+              >
+                {bank.length ? (
+                  bank.map((item) => (
+                    <option key={item.itemId} value={item.itemId}>
+                      {item.name} × {item.qty}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">Nothing banked to mint</option>
+                )}
+              </select>
+            </label>
+          ) : null}
           <div className="gather-mint-presets">
             {presets.map((preset) => (
               <button
                 key={preset.qty}
                 type="button"
-                disabled
-                title={GATHER_COPY.mintClosed}
+                disabled={!mintOn || busy || !selected || !preset.enabled}
+                title={
+                  mintOn
+                    ? preset.enabled
+                      ? `Mint ${preset.qty.toLocaleString()}`
+                      : "Larger than the banked stack"
+                    : GATHER_COPY.mintClosed
+                }
+                onClick={() => onMint(selected, preset.qty)}
               >
                 {preset.qty.toLocaleString()}
               </button>
             ))}
           </div>
+          {mintOn ? (
+            <label htmlFor={customId}>
+              Custom amount
+              <input
+                id={customId}
+                type="number"
+                min={1}
+                max={Math.min(MINT_BATCH_MAX, Math.max(selectedQty, 1))}
+                inputMode="numeric"
+                value={custom}
+                disabled={busy || !selected}
+                onChange={(event) => setCustom(event.target.value)}
+              />
+            </label>
+          ) : null}
+          {mintOn ? (
+            <button
+              type="button"
+              disabled={!customOk || busy || !selected}
+              onClick={() => onMint(selected, customQty)}
+            >
+              Mint {customOk ? customQty.toLocaleString() : "custom"}
+            </button>
+          ) : null}
           <p className="small">
             One item id is one leg. Amounts above the banked stack stay shut.
           </p>
@@ -224,6 +297,34 @@ export function PastureGatherMenu({
     return () => window.clearInterval(id);
   }, [onStatus, status?.session?.status, status?.session?.tickMs]);
 
+  async function mint(itemId: string, qty: number) {
+    if (!app.owner || busy) return;
+    setBusy(true);
+    setNotice("");
+    try {
+      const next = await gatherMint(
+        app.owner,
+        itemId,
+        qty,
+        crypto.randomUUID(),
+      );
+      setStatus(next);
+      onStatus?.(next);
+      const state = next.mint?.status;
+      setNotice(
+        state === "minted"
+          ? "Minted. That stack can be listed."
+          : state === "failed"
+            ? "Mint failed. The stack is back in the bank."
+            : "Mint submitted. It can be listed when the receipt lands.",
+      );
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Mint failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function run(
     path:
       | "/api/gather/start"
@@ -263,6 +364,7 @@ export function PastureGatherMenu({
       onWork={() => void run("/api/gather/start")}
       onStop={() => void run("/api/gather/stop")}
       onBank={() => void run("/api/gather/bank")}
+      onMint={(itemId, qty) => void mint(itemId, qty)}
       onClose={onClose}
     />
   );

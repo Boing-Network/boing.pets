@@ -36,6 +36,16 @@ export type GatherStatus = {
   }>;
   pickaxeTier?: number;
   mintPresets?: Array<{ qty: number; enabled: boolean }>;
+  bank?: GatherItem[];
+  mint?: {
+    id: string;
+    clientKey: string;
+    itemId: string;
+    qty: number;
+    status: string;
+    txHash?: string | null;
+    error?: string | null;
+  };
   copy?: typeof GATHER_COPY;
   levelUps?: GatherLevelUp[];
   credGained?: number;
@@ -81,6 +91,20 @@ export function gatherAct(
   owner: string,
 ): Promise<GatherStatus> {
   return sessionApi<GatherStatus>(path, { owner, skill: "quarry" });
+}
+
+export function gatherMint(
+  owner: string,
+  itemId: string,
+  qty: number,
+  clientKey: string,
+): Promise<GatherStatus> {
+  return sessionApi<GatherStatus>("/api/gather/mint", {
+    owner,
+    item_id: itemId,
+    qty,
+    client_key: clientKey,
+  });
 }
 
 export { GATHER_COPY };

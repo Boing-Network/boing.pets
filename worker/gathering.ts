@@ -1,6 +1,7 @@
 /**
  * Quarry gather loop. Ticks come from the Worker clock, never from the body.
- * Mint route refuses. `GATHER_MINT` does not submit a transaction in this build.
+ * Vault mint runs only when `GATHER_MINT` is on. It debits the bank into
+ * `gather_mint_queue` and credits `item_mint_balance` after the receipt.
  */
 
 import { dayOf, hex32 } from "../src/core";
@@ -12,7 +13,7 @@ import {
   GATHER_SKILL_QUARRY,
   applyGatherTicks,
   dueTicks,
-  gatherMintShipped,
+  gatherMintEnabled,
   gatherQuarryEnabled,
   levelsCrossed,
   mintPresets,
@@ -26,6 +27,11 @@ import {
 } from "../src/content/gathering";
 import { mulberry32, seedFromParts } from "../src/content/adventures";
 import { itemDisplayName } from "../src/content/items";
+import {
+  loadMintableBank,
+  queueGatherMint,
+  settleGatherMints,
+} from "./gatherMint";
 import { pushLedgerCredit } from "./ledger";
 import { resolvePartyBonus } from "./partyBonus";
 import { HttpError, requireSocialSession } from "./social";
@@ -158,12 +164,22 @@ function publicSession(row: SessionRow | null) {
   };
 }
 
+function bankView(rows: Array<{ item_id: string; qty: number }>) {
+  return rows.map((row) => ({
+    itemId: row.item_id,
+    name: itemDisplayName(row.item_id),
+    qty: row.qty,
+  }));
+}
+
 async function publicState(env: Env, owner: string, now: number) {
+  await settleGatherMints(env, now, owner);
   const xp = await ensureSkill(env, owner, now);
   const progress = skillProgress(xp);
   const tier = await pickTier(env, owner);
   const nodes = quarryNodesFor(progress.level, tier);
   const pack = await packRows(env, owner);
+  const bank = await loadMintableBank(env, owner);
   const cred = await credToday(env, owner, now);
   const session =
     (await liveSession(env, owner)) ??
@@ -177,7 +193,8 @@ async function publicState(env: Env, owner: string, now: number) {
     session && now - session.updated_at < 10 * 60_000 ? session : null;
   return {
     enabled: true,
-    mintEnabled: gatherMintShipped(),
+    mintEnabled: gatherMintEnabled(env),
+    bank: bankView(bank),
     skill: {
       id: GATHER_SKILL_QUARRY,
       name: "Quarry",
@@ -205,7 +222,11 @@ async function publicState(env: Env, owner: string, now: number) {
       minLevel: node.minLevel,
       minTier: node.minTier,
     })),
-    mintPresets: mintPresets(0),
+    mintPresets: mintPresets(
+      gatherMintEnabled(env)
+        ? bank.reduce((max, row) => Math.max(max, row.qty), 0)
+        : 0,
+    ),
     copy: GATHER_COPY,
     now,
   };
@@ -285,11 +306,30 @@ export async function gatheringGet(
 ): Promise<Response | null> {
   const url = new URL(req.url);
   if (url.pathname !== "/api/gather/status") return null;
+  const mintEnabled = gatherMintEnabled(env);
   if (!gatherQuarryEnabled(env)) {
+    const ownerParam = url.searchParams.get("owner");
+    if (!ownerParam || !mintEnabled) {
+      return Response.json({
+        enabled: false,
+        mintEnabled,
+        packCap: GATHER_PACK_UNITS,
+        now,
+      });
+    }
+    const owner = hex32(ownerParam);
+    await requireSocialSession(req, env, owner, now);
+    await settleGatherMints(env, now, owner);
+    const bank = await loadMintableBank(env, owner);
     return Response.json({
       enabled: false,
-      mintEnabled: false,
+      mintEnabled,
       packCap: GATHER_PACK_UNITS,
+      bank: bankView(bank),
+      mintPresets: mintPresets(
+        bank.reduce((max, row) => Math.max(max, row.qty), 0),
+      ),
+      copy: GATHER_COPY,
       now,
     });
   }
@@ -297,7 +337,7 @@ export async function gatheringGet(
   if (!ownerParam) {
     return Response.json({
       enabled: true,
-      mintEnabled: gatherMintShipped(),
+      mintEnabled: gatherMintEnabled(env),
       packCap: GATHER_PACK_UNITS,
       copy: GATHER_COPY,
       now,
@@ -323,17 +363,34 @@ export async function gatheringPost(
     url.pathname === "/api/gather/bank" ||
     url.pathname === "/api/gather/mint";
   if (!route) return null;
-  if (!gatherQuarryEnabled(env)) {
-    throw new HttpError(403, "Quarry is closed.");
-  }
-  // This build never signs a mint, including when GATHER_MINT is on.
   if (url.pathname === "/api/gather/mint") {
-    throw new HttpError(403, GATHER_COPY.mintClosed);
+    if (!gatherMintEnabled(env))
+      throw new HttpError(403, GATHER_COPY.mintClosed);
+  } else if (!gatherQuarryEnabled(env)) {
+    throw new HttpError(403, "Quarry is closed.");
   }
 
   const owner = hex32(body.owner);
   await requireSocialSession(req, env, owner, now);
   await requireCharacter(env, owner);
+
+  if (url.pathname === "/api/gather/mint") {
+    const mint = await queueGatherMint(env, owner, body, now);
+    if (!gatherQuarryEnabled(env)) {
+      const bank = await loadMintableBank(env, owner);
+      return Response.json({
+        enabled: false,
+        mintEnabled: true,
+        packCap: GATHER_PACK_UNITS,
+        bank: bankView(bank),
+        copy: GATHER_COPY,
+        mint,
+        now,
+      });
+    }
+    const state = await publicState(env, owner, now);
+    return Response.json({ ...state, mint });
+  }
 
   if (url.pathname === "/api/gather/settle") {
     const levelUps = await settleOwner(env, owner, now);

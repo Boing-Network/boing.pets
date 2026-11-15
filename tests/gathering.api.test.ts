@@ -2,7 +2,9 @@ import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { readFileSync, readdirSync } from "node:fs";
 import { URL as NodeURL } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { bytesToHex } from "@noble/hashes/utils";
 import app from "../worker/index";
+import { resetRpcGate } from "../worker/rpc";
 import { GATHER_PACK_UNITS } from "../src/content/gathering";
 
 class Statement {
@@ -99,12 +101,15 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  resetRpcGate();
   db.close();
 });
 
 describe("quarry API", () => {
   it("stays closed when the flag is off", async () => {
     (env as { GATHER_QUARRY: string }).GATHER_QUARRY = "off";
+    (env as { GATHER_MINT: string }).GATHER_MINT = "off";
     const status = await request("/api/gather/status");
     expect(status.status).toBe(200);
     expect(await status.json()).toMatchObject({
@@ -200,7 +205,8 @@ describe("quarry API", () => {
     expect(cred.n).toBe(80);
   });
 
-  it("refuses minting and does not move the bank", async () => {
+  it("refuses minting when the flag is off and does not move the bank", async () => {
+    (env as { GATHER_MINT: string }).GATHER_MINT = "off";
     db.prepare("INSERT INTO inventory(owner, item_id, qty) VALUES(?,?,?)").run(
       owner,
       "ore-pebble",
@@ -209,7 +215,7 @@ describe("quarry API", () => {
     const mint = await request("/api/gather/mint", {
       owner,
       itemId: "ore-pebble",
-      qty: 10000,
+      qty: 10,
       clientKey: "mint-key-1",
     });
     expect(mint.status).toBe(403);
@@ -223,6 +229,215 @@ describe("quarry API", () => {
       .prepare("SELECT COUNT(*) AS n FROM gather_mint_queue")
       .get() as { n: number };
     expect(queued.n).toBe(0);
+  });
+
+  it("does not debit when the mint operator is not configured", async () => {
+    db.prepare("INSERT INTO inventory(owner, item_id, qty) VALUES(?,?,?)").run(
+      owner,
+      "ore-pebble",
+      100,
+    );
+    const mint = await request("/api/gather/mint", {
+      owner,
+      itemId: "ore-pebble",
+      qty: 10,
+      clientKey: "mint-key-1",
+    });
+    expect(mint.status).toBe(503);
+    const inv = db
+      .prepare(
+        "SELECT qty FROM inventory WHERE owner=? AND item_id='ore-pebble'",
+      )
+      .get(owner) as { qty: number };
+    expect(inv.qty).toBe(100);
+    expect(
+      db.prepare("SELECT COUNT(*) AS n FROM gather_mint_queue").get(),
+    ).toEqual({ n: 0 });
+  });
+
+  it("debits the bank, shares the operator nonce, and credits minted balance on receipt", async () => {
+    const record = env as unknown as Record<string, string>;
+    record.MULTI_TOKEN_CONTRACT = "0x" + "12".repeat(32);
+    record.MULTI_TOKEN_ADMIN_SECRET_KEY = bytesToHex(
+      new Uint8Array(32).fill(4),
+    );
+    db.prepare("INSERT INTO inventory(owner, item_id, qty) VALUES(?,?,?)").run(
+      owner,
+      "ore-pebble",
+      100,
+    );
+    db.prepare(
+      `INSERT INTO gather_mint_queue(
+         id, client_key, owner, game_item_id, item_id, qty, admin_nonce,
+         status, attempts, created_at, updated_at
+       ) VALUES('hold','hold-key-01',?,'ore-spark',2,1,20,'submitted',0,?,?)`,
+    ).run(owner, now, now);
+    let receipt: Record<string, unknown> | null = null;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: unknown, init?: RequestInit) => {
+        const { method, params } = JSON.parse(String(init?.body || "{}")) as {
+          method: string;
+          params?: unknown[];
+        };
+        const ok = (result: unknown) =>
+          Response.json({ jsonrpc: "2.0", id: 1, result });
+        if (method === "boing_getAccount") {
+          return ok({ nonce: 4, balance: "1000000000000000000" });
+        }
+        if (method === "boing_getContractStorage") {
+          return ok({ value: "0x" + "0".repeat(64) });
+        }
+        if (method === "boing_simulateTransaction")
+          return ok({ success: true });
+        if (method === "boing_submitTransaction") return ok({ tx_hash: "ok" });
+        if (method === "boing_getTransactionReceipt") {
+          const hash = String(params?.[0] ?? "");
+          return ok(receipt ? { ...receipt, tx_id: hash } : null);
+        }
+        if (method === "boing_getBlockByHeight") return ok(null);
+        return ok(null);
+      }),
+    );
+    const mint = await request("/api/gather/mint", {
+      owner,
+      itemId: "ore-pebble",
+      qty: 10,
+      clientKey: "mint-key-1",
+    });
+    expect(mint.status).toBe(200);
+    const body = (await mint.json()) as {
+      mint: { status: string; qty: number };
+    };
+    expect(body.mint).toMatchObject({ status: "submitted", qty: 10 });
+    expect(
+      db
+        .prepare(
+          "SELECT qty FROM inventory WHERE owner=? AND item_id='ore-pebble'",
+        )
+        .get(owner),
+    ).toEqual({ qty: 90 });
+    const again = await request("/api/gather/mint", {
+      owner,
+      itemId: "ore-pebble",
+      qty: 10,
+      clientKey: "mint-key-1",
+    });
+    expect(again.status).toBe(200);
+    expect(
+      db
+        .prepare(
+          "SELECT qty FROM inventory WHERE owner=? AND item_id='ore-pebble'",
+        )
+        .get(owner),
+    ).toEqual({ qty: 90 });
+    expect(
+      db
+        .prepare(
+          "SELECT admin_nonce, status FROM gather_mint_queue WHERE client_key='mint-key-1'",
+        )
+        .get(),
+    ).toEqual({ admin_nonce: 21, status: "submitted" });
+
+    receipt = { success: true };
+    const status = await request("/api/gather/status?owner=" + owner);
+    expect(status.status).toBe(200);
+    expect(
+      db
+        .prepare(
+          "SELECT qty FROM item_mint_balance WHERE owner=? AND item_id='ore-pebble'",
+        )
+        .get(owner),
+    ).toEqual({ qty: 10 });
+    expect(
+      db
+        .prepare(
+          "SELECT status FROM gather_mint_queue WHERE client_key='mint-key-1'",
+        )
+        .get(),
+    ).toEqual({ status: "minted" });
+    expect(
+      db
+        .prepare(
+          "SELECT qty FROM inventory WHERE owner=? AND item_id='ore-pebble'",
+        )
+        .get(owner),
+    ).toEqual({ qty: 90 });
+  });
+
+  it("refunds the bank when the mint does not submit", async () => {
+    const record = env as unknown as Record<string, string>;
+    record.MULTI_TOKEN_CONTRACT = "0x" + "12".repeat(32);
+    record.MULTI_TOKEN_ADMIN_SECRET_KEY = bytesToHex(
+      new Uint8Array(32).fill(4),
+    );
+    db.prepare("INSERT INTO inventory(owner, item_id, qty) VALUES(?,?,?)").run(
+      owner,
+      "ore-pebble",
+      100,
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: unknown, init?: RequestInit) => {
+        const { method } = JSON.parse(String(init?.body || "{}")) as {
+          method: string;
+        };
+        const ok = (result: unknown) =>
+          Response.json({ jsonrpc: "2.0", id: 1, result });
+        if (method === "boing_getAccount") {
+          return ok({ nonce: 4, balance: "1000000000000000000" });
+        }
+        if (method === "boing_getContractStorage") {
+          return ok({ value: "0x" + "0".repeat(64) });
+        }
+        if (method === "boing_simulateTransaction")
+          return ok({ success: true });
+        if (method === "boing_submitTransaction") {
+          return Response.json({
+            jsonrpc: "2.0",
+            id: 1,
+            error: { code: -32000, message: "Insufficient balance for fee" },
+          });
+        }
+        return ok(null);
+      }),
+    );
+    const mint = await request("/api/gather/mint", {
+      owner,
+      itemId: "ore-pebble",
+      qty: 10,
+      clientKey: "mint-key-2",
+    });
+    expect(mint.status).toBe(502);
+    expect(
+      db
+        .prepare(
+          "SELECT qty FROM inventory WHERE owner=? AND item_id='ore-pebble'",
+        )
+        .get(owner),
+    ).toEqual({ qty: 100 });
+    expect(
+      db
+        .prepare("SELECT status FROM gather_mint_queue WHERE client_key=?")
+        .get("mint-key-2"),
+    ).toEqual({ status: "failed" });
+    expect(
+      db.prepare("SELECT COUNT(*) AS n FROM item_mint_balance").get(),
+    ).toEqual({ n: 0 });
+    const retry = await request("/api/gather/mint", {
+      owner,
+      itemId: "ore-pebble",
+      qty: 10,
+      clientKey: "mint-key-2",
+    });
+    expect(retry.status).toBe(200);
+    expect(
+      db
+        .prepare(
+          "SELECT qty FROM inventory WHERE owner=? AND item_id='ore-pebble'",
+        )
+        .get(owner),
+    ).toEqual({ qty: 100 });
   });
 
   it("retires the mining doors while the quarry flag is on", async () => {

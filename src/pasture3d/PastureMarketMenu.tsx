@@ -113,10 +113,11 @@ export function PastureMarketMenu({ onClose }: { onClose: () => void }) {
       setInventory([]);
       return;
     }
-    const bal = await api<{ inventory: InventoryRow[] }>(
-      "/api/economy/balance?owner=" + app.owner,
-    );
-    setInventory(bal.inventory);
+    const bal = await api<{
+      inventory: InventoryRow[];
+      minted?: InventoryRow[];
+    }>("/api/economy/balance?owner=" + app.owner);
+    setInventory(bal.minted ?? []);
   }, []);
 
   useEffect(() => {
@@ -466,6 +467,7 @@ export function PastureMarketMenu({ onClose }: { onClose: () => void }) {
       </div>
 
       <h3 className="market-sub">List an item</h3>
+      <p className="small">Only minted items can be listed.</p>
       <form
         className="market-list-form"
         onSubmit={(event) => {
@@ -501,7 +503,7 @@ export function PastureMarketMenu({ onClose }: { onClose: () => void }) {
             ) : (
               <option value="">
                 {app.owner
-                  ? "No sellable items in inventory"
+                  ? "No minted items to list"
                   : "Connect to list an item"}
               </option>
             )}

@@ -1,6 +1,7 @@
 -- Quarry gathering. Apply locally or in tests only until a deploy is approved.
--- No cron. Playable stacks stay in `inventory` (the bank). Mint tables are empty
--- until the vault mint phase; listings still escrow `inventory`.
+-- No cron. Playable stacks stay in `inventory` (the bank). This file does not
+-- copy those stacks into `item_mint_balance`. Migration 0031 adds
+-- `marketplace_listings.escrow` so new lists can escrow minted qty.
 
 CREATE TABLE IF NOT EXISTS gather_skills (
   owner TEXT NOT NULL,

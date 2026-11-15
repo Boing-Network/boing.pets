@@ -114,6 +114,8 @@ beforeEach(async () => {
     "../migrations/0025_market_boing_and_drops.sql",
     "../migrations/0026_market_payouts_auto.sql",
     "../migrations/0027_crafting_table.sql",
+    "../migrations/0030_gathering_skills.sql",
+    "../migrations/0031_market_listing_escrow.sql",
   ]) {
     db.exec(readFileSync(new NodeURL(file, import.meta.url), "utf8"));
   }
@@ -1469,6 +1471,27 @@ describe("Pets API", () => {
       price_boing: "0.01",
     });
     expect(tooLow.status).toBe(400);
+    const unminted = await request("/api/economy/challenge", {
+      owner,
+      kind: "list",
+      item_id: "hat-ribbon",
+      qty: 1,
+      price_boing: "1",
+    });
+    expect(unminted.status).toBe(409);
+    expect(((await unminted.json()) as { error: string }).error).toMatch(
+      /only minted items can be listed/i,
+    );
+    const stillBanked = db
+      .prepare(
+        "SELECT qty FROM inventory WHERE owner=? AND item_id='hat-ribbon'",
+      )
+      .get(owner) as { qty: number };
+    expect(stillBanked.qty).toBe(1);
+
+    db.prepare(
+      "INSERT INTO item_mint_balance(owner, item_id, qty) VALUES(?,?,?)",
+    ).run(owner, "hat-ribbon", 1);
     const list = await request("/api/economy/challenge", {
       owner,
       kind: "list",
@@ -1486,6 +1509,36 @@ describe("Pets API", () => {
         })
       ).status,
     ).toBe(200);
+    expect(
+      db
+        .prepare(
+          "SELECT qty FROM item_mint_balance WHERE owner=? AND item_id='hat-ribbon'",
+        )
+        .get(owner),
+    ).toEqual({ qty: 0 });
+    expect(
+      db
+        .prepare(
+          "SELECT qty FROM inventory WHERE owner=? AND item_id='hat-ribbon'",
+        )
+        .get(owner),
+    ).toEqual({ qty: 1 });
+    expect(
+      db
+        .prepare("SELECT escrow FROM marketplace_listings WHERE id=?")
+        .get(l.id),
+    ).toEqual({ escrow: "minted" });
+
+    db.prepare(
+      `INSERT INTO marketplace_listings(
+         id,seller,item_id,qty,price_boinglets,price_boing,status,expires_at,created_at,updated_at
+       ) VALUES(?,?,?,1,NULL,?,'open',1,1,1)`,
+    ).run("legacy-list", owner, "hat-ribbon", "1000000000000000000");
+    expect(
+      db
+        .prepare("SELECT escrow FROM marketplace_listings WHERE id=?")
+        .get("legacy-list"),
+    ).toEqual({ escrow: "inventory" });
 
     const market = (await (await request("/api/marketplace")).json()) as {
       listings: Array<{ item_id: string; price_boing: string; qty: number }>;
@@ -1499,6 +1552,25 @@ describe("Pets API", () => {
         }),
       ]),
     );
+    expect(
+      db
+        .prepare("SELECT status FROM marketplace_listings WHERE id=?")
+        .get("legacy-list"),
+    ).toEqual({ status: "expired" });
+    expect(
+      db
+        .prepare(
+          "SELECT qty FROM inventory WHERE owner=? AND item_id='hat-ribbon'",
+        )
+        .get(owner),
+    ).toEqual({ qty: 2 });
+    expect(
+      db
+        .prepare(
+          "SELECT qty FROM item_mint_balance WHERE owner=? AND item_id='hat-ribbon'",
+        )
+        .get(owner),
+    ).toEqual({ qty: 0 });
   });
 });
 

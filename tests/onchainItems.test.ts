@@ -127,6 +127,13 @@ function inventoryQty(item: string) {
   return row?.qty ?? 0;
 }
 
+function mintedQty(item: string) {
+  const row = db
+    .prepare("SELECT qty FROM item_mint_balance WHERE owner=? AND item_id=?")
+    .get(owner, item) as { qty: number } | undefined;
+  return row?.qty ?? 0;
+}
+
 async function withdraw(qty: number, item = "ore-spark") {
   const ch = await post("/api/items/withdraw/challenge", {
     owner,
@@ -148,7 +155,7 @@ beforeEach(async () => {
   db = new DatabaseSync(":memory:");
   const dir = new NodeURL("../migrations/", import.meta.url);
   for (const f of readdirSync(dir)
-    .filter((n) => /^00(0\d|1\d|2[0-4])_.*\.sql$/.test(n))
+    .filter((n) => /^00(0\d|1\d|2[0-4]|30)_.*\.sql$/.test(n))
     .sort())
     db.exec(readFileSync(new NodeURL(f, dir), "utf8"));
   db.prepare("INSERT INTO inventory(owner,item_id,qty) VALUES(?,?,?)").run(
@@ -625,8 +632,9 @@ describe("on-chain item deposits", () => {
     );
   });
 
-  it("credits inventory once from a verified transfer and rejects a replay", async () => {
+  it("credits minted balance once from a verified transfer and rejects a replay", async () => {
     expect(inventoryQty("ore-spark")).toBe(5);
+    expect(mintedQty("ore-spark")).toBe(0);
     mockIncludedTransfer(owner, admin, 2, 2);
     const first = await post("/api/items/deposit/confirm", {
       owner,
@@ -641,14 +649,16 @@ describe("on-chain item deposits", () => {
       tx_hash: DEPOSIT_TX,
       status: "credited",
     });
-    expect(inventoryQty("ore-spark")).toBe(7);
+    expect(inventoryQty("ore-spark")).toBe(5);
+    expect(mintedQty("ore-spark")).toBe(2);
 
     const replay = await post("/api/items/deposit/confirm", {
       owner,
       tx_hash: DEPOSIT_TX,
     });
     expect(replay.status).toBe(409);
-    expect(inventoryQty("ore-spark")).toBe(7);
+    expect(inventoryQty("ore-spark")).toBe(5);
+    expect(mintedQty("ore-spark")).toBe(2);
     expect(
       db.prepare("SELECT COUNT(*) AS n FROM onchain_deposits").get(),
     ).toEqual({ n: 1 });
@@ -656,13 +666,17 @@ describe("on-chain item deposits", () => {
     const status = (await (
       await get("/api/items/onchain?owner=" + owner)
     ).json()) as {
-      items: Array<{ gameItemId: string; offchain_qty: number }>;
+      items: Array<{
+        gameItemId: string;
+        offchain_qty: number;
+        minted_qty: number;
+      }>;
       deposits: Array<{ tx_hash: string; qty: number }>;
     };
     expect(status.deposits[0]).toMatchObject({ tx_hash: DEPOSIT_TX, qty: 2 });
-    expect(
-      status.items.find((i) => i.gameItemId === "ore-spark")?.offchain_qty,
-    ).toBe(7);
+    const spark = status.items.find((i) => i.gameItemId === "ore-spark");
+    expect(spark?.offchain_qty).toBe(5);
+    expect(spark?.minted_qty).toBe(2);
   });
 
   it("rejects a mint log, a transfer to the wrong account, and a pending receipt", async () => {

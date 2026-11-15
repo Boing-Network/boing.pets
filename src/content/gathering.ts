@@ -372,10 +372,11 @@ export function gatherQuarryEnabled(env: { GATHER_QUARRY?: string }): boolean {
   );
 }
 
-/**
- * Reserved for the mint phase. This build never mints, even if the var is on.
- * Turning it on must not submit a transaction.
- */
-export function gatherMintShipped(): boolean {
-  return false;
+/** Vault mint submits only when this is on. The default in wrangler is off. */
+export function gatherMintEnabled(env: { GATHER_MINT?: string }): boolean {
+  return (
+    String(env.GATHER_MINT ?? "off")
+      .trim()
+      .toLowerCase() === "on"
+  );
 }

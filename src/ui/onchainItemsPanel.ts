@@ -1,6 +1,6 @@
 /**
  * Mining page panel: withdraw mined ore into the Boing multi-token item contract,
- * or deposit wallet items back into the in-game inventory.
+ * or deposit wallet items into minted balance so they can be listed.
  * Self-mounting (no page-body markup) and hidden while the deployment has it disabled.
  */
 import { hex32 } from "../core";
@@ -12,6 +12,7 @@ interface OnchainItemView {
   itemId: number;
   name: string;
   offchain_qty?: number;
+  minted_qty?: number;
   onchain_qty?: number | null;
 }
 
@@ -106,7 +107,7 @@ async function deposit(gameItemId: string, qty: number) {
     params: [prepared.transaction],
   });
   const txHash = txHashOf(result);
-  notice("Transfer submitted. Crediting your inventory?");
+  notice("Transfer submitted. Crediting minted balance…");
   let lastError =
     "Transaction is not included yet. Wait and retry confirmation.";
   for (let i = 0; i < 8; i++) {
@@ -116,7 +117,7 @@ async function deposit(gameItemId: string, qty: number) {
         { owner: app.owner, tx_hash: txHash },
       );
       notice(
-        `Deposited ${res.deposit.qty} item${res.deposit.qty === 1 ? "" : "s"} (${res.deposit.tx_hash.slice(0, 12)}?). They are back in your inventory.`,
+        `Deposited ${res.deposit.qty} item${res.deposit.qty === 1 ? "" : "s"} (${res.deposit.tx_hash.slice(0, 12)}?). They are minted and can be listed.`,
       );
       await refreshOnchainItems();
       return;
@@ -148,7 +149,7 @@ export async function refreshOnchainItems() {
   const intro = document.createElement("p");
   intro.className = "subtle";
   intro.textContent = app.owner
-    ? "Withdraw stackable items as Boing testnet game items, or transfer them back to the Pets operator to deposit them into your inventory. Withdrawn items leave your in-game stack; a deposit credits them once the transfer is included. Equipped cosmetics and furniture on your home plot must be taken off first."
+    ? "Withdraw banked stacks as Boing testnet game items, or transfer wallet items back to the Pets operator. A deposit credits minted balance, which is what the market can list. Equipped cosmetics and furniture on your home plot must be taken off first."
     : "Connect Boing Express to withdraw stackable items as testnet game items, or deposit them back from your wallet.";
   const grid = document.createElement("div");
   grid.className = "market-grid";
@@ -161,7 +162,7 @@ export async function refreshOnchainItems() {
     p.className = "subtle";
     const onchain = item.onchain_qty == null ? "?" : String(item.onchain_qty);
     p.textContent = app.owner
-      ? `In game ${item.offchain_qty ?? 0} ? in wallet ${onchain} ? item #${item.itemId}`
+      ? `Banked ${item.offchain_qty ?? 0} · Minted ${item.minted_qty ?? 0} · in wallet ${onchain} · item #${item.itemId}`
       : `Item #${item.itemId}`;
     card.append(h, p);
     if (app.owner) {
