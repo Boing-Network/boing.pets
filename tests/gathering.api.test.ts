@@ -453,6 +453,34 @@ describe("quarry API", () => {
       activity: "fishing",
     });
     expect(fish.status).not.toBe(409);
+    (env as { GATHER_LINE: string }).GATHER_LINE = "on";
+    (env as { GATHER_PLOT: string }).GATHER_PLOT = "on";
+    (env as { GATHER_SWEEP: string }).GATHER_SWEEP = "on";
+    const cast = await request("/api/fishing/challenge", { owner });
+    expect(cast.status).toBe(409);
+    const tend = await request("/api/garden/challenge", {
+      owner,
+      kind: "plant",
+      slot: 0,
+    });
+    expect(tend.status).toBe(409);
+    const dig = await request("/api/treasure/challenge", { owner });
+    expect(dig.status).toBe(409);
+    const reel = await request("/api/activity/attempt/start", {
+      owner,
+      activity: "fishing",
+    });
+    expect(reel.status).toBe(409);
+    const cook = await request("/api/activity/attempt/start", {
+      owner,
+      activity: "cook",
+    });
+    expect(cook.status).not.toBe(409);
+    const race = await request("/api/activity/attempt/start", {
+      owner,
+      activity: "racing",
+    });
+    expect(race.status).not.toBe(409);
   });
 
   it("keeps a wood pick off the high ores", async () => {

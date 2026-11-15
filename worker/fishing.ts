@@ -11,6 +11,7 @@ import {
   pickFish,
 } from "../src/content/fishing";
 import { hex32 } from "../src/core";
+import { retiredGatherMessage } from "../src/content/gathering";
 import { ledgerCreditPair } from "./ledger";
 import { resolvePartyBonus } from "./partyBonus";
 
@@ -86,6 +87,13 @@ export async function fishingPost(
   body: Record<string, unknown>,
   now: number,
 ): Promise<Response | null> {
+  if (
+    (url.pathname === "/api/fishing/challenge" ||
+      url.pathname === "/api/fishing/confirm") &&
+    retiredGatherMessage(env, "fishing")
+  ) {
+    throw new HttpError(409, retiredGatherMessage(env, "fishing")!);
+  }
   if (url.pathname === "/api/fishing/challenge") {
     const owner = hex32(body.owner);
     const pet = await env.DB.prepare("SELECT owner FROM pets WHERE owner=?")

@@ -12,6 +12,7 @@ import {
   treasureDayKey,
 } from "../src/content/treasure";
 import { hex32 } from "../src/core";
+import { retiredGatherMessage } from "../src/content/gathering";
 import { ledgerCreditPair } from "./ledger";
 import { resolvePartyBonus } from "./partyBonus";
 
@@ -87,6 +88,13 @@ export async function treasurePost(
   body: Record<string, unknown>,
   now: number,
 ): Promise<Response | null> {
+  if (
+    (url.pathname === "/api/treasure/challenge" ||
+      url.pathname === "/api/treasure/confirm") &&
+    retiredGatherMessage(env, "treasure")
+  ) {
+    throw new HttpError(409, retiredGatherMessage(env, "treasure")!);
+  }
   if (url.pathname === "/api/treasure/challenge") {
     const owner = hex32(body.owner);
     const pet = await env.DB.prepare("SELECT owner FROM pets WHERE owner=?")

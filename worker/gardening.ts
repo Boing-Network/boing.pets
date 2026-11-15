@@ -10,6 +10,7 @@ import {
   type GardenKind,
 } from "../src/content/gardening";
 import { hex32 } from "../src/core";
+import { retiredGatherMessage } from "../src/content/gathering";
 import { ledgerCreditPair } from "./ledger";
 import { resolvePartyBonus } from "./partyBonus";
 
@@ -117,6 +118,13 @@ export async function gardeningPost(
   body: Record<string, unknown>,
   now: number,
 ): Promise<Response | null> {
+  if (
+    (url.pathname === "/api/garden/challenge" ||
+      url.pathname === "/api/garden/confirm") &&
+    retiredGatherMessage(env, "garden")
+  ) {
+    throw new HttpError(409, retiredGatherMessage(env, "garden")!);
+  }
   if (url.pathname === "/api/garden/challenge") {
     const owner = hex32(body.owner);
     if (!isGardenKind(body.kind))

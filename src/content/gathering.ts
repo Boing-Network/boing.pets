@@ -570,6 +570,27 @@ export function gatherSkillFlags(env: {
   };
 }
 
+/** Old signed loop and mini-game for a skill that now trains like Quarry. */
+export function retiredGatherMessage(
+  env: {
+    GATHER_QUARRY?: string;
+    GATHER_LINE?: string;
+    GATHER_PLOT?: string;
+    GATHER_SWEEP?: string;
+  },
+  activity: string,
+): string | null {
+  if (activity === "mining" && gatherSkillEnabled(env, "quarry"))
+    return GATHER_COPY.retired;
+  if (activity === "fishing" && gatherSkillEnabled(env, "line"))
+    return "Train Line at the canal.";
+  if (activity === "garden" && gatherSkillEnabled(env, "plot"))
+    return "Train Plot on the garden beds.";
+  if (activity === "treasure" && gatherSkillEnabled(env, "sweep"))
+    return "Train Sweep at the dig site.";
+  return null;
+}
+
 /** Vault mint submits only when this is on. The default in wrangler is off. */
 export function gatherMintEnabled(env: { GATHER_MINT?: string }): boolean {
   return (
