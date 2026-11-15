@@ -101,6 +101,8 @@ beforeEach(() => {
     RPC_URL: "https://rpc.example",
     APP_ORIGIN: origin,
     MARKET_WRITES: "on",
+    GATHER_QUARRY: "off",
+    GATHER_MINT: "off",
     PLAZA: {
       getByName: () => ({
         fetch: async () => new Response("plaza stub"),

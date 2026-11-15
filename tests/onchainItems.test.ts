@@ -186,6 +186,8 @@ beforeEach(async () => {
     },
     APP_ORIGIN: origin,
     MARKET_WRITES: "on",
+    GATHER_QUARRY: "off",
+    GATHER_MINT: "off",
     RPC_URL: "https://testnet-rpc.boing.network",
     MULTI_TOKEN_CONTRACT: CONTRACT,
     MULTI_TOKEN_ADMIN_SECRET_KEY: bytesToHex(adminKey),

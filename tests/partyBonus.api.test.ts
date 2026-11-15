@@ -151,6 +151,8 @@ beforeEach(async () => {
     },
     APP_ORIGIN: origin,
     MARKET_WRITES: "on",
+    GATHER_QUARRY: "off",
+    GATHER_MINT: "off",
     RPC_URL: "https://testnet-rpc.boing.network",
     ASSETS: { fetch: async () => new Response("ok") },
     PLAZA: { getByName: () => ({ fetch: async () => new Response("ok") }) },

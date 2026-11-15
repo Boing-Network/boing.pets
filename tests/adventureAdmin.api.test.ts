@@ -136,6 +136,8 @@ beforeEach(async () => {
     RPC_URL: "https://rpc.example",
     APP_ORIGIN: origin,
     MARKET_WRITES: "on",
+    GATHER_QUARRY: "off",
+    GATHER_MINT: "off",
     MULTI_TOKEN_ADMIN_SECRET_KEY: bytesToHex(adminKey),
     PLAZA: {
       getByName: () => ({
