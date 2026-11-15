@@ -1,4 +1,4 @@
-/** Compact 2-by-2-block street grid for The Yard (street-level city district). */
+/** 4-by-4-block street grid. Each activity station sits on its own block. */
 
 import {
   STREETWEAR_PROPS,
@@ -10,12 +10,27 @@ import {
 export const CITY_TILE = 6;
 
 /** N-S avenues and E-W streets, at tile centers. */
-export const CITY_STREETS_X = [-18, 0, 18] as const;
-export const CITY_STREETS_Z = [-18, 0, 18] as const;
+export const CITY_STREETS_X = [-36, -18, 0, 18, 36] as const;
+export const CITY_STREETS_Z = [-36, -18, 0, 18, 36] as const;
 
 /** How far the paved grid extends past the outer intersections. */
-export const CITY_GRID_MIN = -24;
-export const CITY_GRID_MAX = 24;
+export const CITY_GRID_MIN = -42;
+export const CITY_GRID_MAX = 42;
+
+/** Painted paths along every avenue and street. */
+export function cityRoadPaths(): { x: number; y: number; z: number }[][] {
+  const y = 0.02;
+  return [
+    ...CITY_STREETS_X.map((x) => [
+      { x, y, z: CITY_GRID_MIN },
+      { x, y, z: CITY_GRID_MAX },
+    ]),
+    ...CITY_STREETS_Z.map((z) => [
+      { x: CITY_GRID_MIN, y, z },
+      { x: CITY_GRID_MAX, y, z },
+    ]),
+  ];
+}
 
 const CURB = CITY_TILE / 2 + 1.4;
 
@@ -172,19 +187,22 @@ export const CITY_RESERVED_LOTS: readonly {
   z: number;
   r: number;
 }[] = [
-  { x: 12, z: -8, r: 7 }, // The Drop
-  { x: -12, z: -8, r: 6 }, // kitchen truck
-  { x: 22, z: -12, r: 6 }, // print shop
-  { x: 22, z: 10, r: 6 }, // fitting room
-  { x: 28, z: 16, r: 6 }, // home stoop
-  { x: -22, z: 6, r: 7 }, // crystal yard
-  { x: 8, z: 20, r: 6 }, // treasure construction
-  { x: -10, z: 12, r: 8 }, // skate park
-  { x: 10, z: -18, r: 6 }, // garden
-  { x: -16, z: -26, r: 8 }, // oak park
-  { x: 6, z: -24, r: 11 }, // canal
-  { x: 0, z: 8, r: 3 }, // spawn approach
-  { x: 24, z: -18, r: 8 }, // dispatch depot
+  { x: 25, z: -11, r: 8 }, // The Drop
+  { x: 43, z: -25, r: 7 }, // print shop
+  { x: 43, z: 25, r: 7 }, // fitting room
+  { x: 25, z: 43, r: 7 }, // home stoop
+  { x: 7, z: -43, r: 8 }, // dispatch depot
+  { x: -43, z: -7, r: 8 }, // crystal yard
+  { x: -25, z: -25, r: 7 }, // kitchen
+  { x: -29, z: 32, r: 12 }, // race bowl
+  { x: -11, z: 43, r: 7 }, // treasure lot
+  { x: -25, z: -43, r: 7 }, // garden
+  { x: 11, z: -27, r: 6 }, // block vault
+  { x: 20, z: -50, r: 12 }, // canal
+  { x: 32, z: -50, r: 6 }, // pier
+  { x: -30, z: -56, r: 9 }, // oak park
+  { x: 0, z: 8, r: 4 }, // spawn approach
+  { x: 9, z: 27, r: 7 }, // basketball court
 ];
 
 function inReserved(x: number, z: number, pad = 0): boolean {
@@ -309,10 +327,10 @@ export function cityBuildingFootprints(): {
 
 /** A few park trees around the Old Oak, used as path solids. */
 export const CITY_PARK_TREES: readonly [number, number][] = [
-  [-22, -26],
-  [-21, -30],
-  [-13, -31],
-  [-11, -28],
+  [-24, -54],
+  [-26, -50],
+  [-33, -48],
+  [-33, -52],
 ];
 
 export type CitySolid = {
@@ -324,10 +342,10 @@ export type CitySolid = {
   height: number;
 };
 
-/** Walkable basketball lot in the SE mid-block, clear of stations. */
+/** Walkable basketball lot north of the plaza, clear of stations. */
 export const CITY_COURT = {
-  x: 8.5,
-  z: 8,
+  x: 9,
+  z: 27,
   rotY: 0,
   width: 8.4,
   depth: 6.6,

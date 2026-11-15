@@ -111,7 +111,7 @@ describe("pasture mini-map projection", () => {
 
   it("draws the city street grid on the map", () => {
     const streets = miniMapStreets(SIZE);
-    expect(streets.length).toBe(6);
+    expect(streets.length).toBe(10);
     const mid = SIZE / 2;
     const hasAvenue = streets.some(
       (s) => Math.abs(s.x1 - mid) < 1 && Math.abs(s.x2 - mid) < 1,

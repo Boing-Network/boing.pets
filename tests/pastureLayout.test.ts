@@ -81,7 +81,7 @@ describe("enlarged pasture layout", () => {
         z <= bounds.maxZ;
       expect(insideWalk).toBe(false);
       expect(Math.hypot(x, z)).toBeLessThan(PASTURE_GROUND_RADIUS - 1);
-      if (z >= 44) nearZ += 1;
+      if (z >= PASTURE_ZONE.bounds.maxZ) nearZ += 1;
     }
     expect(nearZ).toBeGreaterThanOrEqual(10);
     for (const [x, z] of CITY_PARK_TREES) {

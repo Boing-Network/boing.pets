@@ -1068,9 +1068,9 @@ export function PastureApp({
             WASD or the arrow keys move your character, relative to the camera.
             Click the view to look around with the mouse, and press Esc to
             release the cursor. You can also click the street to walk, or use
-            the joystick. Press Enter to chat. Walk ahead and right to The Drop,
-            then along the east avenue to the Print Shop or Fitting Room. Use +
-            / - or the buttons to zoom, and 0 to reset.
+            the joystick. Press Enter to chat. The Drop is a couple of blocks
+            southeast, and each other station has its own block. Use + / - or
+            the buttons to zoom, and 0 to reset.
           </p>
           <button type="button" className="quiet" onClick={dismissHint}>
             Got it

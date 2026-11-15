@@ -24,9 +24,9 @@ describe("public pasture stations", () => {
   const customize = stationByKind(PASTURE_ZONE, "customize");
 
   it("places labeled craft, market, and customize landmarks around spawn", () => {
-    expect(craft?.position).toEqual({ x: 22, y: 0, z: -12 });
-    expect(market?.position).toEqual({ x: 12, y: 0, z: -8 });
-    expect(customize?.position).toEqual({ x: 22, y: 0, z: 10 });
+    expect(craft?.position).toEqual({ x: 43, y: 0, z: -25 });
+    expect(market?.position).toEqual({ x: 25, y: 0, z: -11 });
+    expect(customize?.position).toEqual({ x: 43, y: 0, z: 25 });
     expect(craft?.radius).toBe(3.4);
     expect(market?.radius).toBe(3.4);
     expect(customize?.radius).toBe(3.4);
@@ -87,7 +87,7 @@ describe("public pasture stations", () => {
 
   it("adds a walk-in home plot with the 2D housing page as a fallback", () => {
     const home = stationByKind(PASTURE_ZONE, "home");
-    expect(home?.position).toEqual({ x: 28, y: 0, z: 16 });
+    expect(home?.position).toEqual({ x: 25, y: 0, z: 43 });
     expect(home?.careHref).toBe("/home.html");
     expect(stationActionLabel(home!)).toMatch(/home/i);
     const land = PASTURE_ZONE.landmarks.find(

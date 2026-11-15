@@ -32,7 +32,7 @@ describe("Dispatch station wiring", () => {
     expect(DESK_STATION_KINDS).toContain("dispatch");
     const station = stationByKind(PASTURE_ZONE, "dispatch");
     expect(station).toBeTruthy();
-    expect(station?.position).toEqual({ x: 24, y: 0, z: -18 });
+    expect(station?.position).toEqual({ x: 7, y: 0, z: -43 });
     expect(stationPrompt(station!)).toMatch(/Dispatch/i);
     const land = PASTURE_ZONE.landmarks.find(
       (row) => row.id === "dispatch-station",
@@ -40,9 +40,9 @@ describe("Dispatch station wiring", () => {
     expect(land?.position).toEqual(station?.position);
     expect(yardLabelForKind("dispatch").title).toBe("DISPATCH");
     expect(MINIMAP_STATION_ICON.dispatch).toBe("A");
-    expect(
-      CITY_RESERVED_LOTS.some((lot) => lot.x === 24 && lot.z === -18),
-    ).toBe(true);
+    expect(CITY_RESERVED_LOTS.some((lot) => lot.x === 7 && lot.z === -43)).toBe(
+      true,
+    );
     expect(
       YARD_KIT_FOOTPRINTS.some((row) => row.landmarkId === "dispatch-station"),
     ).toBe(true);

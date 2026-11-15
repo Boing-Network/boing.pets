@@ -46,7 +46,7 @@ export const STREETWEAR_PROPS: readonly StreetPropSpec[] = [
   {
     name: "night-cart",
     kind: "clutter",
-    position: [4.8, 0, -4.6],
+    position: [25, 0, -22],
     rotationY: Math.PI / 2,
     scale: 1,
     halfW: 0.6,

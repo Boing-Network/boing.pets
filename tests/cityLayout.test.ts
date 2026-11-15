@@ -17,10 +17,10 @@ import { cameraOccludersForZone } from "../src/pasture3d/camera";
 import { blocked, obstaclesForZone } from "../src/pasture3d/pathing";
 
 describe("yard city grid", () => {
-  it("builds a compact 2-by-2-block street grid", () => {
-    expect(CITY_STREETS_X).toEqual([-18, 0, 18]);
-    expect(CITY_STREETS_Z).toEqual([-18, 0, 18]);
-    expect(cityStreetSegments()).toHaveLength(6);
+  it("builds a 4-by-4-block street grid", () => {
+    expect(CITY_STREETS_X).toEqual([-36, -18, 0, 18, 36]);
+    expect(CITY_STREETS_Z).toEqual([-36, -18, 0, 18, 36]);
+    expect(cityStreetSegments()).toHaveLength(10);
     const tiles = cityRoadTiles();
     expect(tiles.some((item) => item.name === "road-crossroad")).toBe(true);
     expect(tiles.some((item) => item.name === "road-crossing")).toBe(true);

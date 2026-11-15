@@ -38,35 +38,33 @@ describe("yard city layout", () => {
     expect(market.position.z).toBeLessThan(spawn.z - 8);
   });
 
-  it("puts the print shop and fitting room on the east avenue, with The Drop as a corner store", () => {
+  it("gives the print shop and fitting room their own east blocks", () => {
     expect(market.position.x).toBeGreaterThan(10);
-    expect(craft.position.x).toBeGreaterThan(18);
+    expect(craft.position.x).toBeGreaterThan(market.position.x);
     expect(customize.position.x).toBeGreaterThan(18);
-    expect(Math.abs(craft.position.x - customize.position.x)).toBeLessThan(1);
-    expect(dist(market, craft)).toBeLessThan(16);
-    expect(dist(market, customize)).toBeLessThan(24);
-    expect(dist(craft, customize)).toBeLessThan(28);
+    expect(dist(market, craft)).toBeGreaterThan(18);
+    expect(dist(market, customize)).toBeGreaterThan(24);
+    expect(dist(craft, customize)).toBeGreaterThan(28);
   });
 
-  it("places the kitchen, crystal yard, and oak park on the west side of the avenue", () => {
+  it("places the kitchen, crystal yard, and oak park on separate west blocks", () => {
     expect(kitchen.position.x).toBeLessThan(spawn.x - 8);
     expect(kitchen.position.z).toBeLessThan(spawn.z);
-    expect(crystal.position.x).toBeLessThan(spawn.x);
-    expect(crystal.position.z).toBeLessThan(spawn.z);
+    expect(crystal.position.x).toBeLessThan(kitchen.position.x);
     expect(oak.position.x).toBeLessThan(spawn.x);
     expect(oak.position.z).toBeLessThan(kitchen.position.z);
-    expect(dist(kitchen, crystal)).toBeLessThan(28);
+    expect(dist(kitchen, crystal)).toBeGreaterThan(18);
   });
 
-  it("puts the construction lot south of midtown and the canal on the north waterfront", () => {
-    expect(treasure.position.x).toBeGreaterThan(spawn.x);
+  it("puts the dig site northwest and the canal on the south waterfront", () => {
+    expect(treasure.position.x).toBeLessThan(spawn.x);
     expect(treasure.position.z).toBeGreaterThan(spawn.z);
     expect(pond.z).toBeLessThan(market.position.z - 8);
     expect(Math.abs(pier.position.z - pond.z)).toBeLessThan(1);
-    expect(dist(pier, pond)).toBeLessThan(12);
+    expect(dist(pier, pond)).toBeLessThan(14);
   });
 
-  it("keeps every station a short walk from spawn", () => {
+  it("spreads stations onto their own blocks inside the enlarged city", () => {
     const stations = [
       market,
       craft,
@@ -80,8 +78,17 @@ describe("yard city layout", () => {
       home,
     ];
     for (const station of stations) {
-      expect(dist(spawn, station.position)).toBeLessThan(40);
+      expect(dist(spawn, station.position)).toBeGreaterThan(16);
+      expect(dist(spawn, station.position)).toBeLessThan(80);
       expect(station.radius).toBe(3.4);
+    }
+    for (let i = 0; i < stations.length; i++) {
+      for (let j = i + 1; j < stations.length; j++) {
+        expect(
+          dist(stations[i]!.position, stations[j]!.position),
+          `${stations[i]!.id} vs ${stations[j]!.id}`,
+        ).toBeGreaterThan(16);
+      }
     }
   });
 

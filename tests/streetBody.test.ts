@@ -338,7 +338,7 @@ describe("Nico streetwear props", () => {
   });
 
   it("keeps every prop off reserved lots, streets, the court, and spawn", () => {
-    const drop = { x: 12, z: -8 };
+    const drop = { x: 25, z: -11 };
     for (const item of cityStreetwearProps()) {
       const x = item.position[0];
       const z = item.position[2];

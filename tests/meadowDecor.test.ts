@@ -112,7 +112,7 @@ describe("meadow decor sits on the ground and stays off footprints", () => {
     }
     expect(rimHits).toBeGreaterThanOrEqual(3);
     // Shop-front path in front of The Drop should stay a worn trail.
-    expect(pasturePathWear(12, -6)).toBeGreaterThan(0.5);
+    expect(pasturePathWear(18, -11)).toBeGreaterThan(0.5);
   });
 
   it("places pond-area labels off the water and the pier deck", () => {

@@ -81,7 +81,7 @@ describe("wide public pasture layout", () => {
 
   it("places the customization station as a third landmark from spawn", () => {
     const station = stationByKind(PASTURE_ZONE, "customize");
-    expect(station?.position).toEqual({ x: 22, y: 0, z: 10 });
+    expect(station?.position).toEqual({ x: 43, y: 0, z: 25 });
     expect(station?.radius).toBe(3.4);
     expect(station?.label).toBe("Customization Station");
   });

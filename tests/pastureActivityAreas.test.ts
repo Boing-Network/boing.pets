@@ -32,16 +32,21 @@ const EXPECTED: Record<
   { x: number; z: number; landmarkId: string; label: string }
 > = {
   mine: {
-    x: -22,
-    z: 6,
+    x: -43,
+    z: -7,
     landmarkId: "crystal-quarry",
     label: "Crystal Quarry",
   },
-  fish: { x: 16, z: -24, landmarkId: "pond-pier", label: "Pond Pier" },
-  treasure: { x: 8, z: 20, landmarkId: "treasure-dig", label: "Treasure Dig" },
-  garden: { x: 10, z: -18, landmarkId: "garden-beds", label: "Garden Beds" },
-  cook: { x: -12, z: -8, landmarkId: "kitchen-hut", label: "Pasture Kitchen" },
-  race: { x: -10, z: 12, landmarkId: "race-gate", label: "Race Track" },
+  fish: { x: 32, z: -50, landmarkId: "pond-pier", label: "Pond Pier" },
+  treasure: {
+    x: -11,
+    z: 43,
+    landmarkId: "treasure-dig",
+    label: "Treasure Dig",
+  },
+  garden: { x: -25, z: -43, landmarkId: "garden-beds", label: "Garden Beds" },
+  cook: { x: -25, z: -25, landmarkId: "kitchen-hut", label: "Pasture Kitchen" },
+  race: { x: -29, z: 32, landmarkId: "race-gate", label: "Race Track" },
 };
 
 const REQUIRED_IDS: Record<string, string[]> = {

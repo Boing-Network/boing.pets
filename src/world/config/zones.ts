@@ -1,4 +1,5 @@
 /** Config-driven zone layout for Starter Town (Phase 2). Expand without rewriting the scene graph. */
+import { cityRoadPaths } from "../../pasture3d/cityLayout";
 export interface WorldPoint {
   x: number;
   y: number;
@@ -332,9 +333,8 @@ export const PASTURE_ZONE: WorldZoneConfig = {
   name: "Public Pasture",
   tagline: "The city block every hatch lives on.",
   spawn: { x: 0, y: 0, z: 8 },
-  // Old public pasture was 44 x 44 (bounds +/-22). Enlarged so more
-  // wanderers can spread out without stacking on the central path.
-  bounds: { minX: -44, maxX: 44, minZ: -44, maxZ: 44 },
+  // 4-by-4 street grid (±36) plus sidewalk and a grass margin.
+  bounds: { minX: -58, maxX: 58, minZ: -58, maxZ: 58 },
   fogColor: "#8eb8c8",
   groundColor: "#5fa86a",
   accentColor: "#f4d38a",
@@ -342,7 +342,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "old-oak",
       label: "Old Oak",
-      position: { x: -16, y: 0, z: -26 },
+      position: { x: -30, y: 0, z: -56 },
       color: "#6b4a2a",
       height: 4.6,
       width: 1.8,
@@ -351,7 +351,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "snack-barn",
       label: "Snack Barn",
-      position: { x: -34, y: 0, z: 10 },
+      position: { x: -27, y: 0, z: -8 },
       color: "#d9896b",
       height: 3.2,
       width: 5,
@@ -360,7 +360,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "lily-pond",
       label: "Lily Pond",
-      position: { x: 6, y: 0, z: -24 },
+      position: { x: 20, y: 0, z: -50 },
       color: "#4a8fb5",
       height: 0.35,
       width: 16,
@@ -371,7 +371,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "wildflowers",
       label: "Wildflowers",
-      position: { x: -14, y: 0, z: -24 },
+      position: { x: -22, y: 0, z: -52 },
       color: "#ef9bb8",
       height: 0.55,
       width: 3.6,
@@ -380,7 +380,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "crafting-station",
       label: "Crafting Station",
-      position: { x: 22, y: 0, z: -12 },
+      position: { x: 43, y: 0, z: -25 },
       color: "#c4a574",
       height: 1.55,
       width: 3.0,
@@ -389,7 +389,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "market-stall",
       label: "Market Stall",
-      position: { x: 12, y: 0, z: -8 },
+      position: { x: 25, y: 0, z: -11 },
       color: "#e8b86d",
       height: 2.6,
       width: 3.2,
@@ -398,7 +398,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "customization-station",
       label: "Customization Station",
-      position: { x: 22, y: 0, z: 10 },
+      position: { x: 43, y: 0, z: 25 },
       color: "#c9b8d9",
       height: 2.4,
       width: 3.0,
@@ -407,7 +407,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "crystal-quarry",
       label: "Crystal Quarry",
-      position: { x: -22, y: 0, z: 6 },
+      position: { x: -43, y: 0, z: -7 },
       color: "#8a8f96",
       height: 2.2,
       width: 3.6,
@@ -416,7 +416,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "pond-pier",
       label: "Pond Pier",
-      position: { x: 16, y: 0, z: -24 },
+      position: { x: 32, y: 0, z: -50 },
       color: "#c4a06a",
       height: 1.2,
       width: 2.8,
@@ -425,7 +425,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "treasure-dig",
       label: "Treasure Dig",
-      position: { x: 8, y: 0, z: 20 },
+      position: { x: -11, y: 0, z: 43 },
       color: "#c9a66b",
       height: 1.15,
       width: 3.2,
@@ -434,7 +434,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "garden-beds",
       label: "Garden Beds",
-      position: { x: 10, y: 0, z: -18 },
+      position: { x: -25, y: 0, z: -43 },
       color: "#7eab62",
       height: 1.15,
       width: 3.6,
@@ -443,7 +443,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "kitchen-hut",
       label: "Pasture Kitchen",
-      position: { x: -12, y: 0, z: -8 },
+      position: { x: -25, y: 0, z: -25 },
       color: "#d9896b",
       height: 2.6,
       width: 3.2,
@@ -452,7 +452,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "race-gate",
       label: "Race Track",
-      position: { x: -10, y: 0, z: 12 },
+      position: { x: -29, y: 0, z: 32 },
       color: "#e8c27a",
       height: 2.4,
       width: 3.2,
@@ -461,7 +461,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "home-plot",
       label: "Home Plot",
-      position: { x: 28, y: 0, z: 16 },
+      position: { x: 25, y: 0, z: 43 },
       color: "#e8d5b0",
       height: 0.18,
       width: 5.2,
@@ -470,7 +470,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "block-vault",
       label: "Block Vault",
-      position: { x: 0, y: 0, z: -8 },
+      position: { x: 11, y: 0, z: -27 },
       color: "#141414",
       height: 2.4,
       width: 3.2,
@@ -479,7 +479,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "dispatch-station",
       label: "Dispatch",
-      position: { x: 24, y: 0, z: -18 },
+      position: { x: 7, y: 0, z: -43 },
       color: "#2ec8e0",
       height: 2.8,
       width: 4.6,
@@ -499,7 +499,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       id: "pasture-craft",
       label: "Crafting Station",
       kind: "craft",
-      position: { x: 22, y: 0, z: -12 },
+      position: { x: 43, y: 0, z: -25 },
       radius: 3.4,
       hint: "Press E to craft",
     },
@@ -507,7 +507,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       id: "pasture-market",
       label: "Market Stall",
       kind: "market",
-      position: { x: 12, y: 0, z: -8 },
+      position: { x: 25, y: 0, z: -11 },
       radius: 3.4,
       hint: "Press E to open the market",
     },
@@ -515,7 +515,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       id: "pasture-customize",
       label: "Customization Station",
       kind: "customize",
-      position: { x: 22, y: 0, z: 10 },
+      position: { x: 43, y: 0, z: 25 },
       radius: 3.4,
       hint: "Press E to customize",
     },
@@ -523,7 +523,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       id: "pasture-mine",
       label: "Crystal Quarry",
       kind: "mine",
-      position: { x: -22, y: 0, z: 6 },
+      position: { x: -43, y: 0, z: -7 },
       radius: 3.4,
       hint: "Press E to mine",
     },
@@ -531,7 +531,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       id: "pasture-fish",
       label: "Pond Pier",
       kind: "fish",
-      position: { x: 16, y: 0, z: -24 },
+      position: { x: 32, y: 0, z: -50 },
       radius: 3.4,
       hint: "Press E to fish",
     },
@@ -539,7 +539,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       id: "pasture-treasure",
       label: "Treasure Dig",
       kind: "treasure",
-      position: { x: 8, y: 0, z: 20 },
+      position: { x: -11, y: 0, z: 43 },
       radius: 3.4,
       hint: "Press E to dig",
     },
@@ -547,7 +547,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       id: "pasture-garden",
       label: "Garden Beds",
       kind: "garden",
-      position: { x: 10, y: 0, z: -18 },
+      position: { x: -25, y: 0, z: -43 },
       radius: 3.4,
       hint: "Press E to tend the garden",
     },
@@ -555,7 +555,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       id: "pasture-cook",
       label: "Pasture Kitchen",
       kind: "cook",
-      position: { x: -12, y: 0, z: -8 },
+      position: { x: -25, y: 0, z: -25 },
       radius: 3.4,
       hint: "Press E to cook",
     },
@@ -563,7 +563,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       id: "pasture-race",
       label: "Race Track",
       kind: "race",
-      position: { x: -10, y: 0, z: 12 },
+      position: { x: -29, y: 0, z: 32 },
       radius: 3.4,
       hint: "Press E to race",
     },
@@ -571,7 +571,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       id: "pasture-home",
       label: "Home Plot",
       kind: "home",
-      position: { x: 28, y: 0, z: 16 },
+      position: { x: 25, y: 0, z: 43 },
       radius: 3.4,
       hint: "Walk onto your plot to place furniture. The 2D home page is still a fallback.",
       careHref: "/home.html",
@@ -580,7 +580,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       id: "pasture-bank",
       label: "Block Vault",
       kind: "bank",
-      position: { x: 0, y: 0, z: -8 },
+      position: { x: 11, y: 0, z: -27 },
       radius: 3.4,
       hint: "Press E to bank.",
     },
@@ -588,103 +588,20 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       id: "pasture-dispatch",
       label: "Dispatch",
       kind: "dispatch",
-      position: { x: 24, y: 0, z: -18 },
+      position: { x: 7, y: 0, z: -43 },
       radius: 3.4,
       hint: "Press E to open Dispatch",
     },
   ],
   paths: [
+    ...cityRoadPaths(),
+    // Approach the canal on dry ground and stop on the bank, not in the water.
     [
-      { x: 0, y: 0.02, z: 24 },
-      { x: 0, y: 0.02, z: -18 },
-    ],
-    [
-      { x: 18, y: 0.02, z: 24 },
-      { x: 18, y: 0.02, z: -24 },
-    ],
-    [
-      { x: -18, y: 0.02, z: 24 },
-      { x: -18, y: 0.02, z: -24 },
-    ],
-    [
-      { x: -24, y: 0.02, z: 0 },
-      { x: 24, y: 0.02, z: 0 },
-    ],
-    [
-      { x: -24, y: 0.02, z: 18 },
-      { x: 24, y: 0.02, z: 18 },
-    ],
-    [
-      { x: -24, y: 0.02, z: -18 },
-      { x: 24, y: 0.02, z: -18 },
-    ],
-    [
-      { x: 0, y: 0.02, z: 8 },
-      { x: 0, y: 0.02, z: 0 },
-    ],
-    [
-      { x: 12, y: 0.02, z: 0 },
-      { x: 12, y: 0.02, z: -8 },
-    ],
-    [
-      { x: -12, y: 0.02, z: 0 },
-      { x: -12, y: 0.02, z: -8 },
-    ],
-    [
-      { x: 18, y: 0.02, z: -12 },
-      { x: 22, y: 0.02, z: -12 },
-    ],
-    [
-      { x: 18, y: 0.02, z: 10 },
-      { x: 22, y: 0.02, z: 10 },
-    ],
-    [
-      { x: 18, y: 0.02, z: 16 },
-      { x: 28, y: 0.02, z: 16 },
-    ],
-    [
-      { x: 18, y: 0.02, z: -18 },
-      { x: 24, y: 0.02, z: -18 },
-    ],
-    [
-      { x: -18, y: 0.02, z: 6 },
-      { x: -22, y: 0.02, z: 6 },
-    ],
-    [
-      { x: 8, y: 0.02, z: 18 },
-      { x: 8, y: 0.02, z: 20 },
-    ],
-    [
-      { x: -18, y: 0.02, z: 12 },
-      { x: -10, y: 0.02, z: 12 },
-    ],
-    [
-      { x: 18, y: 0.02, z: -18 },
-      { x: 10, y: 0.02, z: -18 },
-    ],
-    [
-      { x: 0, y: 0.02, z: -18 },
-      { x: 6, y: 0.02, z: -20.88 },
-    ],
-    [
-      { x: 6, y: 0.02, z: -20.88 },
-      { x: -2.12, y: 0.02, z: -24 },
-    ],
-    [
-      { x: 6, y: 0.02, z: -20.88 },
-      { x: 14.12, y: 0.02, z: -24 },
-    ],
-    [
-      { x: 14.12, y: 0.02, z: -24 },
-      { x: 16, y: 0.02, z: -24 },
-    ],
-    [
-      { x: -18, y: 0.02, z: -18 },
-      { x: -16, y: 0.02, z: -26 },
-    ],
-    [
-      { x: -18, y: 0.02, z: 10 },
-      { x: -34, y: 0.02, z: 10 },
+      { x: 36, y: 0.02, z: -42 },
+      { x: 32, y: 0.02, z: -50 },
+      { x: 20, y: 0.02, z: -46.88 },
+      { x: 28.12, y: 0.02, z: -50 },
+      { x: 25.742, y: 0.02, z: -47.794 },
     ],
   ],
 };

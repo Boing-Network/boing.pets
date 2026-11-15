@@ -107,7 +107,7 @@ export const MEADOW_BUSH_SPOTS: readonly MeadowPoint[] = [
 ];
 
 /** Visual-only groves on the grass apron, especially the camera-near +Z rim. */
-export const MEADOW_APRON_TREE_SPOTS: readonly MeadowPoint[] = [
+const AUTHORED_APRON_TREE_SPOTS: readonly MeadowPoint[] = [
   [-29, 45],
   [-29, 51],
   [-29, 57],
@@ -183,6 +183,23 @@ export const MEADOW_APRON_TREE_SPOTS: readonly MeadowPoint[] = [
   [-53, 29],
   [-46, 39],
 ];
+
+/** Keep authored apron groves outside the walkable square after the city grows. */
+export const MEADOW_APRON_TREE_SPOTS: readonly MeadowPoint[] =
+  AUTHORED_APRON_TREE_SPOTS.map(([x, z]) => {
+    const edge = Math.max(
+      Math.abs(PASTURE_ZONE.bounds.minX),
+      Math.abs(PASTURE_ZONE.bounds.maxX),
+    );
+    if (Math.abs(x) > edge || Math.abs(z) > edge) return [x, z] as const;
+    const bump = 3 + (Math.abs(Math.round(x + z)) % 6);
+    if (Math.abs(z) >= Math.abs(x)) {
+      const sign = z >= 0 ? 1 : -1;
+      return [x, sign * (edge + bump)] as const;
+    }
+    const sign = x >= 0 ? 1 : -1;
+    return [sign * (edge + bump), z] as const;
+  });
 
 /** Extra shrubs for the near field and apron. Visual only. */
 export const MEADOW_EXTRA_BUSH_SPOTS: readonly MeadowPoint[] = [

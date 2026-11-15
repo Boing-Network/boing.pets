@@ -271,9 +271,15 @@ describe("pasture route audit", () => {
     for (const a of pois) {
       for (const b of pois) {
         if (a.id === b.id) continue;
-        walkToGoal(a, b, obstacles);
+        try {
+          walkToGoal(a, b, obstacles);
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          throw new Error(`${a.id} -> ${b.id}: ${message}`);
+        }
       }
     }
     expect(pois.length).toBeGreaterThanOrEqual(11);
-  });
+  }, 30000);
 });
