@@ -124,6 +124,40 @@ function Accessory({
   );
 }
 
+/** Grip for an equipped pick. Parent this to the StreetBody `held` hand anchor. */
+export function HeldPick({ id }: { id: string }) {
+  const crystal = id === "tool-pick-crystal";
+  const aether = id === "tool-pick-aether";
+  const wood = id === "tool-pick-wood";
+  const head = crystal
+    ? "#9be7ff"
+    : aether
+      ? "#e4c6ff"
+      : wood
+        ? "#c4a574"
+        : "#d5dbe3";
+  const handle = wood ? "#6b4a2a" : "#5c5148";
+  return (
+    <group>
+      {/* Local +Y runs down the hand bone toward the fingers. */}
+      <mesh position={[0, 0.16, 0.02]} castShadow>
+        <cylinderGeometry args={[0.018, 0.022, 0.34, 6]} />
+        <meshStandardMaterial color={handle} roughness={0.65} />
+      </mesh>
+      <mesh position={[0.02, 0.34, 0.04]} rotation={[0.35, 0, 0.15]} castShadow>
+        <boxGeometry args={[0.16, 0.045, 0.07]} />
+        <meshStandardMaterial
+          color={head}
+          metalness={wood ? 0.15 : 0.75}
+          roughness={wood ? 0.55 : 0.28}
+          emissive={crystal || aether ? head : "#000000"}
+          emissiveIntensity={crystal || aether ? 0.35 : 0}
+        />
+      </mesh>
+    </group>
+  );
+}
+
 function Trail({
   id,
   moving,
@@ -147,20 +181,6 @@ function Trail({
   });
   return (
     <group>
-      <mesh position={[0.42, 0.2, 0.1]} rotation={[0.2, 0, -0.5]}>
-        <cylinderGeometry args={[0.03, 0.04, 0.46, 6]} />
-        <meshStandardMaterial color="#8a6a4a" roughness={0.7} />
-      </mesh>
-      <mesh position={[0.55, 0.4, 0.16]} rotation={[0.2, 0.3, -0.4]}>
-        <coneGeometry args={[0.1, 0.18, 5]} />
-        <meshStandardMaterial
-          color={crystal ? "#9be7ff" : "#9aa3b0"}
-          metalness={crystal ? 0.3 : 0.7}
-          roughness={0.3}
-          emissive={crystal ? "#5ad0ff" : "#000000"}
-          emissiveIntensity={crystal ? 0.35 : 0}
-        />
-      </mesh>
       <group ref={group} position={[0, 0.08, -0.35]}>
         {[0, 1, 2].map((i) => (
           <mesh key={i} position={[0, 0, -0.18 * i]}>

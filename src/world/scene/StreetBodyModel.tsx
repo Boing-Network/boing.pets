@@ -1,6 +1,6 @@
 /** Shared StreetBody character for every Yard wanderer, tinted per NFT. */
 
-import { useFrame } from "@react-three/fiber";
+import { createPortal, useFrame } from "@react-three/fiber";
 import {
   useEffect,
   useMemo,
@@ -20,6 +20,7 @@ import {
 } from "../../pasture3d/streetBodyAnchors";
 import { streetBodyGait, streetBodyPose } from "../../pasture3d/streetBodyAnim";
 import { loadYardGltf } from "../../pasture3d/yardKitLoader";
+import { HeldPick } from "./CosmeticAttachments";
 
 function loadStreetBody(): Promise<GLTF> {
   return loadYardGltf(STREET_BODY_URL);
@@ -343,14 +344,18 @@ export function StreetBodyModel({
   movingRef,
   speedRef,
   reducedMotion = false,
+  heldTool = null,
 }: {
   look: PetModelLook;
   moving?: boolean;
   movingRef?: MutableRefObject<boolean>;
   speedRef?: MutableRefObject<number>;
   reducedMotion?: boolean;
+  /** Equipped pick id. Parented to the right-hand `held` anchor. */
+  heldTool?: string | null;
 }) {
   const [root, setRoot] = useState<THREE.Group | null>(null);
+  const [heldAnchor, setHeldAnchor] = useState<THREE.Object3D | null>(null);
   const bonesRef = useRef<Map<string, THREE.Bone>>(new Map());
   const restRef = useRef<Map<string, THREE.Quaternion>>(new Map());
   const scratchQ = useMemo(() => new THREE.Quaternion(), []);
@@ -373,11 +378,13 @@ export function StreetBodyModel({
         attachAnchors(clone, bones);
         bonesRef.current = bones;
         restRef.current = captureRest(bones);
+        setHeldAnchor(clone.getObjectByName("anchor:held") ?? null);
         setRoot(clone);
       })
       .catch(() => {});
     return () => {
       live = false;
+      setHeldAnchor(null);
     };
   }, []);
 
@@ -518,5 +525,12 @@ export function StreetBodyModel({
   });
 
   if (!root) return null;
-  return <primitive object={root} />;
+  return (
+    <>
+      <primitive object={root} />
+      {heldAnchor && heldTool
+        ? createPortal(<HeldPick id={heldTool} />, heldAnchor)
+        : null}
+    </>
+  );
 }

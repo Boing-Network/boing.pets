@@ -115,14 +115,41 @@ function fillNotice(
   }
 }
 
+/** How long a Yard toast stays up. A retry button stays until the player acts. */
+export const PASTURE_TOAST_DISMISS_MS = 4200;
+
+export function pastureToastDismissMs(retry?: () => void): number | null {
+  return retry ? null : PASTURE_TOAST_DISMISS_MS;
+}
+
+let pastureToastTimer: ReturnType<typeof setTimeout> | null = null;
+
+function armPastureToastDismiss(toast: HTMLElement, retry?: () => void) {
+  if (pastureToastTimer) {
+    clearTimeout(pastureToastTimer);
+    pastureToastTimer = null;
+  }
+  const ms = pastureToastDismissMs(retry);
+  if (ms == null) return;
+  pastureToastTimer = setTimeout(() => {
+    toast.hidden = true;
+    pastureToastTimer = null;
+  }, ms);
+}
+
 function showPastureTxToast(text: string, error: boolean, retry?: () => void) {
   const canvas = $maybe("#pasture-canvas");
   let toast = document.querySelector(".pasture-tx-toast") as HTMLElement | null;
   if (!error && !retry) {
     if (toast && !document.querySelector("#notice")) {
       fillNotice(toast, text, false);
+      armPastureToastDismiss(toast);
     } else if (toast) {
       toast.hidden = true;
+      if (pastureToastTimer) {
+        clearTimeout(pastureToastTimer);
+        pastureToastTimer = null;
+      }
     }
     return;
   }
@@ -139,6 +166,7 @@ function showPastureTxToast(text: string, error: boolean, retry?: () => void) {
     host.append(toast);
   }
   fillNotice(toast, text, error, retry);
+  armPastureToastDismiss(toast, retry);
 }
 
 export function noticeWalletError(error: unknown, retry?: () => void) {

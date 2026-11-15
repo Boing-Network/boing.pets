@@ -178,6 +178,7 @@ export function PetMesh({
           movingRef={movingRef}
           speedRef={speedRef}
           reducedMotion={reducedMotion}
+          heldTool={cosmetics?.trail ?? null}
         />
         <CosmeticAttachments
           cosmetics={cosmetics}
