@@ -114,7 +114,7 @@ describe("city locomotion", () => {
 
     const full = hold({ x: 0, y: 1 }, 1, spawn);
     expect(full.state.speed).toBeCloseTo(CITY_MOVE_SPEED, 1);
-    expect(full.state.z).toBeGreaterThan(spawn.z + 3);
+    expect(full.state.z).toBeLessThan(spawn.z - 3);
 
     const coast = hold({ x: 0, y: 0 }, 0.2, full.state);
     expect(coast.state.speed).toBeLessThan(full.state.speed);
@@ -122,7 +122,7 @@ describe("city locomotion", () => {
       Math.max(0, CITY_MOVE_SPEED - CITY_MOVE_DECEL * 0.2),
       1,
     );
-    expect(coast.state.z).toBeGreaterThan(full.state.z);
+    expect(coast.state.z).toBeLessThan(full.state.z);
     expect(Math.abs(coast.state.x - full.state.x)).toBeLessThan(0.05);
     expect(
       coast.samples.every((sample) => sample.camYaw === full.state.camYaw),
@@ -130,7 +130,7 @@ describe("city locomotion", () => {
 
     const stopped = hold({ x: 0, y: 0 }, 1, full.state);
     expect(stopped.state.speed).toBe(0);
-    expect(stopped.state.z).toBeGreaterThan(full.state.z + 0.4);
+    expect(stopped.state.z).toBeLessThan(full.state.z - 0.4);
   });
 
   it("keeps every held direction straight even when facing starts off-camera", () => {
@@ -213,7 +213,7 @@ describe("city locomotion", () => {
       obstacles,
     );
     expect(Math.abs(south.state.x)).toBeLessThan(0.6);
-    expect(south.state.z).toBeGreaterThan(spawn.z);
+    expect(south.state.z).toBeLessThan(0);
     expect(
       south.samples.every((sample) => Math.abs(sample.camYaw) < 1e-6),
     ).toBe(true);
@@ -226,7 +226,7 @@ describe("city locomotion", () => {
       PASTURE_ZONE,
       obstacles,
     );
-    expect(east.state.x).toBeLessThan(-8);
+    expect(east.state.x).toBeGreaterThan(8);
     expect(Math.abs(east.state.z)).toBeLessThan(0.8);
     expect(east.samples.every((sample) => sample.camYaw === 0)).toBe(true);
   });

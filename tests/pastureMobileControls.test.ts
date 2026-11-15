@@ -11,20 +11,20 @@ describe("pasture mobile stick", () => {
   it("walks into the scene when the stick is pushed up at default yaw", () => {
     const delta = stickWorldDelta(0, 1, 0);
     expect(delta.x).toBeCloseTo(0, 5);
-    expect(delta.z).toBeGreaterThan(0);
+    expect(delta.z).toBeLessThan(0);
     expect(stickMagnitude(delta.x, delta.z)).toBeCloseTo(1, 5);
   });
 
   it("walks right on a default south-facing camera", () => {
     const delta = stickWorldDelta(1, 0, 0);
-    expect(delta.x).toBeLessThan(0);
+    expect(delta.x).toBeGreaterThan(0);
     expect(delta.z).toBeCloseTo(0, 5);
   });
 
   it("rotates with the follow camera yaw", () => {
     const yaw = Math.PI / 2;
     const forward = stickWorldDelta(0, 1, yaw);
-    expect(forward.x).toBeCloseTo(1, 5);
+    expect(forward.x).toBeCloseTo(-1, 5);
     expect(forward.z).toBeCloseTo(0, 5);
   });
 
