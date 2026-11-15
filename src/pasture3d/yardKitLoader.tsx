@@ -67,10 +67,347 @@ function isMesh(obj: THREE.Object3D): obj is THREE.Mesh {
 function lockPaletteMap(map: THREE.Texture | null): void {
   if (!map) return;
   map.generateMipmaps = false;
-  map.minFilter = THREE.LinearFilter;
-  map.magFilter = THREE.LinearFilter;
+  map.minFilter = THREE.NearestFilter;
+  map.magFilter = THREE.NearestFilter;
   map.anisotropy = 1;
   map.needsUpdate = true;
+}
+
+function projOrient(
+  a: readonly [number, number],
+  b: readonly [number, number],
+  c: readonly [number, number],
+): number {
+  return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+}
+
+function pointInsideTri(
+  p: readonly [number, number],
+  tri: readonly [
+    readonly [number, number],
+    readonly [number, number],
+    readonly [number, number],
+  ],
+): boolean {
+  const o1 = projOrient(tri[0], tri[1], p);
+  const o2 = projOrient(tri[1], tri[2], p);
+  const o3 = projOrient(tri[2], tri[0], p);
+  return (
+    (o1 > 1e-4 && o2 > 1e-4 && o3 > 1e-4) ||
+    (o1 < -1e-4 && o2 < -1e-4 && o3 < -1e-4)
+  );
+}
+
+/**
+ * Kenney walls are often two triangles on the exact same plane, one grey and
+ * one black. The depth buffer swaps which one wins as the camera moves, so
+ * about half the buildings flash. Drop that second copy. A smaller decal that
+ * shares the plane is nudged out along its normal so it stays visible.
+ */
+export function separateStackedFaces(
+  geometry: THREE.BufferGeometry,
+): THREE.BufferGeometry {
+  const src = geometry.index ? geometry.toNonIndexed() : geometry;
+  const pos = src.getAttribute("position") as THREE.BufferAttribute | undefined;
+  if (!pos || pos.count < 6) {
+    if (src !== geometry) src.dispose();
+    return geometry;
+  }
+  const triCount = Math.floor(pos.count / 3);
+  type Tri = {
+    n: THREE.Vector3;
+    d: number;
+    area: number;
+    p: [THREE.Vector3, THREE.Vector3, THREE.Vector3];
+    mid: readonly [number, number];
+    proj: readonly [
+      readonly [number, number],
+      readonly [number, number],
+      readonly [number, number],
+    ];
+    i0: number;
+    i1: number;
+  };
+  const tris: Tri[] = [];
+  const drop = new Uint8Array(triCount);
+  const lift = new Float32Array(triCount);
+  for (let t = 0; t < triCount; t++) {
+    const p: [THREE.Vector3, THREE.Vector3, THREE.Vector3] = [
+      new THREE.Vector3().fromBufferAttribute(pos, t * 3),
+      new THREE.Vector3().fromBufferAttribute(pos, t * 3 + 1),
+      new THREE.Vector3().fromBufferAttribute(pos, t * 3 + 2),
+    ];
+    const n = new THREE.Vector3().crossVectors(
+      p[1].clone().sub(p[0]),
+      p[2].clone().sub(p[0]),
+    );
+    const area = n.length() * 0.5;
+    if (area < 1e-8) {
+      drop[t] = 1;
+      tris.push({
+        n,
+        d: 0,
+        area: 0,
+        p,
+        mid: [0, 0],
+        proj: [
+          [0, 0],
+          [0, 0],
+          [0, 0],
+        ],
+        i0: 0,
+        i1: 1,
+      });
+      continue;
+    }
+    n.multiplyScalar(1 / (area * 2));
+    const ax = Math.abs(n.x);
+    const ay = Math.abs(n.y);
+    const az = Math.abs(n.z);
+    let i0 = 0;
+    let i1 = 1;
+    if (ax >= ay && ax >= az) {
+      i0 = 1;
+      i1 = 2;
+    } else if (ay >= ax && ay >= az) {
+      i0 = 0;
+      i1 = 2;
+    }
+    const proj: Tri["proj"] = [
+      [p[0].getComponent(i0), p[0].getComponent(i1)],
+      [p[1].getComponent(i0), p[1].getComponent(i1)],
+      [p[2].getComponent(i0), p[2].getComponent(i1)],
+    ];
+    const mid = p[0]
+      .clone()
+      .add(p[1])
+      .add(p[2])
+      .multiplyScalar(1 / 3);
+    tris.push({
+      n,
+      d: n.dot(p[0]),
+      area,
+      p,
+      mid: [mid.getComponent(i0), mid.getComponent(i1)],
+      proj,
+      i0,
+      i1,
+    });
+  }
+
+  const seen = new Map<string, number>();
+  for (let t = 0; t < triCount; t++) {
+    if (drop[t]) continue;
+    const key = [0, 1, 2]
+      .map((k) => {
+        const point = tris[t]!.p[k]!;
+        return `${Math.round(point.x * 4000)},${Math.round(point.y * 4000)},${Math.round(point.z * 4000)}`;
+      })
+      .sort()
+      .join("|");
+    if (seen.has(key)) drop[t] = 1;
+    else seen.set(key, t);
+  }
+
+  for (let i = 0; i < triCount; i++) {
+    if (drop[i] || tris[i]!.area < 1e-6) continue;
+    for (let j = i + 1; j < triCount; j++) {
+      if (drop[j] || tris[j]!.area < 1e-6) continue;
+      const a = tris[i]!;
+      const b = tris[j]!;
+      if (Math.abs(a.n.dot(b.n)) < 0.995) continue;
+      if (Math.abs(a.n.dot(b.p[0]!) - a.d) > 0.003) continue;
+      const bproj: Tri["proj"] = [
+        [b.p[0].getComponent(a.i0), b.p[0].getComponent(a.i1)],
+        [b.p[1].getComponent(a.i0), b.p[1].getComponent(a.i1)],
+        [b.p[2].getComponent(a.i0), b.p[2].getComponent(a.i1)],
+      ];
+      const bMid: readonly [number, number] = [
+        (b.p[0]!.getComponent(a.i0) +
+          b.p[1]!.getComponent(a.i0) +
+          b.p[2]!.getComponent(a.i0)) /
+          3,
+        (b.p[0]!.getComponent(a.i1) +
+          b.p[1]!.getComponent(a.i1) +
+          b.p[2]!.getComponent(a.i1)) /
+          3,
+      ];
+      const aInB = pointInsideTri(a.mid, bproj);
+      const bInA = pointInsideTri(bMid, a.proj);
+      if (!aInB && !bInA) continue;
+      const small = a.area <= b.area ? i : j;
+      const large = small === i ? j : i;
+      if (tris[small]!.area / tris[large]!.area > 0.72) drop[small] = 1;
+      else if (lift[small] === 0) lift[small] = 0.004;
+    }
+  }
+
+  let changed = false;
+  for (let t = 0; t < triCount; t++) {
+    if (drop[t] || lift[t]) changed = true;
+  }
+  if (!changed) {
+    if (src !== geometry) src.dispose();
+    return geometry;
+  }
+
+  const kept: number[] = [];
+  for (let t = 0; t < triCount; t++) if (!drop[t]) kept.push(t);
+  const dst = new THREE.BufferGeometry();
+  for (const name of Object.keys(src.attributes)) {
+    const attr = src.getAttribute(name) as THREE.BufferAttribute;
+    const itemSize = attr.itemSize;
+    const out = new Float32Array(kept.length * 3 * itemSize);
+    let w = 0;
+    for (const t of kept) {
+      const extra = name === "position" ? lift[t]! : 0;
+      const nrm = tris[t]!.n;
+      for (let k = 0; k < 3; k++) {
+        const vi = t * 3 + k;
+        for (let c = 0; c < itemSize; c++) {
+          let value = attr.getComponent(vi, c);
+          if (extra) value += nrm.getComponent(c) * extra;
+          out[w++] = value;
+        }
+      }
+    }
+    dst.setAttribute(
+      name,
+      new THREE.BufferAttribute(out, itemSize, attr.normalized),
+    );
+  }
+  if (src !== geometry) src.dispose();
+  return dst;
+}
+
+function palettePixels(
+  image: CanvasImageSource & { width: number; height: number },
+): Uint8ClampedArray | null {
+  if (typeof document === "undefined" || !image.width || !image.height)
+    return null;
+  const canvas = document.createElement("canvas");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+  try {
+    ctx.drawImage(image, 0, 0);
+    return ctx.getImageData(0, 0, image.width, image.height).data;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The grey wall and the black trim are painted from one atlas and often lie
+ * on the same plane. Split them and bias the wall toward the camera so the
+ * trim cannot flash through the wall while the view moves.
+ */
+function splitPaletteFaces(mesh: THREE.Mesh): void {
+  const mat = mesh.material;
+  if (!(mat instanceof THREE.MeshStandardMaterial) || !mat.map) return;
+  const image = mat.map.image as
+    (CanvasImageSource & { width: number; height: number }) | undefined;
+  if (!image) return;
+  const pixels = palettePixels(image);
+  if (!pixels) return;
+  const width = image.width;
+  const height = image.height;
+  const flipY = mat.map.flipY;
+  const lumAt = (u: number, v: number) => {
+    const uu = ((u % 1) + 1) % 1;
+    const vv = ((v % 1) + 1) % 1;
+    const x = Math.min(width - 1, Math.floor(uu * width));
+    const y = Math.min(height - 1, Math.floor((flipY ? 1 - vv : vv) * height));
+    const i = (y * width + x) * 4;
+    return pixels[i]! * 0.3 + pixels[i + 1]! * 0.5 + pixels[i + 2]! * 0.2;
+  };
+  const src = mesh.geometry.index
+    ? mesh.geometry.toNonIndexed()
+    : mesh.geometry;
+  const pos = src.getAttribute("position");
+  const uv = src.getAttribute("uv");
+  if (!pos || !uv) {
+    if (src !== mesh.geometry) src.dispose();
+    return;
+  }
+  const triCount = Math.floor(pos.count / 3);
+  const dark = new Uint8Array(triCount);
+  let darkCount = 0;
+  for (let t = 0; t < triCount; t++) {
+    let lum = 0;
+    for (let k = 0; k < 3; k++) {
+      const vi = t * 3 + k;
+      lum += lumAt(uv.getX(vi), uv.getY(vi));
+    }
+    if (lum / 3 < 70) {
+      dark[t] = 1;
+      darkCount += 1;
+    }
+  }
+  if (darkCount === 0 || darkCount === triCount) {
+    if (src !== mesh.geometry) src.dispose();
+    return;
+  }
+  const make = (wantDark: number) => {
+    const kept: number[] = [];
+    for (let t = 0; t < triCount; t++) if (dark[t] === wantDark) kept.push(t);
+    const dst = new THREE.BufferGeometry();
+    for (const name of Object.keys(src.attributes)) {
+      const attr = src.getAttribute(name) as THREE.BufferAttribute;
+      const itemSize = attr.itemSize;
+      const out = new Float32Array(kept.length * 3 * itemSize);
+      let w = 0;
+      for (const t of kept) {
+        for (let k = 0; k < 3; k++) {
+          const vi = t * 3 + k;
+          for (let c = 0; c < itemSize; c++)
+            out[w++] = attr.getComponent(vi, c);
+        }
+      }
+      dst.setAttribute(
+        name,
+        new THREE.BufferAttribute(out, itemSize, attr.normalized),
+      );
+    }
+    return dst;
+  };
+  const wallGeo = make(0);
+  const trimGeo = make(1);
+  const wallMat = mat;
+  const trimMat = mat.clone();
+  wallMat.polygonOffset = true;
+  wallMat.polygonOffsetFactor = -2;
+  wallMat.polygonOffsetUnits = -2;
+  trimMat.polygonOffset = true;
+  trimMat.polygonOffsetFactor = 1;
+  trimMat.polygonOffsetUnits = 1;
+  const parent = mesh.parent;
+  if (!parent) return;
+  const wall = new THREE.Mesh(wallGeo, wallMat);
+  const trim = new THREE.Mesh(trimGeo, trimMat);
+  for (const part of [wall, trim]) {
+    part.castShadow = false;
+    part.receiveShadow = false;
+    part.position.copy(mesh.position);
+    part.rotation.copy(mesh.rotation);
+    part.scale.copy(mesh.scale);
+    parent.add(part);
+  }
+  parent.remove(mesh);
+  if (src !== mesh.geometry) src.dispose();
+}
+
+function unstackMeshes(root: THREE.Object3D): void {
+  const meshes: THREE.Mesh[] = [];
+  root.traverse((obj) => {
+    if (obj instanceof THREE.Mesh && obj.geometry) meshes.push(obj);
+  });
+  for (const mesh of meshes) {
+    const next = separateStackedFaces(mesh.geometry);
+    if (next !== mesh.geometry) mesh.geometry = next;
+    splitPaletteFaces(mesh);
+  }
 }
 
 export function restyleYardKit(root: THREE.Object3D): void {
@@ -147,6 +484,7 @@ export function prepareYardKit(
       : -((box.min.z + box.max.z) / 2);
   obj.position.set(-midX, groundY - box.min.y, z);
   root.add(obj);
+  unstackMeshes(root);
   mergeKitMeshes(root);
   return root;
 }
@@ -163,6 +501,7 @@ export function prepareStreetProp(
   const box = new THREE.Box3().setFromObject(obj);
   obj.position.y += -box.min.y;
   root.add(obj);
+  unstackMeshes(root);
   mergeKitMeshes(root);
   return root;
 }
