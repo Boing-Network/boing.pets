@@ -27,7 +27,13 @@ import {
   stepToward,
   type Vec2,
 } from "./pathing";
-import { approachSpeed, desiredWalkSpeed, lerpAngle, retarget } from "./motion";
+import {
+  approachSpeed,
+  desiredWalkSpeed,
+  expApproachAngle,
+  lerpAngle,
+  retarget,
+} from "./motion";
 import { meadowHeight } from "./meadowHeight";
 import { pasturePetY } from "./pastureGround";
 import { Meadow } from "./Meadow";
@@ -59,8 +65,8 @@ import {
   PASTURE_ZOOM_DEFAULT,
   PASTURE_CAM_PITCH,
   cameraOccludersForZone,
-  cameraBehindYaw,
   clampZoom,
+  dampFollowPoint,
   resolveFollowCamera,
   zoomBySteps,
   zoomFromWheel,
@@ -76,7 +82,6 @@ import { PastureAudioControls } from "./PastureAudioControls";
 import { PastureHelpButton, PastureHelpOverlay } from "./PastureHelpOverlay";
 import {
   applyMoveKey,
-  clearMoveKeys,
   combinedMoveStick,
   isEditableTarget,
   shortcutFromEvent,
@@ -116,10 +121,20 @@ import {
   pastureMobileDpr,
   readPastureTouchPrefs,
   stickMagnitude,
-  stickWorldDelta,
   STICK_DEADZONE,
 } from "./mobileControls";
-import type { ControlState } from "../world/hooks/usePlayerControls";
+import {
+  CITY_MAX_FRAME_DT,
+  CITY_MAX_STEP_DT,
+  CITY_MOVE_SPEED,
+  CITY_TURN_RATE,
+  nextControlYaw,
+  simulateCityLocomotion,
+} from "./locomotion";
+import {
+  releaseHeldInput,
+  type ControlState,
+} from "../world/hooks/usePlayerControls";
 import {
   isWalkthroughVisible,
   loadWalkthrough,
@@ -203,7 +218,6 @@ export type PastureAppProps = {
   handleRef?: MutableRefObject<PastureDebug | null>;
 };
 
-const WALK_SPEED = 5.2;
 const WANDER_SPEED = 1.35;
 const PASTURE_OBSTACLES = obstaclesForZone(PASTURE_ZONE);
 
@@ -689,7 +703,7 @@ export function PastureApp({
     const onKeyUp = (event: KeyboardEvent) => {
       if (applyMoveKey(controls.current, event, false)) event.preventDefault();
     };
-    const clear = () => clearMoveKeys(controls.current);
+    const clear = () => releaseHeldInput(controls.current);
     const onFocusIn = (event: FocusEvent) => {
       if (isEditableTarget(event.target)) clear();
     };
@@ -1362,6 +1376,8 @@ function FollowCamera({
   const boxes = useMemo(() => cameraOccludersForZone(PASTURE_ZONE), []);
   const started = useRef(false);
   const followStarted = useRef(false);
+  const camVel = useRef({ x: 0, y: 0, z: 0 });
+  const lookVel = useRef({ x: 0, y: 0, z: 0 });
 
   useFrame((state, delta) => {
     const pose = followOwner
@@ -1373,28 +1389,23 @@ function FollowCamera({
           yaw: PASTURE_SPAWN_YAW,
         };
     const ground = meadowHeight(pose.x, pose.z);
-    const petYaw = followOwner ? (pose.yaw ?? 0) : 0;
     const fromSpawn = Math.hypot(
       pose.x - PASTURE_ZONE.spawn.x,
       pose.z - PASTURE_ZONE.spawn.z,
     );
     if (followOwner && fromSpawn > 0.6) followStarted.current = true;
-    const desiredYaw = followStarted.current ? cameraBehindYaw(petYaw) : 0;
-    if (!started.current || reducedMotion) camYawRef.current = desiredYaw;
-    else {
-      camYawRef.current = lerpAngle(
-        camYawRef.current,
-        desiredYaw,
-        1 - Math.pow(0.12, delta),
-      );
-    }
+    // Yaw is owned by locomotion. Chasing the body from here rotates the
+    // camera-relative input and makes a held direction run in a circle.
+    const dt = Math.min(Math.max(delta, 0), 0.1);
     const ahead = followStarted.current
-      ? Math.min(2.4, zoomRef.current * 0.1)
+      ? Math.min(1.6, zoomRef.current * 0.08)
       : 0;
+    const forwardX = -Math.sin(camYawRef.current);
+    const forwardZ = -Math.cos(camYawRef.current);
     const look = {
-      x: pose.x + Math.sin(petYaw) * ahead,
+      x: pose.x + forwardX * ahead,
       y: ground + 1.25,
-      z: pose.z + Math.cos(petYaw) * ahead,
+      z: pose.z + forwardZ * ahead,
     };
     const cam = resolveFollowCamera(
       look,
@@ -1409,11 +1420,38 @@ function FollowCamera({
     if (!started.current || reducedMotion) {
       state.camera.position.copy(camTarget);
       lookSmooth.copy(lookTarget);
+      camVel.current = { x: 0, y: 0, z: 0 };
+      lookVel.current = { x: 0, y: 0, z: 0 };
       started.current = true;
     } else {
-      const k = 1 - Math.pow(0.05, delta);
-      state.camera.position.lerp(camTarget, k);
-      lookSmooth.lerp(lookTarget, k);
+      const nextCam = dampFollowPoint(
+        {
+          x: state.camera.position.x,
+          y: state.camera.position.y,
+          z: state.camera.position.z,
+        },
+        camVel.current,
+        { x: camTarget.x, y: camTarget.y, z: camTarget.z },
+        dt,
+      );
+      camVel.current = nextCam.velocity;
+      state.camera.position.set(
+        nextCam.position.x,
+        nextCam.position.y,
+        nextCam.position.z,
+      );
+      const nextLook = dampFollowPoint(
+        { x: lookSmooth.x, y: lookSmooth.y, z: lookSmooth.z },
+        lookVel.current,
+        { x: lookTarget.x, y: lookTarget.y, z: lookTarget.z },
+        dt,
+      );
+      lookVel.current = nextLook.velocity;
+      lookSmooth.set(
+        nextLook.position.x,
+        nextLook.position.y,
+        nextLook.position.z,
+      );
     }
     state.camera.lookAt(lookSmooth);
     setPastureFocus({
@@ -1462,8 +1500,9 @@ function LocalPet({
   const group = useRef<THREE.Group>(null);
   const moving = useRef(false);
   const started = useRef(false);
-  const yaw = useRef(0);
+  const yaw = useRef(PASTURE_SPAWN_YAW);
   const speed = useRef(0);
+  const vel = useRef({ x: 0, z: 0 });
 
   useFrame((_, delta) => {
     const node = group.current;
@@ -1471,6 +1510,7 @@ function LocalPet({
     if (!started.current) {
       const y0 = pasturePetY(livePose.current.x, livePose.current.z);
       node.position.set(livePose.current.x, y0, livePose.current.z);
+      node.rotation.y = yaw.current;
       started.current = true;
     }
     const here = { x: node.position.x, z: node.position.z };
@@ -1482,66 +1522,103 @@ function LocalPet({
     const stickLen = stickMagnitude(move.x, move.y);
     const stickActive = stickEnabled && stickLen > STICK_DEADZONE;
     const target = stickActive ? null : walkTarget.current;
-    if (stickActive) {
-      walkTarget.current = null;
-      const dir = stickWorldDelta(move.x, move.y, camYawRef.current);
-      const dest = { x: here.x + dir.x, z: here.z + dir.z };
-      speed.current = approachSpeed(
-        speed.current,
-        WALK_SPEED * Math.min(1, stickLen),
+    if (stickActive) walkTarget.current = null;
+    const coasting =
+      stickEnabled &&
+      !target &&
+      Math.hypot(vel.current.x, vel.current.z) > 0.05;
+
+    if (stickEnabled && !target && (stickActive || coasting)) {
+      const step = simulateCityLocomotion(
+        {
+          x: here.x,
+          z: here.z,
+          yaw: yaw.current,
+          vx: vel.current.x,
+          vz: vel.current.z,
+          camYaw: camYawRef.current,
+        },
+        stickActive ? move.x : 0,
+        stickActive ? move.y : 0,
         delta,
-      );
-      const stepped = stepToward(
-        here,
-        dest,
-        delta,
-        speed.current,
         PASTURE_ZONE,
         obstacles,
+        { reducedMotion },
       );
-      node.position.x = stepped.pos.x;
-      node.position.z = stepped.pos.z;
-      if (stepped.yaw !== null) {
-        const turn = reducedMotion ? 1 : 1 - Math.pow(0.0008, delta);
-        yaw.current = lerpAngle(yaw.current, stepped.yaw, turn);
-        node.rotation.y = yaw.current;
-      }
-      moving.current = true;
-      playFootstepSfx();
+      node.position.x = step.x;
+      node.position.z = step.z;
+      yaw.current = step.yaw;
+      node.rotation.y = yaw.current;
+      vel.current = { x: step.vx, z: step.vz };
+      speed.current = step.speed;
+      camYawRef.current = step.camYaw;
+      moving.current = step.moving;
+      if (step.moving) playFootstepSfx();
     } else if (target) {
-      const dist = Math.hypot(target.x - here.x, target.z - here.z);
-      const desired = desiredWalkSpeed(dist, WALK_SPEED);
-      speed.current = approachSpeed(speed.current, desired, delta);
-      const stepped = stepToward(
-        here,
-        target,
-        delta,
-        Math.max(speed.current, dist < 0.08 ? 0 : 0.35),
-        PASTURE_ZONE,
-        obstacles,
-      );
-      node.position.x = stepped.pos.x;
-      node.position.z = stepped.pos.z;
-      if (stepped.yaw !== null) {
-        const turn = reducedMotion ? 1 : 1 - Math.pow(0.0008, delta);
-        yaw.current = lerpAngle(yaw.current, stepped.yaw, turn);
-        node.rotation.y = yaw.current;
+      vel.current = { x: 0, z: 0 };
+      let remaining = Math.min(Math.max(delta, 0), CITY_MAX_FRAME_DT);
+      let pos = here;
+      let arrived = false;
+      moving.current = false;
+      while (remaining > 1e-6 && !arrived) {
+        const dt = Math.min(CITY_MAX_STEP_DT, remaining);
+        const dist = Math.hypot(target.x - pos.x, target.z - pos.z);
+        const desired = desiredWalkSpeed(dist, CITY_MOVE_SPEED);
+        speed.current = approachSpeed(speed.current, desired, dt);
+        const stepped = stepToward(
+          pos,
+          target,
+          dt,
+          Math.max(speed.current, dist < 0.08 ? 0 : 0.35),
+          PASTURE_ZONE,
+          obstacles,
+        );
+        pos = stepped.pos;
+        if (stepped.yaw !== null) {
+          yaw.current = reducedMotion
+            ? stepped.yaw
+            : expApproachAngle(yaw.current, stepped.yaw, CITY_TURN_RATE, dt);
+          node.rotation.y = yaw.current;
+        }
+        arrived = stepped.arrived;
+        moving.current = !arrived;
+        remaining -= dt;
       }
-      moving.current = !stepped.arrived;
-      if (!stepped.arrived) playFootstepSfx();
-      if (stepped.arrived) {
+      node.position.x = pos.x;
+      node.position.z = pos.z;
+      if (moving.current) playFootstepSfx();
+      camYawRef.current = nextControlYaw(
+        camYawRef.current,
+        yaw.current,
+        false,
+        Math.min(Math.max(delta, 0), CITY_MAX_FRAME_DT),
+        reducedMotion,
+      );
+      if (arrived) {
         walkTarget.current = null;
         speed.current = 0;
       }
     } else {
+      vel.current = { x: 0, z: 0 };
       moving.current = false;
-      speed.current = approachSpeed(speed.current, 0, delta);
+      speed.current = approachSpeed(
+        speed.current,
+        0,
+        Math.min(Math.max(delta, 0), CITY_MAX_STEP_DT),
+      );
       // Honor debug setOwnYaw while standing still.
       const nextYaw = livePose.current.yaw;
       if (nextYaw !== undefined && nextYaw !== yaw.current) {
         yaw.current = nextYaw;
         node.rotation.y = yaw.current;
       }
+      camYawRef.current = nextControlYaw(
+        camYawRef.current,
+        yaw.current,
+        false,
+        Math.min(Math.max(delta, 0), CITY_MAX_FRAME_DT),
+        reducedMotion,
+      );
     }
     node.position.y = pasturePetY(node.position.x, node.position.z);
     livePose.current = {
@@ -1563,6 +1640,7 @@ function LocalPet({
         pasturePetY(livePose.current.x, livePose.current.z),
         livePose.current.z,
       ]}
+      rotation={[0, PASTURE_SPAWN_YAW, 0]}
       userData={{ pasturePet: pet.owner }}
     >
       <PetMesh

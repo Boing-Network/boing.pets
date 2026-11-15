@@ -64,15 +64,35 @@ export function usePlayerControls() {
     };
     const down = (e: KeyboardEvent) => onKey(e, true);
     const up = (e: KeyboardEvent) => onKey(e, false);
+    const clear = () => releaseHeldInput(state.current);
+    const onVisibility = () => {
+      if (document.hidden) clear();
+    };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
+    window.addEventListener("blur", clear);
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", clear);
+      document.removeEventListener("visibilitychange", onVisibility);
+      clear();
     };
   }, []);
 
   return state;
+}
+
+/** Drop every held control so a blur or tab switch cannot leave the player running. */
+export function releaseHeldInput(state: ControlState): void {
+  state.forward = false;
+  state.back = false;
+  state.left = false;
+  state.right = false;
+  state.interact = false;
+  state.stickX = 0;
+  state.stickY = 0;
 }
 
 export function setStick(

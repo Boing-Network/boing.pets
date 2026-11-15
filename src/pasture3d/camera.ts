@@ -1,4 +1,5 @@
 import type { WorldZoneConfig } from "../world/config/zones";
+import { smoothDamp } from "./motion";
 import {
   CITY_PARK_TREES,
   cityBuildingCameraSolids,
@@ -78,6 +79,9 @@ export function liftCameraAboveTerrain(
 export function cameraBehindYaw(petYaw: number): number {
   return petYaw + Math.PI;
 }
+
+/** Seconds for the follow rig to catch a moving target. Shared by position and look-at. */
+export const FOLLOW_SMOOTH_TIME = 0.18;
 
 export function cameraOffset(
   look: Vec3,
@@ -204,6 +208,23 @@ export function pullCameraForOcclusion(
     x: look.x + (cam.x - look.x) * t,
     y: look.y + (cam.y - look.y) * t,
     z: look.z + (cam.z - look.z) * t,
+  };
+}
+
+/** Damp a follow point without introducing a yaw of its own. */
+export function dampFollowPoint(
+  current: Vec3,
+  velocity: Vec3,
+  target: Vec3,
+  dt: number,
+  smoothTime = FOLLOW_SMOOTH_TIME,
+): { position: Vec3; velocity: Vec3 } {
+  const x = smoothDamp(current.x, target.x, velocity.x, smoothTime, dt);
+  const y = smoothDamp(current.y, target.y, velocity.y, smoothTime, dt);
+  const z = smoothDamp(current.z, target.z, velocity.z, smoothTime, dt);
+  return {
+    position: { x: x.value, y: y.value, z: z.value },
+    velocity: { x: x.velocity, y: y.velocity, z: z.velocity },
   };
 }
 

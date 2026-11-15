@@ -1,4 +1,4 @@
-import { useRef, type PointerEvent } from "react";
+import { useCallback, useEffect, useRef, type PointerEvent } from "react";
 import type { MutableRefObject } from "react";
 import { setStick, type ControlState } from "../hooks/usePlayerControls";
 
@@ -35,10 +35,26 @@ export function Joystick({
     }
   };
 
-  const onUp = (event: PointerEvent<HTMLDivElement>) => {
+  const reset = useCallback(() => {
     origin.current = null;
     setStick(controls, 0, 0);
     if (knob.current) knob.current.style.transform = "translate(0px, 0px)";
+  }, [controls]);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.hidden) reset();
+    };
+    window.addEventListener("blur", reset);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("blur", reset);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [reset]);
+
+  const onUp = (event: PointerEvent<HTMLDivElement>) => {
+    reset();
     try {
       event.currentTarget.releasePointerCapture(event.pointerId);
     } catch {

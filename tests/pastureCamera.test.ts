@@ -6,6 +6,7 @@ import {
   cameraMinHeight,
   clampZoom,
   liftCameraAboveTerrain,
+  dampFollowPoint,
   pullCameraForOcclusion,
   resolveFollowCamera,
   zoomBySteps,
@@ -53,6 +54,32 @@ describe("pasture camera", () => {
     const pulled = pullCameraForOcclusion(cam, look, [barn]);
     expect(pulled.z).toBeLessThan(cam.z);
     expect(Math.abs(pulled.x)).toBeLessThan(3);
+  });
+
+  it("follows a straight run without yawing or stretching the view", () => {
+    const look = { x: 0, y: 1.2, z: 0 };
+    const cam = { x: 0, y: 8, z: 12 };
+    let lookPos = { ...look };
+    let camPos = { ...cam };
+    let lookVel = { x: 0, y: 0, z: 0 };
+    let camVel = { x: 0, y: 0, z: 0 };
+    const speed = 5.2;
+    const dt = 1 / 60;
+    for (let t = 0; t < 2; t += dt) {
+      lookPos = { ...lookPos, z: lookPos.z - speed * dt };
+      camPos = { x: lookPos.x, y: lookPos.y + 6.8, z: lookPos.z + 12 };
+      const nextLook = dampFollowPoint(look, lookVel, lookPos, dt);
+      const nextCam = dampFollowPoint(cam, camVel, camPos, dt);
+      Object.assign(look, nextLook.position);
+      Object.assign(cam, nextCam.position);
+      lookVel = nextLook.velocity;
+      camVel = nextCam.velocity;
+    }
+    const offsetX = cam.x - look.x;
+    const offsetZ = cam.z - look.z;
+    expect(Math.abs(offsetX)).toBeLessThan(0.05);
+    expect(offsetZ).toBeGreaterThan(11);
+    expect(offsetZ).toBeLessThan(13);
   });
 
   it("resolves a follow camera that stays above ground and outside the barn", () => {

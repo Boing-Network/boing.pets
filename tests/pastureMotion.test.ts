@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   approachSpeed,
+  approachVec,
   desiredWalkSpeed,
+  expApproachAngle,
   lerpAngle,
   retarget,
   shortestAngleDelta,
+  smoothDamp,
 } from "../src/pasture3d/motion";
 import { meadowHeight, PASTURE_FLATTEN } from "../src/pasture3d/meadowHeight";
 import { stepToward } from "../src/pasture3d/pathing";
@@ -25,6 +28,40 @@ describe("pasture motion", () => {
     expect(desiredWalkSpeed(8, 5)).toBe(5);
     expect(approachSpeed(0, 5, 0.1, 10, 14)).toBeCloseTo(1, 5);
     expect(approachSpeed(5, 0, 0.1, 10, 14)).toBeCloseTo(3.6, 5);
+  });
+
+  it("approaches a planar velocity without overshooting and brakes on release", () => {
+    const sped = approachVec({ x: 0, z: 0 }, { x: 0, z: -5.2 }, 0.1, 22, 16);
+    expect(sped.z).toBeCloseTo(-2.2, 5);
+    expect(sped.x).toBe(0);
+    const capped = approachVec({ x: 0, z: -5 }, { x: 0, z: -5.2 }, 0.1, 22, 16);
+    expect(capped.z).toBeCloseTo(-5.2, 5);
+    const stopped = approachVec({ x: 0, z: -5.2 }, { x: 0, z: 0 }, 0.1, 22, 16);
+    expect(stopped.z).toBeCloseTo(-3.6, 5);
+  });
+
+  it("damps a step without crossing the target at low or high frame rates", () => {
+    const settle = (dt: number) => {
+      let value = 0;
+      let velocity = 0;
+      let peak = 0;
+      for (let t = 0; t < 1.2; t += dt) {
+        const next = smoothDamp(value, 4, velocity, 0.18, dt);
+        value = next.value;
+        velocity = next.velocity;
+        peak = Math.max(peak, value);
+      }
+      return { value, peak };
+    };
+    const slow = settle(1 / 20);
+    const fast = settle(1 / 144);
+    expect(slow.peak).toBeLessThanOrEqual(4 + 1e-6);
+    expect(fast.peak).toBeLessThanOrEqual(4 + 1e-6);
+    expect(slow.value).toBeGreaterThan(3.5);
+    expect(fast.value).toBeCloseTo(slow.value, 1);
+    expect(smoothDamp(1, 2, 0, 0.2, 0).value).toBe(1);
+    const turned = expApproachAngle(3, -3, 8, 0.05);
+    expect(Math.abs(turned)).toBeGreaterThan(2.5);
   });
 
   it("retargets mid-walk immediately and arrives at the new point", () => {
