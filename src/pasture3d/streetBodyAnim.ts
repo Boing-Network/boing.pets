@@ -7,9 +7,11 @@ export const STREET_BODY_RUN_SPEED = 3.2;
 export const STREET_BODY_MOVE_SPEED = 0.2;
 
 /**
- * v2 is authored in an A-pose (~27.5 deg down from horizontal), so no
- * extra rest drop is applied. Limb swing is applied in StreetBodyModel
- * as a world-X hinge because v2 limb bones are not axis-aligned.
+ * v3 is authored in an A-pose (~39.5 deg shoulder-to-hand, upper arm
+ * 50 deg below horizontal), so no extra rest drop is applied. Pose
+ * values keep the historical signs (negative upperLegL X = left foot
+ * forward; arms opposite the legs on X). StreetBodyModel maps those
+ * onto v3 local hinges: flipped X on the legs, local Z on the arms.
  */
 export const STREET_BODY_ARM_DROP = 0;
 
@@ -41,8 +43,9 @@ export type StreetBodyPose = {
 };
 
 /**
- * Model faces +Z at yaw 0. A negative X rotation on a downward leg swings
- * the foot toward +Z (forward); a positive X rotation swings it back.
+ * Model faces +Z at yaw 0. Pose-space signs: a negative X value on the
+ * left leg means the left foot is swinging toward +Z (forward). The
+ * runtime maps those values onto the v3 bone hinges in StreetBodyModel.
  */
 export function streetBodyPose(
   gait: StreetBodyGait,

@@ -4,9 +4,9 @@
  * Reads public/characters/street-body.source.glb and writes
  * public/characters/street-body.v1.glb. This script is kept for history
  * and is not used in the build. The runtime character is authored
- * StreetBody v2 at public/characters/street-body.glb.
+ * StreetBody v3 at public/characters/street-body.glb.
  *
- * Do not point the output at street-body.glb — that would overwrite v2.
+ * Do not point the output at street-body.glb — that would overwrite v3.
  *
  * Usage: node scripts/stylize-street-body.mjs
  */

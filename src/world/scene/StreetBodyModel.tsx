@@ -313,33 +313,26 @@ function applyEulerDelta(
   bone.quaternion.copy(rest).multiply(scratch);
 }
 
-const WORLD_X = new THREE.Vector3(1, 0, 0);
+/**
+ * Pose values keep historical signs (negative upperLegL X = left foot
+ * forward). v3 UpperLeg local +X is world -X, so +X swings the shin
+ * forward; flip X on apply. LowerLeg +X hyperextends, so the stored
+ * positive knee also flips. The foot pitch compensate uses the same flip.
+ */
+function flipLimbX(
+  xyz: readonly [number, number, number],
+): readonly [number, number, number] {
+  return [-xyz[0], xyz[1], xyz[2]];
+}
 
 /**
- * Apply a world-space hinge on top of the authored rest pose. v2 limb
- * bones are not axis-aligned, so a local Euler X swings them sideways.
+ * v3 arm local +X is world +Z and raises the hand in the frontal plane.
+ * Sagittal walk swing is local Z. The pose still stores the amount on X.
  */
-function applyWorldAxisDelta(
-  bone: THREE.Bone | undefined,
-  rest: THREE.Quaternion | undefined,
-  angle: number,
-  scratchQ: THREE.Quaternion,
-  parentWQ: THREE.Quaternion,
-  restWQ: THREE.Quaternion,
-): void {
-  if (!bone || !rest) return;
-  if (angle === 0) {
-    bone.quaternion.copy(rest);
-    return;
-  }
-  const parent = bone.parent;
-  if (!parent) return;
-  parent.updateMatrixWorld(true);
-  parent.getWorldQuaternion(parentWQ);
-  restWQ.copy(parentWQ).multiply(rest);
-  scratchQ.setFromAxisAngle(WORLD_X, angle);
-  scratchQ.multiply(restWQ);
-  bone.quaternion.copy(parentWQ).invert().multiply(scratchQ);
+function armSwingZ(
+  xyz: readonly [number, number, number],
+): readonly [number, number, number] {
+  return [0, 0, xyz[0]];
 }
 
 export function StreetBodyModel({
@@ -360,8 +353,6 @@ export function StreetBodyModel({
   const restRef = useRef<Map<string, THREE.Quaternion>>(new Map());
   const scratchQ = useMemo(() => new THREE.Quaternion(), []);
   const scratchE = useMemo(() => new THREE.Euler(), []);
-  const parentWQ = useMemo(() => new THREE.Quaternion(), []);
-  const restWQ = useMemo(() => new THREE.Quaternion(), []);
   const lookRef = useRef(look);
   lookRef.current = look;
 
@@ -455,85 +446,75 @@ export function StreetBodyModel({
       scratchQ,
       scratchE,
     );
-    applyWorldAxisDelta(
+    applyEulerDelta(
       bones.get("UpperArm_L"),
       rest.get("UpperArm_L"),
-      pose.upperArmL[0],
+      armSwingZ(pose.upperArmL),
       scratchQ,
-      parentWQ,
-      restWQ,
+      scratchE,
     );
-    applyWorldAxisDelta(
+    applyEulerDelta(
       bones.get("UpperArm_R"),
       rest.get("UpperArm_R"),
-      pose.upperArmR[0],
+      armSwingZ(pose.upperArmR),
       scratchQ,
-      parentWQ,
-      restWQ,
+      scratchE,
     );
-    applyWorldAxisDelta(
+    applyEulerDelta(
       bones.get("LowerArm_L"),
       rest.get("LowerArm_L"),
-      pose.lowerArmL[0],
+      armSwingZ(pose.lowerArmL),
       scratchQ,
-      parentWQ,
-      restWQ,
+      scratchE,
     );
-    applyWorldAxisDelta(
+    applyEulerDelta(
       bones.get("LowerArm_R"),
       rest.get("LowerArm_R"),
-      pose.lowerArmR[0],
+      armSwingZ(pose.lowerArmR),
       scratchQ,
-      parentWQ,
-      restWQ,
+      scratchE,
     );
-    applyWorldAxisDelta(
+    applyEulerDelta(
       bones.get("UpperLeg_L"),
       rest.get("UpperLeg_L"),
-      pose.upperLegL[0],
+      flipLimbX(pose.upperLegL),
       scratchQ,
-      parentWQ,
-      restWQ,
+      scratchE,
     );
-    applyWorldAxisDelta(
+    applyEulerDelta(
       bones.get("UpperLeg_R"),
       rest.get("UpperLeg_R"),
-      pose.upperLegR[0],
+      flipLimbX(pose.upperLegR),
       scratchQ,
-      parentWQ,
-      restWQ,
+      scratchE,
     );
-    applyWorldAxisDelta(
+    applyEulerDelta(
       bones.get("LowerLeg_L"),
       rest.get("LowerLeg_L"),
-      pose.lowerLegL[0],
+      flipLimbX(pose.lowerLegL),
       scratchQ,
-      parentWQ,
-      restWQ,
+      scratchE,
     );
-    applyWorldAxisDelta(
+    applyEulerDelta(
       bones.get("LowerLeg_R"),
       rest.get("LowerLeg_R"),
-      pose.lowerLegR[0],
+      flipLimbX(pose.lowerLegR),
       scratchQ,
-      parentWQ,
-      restWQ,
+      scratchE,
     );
-    applyWorldAxisDelta(
+    applyEulerDelta(
       bones.get("Foot_L"),
       rest.get("Foot_L"),
-      pose.footL[0],
+      flipLimbX(pose.footL),
       scratchQ,
-      parentWQ,
-      restWQ,
+      scratchE,
     );
-    applyWorldAxisDelta(
+    applyEulerDelta(
       bones.get("Foot_R"),
       rest.get("Foot_R"),
-      pose.footR[0],
+      flipLimbX(pose.footR),
       scratchQ,
-      parentWQ,
-      restWQ,
+      scratchE,
     );
   });
 

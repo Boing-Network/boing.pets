@@ -3,26 +3,27 @@
 export const STREET_BODY_URL = "/characters/street-body.glb";
 
 /**
- * Runtime model is authored StreetBody v2:
- *   public/characters/street-body.glb (416 KB, uncompressed).
- * Meshopt + KHR_mesh_quantization shrank it to ~112 KB but stored
+ * Runtime model is authored StreetBody v3:
+ *   public/characters/street-body.glb (447 KB, uncompressed).
+ * Meshopt + KHR_mesh_quantization is not applied: on v2 it stored
  * positions in a [-1,1] local range with per-mesh scales, which blew
- * up the inverted-hull outline, so the authored file is what ships.
+ * up the inverted-hull outline.
+ * Previous authored body: street-body.v2.glb
  * Previous cartoon / scripted body: street-body.v1.glb
  * Input for scripts/stylize-street-body.mjs: street-body.source.glb
  * The stylize script is kept but writes street-body.v1.glb only; it is
  * not used in the build.
  *
- * v2 soles dip ~9.07 cm below y=0 in the authored file, so we lift the
- * instance this much to put the contact plane at y=0.
+ * v3 soles sit at y=0 in the authored file, so no instance lift is
+ * required. Notes: public/characters/street-body-v3.md
  */
-export const STREET_BODY_GROUND_LIFT = 0.0907;
+export const STREET_BODY_GROUND_LIFT = 0;
 
-/** Nameplate / existing procedural cosmetic heights on the v2 body. */
-export const STREET_BODY_HAT_Y = 1.81;
-export const STREET_BODY_ACCESSORY_Y = 1.26;
-export const STREET_BODY_ACCESSORY_RADIUS = 0.32;
-export const STREET_BODY_LABEL_Y = 1.9;
+/** Nameplate / existing procedural cosmetic heights on the v3 body. */
+export const STREET_BODY_HAT_Y = 1.71;
+export const STREET_BODY_ACCESSORY_Y = 1.1;
+export const STREET_BODY_ACCESSORY_RADIUS = 0.3;
+export const STREET_BODY_LABEL_Y = 1.8;
 
 export const STREET_BODY_ANCHOR_SLOTS = [
   "head",
@@ -55,20 +56,20 @@ export type StreetBodyAnchorDef = {
 
 /**
  * Empty-group attachments. Offsets are in the parent bone's local space,
- * authored for the v2 A-pose body facing +Z. Offsets are bone-local.
+ * authored for the v3 A-pose body facing +Z. Offsets are bone-local.
  * STREET_BODY_GROUND_LIFT is applied on the root instance, not these bones.
  */
 export const STREET_BODY_ANCHORS: readonly StreetBodyAnchorDef[] = [
-  { id: "head", bone: "Head", offset: [0, 0.266, 0.02] },
-  { id: "hair", bone: "Head", offset: [0, 0.286, -0.03] },
-  { id: "eyes", bone: "Head", offset: [0, 0.095, 0.14] },
-  { id: "face", bone: "Head", offset: [0, 0, 0.149] },
-  { id: "ears", bone: "Head", offset: [0, 0.095, 0], pair: ["Head", "Head"] },
+  { id: "head", bone: "Head", offset: [0, 0.344, 0.008] },
+  { id: "hair", bone: "Head", offset: [0, 0.364, -0.042] },
+  { id: "eyes", bone: "Head", offset: [0, 0.18, 0.176] },
+  { id: "face", bone: "Head", offset: [0, 0.08, 0.222] },
+  { id: "ears", bone: "Head", offset: [0, 0.18, 0], pair: ["Head", "Head"] },
   { id: "neck", bone: "Neck", offset: [0, 0, 0.03] },
-  { id: "top", bone: "Chest", offset: [0, 0.02, 0.094] },
-  { id: "outerwear", bone: "Chest", offset: [0, 0, 0.124] },
-  { id: "bottoms", bone: "Hips", offset: [0, -0.12, 0.05] },
-  { id: "waist", bone: "Hips", offset: [0, 0.04, 0.07] },
+  { id: "top", bone: "Chest", offset: [0, 0.02, 0.178] },
+  { id: "outerwear", bone: "Chest", offset: [0, 0, 0.208] },
+  { id: "bottoms", bone: "Hips", offset: [0, -0.16, 0.178] },
+  { id: "waist", bone: "Hips", offset: [0, 0.1, 0.1] },
   {
     id: "feet",
     bone: "Root",
@@ -78,17 +79,17 @@ export const STREET_BODY_ANCHORS: readonly StreetBodyAnchorDef[] = [
   {
     id: "wrists",
     bone: "LowerArm_R",
-    offset: [0, 0, 0],
+    offset: [0, 0.2, 0],
     pair: ["LowerArm_L", "LowerArm_R"],
   },
   {
     id: "hands",
     bone: "Hand_R",
-    offset: [0, 0, 0.02],
+    offset: [0, 0.02, 0],
     pair: ["Hand_L", "Hand_R"],
   },
-  { id: "back", bone: "Chest", offset: [0, 0.02, -0.146] },
-  { id: "held", bone: "Hand_R", offset: [-0.013, 0.023, 0.081] },
+  { id: "back", bone: "Chest", offset: [0, 0.02, -0.174] },
+  { id: "held", bone: "Hand_R", offset: [0.07, 0.047, 0.013] },
   { id: "aura", bone: "Root", offset: [0, 0.86, 0] },
 ];
 
