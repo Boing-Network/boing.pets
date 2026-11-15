@@ -119,11 +119,12 @@ export function applyPointerLook(
   };
   const dx = clampDelta(movementX);
   const dy = clampDelta(movementY);
-  // Browser deltas are positive right and down. Subtract so the view
-  // turns the same way the pointer moves.
+  // Right and down are positive in the browser. Yaw is inverted so a
+  // drag to the right turns the view right. Pitch stays positive so a
+  // drag up lowers the orbit and looks up.
   return {
     yaw: yaw - dx * LOOK_YAW_RADIANS_PER_PX * scale,
-    pitch: clampPitch(pitch - dy * LOOK_PITCH_RADIANS_PER_PX * scale),
+    pitch: clampPitch(pitch + dy * LOOK_PITCH_RADIANS_PER_PX * scale),
   };
 }
 

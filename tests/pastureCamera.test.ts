@@ -65,16 +65,18 @@ describe("pasture camera", () => {
     expect(right.yaw).toBeCloseTo(-0.3, 5);
     expect(right.pitch).toBeCloseTo(0.52, 5);
     const down = applyPointerLook(0, 0.52, 0, 40, 1);
-    expect(down.pitch).toBeLessThan(0.52);
-    expect(applyPointerLook(0, 0.2, 0, 5000, 1).pitch).toBe(
+    expect(down.pitch).toBeGreaterThan(0.52);
+    const up = applyPointerLook(0, 0.52, 0, -40, 1);
+    expect(up.pitch).toBeLessThan(0.52);
+    expect(applyPointerLook(0, 0.2, 0, -5000, 1).pitch).toBe(
       PASTURE_CAM_PITCH_MIN,
     );
-    expect(applyPointerLook(0, 1, 0, -5000, 2).pitch).toBe(
+    expect(applyPointerLook(0, 1, 0, 5000, 2).pitch).toBe(
       PASTURE_CAM_PITCH_MAX,
     );
     const spiked = applyPointerLook(0, 0.52, 0, 5000, 1);
-    expect(0.52 - spiked.pitch).toBeGreaterThan(0.2);
-    expect(0.52 - spiked.pitch).toBeLessThan(0.35);
+    expect(spiked.pitch - 0.52).toBeGreaterThan(0.2);
+    expect(spiked.pitch - 0.52).toBeLessThan(0.35);
     expect(applyPointerLook(1, 0.4, 0, 0, 1)).toEqual({ yaw: 1, pitch: 0.4 });
   });
 
