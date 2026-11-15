@@ -59,6 +59,20 @@ function isMesh(obj: THREE.Object3D): obj is THREE.Mesh {
   return (obj as THREE.Mesh).isMesh;
 }
 
+/**
+ * Shop walls sample a color atlas (a grey cell next to a black cell).
+ * Mipmaps average those cells together, so a wall flashes between grey and
+ * black as the camera moves. Sample the atlas texel directly.
+ */
+function lockPaletteMap(map: THREE.Texture | null): void {
+  if (!map) return;
+  map.generateMipmaps = false;
+  map.minFilter = THREE.LinearFilter;
+  map.magFilter = THREE.LinearFilter;
+  map.anisotropy = 1;
+  map.needsUpdate = true;
+}
+
 export function restyleYardKit(root: THREE.Object3D): void {
   root.traverse((obj) => {
     if (!isMesh(obj)) return;
@@ -76,6 +90,11 @@ export function restyleYardKit(root: THREE.Object3D): void {
       const isRoof = lum < 0.28 || isPaintedRoof;
       mat.metalness = 0;
       mat.envMapIntensity = 0;
+      lockPaletteMap(mat.map);
+      lockPaletteMap(mat.emissiveMap);
+      lockPaletteMap(mat.roughnessMap);
+      lockPaletteMap(mat.metalnessMap);
+      lockPaletteMap(mat.normalMap);
       if (isWindow) {
         mat.color = new THREE.Color("#d7e7f0");
         mat.emissive = new THREE.Color("#ffc888");
