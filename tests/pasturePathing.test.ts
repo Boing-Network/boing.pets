@@ -147,8 +147,12 @@ describe("pasture pathing", () => {
   });
 
   it("keeps a click on the paddock fence outside the rail", () => {
-    const hit = resolveClickTarget({ x: -32, z: 18 }, PASTURE_ZONE, obstacles);
-    expect(Math.abs(hit.x + 32)).toBeGreaterThan(0.3);
+    const hit = resolveClickTarget(
+      { x: -31.2, z: 22.4 },
+      PASTURE_ZONE,
+      obstacles,
+    );
+    expect(Math.abs(hit.x + 31.2)).toBeGreaterThan(0.3);
   });
 
   it("walks from Pond Pier to Treasure Dig around the lily pond", () => {

@@ -61,7 +61,7 @@ describe("enlarged pasture layout", () => {
     expect(fences.length).toBe(MEADOW_FENCES.length);
     expect(fences.every((o) => o.shape === "aabb")).toBe(true);
     expect(MEADOW_FENCE_HALF_THICK).toBeGreaterThan(0.1);
-    const west = fences.find((o) => Math.abs(o.x + 32) < 0.01);
+    const west = fences.find((o) => Math.abs(o.x + 31.2) < 0.01);
     expect(west).toBeTruthy();
   });
 

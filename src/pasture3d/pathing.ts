@@ -3,8 +3,9 @@ import { WORLD_CONFIG } from "../world/config/zones";
 import { MEADOW_FENCE_HALF_THICK, MEADOW_FENCES } from "./meadowLayout";
 import {
   CITY_PARK_TREES,
-  cityBuildingFootprints,
   cityDressingSolids,
+  cityFillerBuildings,
+  fillerWorldHalf,
 } from "./cityLayout";
 import { yardKitObstacles } from "./yardKitObstacles";
 
@@ -58,14 +59,19 @@ export function obstaclesForZone(zone: WorldZoneConfig): Obstacle[] {
         shape: "circle",
       });
     }
-    for (const [i, building] of cityBuildingFootprints().entries()) {
+    for (const [i, building] of cityFillerBuildings().entries()) {
+      const half = fillerWorldHalf(
+        building.name,
+        building.rotationY,
+        building.scale,
+      );
       list.push({
         id: "city-building-" + i,
-        x: building.x,
-        z: building.z,
-        halfW: building.r + PET_RADIUS,
-        halfD: building.r + PET_RADIUS,
-        shape: "circle",
+        x: building.position[0],
+        z: building.position[2],
+        halfW: half.halfW + PET_RADIUS,
+        halfD: half.halfD + PET_RADIUS,
+        shape: "aabb",
       });
     }
     for (const solid of cityDressingSolids()) {
@@ -237,7 +243,8 @@ function nearbyDetours(
 }
 
 function segmentHits(a: Vec2, b: Vec2, o: Obstacle): boolean {
-  const steps = 14;
+  const dist = Math.hypot(b.x - a.x, b.z - a.z);
+  const steps = Math.max(8, Math.ceil(dist / 0.35));
   for (let i = 1; i < steps; i++) {
     const t = i / steps;
     if (blockedBy({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t }, o))
@@ -462,7 +469,7 @@ export function findPath(
 
   let found = false;
   let steps = 0;
-  while (open.length && steps++ < 14000) {
+  while (open.length && steps++ < 80000) {
     const cur = pop();
     const key = cellKey(cur.ix, cur.iz);
     if (cur.g !== bestG.get(key)) continue;
@@ -519,10 +526,18 @@ export function findPath(
 
 function nextPathPoint(here: Vec2, path: Vec2[], obstacles: Obstacle[]): Vec2 {
   const goal = path[path.length - 1] ?? here;
-  // Follow the path in order rather than leaping to the furthest visible
-  // point. Furthest-LOS along a tight tree or pond rim causes the walker
-  // to orbit the solid and never pass it.
+  // Start at the closest waypoint so a step that passes one does not get
+  // pulled back into the solid behind it.
+  let start = 0;
+  let best = Infinity;
   for (let i = 0; i < path.length; i++) {
+    const d = Math.hypot(path[i]!.x - here.x, path[i]!.z - here.z);
+    if (d < best) {
+      best = d;
+      start = i;
+    }
+  }
+  for (let i = start; i < path.length; i++) {
     const p = path[i]!;
     if (Math.hypot(p.x - here.x, p.z - here.z) < 0.3) continue;
     if (firstHitOnSegment(here, p, obstacles)) {

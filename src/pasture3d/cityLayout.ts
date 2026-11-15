@@ -33,6 +33,60 @@ export function cityRoadPaths(): { x: number; y: number; z: number }[][] {
 }
 
 const CURB = CITY_TILE / 2 + 1.4;
+/** Paved road half-width. Collision must stay outside this so the lane stays open. */
+const ROAD_HALF = CITY_TILE / 2;
+const WALKER_RADIUS = 0.55;
+
+/**
+ * Shop kit halves in meters at scale 1, measured from the glb node.
+ * X is the long facade, Z is the depth toward the street when rotation is 0.
+ */
+const FILLER_HALF: Record<string, { x: number; z: number }> = {
+  "shop-wide": { x: 0.82, z: 0.504 },
+  "shop-narrow": { x: 0.442, z: 0.47 },
+  "shop-small": { x: 0.42, z: 0.45 },
+  "shop-mid": { x: 0.442, z: 0.545 },
+};
+
+export function fillerWorldHalf(
+  name: string,
+  rotationY: number,
+  scale: number,
+): { halfW: number; halfD: number } {
+  const local = FILLER_HALF[name] ?? { x: 0.5, z: 0.5 };
+  const alongX = Math.abs(Math.cos(rotationY)) > 0.5;
+  const hx = local.x * scale;
+  const hz = local.z * scale;
+  return alongX ? { halfW: hx, halfD: hz } : { halfW: hz, halfD: hx };
+}
+
+/** Slide a box off every avenue and street, including walker radius. */
+export function seatOffRoads(
+  x: number,
+  z: number,
+  halfW: number,
+  halfD: number,
+): { x: number; z: number } {
+  let px = x;
+  let pz = z;
+  const needX = halfW + WALKER_RADIUS + ROAD_HALF + 0.12;
+  const needZ = halfD + WALKER_RADIUS + ROAD_HALF + 0.12;
+  for (let pass = 0; pass < 2; pass++) {
+    for (const sx of CITY_STREETS_X) {
+      if (Math.abs(px - sx) < needX) {
+        const sign = px >= sx ? 1 : -1;
+        px = sx + sign * needX;
+      }
+    }
+    for (const sz of CITY_STREETS_Z) {
+      if (Math.abs(pz - sz) < needZ) {
+        const sign = pz >= sz ? 1 : -1;
+        pz = sz + sign * needZ;
+      }
+    }
+  }
+  return { x: px, z: pz };
+}
 
 export type CityKitInstance = {
   name: string;
@@ -192,11 +246,11 @@ export const CITY_RESERVED_LOTS: readonly {
   { x: 43, z: 25, r: 7 }, // fitting room
   { x: 25, z: 43, r: 7 }, // home stoop
   { x: 7, z: -43, r: 8 }, // dispatch depot
-  { x: -40, z: -9, r: 8 }, // quarry
+  { x: -42, z: -9, r: 8 }, // quarry
   { x: -25, z: -25, r: 7 }, // kitchen
-  { x: -29, z: 32, r: 12 }, // race bowl
-  { x: -9, z: 40, r: 7 }, // sweep
-  { x: -12, z: -40, r: 7 }, // plot
+  { x: -24, z: 26, r: 12 }, // race bowl
+  { x: -9, z: 42, r: 7 }, // sweep
+  { x: -12, z: -42, r: 7 }, // plot
   { x: 11, z: -27, r: 6 }, // block vault
   { x: 20, z: -50, r: 12 }, // canal
   { x: 32, z: -50, r: 6 }, // pier
@@ -218,7 +272,7 @@ export function cityFillerBuildings(): CityKitInstance[] {
   const scale = 5.8;
   const minDist = 6.6;
   const candidates: Array<[number, number, number]> = [];
-  const setbacks = [7.6, 11.2];
+  const setbacks = [9.2, 12.6];
   for (const x of CITY_STREETS_X) {
     for (
       let z = CITY_GRID_MIN + CITY_TILE;
@@ -247,6 +301,30 @@ export function cityFillerBuildings(): CityKitInstance[] {
     }
   }
   let n = 0;
+  const tryPlace = (x: number, z: number, rotY: number) => {
+    const name = names[n % names.length]!;
+    const half = fillerWorldHalf(name, rotY, scale);
+    const seated = seatOffRoads(x, z, half.halfW, half.halfD);
+    if (inReserved(seated.x, seated.z, 1.15)) return;
+    if (onCityStreet(seated.x, seated.z, ROAD_HALF + 0.15)) return;
+    if (overlapsStreetwearProp(seated.x, seated.z, 8)) return;
+    if (
+      items.some(
+        (item) =>
+          Math.hypot(item.position[0] - seated.x, item.position[2] - seated.z) <
+          minDist,
+      )
+    ) {
+      return;
+    }
+    n += 1;
+    items.push({
+      name,
+      position: [seated.x, 0, seated.z],
+      rotationY: rotY,
+      scale,
+    });
+  };
   for (const [x, z, rotY] of candidates) {
     if (inReserved(x, z, 1.15) || onCityStreet(x, z, CURB)) continue;
     if (overlapsStreetwearProp(x, z, 8)) continue;
@@ -265,9 +343,7 @@ export function cityFillerBuildings(): CityKitInstance[] {
     ) {
       continue;
     }
-    const name = names[n % names.length]!;
-    n += 1;
-    items.push({ name, position: [x, 0, z], rotationY: rotY, scale });
+    tryPlace(x, z, rotY);
   }
   const extra: Array<[number, number, number]> = [
     [13.2, 13.0, Math.PI],
@@ -285,9 +361,7 @@ export function cityFillerBuildings(): CityKitInstance[] {
     ) {
       continue;
     }
-    const name = names[n % names.length]!;
-    n += 1;
-    items.push({ name, position: [x, 0, z], rotationY: rotY, scale });
+    tryPlace(x, z, rotY);
   }
   return items;
 }
@@ -310,17 +384,18 @@ export function cityBuildingFootprints(): {
   r: number;
 }[] {
   return [
-    ...cityFillerBuildings().map((item) => ({
-      x: item.position[0],
-      z: item.position[2],
-      r: 2.6,
-    })),
+    ...cityFillerBuildings().map((item) => {
+      const half = fillerWorldHalf(item.name, item.rotationY, item.scale);
+      return {
+        x: item.position[0],
+        z: item.position[2],
+        r: Math.max(half.halfW, half.halfD),
+      };
+    }),
     ...cityStreetwearBuildings().map((item) => ({
       x: item.position[0],
       z: item.position[2],
-      // Tight circle so the long facade does not block the avenue;
-      // the AABB in cityDressingSolids covers the rest of the wall.
-      r: Math.min(item.halfW, item.halfD) + 0.35,
+      r: Math.max(item.halfW, item.halfD),
     })),
   ];
 }
@@ -370,7 +445,8 @@ const CAR_COLORS = [
 export function cityParkedCars(): CityCarSpot[] {
   const cars: CityCarSpot[] = [];
   const spots: Array<[number, number, number]> = [];
-  const offset = 3.15;
+  // Far enough that the car body plus the walker radius stays off the pavement.
+  const offset = 4.5;
   for (const z of CITY_STREETS_Z) {
     for (const x of [-12, -6, 6, 12] as const) {
       spots.push([x, z + offset, 0], [x, z - offset, Math.PI]);
@@ -417,10 +493,10 @@ export type CityMural = {
 
 export function cityMuralWalls(): CityMural[] {
   return [
-    { x: 8.5, z: 13.0, rotationY: 0, width: 6.2, height: 4.0, seed: 3 },
-    { x: -8.0, z: -14.6, rotationY: 0, width: 5.6, height: 3.8, seed: 7 },
+    { x: 8.5, z: 11.2, rotationY: 0, width: 6.2, height: 4.0, seed: 3 },
+    { x: -8.0, z: -11.4, rotationY: 0, width: 5.6, height: 3.8, seed: 7 },
     {
-      x: 14.6,
+      x: 11.5,
       z: -4.8,
       rotationY: Math.PI / 2,
       width: 5.4,
@@ -474,12 +550,14 @@ function muralSolid(wall: CityMural): CitySolid {
 export function cityDressingSolids(): CitySolid[] {
   const solids: CitySolid[] = [];
   for (const [i, car] of cityParkedCars().entries()) {
+    const alongX = Math.abs(Math.cos(car.rotationY)) > 0.5;
     solids.push({
       id: "city-car-" + i,
       x: car.x,
       z: car.z,
-      halfW: 1.15,
-      halfD: 0.55,
+      // Body is 2.1 by 1.05, wheels stick out to about 0.78 on the narrow side.
+      halfW: alongX ? 1.05 : 0.78,
+      halfD: alongX ? 0.78 : 1.05,
       height: 1.2,
     });
   }
@@ -516,14 +594,17 @@ export function cityDressingSolids(): CitySolid[] {
 /** Taller, slightly larger boxes so the follow camera does not clip roofs. */
 export function cityBuildingCameraSolids(): CitySolid[] {
   return [
-    ...cityFillerBuildings().map((item, i) => ({
-      id: "city-building-cam-" + i,
-      x: item.position[0],
-      z: item.position[2],
-      halfW: 3.35,
-      halfD: 3.35,
-      height: 7.4,
-    })),
+    ...cityFillerBuildings().map((item, i) => {
+      const half = fillerWorldHalf(item.name, item.rotationY, item.scale);
+      return {
+        id: "city-building-cam-" + i,
+        x: item.position[0],
+        z: item.position[2],
+        halfW: half.halfW + 0.15,
+        halfD: half.halfD + 0.15,
+        height: 7.4,
+      };
+    }),
     ...cityStreetwearBuildings().map((item, i) => ({
       id: "streetwear-building-cam-" + i,
       x: item.position[0],

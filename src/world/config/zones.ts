@@ -407,7 +407,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "crystal-quarry",
       label: "Crystal Quarry",
-      position: { x: -40, y: 0, z: -9 },
+      position: { x: -42, y: 0, z: -9 },
       color: "#8a8f96",
       height: 2.2,
       width: 3.6,
@@ -425,7 +425,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "treasure-dig",
       label: "Treasure Dig",
-      position: { x: -9, y: 0, z: 40 },
+      position: { x: -9, y: 0, z: 42 },
       color: "#c9a66b",
       height: 1.15,
       width: 3.2,
@@ -434,7 +434,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "garden-beds",
       label: "Garden Beds",
-      position: { x: -12, y: 0, z: -40 },
+      position: { x: -12, y: 0, z: -42 },
       color: "#7eab62",
       height: 1.15,
       width: 3.6,
@@ -452,7 +452,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     {
       id: "race-gate",
       label: "Race Track",
-      position: { x: -29, y: 0, z: 32 },
+      position: { x: -24, y: 0, z: 26 },
       color: "#e8c27a",
       height: 2.4,
       width: 3.2,
@@ -523,7 +523,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       id: "pasture-mine",
       label: "Crystal Quarry",
       kind: "mine",
-      position: { x: -40, y: 0, z: -9 },
+      position: { x: -42, y: 0, z: -9 },
       radius: 3.4,
       hint: "Press E to mine",
     },
@@ -539,7 +539,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       id: "pasture-treasure",
       label: "Treasure Dig",
       kind: "treasure",
-      position: { x: -9, y: 0, z: 40 },
+      position: { x: -9, y: 0, z: 42 },
       radius: 3.4,
       hint: "Press E to dig",
     },
@@ -547,7 +547,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       id: "pasture-garden",
       label: "Garden Beds",
       kind: "garden",
-      position: { x: -12, y: 0, z: -40 },
+      position: { x: -12, y: 0, z: -42 },
       radius: 3.4,
       hint: "Press E to tend the garden",
     },
@@ -563,7 +563,7 @@ export const PASTURE_ZONE: WorldZoneConfig = {
       id: "pasture-race",
       label: "Race Track",
       kind: "race",
-      position: { x: -29, y: 0, z: 32 },
+      position: { x: -24, y: 0, z: 26 },
       radius: 3.4,
       hint: "Press E to race",
     },
@@ -606,15 +606,15 @@ export const PASTURE_ZONE: WorldZoneConfig = {
     // Short spurs from the outer streets onto the resource lots.
     [
       { x: -36, y: 0.02, z: -9 },
-      { x: -40, y: 0.02, z: -9 },
+      { x: -42, y: 0.02, z: -9 },
     ],
     [
       { x: -12, y: 0.02, z: -36 },
-      { x: -12, y: 0.02, z: -40 },
+      { x: -12, y: 0.02, z: -42 },
     ],
     [
       { x: -9, y: 0.02, z: 36 },
-      { x: -9, y: 0.02, z: 40 },
+      { x: -9, y: 0.02, z: 42 },
     ],
   ],
 };

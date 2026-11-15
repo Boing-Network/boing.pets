@@ -7,10 +7,12 @@ import {
   cityBuildingCameraSolids,
   cityBuildingFootprints,
   cityDressingSolids,
+  cityFillerBuildings,
   cityParkedCars,
   cityRoadTiles,
   cityStreetLights,
   cityStreetSegments,
+  fillerWorldHalf,
   onCityStreet,
 } from "../src/pasture3d/cityLayout";
 import { cameraOccludersForZone } from "../src/pasture3d/camera";
@@ -71,6 +73,44 @@ describe("yard city grid", () => {
     expect(blocked({ x: CITY_COURT.x, z: CITY_COURT.z }, obstacles)).toBeNull();
     expect(blocked({ x: 0, z: 8 }, obstacles)).toBeNull();
     expect(blocked({ x: 22, z: 8 }, obstacles)).toBeNull();
+  });
+
+  it("blocks the inside of every shop and leaves the paved roads open", () => {
+    const obstacles = obstaclesForZone(PASTURE_ZONE);
+    const roadHits = new Set<string>();
+    const note = (hit: { id?: string } | null) => {
+      if (hit?.id) roadHits.add(hit.id);
+    };
+    for (const x of CITY_STREETS_X) {
+      for (let z = -40; z <= 40; z += 2) {
+        note(blocked({ x, z }, obstacles));
+        note(blocked({ x: x + 2.4, z }, obstacles));
+        note(blocked({ x: x - 2.4, z }, obstacles));
+      }
+    }
+    for (const z of CITY_STREETS_Z) {
+      for (let x = -40; x <= 40; x += 2) {
+        note(blocked({ x, z }, obstacles));
+        note(blocked({ x, z: z + 2.4 }, obstacles));
+        note(blocked({ x, z: z - 2.4 }, obstacles));
+      }
+    }
+    expect([...roadHits].sort()).toEqual([]);
+    const shops = cityFillerBuildings();
+    expect(shops.length).toBeGreaterThan(8);
+    for (const shop of shops) {
+      const half = fillerWorldHalf(shop.name, shop.rotationY, shop.scale);
+      const origin = { x: shop.position[0], z: shop.position[2] };
+      expect(blocked(origin, obstacles), shop.name).not.toBeNull();
+      expect(
+        blocked({ x: origin.x + half.halfW * 0.72, z: origin.z }, obstacles),
+        shop.name + " facade",
+      ).not.toBeNull();
+      expect(
+        blocked({ x: origin.x, z: origin.z + half.halfD * 0.72 }, obstacles),
+        shop.name + " side",
+      ).not.toBeNull();
+    }
   });
 
   it("registers city buildings as camera occluders so roofs can pull the camera in", () => {

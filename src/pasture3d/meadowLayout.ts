@@ -390,11 +390,12 @@ export const MEADOW_ROCK_SPOTS: readonly MeadowPoint[] = [
 
 /** Axis-aligned paddock and garden rails. */
 export const MEADOW_FENCES: readonly FenceSegment[] = [
-  { x1: -32, z1: 14, x2: -32, z2: 23 },
-  { x1: -32, z1: 14, x2: -27, z2: 14 },
-  { x1: -32, z1: 23, x2: -27, z2: 23 },
-  { x1: 14, z1: 26, x2: 22, z2: 26 },
-  { x1: 22, z1: 26, x2: 22, z2: 19 },
+  { x1: -31.2, z1: 14, x2: -31.2, z2: 14.2 },
+  { x1: -31.2, z1: 21.8, x2: -31.2, z2: 23 },
+  { x1: -31.2, z1: 14, x2: -27, z2: 14 },
+  { x1: -31.2, z1: 23, x2: -27, z2: 23 },
+  { x1: 14, z1: 26, x2: 14.6, z2: 26 },
+  { x1: 23.2, z1: 23, x2: 23.2, z2: 26 },
 ];
 
 export const MEADOW_FENCE_HALF_THICK = 0.28;
