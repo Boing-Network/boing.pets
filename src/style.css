@@ -415,6 +415,52 @@ meter {
   color: #c5d7f7;
   padding: 4px 9px;
 }
+.character-sheet {
+  display: grid;
+  gap: 4px;
+}
+.character-level {
+  margin: 4px 0 0;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+.character-xp {
+  position: relative;
+  height: 8px;
+  margin: 6px 0 2px;
+  border-radius: 999px;
+  background: #15233f;
+  border: 1px solid #2a3d5c;
+  overflow: hidden;
+}
+.character-xp > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #ff4d00, #ffb347);
+}
+.character-xp-split {
+  margin: 0 0 4px;
+  opacity: 0.85;
+}
+.character-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0;
+}
+.character-skill {
+  font-size: 0.55rem;
+  letter-spacing: 0.35px;
+  text-transform: uppercase;
+  border-radius: 999px;
+  border: 1px solid #3a547a;
+  background: #101a2e;
+  color: #d7e6ff;
+  padding: 4px 8px;
+}
+.character-equipped {
+  margin-top: 4px;
+}
 .market-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

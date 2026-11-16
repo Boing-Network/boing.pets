@@ -1,6 +1,11 @@
 import { playSfx } from "../audio";
 import { hex32, isSignatureAction, type Action } from "../core";
 import {
+  characterLevelsCrossed,
+  characterTotalXp,
+  stageUpLabel,
+} from "../content/character";
+import {
   api,
   app,
   notice,
@@ -9,8 +14,10 @@ import {
   clearSocialSession,
   type Challenge,
   type Provider,
+  type ViewPet,
 } from "./appRuntime";
 import { currencyLabel } from "../content/currencyLabels";
+import { resolveCharacterProgress } from "./pages/buddyPanel";
 import {
   clearWalletSession,
   ensurePreferredProvider,
@@ -42,6 +49,38 @@ async function refresh() {
 }
 function controls() {
   controlsFn();
+}
+
+function snapshotProgress(pet: ViewPet | null) {
+  if (!pet) return null;
+  const progress = resolveCharacterProgress(pet);
+  return {
+    totalXp: progress.totalXp,
+    stage: pet.state.stage,
+  };
+}
+
+/** Append unmistakable level/stage toasts after care refresh. */
+function appendProgressToasts(
+  before: ReturnType<typeof snapshotProgress>,
+  afterPet: ViewPet | null,
+  baseMsg: string,
+): string {
+  if (!before || !afterPet) return baseMsg;
+  const after = resolveCharacterProgress(afterPet);
+  const parts = [baseMsg];
+  const crossed = characterLevelsCrossed(before.totalXp, after.totalXp);
+  for (const row of crossed) parts.push(row.label);
+  if (before.stage !== afterPet.state.stage) {
+    parts.push(stageUpLabel(afterPet.state.stage));
+  }
+  return parts.join(" ");
+}
+
+/** Total XP helper kept for adventure claim paths that refresh app.mine. */
+export function characterXpOf(pet: ViewPet | null): number {
+  if (!pet) return 0;
+  return characterTotalXp(pet.state.xp || 0, pet.state.adventureXp || 0);
 }
 
 export async function run(task: () => Promise<void>) {
@@ -86,6 +125,7 @@ export async function confirmPending() {
   if (!p || p.owner !== app.owner)
     throw new Error("No pending transaction for this wallet");
   notice("Checking transaction inclusion…");
+  const before = snapshotProgress(app.mine);
   const confirmed = await api<{
     drop?: { name: string; tier: string } | null;
   }>("/api/confirm", { id: p.id, tx_hash: p.tx_hash });
@@ -95,7 +135,7 @@ export async function confirmPending() {
   if (confirmed.drop?.name) {
     msg += ` You found a ${confirmed.drop.tier} drop: ${confirmed.drop.name}!`;
   }
-  notice(msg);
+  notice(appendProgressToasts(before, app.mine, msg));
   playSfx("care");
 }
 export async function act(action: Action) {
@@ -121,6 +161,7 @@ export async function act(action: Action) {
       method: "boing_signMessage",
       params: [c.message, app.owner],
     });
+    const before = snapshotProgress(app.mine);
     const confirmed = await api<{
       ok?: boolean;
       streak_milestone?: { streak: number; sparkles: number } | null;
@@ -131,15 +172,15 @@ export async function act(action: Action) {
       action === "checkin"
         ? "Hello sent."
         : action === "play"
-          ? "Playtime logged. Energy up!"
-          : "All fresh. Hygiene restored.";
+          ? "Playtime logged."
+          : "Groom logged.";
     if (confirmed.streak_milestone?.sparkles) {
       msg += ` Streak day ${confirmed.streak_milestone.streak}: +${confirmed.streak_milestone.sparkles} ${currencyLabel("sparkles")}!`;
     }
     if (confirmed.drop?.name) {
       msg += ` You found a ${confirmed.drop.tier} drop: ${confirmed.drop.name}!`;
     }
-    notice(msg);
+    notice(appendProgressToasts(before, app.mine, msg));
     playSfx("care");
     return;
   }

@@ -1,11 +1,4 @@
-import {
-  state,
-  traits,
-  type AchievementCode,
-  type Action,
-  type Pet,
-} from "../core";
-import type { EquippedCosmetics } from "../content/cosmetics";
+import { type Action } from "../core";
 import { apiFetch } from "./apiClient";
 import { isCapMessage } from "../audio/settings";
 import { classifyWalletError } from "../wallet/txFeedback";
@@ -19,23 +12,8 @@ import type { BoingProvider, WalletProviderKind } from "../wallet/session";
 import { pastureToastDismissMs } from "./toastDismiss";
 
 export type Provider = BoingProvider;
-export type ViewPet = Pet & {
-  traits: ReturnType<typeof traits>;
-  state: ReturnType<typeof state>;
-  achievements?: Array<{
-    code: AchievementCode;
-    unlocked_at: number;
-    title: string;
-    description: string;
-  }>;
-  mind?: {
-    mood: string;
-    favoriteActivity: string;
-    suggestion: string;
-    cues: string[];
-  };
-  cosmetics?: EquippedCosmetics;
-};
+export type { CharacterSheetProgress, ViewPet } from "./viewPet";
+import type { ViewPet } from "./viewPet";
 
 export interface Challenge {
   id: string;
@@ -102,7 +80,7 @@ function fillNotice(
   const message = document.createElement("span");
   message.className = "notice-text";
   message.textContent = text;
-  el.append(message);
+  el.appendChild(message);
   if (retry) {
     const button = document.createElement("button");
     button.type = "button";
@@ -112,7 +90,7 @@ function fillNotice(
       event.preventDefault();
       retry();
     });
-    el.append(button);
+    el.appendChild(button);
   }
 }
 
@@ -155,9 +133,9 @@ function showPastureTxToast(text: string, error: boolean, retry?: () => void) {
     toast.setAttribute("role", "status");
     toast.setAttribute("aria-live", "polite");
     toast.setAttribute("data-hud", "tx-toast");
-    host.append(toast);
+    host.appendChild(toast);
   } else if (toast.parentElement !== host) {
-    host.append(toast);
+    host.appendChild(toast);
   }
   fillNotice(toast, text, error, retry);
   armPastureToastDismiss(toast, retry);

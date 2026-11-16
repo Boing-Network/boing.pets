@@ -62,6 +62,14 @@ import {
   activityAttemptsPost,
 } from "./activityAttempts";
 import { applyFoodBoosts } from "../src/content/cooking";
+import { characterProgress } from "../src/content/character";
+import {
+  GATHER_SKILL_IDS,
+  GATHER_SKILL_META,
+  skillProgress,
+  type GatherSkillId,
+} from "../src/content/gathering";
+import { questById } from "../src/content/quests";
 import {
   attachCosmetics,
   cosmeticsError,
@@ -72,6 +80,87 @@ import { resolveIncludedReceipt, verifyProof } from "./proof";
 import { enforceIpRateLimit, rateLimitError } from "./rateLimit";
 import { mapPool, rpc as rpcCall } from "./rpc";
 export { PlazaRoom } from "./plaza";
+
+async function loadAdventureXpQty(env: Env, owner: string): Promise<number> {
+  try {
+    const row = await env.DB.prepare(
+      "SELECT qty FROM adventure_xp WHERE owner=?",
+    )
+      .bind(owner)
+      .first<{ qty: number }>();
+    return row?.qty ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function loadCharacterTitles(
+  env: Env,
+  owner: string,
+): Promise<Array<{ code: string; title: string; unlocked_at: number }>> {
+  try {
+    const res = await env.DB.prepare(
+      "SELECT code,unlocked_at FROM titles WHERE owner=? ORDER BY unlocked_at",
+    )
+      .bind(owner)
+      .all<{ code: string; unlocked_at: number }>();
+    return (res.results ?? []).map((row) => {
+      const questId = row.code.startsWith("quest:")
+        ? row.code.slice("quest:".length)
+        : row.code;
+      const quest = questById(questId);
+      return {
+        code: row.code,
+        title: quest?.title || questId,
+        unlocked_at: row.unlocked_at,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+async function loadGatherSkillSummary(
+  env: Env,
+  owner: string,
+): Promise<
+  Array<{
+    id: GatherSkillId;
+    name: string;
+    xp: number;
+    level: number;
+    prestige: number;
+  }>
+> {
+  try {
+    const res = await env.DB.prepare(
+      "SELECT skill,xp FROM gather_skills WHERE owner=?",
+    )
+      .bind(owner)
+      .all<{ skill: string; xp: number }>();
+    const bySkill = new Map(
+      (res.results ?? []).map((row) => [row.skill, row.xp]),
+    );
+    return GATHER_SKILL_IDS.map((id) => {
+      const progress = skillProgress(bySkill.get(id) ?? 0);
+      return {
+        id,
+        name: GATHER_SKILL_META[id].name,
+        xp: progress.xp,
+        level: progress.level,
+        prestige: progress.prestige,
+      };
+    });
+  } catch {
+    return GATHER_SKILL_IDS.map((id) => ({
+      id,
+      name: GATHER_SKILL_META[id].name,
+      xp: 0,
+      level: 1,
+      prestige: 0,
+    }));
+  }
+}
 interface Challenge {
   id: string;
   owner: string;
@@ -191,10 +280,27 @@ async function enrich(env: Env, pet: Pet, now: number) {
     stateFromRollup(pet, rollup, now),
     snacks.results,
   );
+  const adventureXp = await loadAdventureXpQty(env, pet.owner);
+  const character = characterProgress(vitals.xp, adventureXp);
+  const [titles, gatherSkills] = await Promise.all([
+    loadCharacterTitles(env, pet.owner),
+    loadGatherSkillSummary(env, pet.owner),
+  ]);
   return {
     ...pet,
     traits: t,
-    state: vitals,
+    state: {
+      ...vitals,
+      adventureXp,
+      characterLevel: character.level,
+      characterPrestige: character.prestige,
+      characterXp: character.totalXp,
+      characterXpAtLevel: character.xpAtLevel,
+      characterXpAtNext: character.xpAtNext,
+    },
+    character,
+    titles,
+    gatherSkills,
     achievements,
     mind: buildPetMindFromRollup(pet, rollup, t.personality, now),
     memories: memories.results,

@@ -75,8 +75,18 @@ describe("wide public pasture layout", () => {
     expect(
       buddyChipLabel({ connected: true, hasPet: true, species: "Boingle" }),
     ).toBe("Boingle");
+    expect(
+      buddyChipLabel({
+        connected: true,
+        hasPet: true,
+        species: "Boingle",
+        level: 4,
+      }),
+    ).toBe("Boingle · Lv 4");
     expect(buddyChipLabel({ connected: true, hasPet: false })).toBe("Hatch");
-    expect(buddyChipLabel({ connected: false, hasPet: false })).toBe("Buddy");
+    expect(buddyChipLabel({ connected: false, hasPet: false })).toBe(
+      "Character",
+    );
   });
 
   it("places the customization station as a third landmark from spawn", () => {

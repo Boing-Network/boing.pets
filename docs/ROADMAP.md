@@ -8,15 +8,15 @@ Boing Pets is a **character-first** Boing-native world: hatch one permanent Stre
 
 Inspiration stack (what we borrow, not what we copy):
 
-| Reference | Borrow | Leave behind |
-| --- | --- | --- |
-| Neopets | Attachment, daily ritual, collections | Permanent loss, opaque economy |
-| Habbo / Club Penguin | Social plaza, rooms, emotes | Paywalled social access |
-| Animal Crossing | Expression, housing, seasons | Soft-lock busywork |
-| Old School RuneScape | Clear skill XP curves, vault/bank friction | Grind-only identity |
-| Axie / creature games | Hatch identity, vertical + horizontal growth | Combat power, breeding P2W |
+| Reference             | Borrow                                       | Leave behind                   |
+| --------------------- | -------------------------------------------- | ------------------------------ |
+| Neopets               | Attachment, daily ritual, collections        | Permanent loss, opaque economy |
+| Habbo / Club Penguin  | Social plaza, rooms, emotes                  | Paywalled social access        |
+| Animal Crossing       | Expression, housing, seasons                 | Soft-lock busywork             |
+| Old School RuneScape  | Clear skill XP curves, vault/bank friction   | Grind-only identity            |
+| Axie / creature games | Hatch identity, vertical + horizontal growth | Combat power, breeding P2W     |
 
-**Product sentence:** *You are the character. The Yard is your block. Everything else is loot, look, and reason to come back.*
+**Product sentence:** _You are the character. The Yard is your block. Everything else is loot, look, and reason to come back._
 
 Player-facing language says **character**. Storage may still use `pets` / hatch rows. Copy tone is short and dry (see `docs/design/gathering-skills.md`). Avoid “buddy / little / pet” in new Yard surfaces unless a care ritual UI intentionally reuses legacy care wording.
 
@@ -41,19 +41,19 @@ Complexity key: **S** small · **M** medium · **L** large · **XL** multi-quart
 
 Do **not** rebuild these. Extend them.
 
-| Pillar | What exists |
-| --- | --- |
-| **Identity** | One hatch per wallet; traits from wallet + hatch tx; StreetBody in The Yard |
-| **Care** | Hello / play / groom / feed (optional for Yard skilling); vitals, streaks, achievements |
-| **Progression XP** | Care XP, adventure XP, gather skill levels (OSRS curve, cap 50 + prestige) |
-| **Growth stages** | `egg → elder` gates (`CharacterStage`); adventure success bonuses |
-| **World** | The Yard 3D loop, Starter Town, station pads, streetwear city dressing |
-| **Gathering** | Quarry / Line / Plot / Sweep loop, pack, Block Vault, optional mint |
-| **Idle** | Dispatch adventures with style luck, Pop-Ups, operator tools |
-| **Economy** | Inventory, craft, cook, market escrow, Boinglets, Sparkles faucet, on-chain item mint bank |
-| **Social** | Friends, DMs, parties, plaza WebSocket presence (`PlazaRoom`) |
-| **Mind** | Deterministic mood / memory / suggestions |
-| **Content framework** | Quests, seasons, collections, titles (thin content, solid plumbing) |
+| Pillar                | What exists                                                                                |
+| --------------------- | ------------------------------------------------------------------------------------------ |
+| **Identity**          | One hatch per wallet; traits from wallet + hatch tx; StreetBody in The Yard                |
+| **Care**              | Hello / play / groom / feed (optional for Yard skilling); vitals, streaks, achievements    |
+| **Progression XP**    | Care XP, adventure XP, gather skill levels (OSRS curve, cap 50 + prestige)                 |
+| **Growth stages**     | `egg → elder` gates (`CharacterStage`); adventure success bonuses                          |
+| **World**             | The Yard 3D loop, Starter Town, station pads, streetwear city dressing                     |
+| **Gathering**         | Quarry / Line / Plot / Sweep loop, pack, Block Vault, optional mint                        |
+| **Idle**              | Dispatch adventures with style luck, Pop-Ups, operator tools                               |
+| **Economy**           | Inventory, craft, cook, market escrow, Boinglets, Sparkles faucet, on-chain item mint bank |
+| **Social**            | Friends, DMs, parties, plaza WebSocket presence (`PlazaRoom`)                              |
+| **Mind**              | Deterministic mood / memory / suggestions                                                  |
+| **Content framework** | Quests, seasons, collections, titles (thin content, solid plumbing)                        |
 
 Legacy Phase write-ups: `PHASE2.md` … `PHASE6-*.md`, `AUDIT.md`, `DEPLOY-WORKERS.md`.
 
@@ -78,14 +78,14 @@ Every new feature must strengthen at least one beat of that loop.
 
 ## Character-era pillars
 
-| # | Pillar | Player promise |
-| --- | --- | --- |
-| 1 | **Character identity** | My hatch looks, levels, and stages like *mine*. |
-| 2 | **Skilling** | Time in The Yard makes my character better at something legible. |
-| 3 | **Direction** | Quests and seasons tell me what to do next. |
-| 4 | **Expression** | Wardrobe, housing, and titles show who I am without power. |
-| 5 | **Social block** | I see other characters, party up, and share the plaza. |
-| 6 | **Fair economy** | Earn, craft, trade cosmetics; sinks beat faucets. |
+| #   | Pillar                 | Player promise                                                   |
+| --- | ---------------------- | ---------------------------------------------------------------- |
+| 1   | **Character identity** | My hatch looks, levels, and stages like _mine_.                  |
+| 2   | **Skilling**           | Time in The Yard makes my character better at something legible. |
+| 3   | **Direction**          | Quests and seasons tell me what to do next.                      |
+| 4   | **Expression**         | Wardrobe, housing, and titles show who I am without power.       |
+| 5   | **Social block**       | I see other characters, party up, and share the plaza.           |
+| 6   | **Fair economy**       | Earn, craft, trade cosmetics; sinks beat faucets.                |
 
 ---
 
@@ -93,19 +93,19 @@ Every new feature must strengthen at least one beat of that loop.
 
 Horizons replace the old Phase 1–6 numbering. Ship in order unless a dependency forces a skip. Each horizon lists **outcomes**, not calendar estimates.
 
-### Horizon A — Character clarity
+### Horizon A — Character clarity ✅ shipping
 
 **Goal:** make the pet→character migration feel finished in product language and progression UI.
 
 **Outcomes**
 
-- Player-facing copy on Yard / gather / dispatch / HUD says **character** consistently.
-- A **character sheet** (or equivalent HUD) shows: stage, personality, care XP → **character level**, gather skill levels, titles, equipped look.
-- Care XP + adventure XP feed one **character level** curve (gather skills stay separate — do not mix quarry XP into character level).
-- Level-up and stage-up toasts are unmistakable.
-- Care remains optional for Yard skilling; rituals stay for players who want attachment loops.
+- [x] Player-facing copy on Yard / gather / dispatch / HUD says **character** consistently.
+- [x] A **character sheet** (buddy overlay + gallery cards) shows: stage, personality, character level, gather skill levels, titles; equipped cosmetics remain on the overlay.
+- [x] Care XP + adventure XP feed one **character level** curve (`src/content/character.ts`; gather skills stay separate).
+- [x] Level-up and stage-up toasts on care confirm and adventure claim.
+- [x] Care remains optional for Yard skilling; rituals stay for players who want attachment loops.
 
-**Primary surfaces:** `src/core.ts`, pasture HUD, quests/progress pages, gather/adventure reward breakdowns.
+**Primary surfaces:** `src/content/character.ts`, `worker/index.ts` enrich, pasture HUD / buddy overlay, adventure claim.
 
 **Complexity:** **M**
 
@@ -211,14 +211,14 @@ Horizons replace the old Phase 1–6 numbering. Ship in order unless a dependenc
 
 External “start with XP / quests / inventory / evolution / websockets / battle” advice maps like this:
 
-| System | Status | Roadmap home |
-| --- | --- | --- |
-| XP + levels | Partial — skill XP strong; character level UX weak | **Horizon A** |
-| Quest system | Exists — thin content | **Horizon B** |
-| Inventory / items | Mature | **Horizon D** polish |
-| Pet / character evolution | Stages exist; visuals thin | **Horizon C** |
-| Real-time pasture | Shipped (`PlazaRoom`) | **Horizon E** scale |
-| Battle system | Intentionally absent | Soft **contests** in E/F; no combat power |
+| System                    | Status                                             | Roadmap home                              |
+| ------------------------- | -------------------------------------------------- | ----------------------------------------- |
+| XP + levels               | Partial — skill XP strong; character level UX weak | **Horizon A**                             |
+| Quest system              | Exists — thin content                              | **Horizon B**                             |
+| Inventory / items         | Mature                                             | **Horizon D** polish                      |
+| Pet / character evolution | Stages exist; visuals thin                         | **Horizon C**                             |
+| Real-time pasture         | Shipped (`PlazaRoom`)                              | **Horizon E** scale                       |
+| Battle system             | Intentionally absent                               | Soft **contests** in E/F; no combat power |
 
 ---
 
@@ -226,7 +226,7 @@ External “start with XP / quests / inventory / evolution / websockets / battle
 
 Concrete bets after this doc. Reorder only with a written reason.
 
-1. **Character sheet + level curve** (Horizon A) — highest clarity per line of code.
+1. ~~**Character sheet + level curve** (Horizon A)~~ — shipping on this branch.
 2. **Onboarding + Yard quest pack** (Horizon B) — gives the sheet somewhere to point.
 3. **Stage-readable StreetBody** (Horizon C spike) — proves evolution fantasy without breeding.
 4. **Vault / mint / listable UX pass** (Horizon D) — locks the skilling economy story.
@@ -260,5 +260,5 @@ Full table preserved historically in git history of this file pre–character re
 
 - New features cite a **Horizon** letter in the PR description.
 - If a change fights doctrine, open a short ADR under `docs/design/` before coding.
-- Phase docs stay as **archaeology** of how we got here; this file wins on conflicts about *what next*.
+- Phase docs stay as **archaeology** of how we got here; this file wins on conflicts about _what next_.
 - Update the **Near-term build order** when a bet ships or is killed.

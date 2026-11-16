@@ -50,7 +50,9 @@ import {
 } from "../ui/adventureHub";
 import { buildAdventureReveal, rarityStickerSvg } from "../ui/adventureReveal";
 import { showRewardModal } from "../ui/rewardModal";
-import { app } from "../ui/appRuntime";
+import { api, app, notice, type ViewPet } from "../ui/appRuntime";
+import { resolveCharacterProgress } from "../ui/pages/buddyPanel";
+import { characterLevelsCrossed } from "../content/character";
 import { AdventureTutorialCard } from "./AdventureTutorialCard";
 
 function Poster({ locationId, title }: { locationId: string; title: string }) {
@@ -174,14 +176,44 @@ export function PastureDispatchMenu({
     [filters, durationFilter, previews],
   );
 
-  const act = async (work: () => Promise<void>, done: string) => {
+  const refreshCharacterLevelToasts = async (beforeXp: number) => {
+    if (!app.owner) return;
+    try {
+      const data = await api<{ pet: ViewPet | null }>(
+        "/api/pet?owner=" + encodeURIComponent(app.owner),
+      );
+      if (data.pet) {
+        app.mine = data.pet;
+        const after = resolveCharacterProgress(data.pet);
+        const crossed = characterLevelsCrossed(beforeXp, after.totalXp);
+        for (const row of crossed) notice(row.label);
+      }
+    } catch {
+      /* ignore refresh failures; claim already succeeded */
+    }
+  };
+
+  const act = async (
+    work: () => Promise<void>,
+    done: string,
+    opts?: { trackCharacterLevel?: boolean },
+  ) => {
     setBusy(true);
     setError(null);
     setFlash(null);
+    const beforeXp = opts?.trackCharacterLevel
+      ? resolveCharacterProgress(
+          app.mine ||
+            ({
+              state: { xp: 0, adventureXp: 0, stage: "baby" },
+            } as ViewPet),
+        ).totalXp
+      : null;
     try {
       await work();
       setFlash(done);
       playSfx("ui-click");
+      if (beforeXp != null) await refreshCharacterLevelToasts(beforeXp);
       await reload();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Dispatch request failed");
@@ -209,10 +241,14 @@ export function PastureDispatchMenu({
               className="adventure-claim-all"
               disabled={busy}
               onClick={() =>
-                void act(async () => {
-                  const result = await claimAllAdventures();
-                  for (const run of result.claimed) revealFromRun(run);
-                }, "Claimed the ready trips.")
+                void act(
+                  async () => {
+                    const result = await claimAllAdventures();
+                    for (const run of result.claimed) revealFromRun(run);
+                  },
+                  "Claimed the ready trips.",
+                  { trackCharacterLevel: true },
+                )
               }
             >
               Claim all ({ready})
@@ -442,10 +478,14 @@ export function PastureDispatchMenu({
                               type="button"
                               disabled={busy}
                               onClick={() =>
-                                void act(async () => {
-                                  const result = await claimAdventure(run.id);
-                                  revealFromRun(result.run);
-                                }, "Claimed.")
+                                void act(
+                                  async () => {
+                                    const result = await claimAdventure(run.id);
+                                    revealFromRun(result.run);
+                                  },
+                                  "Claimed.",
+                                  { trackCharacterLevel: true },
+                                )
                               }
                             >
                               Claim

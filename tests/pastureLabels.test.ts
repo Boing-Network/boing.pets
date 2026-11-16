@@ -17,7 +17,7 @@ describe("pasture nameplates", () => {
     expect(pasturePetLabel({ species: "  ", fallback: "Guest-ab12" })).toBe(
       "Guest-ab12",
     );
-    expect(pasturePetLabel({})).toBe("Buddy");
+    expect(pasturePetLabel({})).toBe("Character");
   });
 
   it("emits a single forward-facing layer, never a mirrored back-face copy", () => {

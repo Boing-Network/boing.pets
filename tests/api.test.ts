@@ -196,7 +196,17 @@ describe("Pets API", () => {
     ).toBe(409);
     const r = await request("/api/pet?owner=" + owner);
     expect(await r.json()).toMatchObject({
-      pet: { state: { streak: 1, fedToday: true, hunger: 100 } },
+      pet: {
+        state: {
+          streak: 1,
+          fedToday: true,
+          hunger: 100,
+          characterLevel: 1,
+        },
+        character: { level: 1, careXp: expect.any(Number) },
+        gatherSkills: expect.any(Array),
+        titles: expect.any(Array),
+      },
     });
   });
   it("two pre-issued check-in challenges cannot count the day twice", async () => {
