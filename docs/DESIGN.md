@@ -1,13 +1,15 @@
 # Boing Pets Universe — Game Design Pillars
 
+Forward plan: [`docs/ROADMAP.md`](./ROADMAP.md) (character-era horizons). Phase 1 notes below remain valid for the care ritual math.
+
 ## Pillars (every feature must strengthen ≥1)
 
-1. **Pet Ownership** — genuine attachment; no permanent loss; expressive personality.
-2. **Progression** — daily growth, XP, stages, skill trees, achievements.
-3. **Exploration** — discoverable 3D zones (Phase 2+).
-4. **Socialization** — hubs, friends, guilds, co-op (Phase 3+).
-5. **Creativity** — housing, avatars, pet expression (Phase 4–6).
-6. **Economy** — player marketplace with ethical monetization (Phase 4+).
+1. **Character identity** — one hatch per wallet; no permanent loss; expressive personality and readable stage/look. Player-facing copy says **character** (storage may still use `pets`).
+2. **Progression** — character level, growth stages, gather skill curves, achievements, titles.
+3. **Exploration** — The Yard first; discoverable zones beyond Starter Town.
+4. **Socialization** — plaza presence, friends, parties, later guilds / co-op contests.
+5. **Expression** — StreetBody wardrobe, housing, cosmetics-only battle-pass seasons.
+6. **Economy** — marketplace with ethical, cosmetics-only monetization; clear bank / mint / listable rules.
 
 ## Phase 1 design (shipping now)
 
@@ -29,7 +31,7 @@ Curious · Lazy · Adventurous · Friendly · Mischievous · Cozy · Peppy · Dr
 
 Egg (pre-hatch UI) · Baby (0–2d) · Child (2–7d + care) · Teen (7–21d + care) · Adult (21d+) · Elder (120d+).
 
-Care-day thresholds gate Child/Teen so neglected pets stay Baby/Child visually longer (attachment pressure without death).
+Care-day thresholds gate Child/Teen so neglected characters stay Baby/Child visually longer (attachment pressure without death).
 
 ### Soft currency — Boinglets
 
@@ -70,5 +72,7 @@ Each zone: unique palette, low-poly kit, portal hooks for expansion packs.
 
 ## Monetization ethics
 
-Allowed: cosmetics, housing skins, pet skins, battle pass cosmetics, convenience (slots, queue skips).
-Forbidden: paid power, paid win trades, paywalled care that blocks attachment loops.
+Allowed: cosmetics, housing skins, character skins / wardrobe, battle pass cosmetics, convenience (slots, queue skips).
+Forbidden: paid power, paid win trades, combat stats from gear, paywalled care that blocks attachment loops.
+
+Soft contests (races, fashion scores, party sync games) are allowed. Destructive PvP and gear that changes win rate are not, unless a written ADR overturns this roadmap doctrine.

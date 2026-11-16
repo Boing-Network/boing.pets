@@ -1,8 +1,8 @@
 # Boing Pets
 
-**A little bounce. A buddy for life.** A small, Boing-native virtual pet game: hatch a creature, say hello, play, groom, feed it, grow with XP and Boinglets, unlock achievements, and meet everyone on the public pasture.
+**A little bounce. A character for the block.** A Boing-native character world: hatch a StreetBody, walk The Yard, skill up, dress up, dispatch idle runs, and meet wanderers on the plaza. Care rituals (hello / play / groom / feed) remain for players who want them.
 
-Universe redesign docs live in `docs/` (AUDIT, ROADMAP, DESIGN, PHASE2–6, PHASE3-SOCIAL, PHASE3-PRESENCE-AUTH). Incremental stack through Phase 6 framework: Workers + D1 + pasture SPA + Starter Town + wallet plaza presence + friends/DMs + cosmetics market + pet mind + config-driven quests/seasons/collections.
+Product roadmap: [`docs/ROADMAP.md`](docs/ROADMAP.md) (character-era horizons). Design pillars: [`docs/DESIGN.md`](docs/DESIGN.md). Archaeology of Phases 1–6 and deploy notes live under `docs/` (`PHASE*`, `AUDIT`, `DEPLOY-WORKERS`). Stack: Workers + D1 + The Yard SPA + Starter Town + plaza presence + friends/DMs + cosmetics market + character mind + quests/seasons/collections + gather skills.
 
 Testnet only (6913). This is an MVP, not an NFT marketplace, financial product, or airdrop promise. No consensus changes, player custody keys, or scheduled jobs. Nothing is deployed automatically. The only contract integration is the **optional** on-chain items withdrawal (mined ore → Boing reference multi-token game items, off unless an operator configures it; see `docs/ONCHAIN-ITEMS.md`).
 

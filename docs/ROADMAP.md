@@ -1,277 +1,264 @@
-# Boing Pets Universe — Migration Roadmap
+# Boing Pets — Character Roadmap
 
-Vision: a persistent 3D online pet universe (Neopets × Club Penguin × Animal Crossing × Habbo × Pokémon care × Runescape progression × ethical cosmetic economy) **built on top of** the working testnet care MVP.
+**Status:** living product roadmap (2026-11). Historical Phase 1–6 delivery notes live in `docs/PHASE*.md`. This file is the forward plan.
 
-**Doctrine:** incremental delivery · preserve user data · migrations before schema breaks · gameplay > polish · scalability hooks early · no pay-to-win.
+## Vision
 
-Complexity key: **S** small · **M** medium · **L** large · **XL** multi-quarter systems.
+Boing Pets is a **character-first** Boing-native world: hatch one permanent StreetBody, walk **The Yard**, skill up, dress up, trade cosmetics, dispatch idle runs, and hang out with other wanderers.
 
----
+Inspiration stack (what we borrow, not what we copy):
 
-## Phase 1 — Enhanced Current Game (this PR)
+| Reference | Borrow | Leave behind |
+| --- | --- | --- |
+| Neopets | Attachment, daily ritual, collections | Permanent loss, opaque economy |
+| Habbo / Club Penguin | Social plaza, rooms, emotes | Paywalled social access |
+| Animal Crossing | Expression, housing, seasons | Soft-lock busywork |
+| Old School RuneScape | Clear skill XP curves, vault/bank friction | Grind-only identity |
+| Axie / creature games | Hatch identity, vertical + horizontal growth | Combat power, breeding P2W |
 
-**Goal:** deepen attachment & progression without changing deploy topology.
+**Product sentence:** *You are the character. The Yard is your block. Everything else is loot, look, and reason to come back.*
 
-### User stories
-
-- As a player, I see my pet’s **personality, growth stage, energy, hygiene, health, XP, and soft currency**.
-- As a player, I can **Play** and **Groom** (free signatures, once/UTC day) in addition to hello/feed.
-- As a player, I unlock **achievements** (first hatch care, 3/7-day streaks, full vitals day).
-- As an operator, existing hatch/feed/check-in data remains valid after migration.
-
-### Technical specification
-
-- Extend `Action` with `play` | `groom` (signature-only, like check-in).
-- Expand `state()` vitals; derive XP + Boinglets from event history.
-- Deterministic personality from trait seed.
-- Growth stage from age + care-day count.
-- Achievements table; unlock on confirm when predicates match.
-- Additive D1 migration recreating action CHECKs safely.
-
-### Database changes
-
-- Rebuild `challenges` / `events` action checks for `play`,`groom`.
-- `achievements(owner, code, unlocked_at)`.
-- `pet_memories` stub table (unused until Phase 5).
-
-### API architecture
-
-- Same four routes; challenge accepts new actions.
-- Pet payloads gain `personality`, expanded `state`, `achievements[]`.
-
-### UI
-
-- Buddy card meters for Energy / Hygiene / Health.
-- Stage + personality badges; Boinglets + XP.
-- Play / Groom buttons.
-
-### Component breakdown
-
-- `core.ts` domain · Worker confirm/achievements · `main.ts` controls · CSS meters.
-
-### Testing
-
-- Unit: stages, personality, vitals, rewards.
-- API: play/groom once/day; achievements unlock; legacy hatch/feed unchanged.
-
-### Migration plan
-
-1. Apply `0002_phase1_progression.sql` locally.
-2. Deploy Worker after approved D1 id (no auto-deploy).
-3. Old clients ignore new fields (backward compatible JSON).
-
-### Dev tasks
-
-- [x] Audit + roadmap docs
-- [x] Domain expansion + migration + API + UI + tests
-
-### Complexity
-
-**M**
+Player-facing language says **character**. Storage may still use `pets` / hatch rows. Copy tone is short and dry (see `docs/design/gathering-skills.md`). Avoid “buddy / little / pet” in new Yard surfaces unless a care ritual UI intentionally reuses legacy care wording.
 
 ---
 
-## Phase 2 — 3D Single Player World (in progress / spike shipped)
+## Doctrine (non-negotiable)
 
-**Goal:** navigable low-poly Starter Town (adoption plaza + tutorial path) in-browser; pets remain 2D/SVG companions in UI overlay first.
+1. **Incremental** — ship loops on the live Worker + D1 trust model; no greenfield rewrite.
+2. **Preserve data** — additive migrations; never break hatch ownership.
+3. **One character / wallet** until multi-character is explicitly designed.
+4. **No permanent death or deletion.**
+5. **Cosmetics-only monetization** — no paid combat power, no paywalled care that blocks attachment.
+6. **No cron** — timers derive from wall clock on read or from existing Durable Object presence.
+7. **Gameplay > polish** — content and clarity before art passes; art still matters for stage/wardrobe.
+8. **Scalability hooks early** — AOI, sinks, rate limits before viral load.
 
-### User stories
-
-- Walk an avatar through Starter Town; enter Pet Center / Tutorial markers.
-- Interact with care stations that deep-link to existing care desk.
-- Mobile: virtual joystick + tap interact.
-
-### Tech (shipped spike)
-
-- Vite multi-page + React Three Fiber island at `/world.html` (pasture SPA unchanged).
-- Procedural low-poly town (no heavy GLB pipeline yet); fog + soft follow camera.
-- Config-driven zone layout in `src/world/config/zones.ts`.
-- Local position save (`localStorage`); server position auth deferred.
-- `GET /api/world/config` serves the same zone config.
-
-### Phase 2.5 hardening
-
-- Lazy world entry + vendor chunk splits
-- Perf mode (no shadows; mobile DPR/power hints)
-- Signed cloud position sync + `0003` migration
-- Favicon + boot screen
-
-### Still open
-
-- GLB art kit + Draco/meshopt LOD
-- Playwright movement smoke
-- In-world care confirmations (wallet) without leaving the canvas
-
-### Complexity
-
-**L** (spike **M** + hardening **M**)
+Complexity key: **S** small · **M** medium · **L** large · **XL** multi-quarter.
 
 ---
 
-## Phase 3 — Multiplayer World (presence spike shipping)
+## Foundation already shipped
 
-**Goal:** MMO-lite presence in public hubs (Starter Town plaza).
+Do **not** rebuild these. Extend them.
 
-### Shipped spike
+| Pillar | What exists |
+| --- | --- |
+| **Identity** | One hatch per wallet; traits from wallet + hatch tx; StreetBody in The Yard |
+| **Care** | Hello / play / groom / feed (optional for Yard skilling); vitals, streaks, achievements |
+| **Progression XP** | Care XP, adventure XP, gather skill levels (OSRS curve, cap 50 + prestige) |
+| **Growth stages** | `egg → elder` gates (`CharacterStage`); adventure success bonuses |
+| **World** | The Yard 3D loop, Starter Town, station pads, streetwear city dressing |
+| **Gathering** | Quarry / Line / Plot / Sweep loop, pack, Block Vault, optional mint |
+| **Idle** | Dispatch adventures with style luck, Pop-Ups, operator tools |
+| **Economy** | Inventory, craft, cook, market escrow, Boinglets, Sparkles faucet, on-chain item mint bank |
+| **Social** | Friends, DMs, parties, plaza WebSocket presence (`PlazaRoom`) |
+| **Mind** | Deterministic mood / memory / suggestions |
+| **Content framework** | Quests, seasons, collections, titles (thin content, solid plumbing) |
 
-- Durable Object `PlazaRoom` + hibernation WebSockets
-- Guest avatars in Starter Town (cap 32, move rate limit)
-- Join/leave plaza toggle in world HUD
-
-### Shipped social backlog
-
-- Friends, profiles, DMs via signed `/api/social/*` + migration `0006`
-- Pasture Friends panel (see `docs/PHASE3-SOCIAL.md`)
-- Wallet-bound plaza tokens + display names (`0007`, `PHASE3-PRESENCE-AUTH.md`)
-- Pet followers beside wallet plaza avatars (client `GET /api/pet` + `PetFollower`)
-- Party invites foundation (`0012`, `PHASE3-PARTIES.md`)
-
-### Still open
-
-- Plaza party markers / shared bonuses
-- Grid AOI for larger zones; edge rate limits
-
-### Complexity
-
-**XL** (presence spike **M**)
+Legacy Phase write-ups: `PHASE2.md` … `PHASE6-*.md`, `AUDIT.md`, `DEPLOY-WORKERS.md`.
 
 ---
 
-## Phase 4 — Player Economy (foundation shipping)
+## Target core loop
 
-**Goal:** soft + premium currencies, marketplace for cosmetics/furniture/resources; secure trade escrow.
+```
+Hatch character
+    → Walk The Yard (presence + stations)
+        → Gather / craft / cook / market (session play)
+        → Dispatch adventure (async play)
+        → Quests & daily goals (direction)
+        → Cosmetics / housing / titles (expression)
+    → Meet others on the plaza
+    → Come back tomorrow (streak, season, skill unlock)
+```
 
-### Shipped foundation
-
-- Boinglets ledger + care claim bridge from Phase 1 rewards
-- Cosmetics catalog + inventory
-- Player listings with 5% sink fee
-- Signed economy challenge/confirm
-- Pasture Market UI panel
-
-### Shipped Sparkles (testnet)
-
-- Daily signed Sparkles faucet + Sparkles-priced cosmetics (`0010`, `PHASE4-SPARKLES.md`)
-
-### Still open
-
-- Real Sparkles checkout (post-faucet)
-- Resource crafting / deeper escrow UX
-- Postgres cutover when D1 write contention appears
-- Listing expiry decay jobs
-
-### Complexity
-
-**XL** (foundation **M**)
+Every new feature must strengthen at least one beat of that loop.
 
 ---
 
-## Phase 5 — AI-Driven Pets (memory engine shipping)
+## Character-era pillars
 
-**Goal:** personality engine with memory; pets suggest activities based on history.
-
-### Shipped
-
-- Deterministic `buildPetMind` from care history + personality
-- Bounded episodic `pet_memories` on confirm
-- Buddy card mood / cues / suggestion UI
-
-### Still open
-
-- Remember plaza friends; wander bias in 3D
-- Optional offline LLM flavor (never on hot path)
-- Embeddings for long-term recall
-
-### Complexity
-
-**L** (engine spike **M**)
+| # | Pillar | Player promise |
+| --- | --- | --- |
+| 1 | **Character identity** | My hatch looks, levels, and stages like *mine*. |
+| 2 | **Skilling** | Time in The Yard makes my character better at something legible. |
+| 3 | **Direction** | Quests and seasons tell me what to do next. |
+| 4 | **Expression** | Wardrobe, housing, and titles show who I am without power. |
+| 5 | **Social block** | I see other characters, party up, and share the plaza. |
+| 6 | **Fair economy** | Earn, craft, trade cosmetics; sinks beat faucets. |
 
 ---
 
-## Phase 6 — Full Virtual World (framework shipping)
+## Horizons
 
-**Goal:** Forest / Beach / Mountains / City / Academy zones; housing; quests; seasons; 25+ activities; guilds; collections.
+Horizons replace the old Phase 1–6 numbering. Ship in order unless a dependency forces a skip. Each horizon lists **outcomes**, not calendar estimates.
 
-### Shipped framework
+### Horizon A — Character clarity
 
-- Config-driven quests + seasonal events + collection log
-- Expansion zone stubs with portal hooks
-- Titles on quest claim; Boinglets rewards via ledger
-- Quests UI + Collections log UI on pasture
+**Goal:** make the pet→character migration feel finished in product language and progression UI.
 
-### Shipped activities
+**Outcomes**
 
-- Fishing v1 — cast / nibble / reel (`0008`, `docs/PHASE6-FISHING.md`)
-- Housing foundation — 4×4 plots + furniture (`0009`, `docs/PHASE6-HOUSING.md`)
-- Treasure dig — clue / tile / sign (`0011`, `docs/PHASE6-TREASURE.md`)
-- Gardening — plant / water / harvest (`0013`, `docs/PHASE6-GARDENING.md`)
-- Cooking — recipes + serve snacks for care boosts (`0014`, `docs/PHASE6-COOKING.md`)
-- Mining — stamina veins + pickaxe tiers (`0015`, `docs/PHASE6-MINING.md`)
-- Pet racing — timed heats + ribbons (`0016`, `docs/PHASE6-RACING.md`)
+- Player-facing copy on Yard / gather / dispatch / HUD says **character** consistently.
+- A **character sheet** (or equivalent HUD) shows: stage, personality, care XP → **character level**, gather skill levels, titles, equipped look.
+- Care XP + adventure XP feed one **character level** curve (gather skills stay separate — do not mix quarry XP into character level).
+- Level-up and stage-up toasts are unmistakable.
+- Care remains optional for Yard skilling; rituals stay for players who want attachment loops.
 
-### Still open (years of content)
+**Primary surfaces:** `src/core.ts`, pasture HUD, quests/progress pages, gather/adventure reward breakdowns.
 
-- Full zone art / housing editor polish / avatar wardrobe
-- Guilds + battle pass track
-- Remaining mini-game implementations (see backlog table)
+**Complexity:** **M**
 
-### Complexity
-
-**XL** (framework **M**; content ongoing)
+**Exit check:** a new player can answer “what is my character’s level and stage?” without opening docs.
 
 ---
 
-## Mini-game concepts (25) — design backlog for Phases 2–6
+### Horizon B — Direction & quest depth
 
-| #   | Activity           | Loop                      | Rewards                 | Progression              |
-| --- | ------------------ | ------------------------- | ----------------------- | ------------------------ |
-| 1   | Fishing            | Cast → wait → reel timing | Fish, Boinglets         | Rod tiers, rare fish log |
-| 2   | Treasure hunt      | Clue → dig spots          | Cosmetics, maps         | Digging skill            |
-| 3   | Pet racing         | Train → race heat         | XP, ribbons             | Speed skill tree         |
-| 4   | Obstacle course    | Parkour timer             | Athlete XP              | Course stars             |
-| 5   | Gardening          | Plant → water → harvest   | Ingredients             | Plot expansions          |
-| 6   | Cooking            | Recipe minigame           | Food items (care boost) | Cookbook                 |
-| 7   | Mining             | Tap veins / stamina       | Ores                    | Pickaxe tiers            |
-| 8   | Talent contest     | Emote / timing judging    | Fame, titles            | Stage outfits            |
-| 9   | Hide and seek      | Hide or seek in hub       | Party Boinglets         | Seasonal maps            |
-| 10  | Bug catching       | Sneak + net               | Critters                | Net upgrades             |
-| 11  | Photography        | Frame subjects            | Album badges            | Rare shot list           |
-| 12  | Balloon bounce     | Timing bounce height      | Soft currency           | Daily best               |
-| 13  | Memory match       | Card pairs w/ pet theme   | Scholar XP              | Harder decks             |
-| 14  | Rhythm jam         | Tap to beat               | Performer XP            | Song catalog             |
-| 15  | Pet grooming salon | Swipe clean / style       | Hygiene + cosmetics     | Style book               |
-| 16  | Cloud surfing      | Endless glide             | Explorer XP             | Distance ranks           |
-| 17  | Shell sorting      | Beach sort puzzle         | Beach tokens            | Combo multiplier         |
-| 18  | Crystal spelunk    | Cave path choices         | Gems                    | Depth unlocks            |
-| 19  | Market haggling    | Price guess NPC           | Discount coupons        | Merchant rep             |
-| 20  | Rescue run         | Find scruffy NPCs         | Care items              | Hero titles              |
-| 21  | Puzzle towers      | Block / light puzzles     | Scholar XP              | Tower floors             |
-| 22  | Pet fashion runway | Outfit score              | Cosmetics               | Trend seasons            |
-| 23  | Co-op tug          | Party sync pulls          | Party loot              | Duo ranks                |
-| 24  | Night firefly      | Catch timed lights        | Seasonal currency       | Night events             |
-| 25  | Academy exams      | Quiz + practical          | Skill points            | Degrees / titles         |
+**Goal:** turn the existing quest plumbing into a real spine.
+
+**Outcomes**
+
+- Story / daily / weekly / seasonal quests that touch gather, craft, cook, market, dispatch — not only care predicates.
+- Onboarding quest chain: hatch → first gather bank → first craft → first plaza chat or emote → first dispatch.
+- Season track that awards **cosmetics / titles only** (battle-pass shape without power).
+- Collection log goals that mirror Yard drops and streetwear sets.
+
+**Primary surfaces:** `src/content/quests.ts`, `dailyQuests.ts`, `seasons.ts`, `collections.ts`, `worker/content.ts`.
+
+**Complexity:** **M** (content) + **S** (claim predicates)
+
+**Exit check:** a returning player always has a clear “do this next” chip in The Yard.
 
 ---
 
-## Economy sketch (Phase 4 detail)
+### Horizon C — Stage evolution & wardrobe
 
-**Currencies:** Boinglets (soft) · Sparkles (premium).
+**Goal:** growth and fashion read as character fantasy, not spreadsheet fields.
 
-**Earn:** quests, activities, trading, care streaks (soft only).
+**Outcomes**
 
-**Sinks:** crafting fees, listing fees, housing upkeep (cosmetic), vanity gachas with pity (cosmetic).
+- Distinct StreetBody / accessory presentation per **growth stage** (silhouette, scale, or kit — not a new species tree).
+- Full wardrobe UX for hats, frames, held tools, streetwear pieces already in catalog.
+- Optional late-stage **elder** cosmetics gated by stage + titles (cosmetic only).
+- No Axie-style breeding or species morph unless a separate design doc overturns this.
 
-**Anti-P2W:** no paid XP multipliers that affect competitive leaderboards; convenience = inventory expand / cosmetics preview queues.
+**Primary surfaces:** `StreetBodyModel`, cosmetics equip APIs, `PastureCustomizeMenu`, stage helpers in `core` / adventures.
+
+**Complexity:** **L** (art + pipeline) · systems **M**
+
+**Exit check:** stage changes are visible from across The Yard; wardrobe is a first-class station.
 
 ---
 
-## Shipped gameplay loops (local / pending deploy)
+### Horizon D — Economy & inventory maturity
 
-- **Party bonus:** +10% Boinglets per extra party member (cap +30%), optional +5% together-window; friendship + pet maturity gates; 50ℬ daily cap.
-- **Variety day:** +10ℬ after 3 distinct activities in a UTC day.
-- **Streak Sparkles:** days 3 / 7 grant 3 / 7 Sparkles once per wallet.
-- **Onboarding tips** on first pasture visit (dismissible).
+**Goal:** make the bag and market feel like a character’s livelihood.
 
-## Next highest-value milestone after Phase 1
+**Outcomes**
 
-**Phase 1.5 / Phase 2 spike:** R3F Starter Town prototype behind a route flag, still calling Phase 1 care APIs — proves exploration pillar without multiplayer cost.
+- Inventory sinks that matter: craft fees, listing fees, housing upkeep (cosmetic), vault/mint clarity.
+- Wardrobe + bank UX that separates pack / inventory / minted listable stacks.
+- Listing expiry / decay without cron abuse (lazy expiry on read is fine).
+- Sparkles path beyond testnet faucet only when checkout is real; until then keep faucet labeled as testnet.
+
+**Primary surfaces:** economy workers, market UI, vault mint, `docs/MARKET-AND-DROPS-PLAN.md`.
+
+**Complexity:** **L**
+
+**Exit check:** players understand what is banked vs mintable vs listable without support copy.
+
+---
+
+### Horizon E — Social density & presence scale
+
+**Goal:** The Yard feels alive without rewriting WebSockets.
+
+**Outcomes**
+
+- Plaza party markers + shared activity bonuses (extend `PHASE3-PARTIES`).
+- Grid AOI / interest management before raising the 32-player cap.
+- Soft edge rate limits; clearer spectate vs walk states.
+- Contests: async races, fashion scores, party sync games — **not** destructive PvP.
+
+**Primary surfaces:** `worker/plaza.ts`, `usePlazaPresence`, party APIs, racing / emote systems.
+
+**Complexity:** **XL** (scale) · contest content **M** each
+
+**Exit check:** a busy plaza stays readable; parties are visible and rewarding.
+
+---
+
+### Horizon F — World expansion & long retention
+
+**Goal:** years of content without new core engines.
+
+**Outcomes**
+
+- Zones that earn their keep (Beach / Forest / Mountains / City / Academy) with at least one unique loop each.
+- Housing visitor ACLs + editor polish.
+- Guilds / crews as social containers (cosmetics, chat, season boards).
+- Passport quest hooks only after provenance + anti-Sybil review (docs already stubbed in README).
+- Remaining mini-game backlog from the table below, prioritized by loop fit — not by novelty.
+
+**Complexity:** **XL** ongoing
+
+**Exit check:** a season can ship new goals without schema drama.
+
+---
+
+## Systems map (Copilot list, grounded)
+
+External “start with XP / quests / inventory / evolution / websockets / battle” advice maps like this:
+
+| System | Status | Roadmap home |
+| --- | --- | --- |
+| XP + levels | Partial — skill XP strong; character level UX weak | **Horizon A** |
+| Quest system | Exists — thin content | **Horizon B** |
+| Inventory / items | Mature | **Horizon D** polish |
+| Pet / character evolution | Stages exist; visuals thin | **Horizon C** |
+| Real-time pasture | Shipped (`PlazaRoom`) | **Horizon E** scale |
+| Battle system | Intentionally absent | Soft **contests** in E/F; no combat power |
+
+---
+
+## Near-term build order
+
+Concrete bets after this doc. Reorder only with a written reason.
+
+1. **Character sheet + level curve** (Horizon A) — highest clarity per line of code.
+2. **Onboarding + Yard quest pack** (Horizon B) — gives the sheet somewhere to point.
+3. **Stage-readable StreetBody** (Horizon C spike) — proves evolution fantasy without breeding.
+4. **Vault / mint / listable UX pass** (Horizon D) — locks the skilling economy story.
+5. **Party markers on plaza** (Horizon E spike) — social proof with existing DO.
+6. **First soft contest** (timed race board or fashion week) — competitive juice without combat.
+
+---
+
+## Mini-game backlog (keep; re-prioritize)
+
+Original 25 concepts remain valid as a **design menu**. Prefer activities that feed gather skills, collections, parties, or wardrobe. Deprioritize anything that implies combat stats.
+
+Shipped or replaced by gather loop: fishing, treasure, gardening, cooking, mining, racing (see Phase 6 docs). New work should prefer co-op, expression, or skill-adjacent loops (hide-and-seek, runway, photography, academy exams, co-op tug, etc.).
+
+Full table preserved historically in git history of this file pre–character rewrite; do not resurrect combat-oriented entries without a design ADR.
+
+---
+
+## Explicitly deferred / out of scope
+
+- Destructive PvP, card battles, or gear that changes win rate.
+- Breeding / multi-character flocks.
+- User-generated character names (moderation) until a names service exists.
+- Pet NFTs as transferable assets; mainnet; Passport airdrop promises.
+- Overnight AFK on gather nodes (Dispatch covers long absences).
+- Hanging gather timers off `PlazaRoom`.
+
+---
+
+## How to use this doc
+
+- New features cite a **Horizon** letter in the PR description.
+- If a change fights doctrine, open a short ADR under `docs/design/` before coding.
+- Phase docs stay as **archaeology** of how we got here; this file wins on conflicts about *what next*.
+- Update the **Near-term build order** when a bet ships or is killed.
