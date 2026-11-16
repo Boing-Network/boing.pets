@@ -102,6 +102,9 @@ beforeEach(() => {
     APP_ORIGIN: origin,
     MARKET_WRITES: "on",
     GATHER_QUARRY: "off",
+    GATHER_LINE: "off",
+    GATHER_PLOT: "off",
+    GATHER_SWEEP: "off",
     GATHER_MINT: "off",
     PLAZA: {
       getByName: () => ({
