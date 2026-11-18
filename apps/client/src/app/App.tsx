@@ -1,16 +1,16 @@
 import { CreatureStatus } from "@boing-pets/contract";
 import type { IpcClient } from "../api/ipc";
+import { InspectionPanel } from "../hud/InspectionPanel";
 import { useWorldViewStore } from "../state/worldViewStore";
 import { WorldCanvas } from "../view/WorldCanvas";
 import "./shell.css";
 
 type Props = {
-  /** IPC handle for future HUD commands (pause, influence). Bound at boot. */
+  /** IPC handle for HUD queries (family / creature). Bound at boot. */
   ipc: IpcClient;
 };
 
 export function App({ ipc }: Props) {
-  void ipc;
   const view = useWorldViewStore((s) => s.view);
 
   const livingCount =
@@ -30,6 +30,7 @@ export function App({ ipc }: Props) {
       </header>
       <main className="map-stage">
         <WorldCanvas />
+        <InspectionPanel ipc={ipc} />
         <div className="status-chip">
           {view
             ? `${territoryCount} territories · seed ${view.world.seed}`

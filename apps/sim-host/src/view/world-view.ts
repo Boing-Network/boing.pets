@@ -1,5 +1,5 @@
 /**
- * Map a hot kernel snapshot into the `WorldView` the renderer caches.
+ * Map durable / hot rows into the `WorldView` the renderer caches.
  * Derived fields (age, effective territory stats, relationship labels,
  * memory strength, lineage extinction) are computed here — never in the client.
  */
@@ -10,6 +10,7 @@ import {
   type LineageView,
   type MemoryView,
   type RelationshipView,
+  type Ruleset,
   type TerritoryView,
   type WorldEventView,
   type WorldView,
@@ -24,7 +25,7 @@ import {
   type WorldSnapshot,
 } from "@boing-pets/sim";
 
-function relationshipLabels(row: RelationshipRow): RelationshipLabel[] {
+export function relationshipLabels(row: RelationshipRow): RelationshipLabel[] {
   const labels: RelationshipLabel[] = [];
   const inConflict = row.conflict >= 500;
   if (inConflict) {
@@ -44,7 +45,7 @@ function relationshipLabels(row: RelationshipRow): RelationshipLabel[] {
   return labels;
 }
 
-function toRelationshipView(row: RelationshipRow): RelationshipView {
+export function toRelationshipView(row: RelationshipRow): RelationshipView {
   return {
     id: row.id,
     creatureAId: row.creatureAId,
@@ -63,10 +64,10 @@ function toRelationshipView(row: RelationshipRow): RelationshipView {
   };
 }
 
-function toMemoryView(
+export function toMemoryView(
   row: MemoryRow,
   tick: number,
-  snapshot: WorldSnapshot,
+  ruleset: Ruleset,
 ): MemoryView {
   return {
     id: row.id,
@@ -74,7 +75,7 @@ function toMemoryView(
     kind: row.kind,
     importance: row.importance,
     emotionalValue: row.emotionalValue,
-    strength: memoryStrength(row, tick, snapshot.ruleset),
+    strength: memoryStrength(row, tick, ruleset),
     subjectCreatureId: row.subjectCreatureId,
     territoryId: row.territoryId,
     payload: row.payload,
@@ -89,18 +90,21 @@ function ageDays(
   return Math.floor((tick - creature.birthTick) / ticksPerDay);
 }
 
-function toCreatureView(
+/**
+ * Inspection DTO for one creature. Used by `world.snapshot` patches and by
+ * `query.creature` / `query.family` (including dead rows absent from the hot set).
+ */
+export function toCreatureView(
   creature: CreatureRow,
-  snapshot: WorldSnapshot,
-  relationshipsByCreature: Map<number, RelationshipView[]>,
-  memoriesByCreature: Map<number, MemoryView[]>,
+  tick: number,
+  ruleset: Ruleset,
+  relationships: RelationshipView[],
+  memories: MemoryView[],
 ): CreatureView {
-  const tick = snapshot.world.lastTick;
-  const ticksPerDay = snapshot.ruleset.ticksPerDay;
   return {
     id: creature.id,
     name: creature.name,
-    ageDays: ageDays(creature, tick, ticksPerDay),
+    ageDays: ageDays(creature, tick, ruleset.ticksPerDay),
     speciesId: creature.speciesId,
     gender: creature.gender,
     status: creature.status,
@@ -121,8 +125,8 @@ function toCreatureView(
       riskTaking: creature.traitRiskTaking,
       extra: { ...creature.personalityExtra },
     },
-    memories: memoriesByCreature.get(creature.id) ?? [],
-    relationships: relationshipsByCreature.get(creature.id) ?? [],
+    memories,
+    relationships,
     needs: {
       hunger: creature.hunger,
       thirst: creature.thirst,
@@ -224,7 +228,7 @@ export function buildWorldView(
   for (const memory of snapshot.memories) {
     if (memory.archived) continue;
     const list = memoriesByCreature.get(memory.creatureId) ?? [];
-    list.push(toMemoryView(memory, tick, snapshot));
+    list.push(toMemoryView(memory, tick, snapshot.ruleset));
     memoriesByCreature.set(memory.creatureId, list);
   }
   for (const list of memoriesByCreature.values()) {
@@ -237,9 +241,10 @@ export function buildWorldView(
     .map((creature) =>
       toCreatureView(
         creature,
-        snapshot,
-        relationshipsByCreature,
-        memoriesByCreature,
+        tick,
+        snapshot.ruleset,
+        relationshipsByCreature.get(creature.id) ?? [],
+        memoriesByCreature.get(creature.id) ?? [],
       ),
     );
 

@@ -2,13 +2,21 @@
  * Static host snapshot for browser demo before Electron.
  * Shape matches `WorldView` from the contract. Built without createWorld /
  * Prisma so the client bundle never pulls the kernel or database.
+ *
+ * Includes an inspectable child whose mother is dead — family comes from
+ * `query.family`, not from inventing rules in the renderer.
  */
 import {
   ActionTargetKind,
   CreatureStatus,
   Gender,
   Goal,
+  MemoryKind,
+  RelationshipLabel,
   type CreatureView,
+  type FamilyQueryResult,
+  type MemoryView,
+  type RelationshipView,
   type WorldView,
 } from "@boing-pets/contract";
 
@@ -70,7 +78,138 @@ function founder(params: {
   };
 }
 
-/** Seed-shaped fixture: meadow / thicket / ridge with four founders each. */
+const DEAD_MOTHER_ID = 13;
+const CHILD_ID = 14;
+const FATHER_ID = 2;
+
+const fenFather: CreatureView = {
+  ...founder({
+    id: FATHER_ID,
+    name: "Fen",
+    speciesId: 1,
+    gender: Gender.MALE,
+    territoryId: 1,
+    lineageId: 2,
+  }),
+};
+
+const childMemories: MemoryView[] = [
+  {
+    id: 1,
+    tick: 20,
+    kind: MemoryKind.PARENT_DEATH,
+    importance: 50,
+    emotionalValue: -900,
+    strength: 400,
+    subjectCreatureId: DEAD_MOTHER_ID,
+    territoryId: 1,
+    payload: { tags: ["grief"], template: "parent_death.v1" },
+  },
+  {
+    id: 2,
+    tick: 40,
+    kind: MemoryKind.DISCOVERY,
+    importance: 10,
+    emotionalValue: 300,
+    strength: 90,
+    subjectCreatureId: null,
+    territoryId: 1,
+    payload: { tags: ["discovery"], template: "discovery.v1" },
+  },
+  {
+    id: 3,
+    tick: 50,
+    kind: MemoryKind.CONVERSATION,
+    importance: 1,
+    emotionalValue: 200,
+    strength: 40,
+    subjectCreatureId: FATHER_ID,
+    territoryId: 1,
+    payload: { tags: [], template: "conversation.v1" },
+  },
+];
+
+const childPair: RelationshipView = {
+  id: 1,
+  creatureAId: FATHER_ID,
+  creatureBId: CHILD_ID,
+  score: 420,
+  friendship: 650,
+  romance: 0,
+  trust: 320,
+  cooperation: 120,
+  avoidance: 0,
+  conflict: 0,
+  metTick: 20,
+  lastInteractionTick: 50,
+  interactionCount: 4,
+  labels: [RelationshipLabel.FRIEND],
+};
+
+const deadMother: CreatureView = {
+  ...founder({
+    id: DEAD_MOTHER_ID,
+    name: "Ash",
+    speciesId: 1,
+    gender: Gender.FEMALE,
+    territoryId: 1,
+    lineageId: 1,
+  }),
+  status: CreatureStatus.DEAD,
+  ageDays: 12,
+  currentGoal: Goal.IDLE,
+};
+
+const inspectableChild: CreatureView = {
+  id: CHILD_ID,
+  name: "Quill",
+  ageDays: 8,
+  speciesId: 1,
+  gender: Gender.FEMALE,
+  status: CreatureStatus.ALIVE,
+  genes: {
+    strength: 540,
+    speed: 480,
+    intelligence: 560,
+    curiosity: 620,
+    sociability: 510,
+    extra: {},
+  },
+  personality: {
+    curiosity: 640,
+    aggression: 360,
+    loyalty: 580,
+    sociability: 550,
+    bravery: 520,
+    riskTaking: 490,
+    extra: {},
+  },
+  memories: childMemories,
+  relationships: [childPair],
+  needs: {
+    hunger: 420,
+    thirst: 280,
+    fatigue: 180,
+    discomfort: 90,
+    unsafety: 60,
+    loneliness: 240,
+  },
+  currentGoal: Goal.FIND_FOOD,
+  family: {
+    motherId: DEAD_MOTHER_ID,
+    fatherId: FATHER_ID,
+    lineageId: 1,
+    generation: 1,
+  },
+  territoryId: 1,
+  currentAction: null,
+  actionTargetKind: ActionTargetKind.NONE,
+  actionTargetId: null,
+  actionStartedTick: null,
+  actionEndsTick: null,
+};
+
+/** Seed-shaped fixture: meadow / thicket / ridge with founders plus Quill. */
 export const FIXTURE_WORLD_VIEW: WorldView = {
   world: {
     id: 1,
@@ -78,7 +217,7 @@ export const FIXTURE_WORLD_VIEW: WorldView = {
     seed: 1,
     schemaVersion: 1,
     rulesetVersion: 1,
-    lastTick: 0,
+    lastTick: 80,
     clockAtMs: 0,
   },
   territories: [
@@ -91,7 +230,7 @@ export const FIXTURE_WORLD_VIEW: WorldView = {
       capacity: 40,
       food: 700,
       effectiveDanger: 200,
-      population: 4,
+      population: 5,
     },
     {
       id: 2,
@@ -241,14 +380,7 @@ export const FIXTURE_WORLD_VIEW: WorldView = {
       territoryId: 1,
       lineageId: 1,
     }),
-    founder({
-      id: 2,
-      name: "Fen",
-      speciesId: 1,
-      gender: Gender.MALE,
-      territoryId: 1,
-      lineageId: 2,
-    }),
+    { ...fenFather, relationships: [childPair] },
     founder({
       id: 3,
       name: "Mos",
@@ -329,7 +461,27 @@ export const FIXTURE_WORLD_VIEW: WorldView = {
       territoryId: 3,
       lineageId: 12,
     }),
+    // Dead mother stays in the cache for lineage panels; map filters ALIVE.
+    deadMother,
+    inspectableChild,
   ],
-  relationships: [],
+  relationships: [childPair],
   events: [],
 };
+
+/** Host-side family response for Quill — includes dead mother Ash. */
+export const FIXTURE_FAMILY_BY_CREATURE_ID: Record<number, FamilyQueryResult> =
+  {
+    [CHILD_ID]: {
+      children: [],
+      siblings: [],
+      ancestors: [
+        { creature: deadMother, depth: 1 },
+        { creature: fenFather, depth: 1 },
+      ],
+      descendants: [],
+    },
+  };
+
+export const FIXTURE_INSPECTABLE_CHILD_ID = CHILD_ID;
+export const FIXTURE_DEAD_MOTHER_ID = DEAD_MOTHER_ID;

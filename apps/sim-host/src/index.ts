@@ -1,6 +1,6 @@
 /**
- * Sim host: clock, persistence, influences, WorldView mapping, and (later) IPC.
- * Single writer. M15 adds the host → client WorldView builder.
+ * Sim host: clock, persistence, influences, WorldView mapping, and inspection IPC.
+ * Single writer. M16 adds query.creature / query.family over durable rows.
  */
 export {
   catchupOnLaunch,
@@ -8,6 +8,13 @@ export {
   type CatchupProgress,
   type RunCatchupOptions,
 } from "./catchup";
+export {
+  handleInspectionQuery,
+  queryCreatureFromTables,
+  queryEventsFromTables,
+  queryFamilyFromTables,
+  queryLineageFromTables,
+} from "./ipc/queries";
 export {
   advanceClock,
   clockView,

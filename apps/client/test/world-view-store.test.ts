@@ -27,8 +27,13 @@ test("world.snapshot caches three territories and living tokens", () => {
     "thicket",
   ]);
   const living = useWorldViewStore.getState().livingCreatures();
-  assert.equal(living.length, 12);
+  // 12 founders + Quill; dead mother Ash stays in the cache but not living.
+  assert.equal(living.length, 13);
   assert.ok(living.every((c) => c.status === CreatureStatus.ALIVE));
+  assert.ok(
+    view.creatures.some((c) => c.status === CreatureStatus.DEAD),
+    "fixture keeps a dead parent for family inspection",
+  );
 });
 
 test("world.patch replaces rows without inventing needs", () => {

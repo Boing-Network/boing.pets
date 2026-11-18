@@ -3,7 +3,10 @@ import { createRoot } from "react-dom/client";
 import { App } from "./app/App";
 import { bindIpcToStores } from "./api/bind";
 import { createMemoryIpc } from "./api/memory-ipc";
-import { FIXTURE_WORLD_VIEW } from "./demo/fixture-world";
+import {
+  FIXTURE_FAMILY_BY_CREATURE_ID,
+  FIXTURE_WORLD_VIEW,
+} from "./demo/fixture-world";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
@@ -12,6 +15,28 @@ if (!rootElement) {
 
 const { client, host } = createMemoryIpc();
 bindIpcToStores(client);
+
+host.setQueryHandler((message) => {
+  if (message.message === "query.family") {
+    const body = FIXTURE_FAMILY_BY_CREATURE_ID[message.body.creatureId] ?? {
+      children: [],
+      siblings: [],
+      ancestors: [],
+      descendants: [],
+    };
+    return { message: "query.family", body };
+  }
+  if (message.message === "query.creature") {
+    const body = FIXTURE_WORLD_VIEW.creatures.find(
+      (creature) => creature.id === message.body.creatureId,
+    );
+    if (!body) {
+      throw new Error(`creature ${message.body.creatureId} not found`);
+    }
+    return { message: "query.creature", body };
+  }
+  throw new Error(`unsupported demo query: ${message.message}`);
+});
 
 // Demo host: push a WorldView the same way Electron will after M18.
 host.emit({ message: "world.snapshot", body: FIXTURE_WORLD_VIEW });
