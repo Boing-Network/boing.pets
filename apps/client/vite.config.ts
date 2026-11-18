@@ -6,6 +6,8 @@ import { defineConfig } from "vite";
 const root = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  // Relative base so Electron can load the built index over file://.
+  base: "./",
   plugins: [react()],
   resolve: {
     alias: {

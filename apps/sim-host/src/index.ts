@@ -1,6 +1,6 @@
 /**
  * Sim host: clock, persistence, influences, WorldView mapping, and inspection IPC.
- * Single writer. M16 adds query.creature / query.family over durable rows.
+ * Single writer. Electron packaging (M18) drives the live runtime.
  */
 export {
   catchupOnLaunch,
@@ -69,11 +69,20 @@ export {
   type IdCursors,
 } from "./persist/dirty";
 export {
+  createFileHostMetaStore,
+  type HostMeta,
+  type HostMetaStore,
+} from "./persist/host-meta";
+export {
   loadSnapshot,
   SchemaTooNewError,
   tablesToSnapshot,
 } from "./persist/load";
 export { MemoryWorldRepository } from "./persist/memory-repository";
+export {
+  PrismaWorldRepository,
+  type PrismaWorldRepositoryOptions,
+} from "./persist/prisma-repository";
 export type {
   CommitBatch,
   DurableTables,
@@ -86,6 +95,12 @@ export {
   saveWorldgen,
   worldgenTables,
 } from "./persist/save";
+export {
+  createHostRuntime,
+  type HostRuntime,
+  type HostRuntimeEmit,
+  type HostRuntimeOptions,
+} from "./runtime/host-runtime";
 export {
   bootSession,
   commitSession,

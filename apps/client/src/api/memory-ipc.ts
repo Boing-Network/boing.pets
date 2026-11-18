@@ -1,7 +1,7 @@
 /**
- * In-process IPC for browser/dev before Electron packaging.
- * The host side injects `HostToClient` messages; the renderer never opens
- * Postgres or imports the simulation kernel.
+ * In-process IPC for browser demo / unit tests.
+ * Packaged Electron uses `electron-ipc.ts` via the preload bridge instead.
+ * The renderer never opens Postgres or imports the simulation kernel.
  */
 import type {
   ClientToHost,

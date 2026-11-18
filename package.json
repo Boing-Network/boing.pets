@@ -8,20 +8,24 @@
     "packages/sim",
     "packages/db",
     "apps/sim-host",
-    "apps/client"
+    "apps/client",
+    "apps/desktop"
   ],
   "scripts": {
-    "typecheck": "tsc -p packages/contract/tsconfig.json --noEmit && tsc -p packages/sim/tsconfig.json --noEmit && tsc -p packages/sim/tsconfig.test.json --noEmit && tsc -p packages/db/tsconfig.json --noEmit && tsc -p packages/db/tsconfig.test.json --noEmit && tsc -p apps/sim-host/tsconfig.json --noEmit && tsc -p apps/sim-host/tsconfig.test.json --noEmit && tsc -p apps/client/tsconfig.json --noEmit && tsc -p apps/client/tsconfig.test.json --noEmit",
+    "typecheck": "tsc -p packages/contract/tsconfig.json --noEmit && tsc -p packages/sim/tsconfig.json --noEmit && tsc -p packages/sim/tsconfig.test.json --noEmit && tsc -p packages/db/tsconfig.json --noEmit && tsc -p packages/db/tsconfig.test.json --noEmit && tsc -p apps/sim-host/tsconfig.json --noEmit && tsc -p apps/sim-host/tsconfig.test.json --noEmit && tsc -p apps/client/tsconfig.json --noEmit && tsc -p apps/client/tsconfig.test.json --noEmit && tsc -p apps/desktop/tsconfig.json --noEmit",
     "test": "node --import tsx --test packages/sim/test/*.test.ts packages/db/test/*.test.ts apps/sim-host/test/*.test.ts apps/client/test/*.test.ts",
-    "lint": "eslint packages/contract packages/sim packages/db apps/sim-host apps/client eslint.config.js --max-warnings 0",
+    "lint": "eslint packages/contract packages/sim packages/db apps/sim-host apps/client apps/desktop eslint.config.js --max-warnings 0",
     "client:build": "npm run build -w @boing-pets/client",
     "client:check-bundle": "node apps/client/scripts/check-bundle.mjs",
+    "desktop:build": "npm run build -w @boing-pets/desktop",
+    "desktop:start": "npm run client:build && npm run desktop:build && npm run start -w @boing-pets/desktop",
+    "desktop:smoke": "npm run smoke -w @boing-pets/desktop",
     "db:validate": "prisma validate --schema packages/db/prisma/schema.prisma",
     "db:generate": "prisma generate --schema packages/db/prisma/schema.prisma",
     "db:check": "node packages/db/scripts/check-sql.mjs",
     "scale-rehearsal": "node --import tsx apps/sim-host/scripts/run-scale-rehearsal.mjs",
     "format:check": "prettier --check .",
-    "verify": "npm run format:check && npm run lint && npm run db:generate && npm run typecheck && npm run test && npm run client:build && npm run client:check-bundle"
+    "verify": "npm run format:check && npm run lint && npm run db:generate && npm run typecheck && npm run test && npm run client:build && npm run client:check-bundle && npm run desktop:build && npm run desktop:smoke"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

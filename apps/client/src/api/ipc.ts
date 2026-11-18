@@ -1,5 +1,6 @@
 /**
- * IPC client for the renderer. Transport is Electron later (M18).
+ * IPC client for the renderer.
+ * Browser demo uses the in-process memory transport; packaged Electron uses preload.
  * Message names and bodies come from `@boing-pets/contract`.
  */
 import type {

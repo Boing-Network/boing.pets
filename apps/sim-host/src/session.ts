@@ -31,6 +31,7 @@ export type HostSession = {
 export async function bootSession(
   repository: WorldRepository,
   seed: number,
+  options: { nowMs?: number } = {},
 ): Promise<HostSession> {
   const loaded = await loadSnapshot(repository);
   if (loaded != null) {
@@ -42,6 +43,9 @@ export async function bootSession(
     };
   }
   const { snapshot, events } = createWorld(seed);
+  // createWorld leaves clockAtMs at 0; the host stamps wall time on insert
+  // so a cold launch does not owe an epoch→now catch-up.
+  snapshot.world.clockAtMs = options.nowMs ?? Date.now();
   await saveWorldgen(repository, snapshot, events);
   return {
     snapshot,

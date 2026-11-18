@@ -289,6 +289,8 @@ export default ts.config(
             "@boing-pets/contract",
             "@boing-pets/db",
             "@boing-pets/sim",
+            "node:fs",
+            "node:path",
           ],
         },
       ],
@@ -311,6 +313,7 @@ export default ts.config(
             "node:fs",
             "node:path",
             "node:url",
+            "node:os",
           ],
         },
       ],
@@ -366,6 +369,57 @@ export default ts.config(
     },
   },
   {
+    files: ["apps/desktop/src/**/*.{ts,tsx}"],
+    plugins: { "living-pets": livingPets },
+    rules: {
+      "living-pets/boundaries": [
+        "error",
+        {
+          packageDir: "apps/desktop",
+          allowPackages: [
+            "@boing-pets/contract",
+            "@boing-pets/db",
+            "@boing-pets/sim-host",
+            "electron",
+            "embedded-postgres",
+            "node:fs",
+            "node:path",
+            "node:url",
+            "node:child_process",
+            "node:module",
+            "node:os",
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["apps/desktop/test/**/*.ts"],
+    plugins: { "living-pets": livingPets },
+    rules: {
+      "living-pets/boundaries": [
+        "error",
+        {
+          packageDir: "apps/desktop",
+          allowPackages: [
+            "@boing-pets/contract",
+            "@boing-pets/db",
+            "@boing-pets/sim-host",
+            "electron",
+            "embedded-postgres",
+            "node:test",
+            "node:assert",
+            "node:fs",
+            "node:path",
+            "node:url",
+            "node:child_process",
+            "node:os",
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["apps/client/vite.config.ts"],
     languageOptions: {
       globals: {
@@ -378,6 +432,7 @@ export default ts.config(
       "packages/db/scripts/**/*.mjs",
       "apps/client/scripts/**/*.mjs",
       "apps/sim-host/scripts/**/*.mjs",
+      "apps/desktop/scripts/**/*.mjs",
     ],
     languageOptions: {
       globals: {

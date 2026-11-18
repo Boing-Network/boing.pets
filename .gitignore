@@ -3,3 +3,6 @@ dist/
 .wrangler/
 *.log
 coverage/
+.postgres-data/
+apps/desktop/user-data/
+*.asar
