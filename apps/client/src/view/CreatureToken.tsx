@@ -1,4 +1,6 @@
-import { useEffect, useMemo } from "react";
+import { useFrame } from "@react-three/fiber";
+import { useEffect, useMemo, useRef } from "react";
+import type { Group } from "three";
 import {
   Action,
   ActionTargetKind,
@@ -6,9 +8,21 @@ import {
   type TerritoryView,
 } from "@boing-pets/contract";
 import { CreaturePresentation } from "./creatures/CreaturePresentation";
-import { layoutForTerritory } from "./layout";
-import { lerp, relocateProgress, tokenOffset } from "./presentation";
+import {
+  drinkShore,
+  explorePoint,
+  foodPatch,
+  nestSpot,
+  regionHome,
+  socialRing,
+  trailPoint,
+} from "./motion/anchors";
+import { behaviorFor, locomotionForSpecies } from "./motion/behavior";
+import { NEUTRAL_POSE, mixPose, type CreaturePose } from "./motion/pose";
+import { relocateProgress } from "./presentation";
 import { skinForSpecies } from "./species-skins";
+import { worldTime } from "./world/gfx";
+import { hash01 } from "./world/noise";
 import type { WorldModel } from "./world/world-model";
 
 type Props = {
@@ -19,28 +33,23 @@ type Props = {
   model: WorldModel;
   selected: boolean;
   onSelect: (creatureId: number) => void;
-  /** Reports the token's world point so the camera can ease toward it. */
   onFocus?: (point: { x: number; y: number; z: number }) => void;
 };
 
-function territoryHome(
-  territory: TerritoryView | undefined,
-  model: WorldModel,
-): { x: number; z: number; visualRadius: number } {
-  if (!territory) {
-    return { x: 0, z: 0, visualRadius: 24 };
-  }
-  const layout = layoutForTerritory(territory.id, territory.slug, model);
-  return {
-    x: layout.x,
-    z: layout.z,
-    visualRadius: layout.visualRadius,
-  };
+type Point = { x: number; y: number; z: number };
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+function ease(t: number): number {
+  return t * t * (3 - 2 * t);
 }
 
 /**
- * Presentation placement. PR 1 keeps tokens at a stable shore offset inside
- * their territory; PR 2 will drive motion from the creature's goal/action.
+ * Presentation placement and locomotion. Positions are derived from the
+ * creature's current goal/action and the world model — never from the sim
+ * kernel. Wall-clock animation keeps motion smooth between ticks.
  */
 export function CreatureToken({
   creature,
@@ -52,77 +61,354 @@ export function CreatureToken({
   onSelect,
   onFocus,
 }: Props) {
-  const home = territoriesById.get(creature.territoryId);
-  const homeCenter = territoryHome(home, model);
-  const offset = useMemo(
-    () => tokenOffset(worldSeed, creature.id, homeCenter.visualRadius * 0.42),
-    [worldSeed, creature.id, homeCenter.visualRadius],
+  void territoriesById;
+  const group = useRef<Group>(null);
+  const poseRef = useRef<CreaturePose>(NEUTRAL_POSE);
+  const state = useRef({
+    x: 0,
+    y: 0,
+    z: 0,
+    yaw: 0,
+    behaviorKey: "",
+    from: { x: 0, y: 0, z: 0 } as Point,
+    to: { x: 0, y: 0, z: 0 } as Point,
+    segmentStarted: 0,
+    segmentDuration: 1,
+    pose: NEUTRAL_POSE,
+    targetPose: NEUTRAL_POSE,
+    ready: false,
+  });
+
+  const skin = skinForSpecies(creature.speciesId);
+  const locomotion = locomotionForSpecies(creature.speciesId);
+  const behavior = behaviorFor(creature.currentGoal, creature.currentAction);
+  const phase0 = useMemo(
+    () => hash01(worldSeed, creature.id, 3) * 100,
+    [worldSeed, creature.id],
   );
 
-  let x = homeCenter.x + offset.x;
-  let z = homeCenter.z + offset.z;
+  const region =
+    model.regionByTerritoryId.get(creature.territoryId) ?? model.regions[0]!;
 
-  if (
-    creature.currentAction === Action.RELOCATE &&
-    creature.actionTargetKind === ActionTargetKind.TERRITORY &&
-    creature.actionTargetId != null
-  ) {
-    const destination = territoriesById.get(creature.actionTargetId);
-    const destCenter = territoryHome(destination, model);
-    const destOffset = tokenOffset(
-      worldSeed,
-      creature.id,
-      destCenter.visualRadius * 0.42,
+  const anchors = useMemo(() => {
+    const food = [0, 1, 2, 3].map((i) =>
+      foodPatch(model, region, worldSeed, creature.id, i),
     );
-    const t = relocateProgress(
-      viewTick,
-      creature.actionStartedTick,
-      creature.actionEndsTick,
+    const explore = [0, 1, 2].map((i) =>
+      explorePoint(model, region, worldSeed, creature.id, i),
     );
-    x = lerp(homeCenter.x + offset.x, destCenter.x + destOffset.x, t);
-    z = lerp(homeCenter.z + offset.z, destCenter.z + destOffset.z, t);
-  }
-
-  // Keep standing creatures on dry ground near water rather than mid-channel.
-  const water = model.waterDistAt(x, z);
-  if (water < 0.6) {
-    const region = model.regionByTerritoryId.get(creature.territoryId);
-    const away = region
-      ? {
-          x: x - region.center.x - region.waterSide.x * region.radius,
-          z: z - region.center.z - region.waterSide.z * region.radius,
-        }
-      : { x: x - homeCenter.x, z: z - homeCenter.z };
-    const len = Math.hypot(away.x, away.z) || 1;
-    const push = 0.8 - water;
-    x += (away.x / len) * push;
-    z += (away.z / len) * push;
-  }
-
-  const ground = model.heightAt(x, z);
-  const skin = skinForSpecies(creature.speciesId);
-  // Moths hover; foxes and stags stand on the shore.
-  const y = skin.id === "lantern-moth" ? ground + 1.4 : ground + 0.02;
+    return {
+      home: regionHome(model, region, worldSeed, creature.id),
+      drink: drinkShore(model, region, worldSeed, creature.id),
+      nest: nestSpot(model, region, worldSeed, creature.id),
+      social: socialRing(model, region, worldSeed, creature.id),
+      food,
+      explore,
+    };
+  }, [model, region, worldSeed, creature.id]);
 
   useEffect(() => {
-    onFocus?.({ x, y, z });
-  }, [onFocus, x, y, z]);
+    const s = state.current;
+    const start = anchors.home;
+    s.x = start.x;
+    s.y = start.y;
+    s.z = start.z;
+    s.from = start;
+    s.to = start;
+    s.behaviorKey = "";
+    s.ready = true;
+  }, [anchors]);
+
+  useFrame((_, delta) => {
+    const s = state.current;
+    if (!s.ready) return;
+    const now = worldTime.value + phase0;
+    const dt = Math.min(0.05, delta);
+
+    let target: Point = anchors.home;
+    let duration = 4;
+    let moving = true;
+    let pose: CreaturePose = { ...NEUTRAL_POSE };
+    const pulse = (rate: number) => (Math.sin(now * rate) + 1) * 0.5;
+
+    if (
+      creature.currentAction === Action.RELOCATE &&
+      creature.actionTargetKind === ActionTargetKind.TERRITORY &&
+      creature.actionTargetId != null
+    ) {
+      const t = relocateProgress(
+        viewTick,
+        creature.actionStartedTick,
+        creature.actionEndsTick,
+      );
+      const along =
+        trailPoint(model, creature.territoryId, creature.actionTargetId, t) ??
+        anchors.home;
+      s.x = along.x;
+      s.y = along.y;
+      s.z = along.z;
+      pose = {
+        ...NEUTRAL_POSE,
+        gait: (now * (locomotion === "trot" ? 3.2 : 2.2)) % 1,
+        gaitWeight: 1,
+        bob: locomotion === "fly" ? 0.35 + pulse(2.4) * 0.12 : pulse(6) * 0.04,
+        headPitch: -0.05,
+      };
+    } else {
+      switch (behavior) {
+        case "forage": {
+          const idx = Math.floor(now / 5.5) % anchors.food.length;
+          target = anchors.food[idx]!;
+          duration = 5.5;
+          const local = (now % 5.5) / 5.5;
+          if (local < 0.55) {
+            moving = true;
+            pose = {
+              ...NEUTRAL_POSE,
+              gait: (now * 2.8) % 1,
+              gaitWeight: 0.9,
+              headPitch: -0.25,
+              bob: locomotion === "fly" ? 0.25 : pulse(7) * 0.03,
+            };
+          } else if (local < 0.78) {
+            moving = false;
+            pose = {
+              ...NEUTRAL_POSE,
+              headPitch: -0.7,
+              bodyPitch: 0.18,
+              crouch: 0.2,
+              bob: locomotion === "fly" ? 0.15 : 0,
+              gaitWeight: 0,
+              gait: 0,
+            };
+          } else {
+            moving = false;
+            pose = {
+              ...NEUTRAL_POSE,
+              headPitch: -0.35,
+              bodyPitch: 0.08,
+              crouch: 0.12,
+              bob: pulse(4) * 0.02,
+              gaitWeight: 0.15,
+              gait: (now * 1.4) % 1,
+            };
+          }
+          break;
+        }
+        case "drink": {
+          target = anchors.drink;
+          duration = 3.2;
+          const dist = Math.hypot(s.x - target.x, s.z - target.z);
+          if (dist > 0.55) {
+            moving = true;
+            pose = {
+              ...NEUTRAL_POSE,
+              gait: (now * 2.4) % 1,
+              gaitWeight: 0.85,
+              bob: locomotion === "fly" ? 0.2 : pulse(6) * 0.03,
+              headPitch: -0.1,
+            };
+          } else {
+            moving = false;
+            pose = {
+              ...NEUTRAL_POSE,
+              headPitch: -0.85,
+              bodyPitch: 0.28,
+              crouch: 0.35,
+              bob: locomotion === "fly" ? 0.05 : Math.sin(now * 2.2) * 0.015,
+              gaitWeight: 0,
+              gait: 0,
+            };
+          }
+          break;
+        }
+        case "rest":
+        case "sleep": {
+          target = anchors.nest;
+          duration = 6;
+          const dist = Math.hypot(s.x - target.x, s.z - target.z);
+          if (dist > 0.7) {
+            moving = true;
+            pose = {
+              ...NEUTRAL_POSE,
+              gait: (now * 1.8) % 1,
+              gaitWeight: 0.55,
+              bob: locomotion === "fly" ? 0.2 : 0,
+            };
+          } else {
+            moving = false;
+            pose = {
+              ...NEUTRAL_POSE,
+              headPitch: behavior === "sleep" ? 0.35 : -0.15,
+              bodyPitch: behavior === "sleep" ? 0.4 : 0.15,
+              crouch: behavior === "sleep" ? 0.55 : 0.3,
+              bob: locomotion === "fly" ? 0.08 + pulse(1.2) * 0.04 : 0,
+              gaitWeight: 0,
+              gait: 0,
+            };
+          }
+          break;
+        }
+        case "social":
+        case "court":
+        case "approach": {
+          const orbit = now * (behavior === "court" ? 0.55 : 0.35);
+          const radius = behavior === "court" ? 2.2 : 3.4;
+          const ox = anchors.social.x + Math.cos(orbit + creature.id) * radius;
+          const oz = anchors.social.z + Math.sin(orbit + creature.id) * radius;
+          target = { x: ox, z: oz, y: model.heightAt(ox, oz) };
+          duration = 2.5;
+          moving = true;
+          pose = {
+            ...NEUTRAL_POSE,
+            gait: (now * 2.2) % 1,
+            gaitWeight: 0.7,
+            headPitch: behavior === "court" ? 0.15 : 0.05,
+            bob:
+              locomotion === "fly" ? 0.35 + pulse(3) * 0.1 : pulse(5) * 0.025,
+          };
+          break;
+        }
+        case "guard":
+        case "nurse": {
+          const patrol = now * 0.5;
+          const ox = anchors.nest.x + Math.cos(patrol) * 2.4;
+          const oz = anchors.nest.z + Math.sin(patrol) * 2.4;
+          target = { x: ox, z: oz, y: model.heightAt(ox, oz) };
+          duration = 3;
+          moving = behavior === "guard";
+          pose = {
+            ...NEUTRAL_POSE,
+            gait: (now * (behavior === "guard" ? 2.0 : 0.8)) % 1,
+            gaitWeight: behavior === "guard" ? 0.6 : 0.15,
+            headPitch: behavior === "nurse" ? -0.2 : 0.1,
+            crouch: behavior === "nurse" ? 0.25 : 0,
+            bob: locomotion === "fly" ? 0.25 : 0,
+          };
+          break;
+        }
+        case "wander":
+        case "travel": {
+          const idx = Math.floor(now / 7) % anchors.explore.length;
+          target = anchors.explore[idx]!;
+          duration = 7;
+          moving = true;
+          pose = {
+            ...NEUTRAL_POSE,
+            gait: (now * (locomotion === "trot" ? 3.0 : 2.0)) % 1,
+            gaitWeight: 1,
+            bob:
+              locomotion === "fly" ? 0.4 + pulse(2.5) * 0.15 : pulse(6) * 0.04,
+            headPitch: 0.05,
+          };
+          break;
+        }
+        case "idle":
+        default: {
+          target = anchors.home;
+          duration = 8;
+          const local = (now % 8) / 8;
+          moving = local < 0.35 || local > 0.85;
+          if (moving) {
+            const other =
+              anchors.explore[creature.id % anchors.explore.length]!;
+            target = local < 0.35 ? other : anchors.home;
+            pose = {
+              ...NEUTRAL_POSE,
+              gait: (now * 1.8) % 1,
+              gaitWeight: 0.45,
+              bob: locomotion === "fly" ? 0.3 + pulse(2) * 0.1 : 0,
+            };
+          } else {
+            pose = {
+              ...NEUTRAL_POSE,
+              headPitch: Math.sin(now * 0.7) * 0.08,
+              bob: locomotion === "fly" ? 0.28 + pulse(1.6) * 0.08 : 0,
+              gaitWeight: locomotion === "fly" ? 0.35 : 0,
+              gait: (now * 1.2) % 1,
+            };
+          }
+          break;
+        }
+      }
+
+      const key = `${behavior}:${target.x.toFixed(1)}:${target.z.toFixed(1)}`;
+      if (key !== s.behaviorKey) {
+        s.behaviorKey = key;
+        s.from = { x: s.x, y: s.y, z: s.z };
+        s.to = target;
+        s.segmentStarted = worldTime.value;
+        s.segmentDuration =
+          duration * (0.7 + hash01(worldSeed, creature.id, 5) * 0.5);
+      }
+
+      if (moving) {
+        const u = ease(
+          Math.min(
+            1,
+            (worldTime.value - s.segmentStarted) /
+              Math.max(0.2, s.segmentDuration),
+          ),
+        );
+        s.x = lerp(s.from.x, s.to.x, u);
+        s.z = lerp(s.from.z, s.to.z, u);
+        s.y = model.heightAt(s.x, s.z);
+        const dx = s.to.x - s.from.x;
+        const dz = s.to.z - s.from.z;
+        if (Math.hypot(dx, dz) > 0.05) {
+          const want = Math.atan2(dx, dz);
+          let diff = want - s.yaw;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          s.yaw += diff * Math.min(1, dt * 6);
+        }
+      } else {
+        s.x = lerp(s.x, target.x, Math.min(1, dt * 2.4));
+        s.z = lerp(s.z, target.z, Math.min(1, dt * 2.4));
+        s.y = model.heightAt(s.x, s.z);
+        if (behavior === "drink") {
+          const body = model.bodies[region.index];
+          if (body) {
+            const want = Math.atan2(body.center.x - s.x, body.center.z - s.z);
+            let diff = want - s.yaw;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            s.yaw += diff * Math.min(1, dt * 4);
+          }
+        }
+      }
+    }
+
+    s.targetPose = pose;
+    s.pose = mixPose(s.pose, s.targetPose, Math.min(1, dt * 5));
+    poseRef.current = s.pose;
+
+    const hover =
+      locomotion === "fly" || locomotion === "hover"
+        ? 0.9 + s.pose.bob
+        : 0.02 + s.pose.bob - s.pose.crouch * 0.12;
+
+    if (group.current) {
+      group.current.position.set(s.x, s.y + hover, s.z);
+      group.current.rotation.set(s.pose.bodyPitch, s.yaw, 0);
+    }
+
+    onFocus?.({ x: s.x, y: s.y + hover, z: s.z });
+  });
 
   return (
     <group
-      position={[x, y, z]}
+      ref={group}
       scale={5.2}
       onClick={(event) => {
         event.stopPropagation();
         onSelect(creature.id);
       }}
       onPointerDown={(event) => {
-        // Prefer pointer-down so OrbitControls does not steal the selection.
         event.stopPropagation();
         onSelect(creature.id);
       }}
     >
-      {/* Larger invisible hit target for reliable picking. */}
       <mesh visible={false}>
         <sphereGeometry args={[0.7, 12, 12]} />
         <meshBasicMaterial />
@@ -136,6 +422,7 @@ export function CreatureToken({
       <CreaturePresentation
         speciesId={creature.speciesId}
         selected={selected}
+        pose={poseRef}
       />
     </group>
   );

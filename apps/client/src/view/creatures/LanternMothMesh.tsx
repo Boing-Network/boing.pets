@@ -1,16 +1,35 @@
 import { DoubleSide } from "three";
+import { useFrame } from "@react-three/fiber";
+import { useRef, type RefObject } from "react";
+import type { Group } from "three";
+import type { CreaturePose } from "../motion/pose";
 import type { CreatureSkinPalette } from "../species-skins";
 
 type Props = {
   palette: CreatureSkinPalette;
   selected: boolean;
+  pose: RefObject<CreaturePose>;
 };
 
 /** Stylized lantern-moth silhouette: fluffy body, glowing core, wide wings. */
-export function LanternMothMesh({ palette, selected }: Props) {
+export function LanternMothMesh({ palette, selected, pose }: Props) {
   const scale = selected ? 1.1 : 1;
+  const root = useRef<Group>(null);
+  const head = useRef<Group>(null);
+  const leftWing = useRef<Group>(null);
+  const rightWing = useRef<Group>(null);
+  useFrame(() => {
+    const p = pose.current;
+    if (!p || !root.current) return;
+    root.current.rotation.x = p.bodyPitch * 0.25;
+    if (head.current) head.current.rotation.x = p.headPitch * 0.5;
+    const flap =
+      Math.sin(p.gait * Math.PI * 2) * 0.55 * Math.max(0.25, p.gaitWeight);
+    if (leftWing.current) leftWing.current.rotation.z = 0.35 + flap;
+    if (rightWing.current) rightWing.current.rotation.z = -0.35 - flap;
+  });
   return (
-    <group scale={scale} position={[0, 0.12, 0]}>
+    <group ref={root} scale={scale} position={[0, 0.12, 0]}>
       {/* Fluffy body */}
       <mesh position={[0, 0.14, 0]} castShadow>
         <sphereGeometry args={[0.14, 16, 14]} />
@@ -78,57 +97,60 @@ export function LanternMothMesh({ palette, selected }: Props) {
         <meshStandardMaterial color={palette.secondary} roughness={0.65} />
       </mesh>
       {/* Wide iridescent wings */}
-      <mesh
-        position={[-0.2, 0.2, -0.02]}
-        rotation={[0.25, 0.45, -0.45]}
-        castShadow
-      >
-        <planeGeometry args={[0.42, 0.28]} />
-        <meshStandardMaterial
-          color={palette.accent}
-          emissive={palette.accent}
-          emissiveIntensity={0.75}
-          transparent
-          opacity={0.78}
-          side={DoubleSide}
-          roughness={0.2}
-          metalness={0.2}
-        />
-      </mesh>
-      <mesh
-        position={[0.2, 0.2, -0.02]}
-        rotation={[0.25, -0.45, 0.45]}
-        castShadow
-      >
-        <planeGeometry args={[0.42, 0.28]} />
-        <meshStandardMaterial
-          color={palette.accent}
-          emissive={palette.accent}
-          emissiveIntensity={0.75}
-          transparent
-          opacity={0.78}
-          side={DoubleSide}
-          roughness={0.2}
-          metalness={0.2}
-        />
-      </mesh>
-      {/* Wing glow eyespots */}
-      <mesh position={[-0.28, 0.22, 0.02]}>
-        <sphereGeometry args={[0.03, 8, 8]} />
-        <meshStandardMaterial
-          color={palette.emissive}
-          emissive={palette.emissive}
-          emissiveIntensity={1}
-        />
-      </mesh>
-      <mesh position={[0.28, 0.22, 0.02]}>
-        <sphereGeometry args={[0.03, 8, 8]} />
-        <meshStandardMaterial
-          color={palette.emissive}
-          emissive={palette.emissive}
-          emissiveIntensity={1}
-        />
-      </mesh>
+      <group ref={leftWing} position={[-0.06, 0.16, -0.02]}>
+        <mesh
+          position={[-0.14, 0.04, 0]}
+          rotation={[0.25, 0.45, -0.45]}
+          castShadow
+        >
+          <planeGeometry args={[0.42, 0.28]} />
+          <meshStandardMaterial
+            color={palette.accent}
+            emissive={palette.accent}
+            emissiveIntensity={0.75}
+            transparent
+            opacity={0.78}
+            side={DoubleSide}
+            roughness={0.2}
+            metalness={0.2}
+          />
+        </mesh>
+        <mesh position={[-0.22, 0.06, 0.04]}>
+          <sphereGeometry args={[0.03, 8, 8]} />
+          <meshStandardMaterial
+            color={palette.emissive}
+            emissive={palette.emissive}
+            emissiveIntensity={1}
+          />
+        </mesh>
+      </group>
+      <group ref={rightWing} position={[0.06, 0.16, -0.02]}>
+        <mesh
+          position={[0.14, 0.04, 0]}
+          rotation={[0.25, -0.45, 0.45]}
+          castShadow
+        >
+          <planeGeometry args={[0.42, 0.28]} />
+          <meshStandardMaterial
+            color={palette.accent}
+            emissive={palette.accent}
+            emissiveIntensity={0.75}
+            transparent
+            opacity={0.78}
+            side={DoubleSide}
+            roughness={0.2}
+            metalness={0.2}
+          />
+        </mesh>
+        <mesh position={[0.22, 0.06, 0.04]}>
+          <sphereGeometry args={[0.03, 8, 8]} />
+          <meshStandardMaterial
+            color={palette.emissive}
+            emissive={palette.emissive}
+            emissiveIntensity={1}
+          />
+        </mesh>
+      </group>
       {/* Tiny legs */}
       {(
         [
