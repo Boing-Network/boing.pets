@@ -1,0 +1,487 @@
+/**
+ * Static host snapshot for browser demo before Electron.
+ * Shape matches `WorldView` from the contract. Built without createWorld /
+ * Prisma so the client bundle never pulls the kernel or database.
+ *
+ * Includes an inspectable child whose mother is dead — family comes from
+ * `query.family`, not from inventing rules in the renderer.
+ */
+import {
+  ActionTargetKind,
+  CreatureStatus,
+  Gender,
+  Goal,
+  MemoryKind,
+  RelationshipLabel,
+  type CreatureView,
+  type FamilyQueryResult,
+  type MemoryView,
+  type RelationshipView,
+  type WorldView,
+} from "@boing-pets/contract";
+
+function founder(params: {
+  id: number;
+  name: string;
+  speciesId: number;
+  gender: typeof Gender.FEMALE | typeof Gender.MALE;
+  territoryId: number;
+  lineageId: number;
+}): CreatureView {
+  return {
+    id: params.id,
+    name: params.name,
+    ageDays: 0,
+    speciesId: params.speciesId,
+    gender: params.gender,
+    status: CreatureStatus.ALIVE,
+    genes: {
+      strength: 500,
+      speed: 500,
+      intelligence: 500,
+      curiosity: 500,
+      sociability: 500,
+      extra: {},
+    },
+    personality: {
+      curiosity: 500,
+      aggression: 400,
+      loyalty: 500,
+      sociability: 500,
+      bravery: 500,
+      riskTaking: 500,
+      extra: {},
+    },
+    memories: [],
+    relationships: [],
+    needs: {
+      hunger: 300,
+      thirst: 300,
+      fatigue: 200,
+      discomfort: 100,
+      unsafety: 40,
+      loneliness: 200,
+    },
+    currentGoal: Goal.IDLE,
+    family: {
+      motherId: null,
+      fatherId: null,
+      lineageId: params.lineageId,
+      generation: 0,
+    },
+    territoryId: params.territoryId,
+    currentAction: null,
+    actionTargetKind: ActionTargetKind.NONE,
+    actionTargetId: null,
+    actionStartedTick: null,
+    actionEndsTick: null,
+  };
+}
+
+const DEAD_MOTHER_ID = 13;
+const CHILD_ID = 14;
+const FATHER_ID = 2;
+
+const fenFather: CreatureView = {
+  ...founder({
+    id: FATHER_ID,
+    name: "Fen",
+    speciesId: 1,
+    gender: Gender.MALE,
+    territoryId: 1,
+    lineageId: 2,
+  }),
+};
+
+const childMemories: MemoryView[] = [
+  {
+    id: 1,
+    tick: 20,
+    kind: MemoryKind.PARENT_DEATH,
+    importance: 50,
+    emotionalValue: -900,
+    strength: 400,
+    subjectCreatureId: DEAD_MOTHER_ID,
+    territoryId: 1,
+    payload: { tags: ["grief"], template: "parent_death.v1" },
+  },
+  {
+    id: 2,
+    tick: 40,
+    kind: MemoryKind.DISCOVERY,
+    importance: 10,
+    emotionalValue: 300,
+    strength: 90,
+    subjectCreatureId: null,
+    territoryId: 1,
+    payload: { tags: ["discovery"], template: "discovery.v1" },
+  },
+  {
+    id: 3,
+    tick: 50,
+    kind: MemoryKind.CONVERSATION,
+    importance: 1,
+    emotionalValue: 200,
+    strength: 40,
+    subjectCreatureId: FATHER_ID,
+    territoryId: 1,
+    payload: { tags: [], template: "conversation.v1" },
+  },
+];
+
+const childPair: RelationshipView = {
+  id: 1,
+  creatureAId: FATHER_ID,
+  creatureBId: CHILD_ID,
+  score: 420,
+  friendship: 650,
+  romance: 0,
+  trust: 320,
+  cooperation: 120,
+  avoidance: 0,
+  conflict: 0,
+  metTick: 20,
+  lastInteractionTick: 50,
+  interactionCount: 4,
+  labels: [RelationshipLabel.FRIEND],
+};
+
+const deadMother: CreatureView = {
+  ...founder({
+    id: DEAD_MOTHER_ID,
+    name: "Ash",
+    speciesId: 1,
+    gender: Gender.FEMALE,
+    territoryId: 1,
+    lineageId: 1,
+  }),
+  status: CreatureStatus.DEAD,
+  ageDays: 12,
+  currentGoal: Goal.IDLE,
+};
+
+const inspectableChild: CreatureView = {
+  id: CHILD_ID,
+  name: "Quill",
+  ageDays: 8,
+  speciesId: 1,
+  gender: Gender.FEMALE,
+  status: CreatureStatus.ALIVE,
+  genes: {
+    strength: 540,
+    speed: 480,
+    intelligence: 560,
+    curiosity: 620,
+    sociability: 510,
+    extra: {},
+  },
+  personality: {
+    curiosity: 640,
+    aggression: 360,
+    loyalty: 580,
+    sociability: 550,
+    bravery: 520,
+    riskTaking: 490,
+    extra: {},
+  },
+  memories: childMemories,
+  relationships: [childPair],
+  needs: {
+    hunger: 420,
+    thirst: 280,
+    fatigue: 180,
+    discomfort: 90,
+    unsafety: 60,
+    loneliness: 240,
+  },
+  currentGoal: Goal.FIND_FOOD,
+  family: {
+    motherId: DEAD_MOTHER_ID,
+    fatherId: FATHER_ID,
+    lineageId: 1,
+    generation: 1,
+  },
+  territoryId: 1,
+  currentAction: null,
+  actionTargetKind: ActionTargetKind.NONE,
+  actionTargetId: null,
+  actionStartedTick: null,
+  actionEndsTick: null,
+};
+
+/** Seed-shaped fixture: meadow / thicket / ridge with founders plus Quill. */
+export const FIXTURE_WORLD_VIEW: WorldView = {
+  world: {
+    id: 1,
+    name: "Living World",
+    seed: 1,
+    schemaVersion: 1,
+    rulesetVersion: 1,
+    lastTick: 80,
+    clockAtMs: 0,
+  },
+  territories: [
+    {
+      id: 1,
+      slug: "meadow",
+      name: "Meadow",
+      foodAbundance: 700,
+      danger: 200,
+      capacity: 40,
+      food: 700,
+      effectiveDanger: 200,
+      population: 5,
+    },
+    {
+      id: 2,
+      slug: "thicket",
+      name: "Thicket",
+      foodAbundance: 500,
+      danger: 450,
+      capacity: 30,
+      food: 500,
+      effectiveDanger: 450,
+      population: 4,
+    },
+    {
+      id: 3,
+      slug: "ridge",
+      name: "Ridge",
+      foodAbundance: 350,
+      danger: 700,
+      capacity: 20,
+      food: 350,
+      effectiveDanger: 700,
+      population: 4,
+    },
+  ],
+  links: [
+    { fromId: 1, toId: 2, travelTicks: 6 },
+    { fromId: 2, toId: 1, travelTicks: 6 },
+    { fromId: 2, toId: 3, travelTicks: 8 },
+    { fromId: 3, toId: 2, travelTicks: 8 },
+  ],
+  lineages: [
+    {
+      id: 1,
+      name: "Bri line",
+      speciesId: 1,
+      founderCreatureId: 1,
+      foundedTick: 0,
+      playerFavor: 0,
+      extinct: false,
+    },
+    {
+      id: 2,
+      name: "Fen line",
+      speciesId: 1,
+      founderCreatureId: 2,
+      foundedTick: 0,
+      playerFavor: 0,
+      extinct: false,
+    },
+    {
+      id: 3,
+      name: "Mos line",
+      speciesId: 1,
+      founderCreatureId: 3,
+      foundedTick: 0,
+      playerFavor: 0,
+      extinct: false,
+    },
+    {
+      id: 4,
+      name: "Pel line",
+      speciesId: 1,
+      founderCreatureId: 4,
+      foundedTick: 0,
+      playerFavor: 0,
+      extinct: false,
+    },
+    {
+      id: 5,
+      name: "Ari line",
+      speciesId: 2,
+      founderCreatureId: 5,
+      foundedTick: 0,
+      playerFavor: 0,
+      extinct: false,
+    },
+    {
+      id: 6,
+      name: "Sol line",
+      speciesId: 2,
+      founderCreatureId: 6,
+      foundedTick: 0,
+      playerFavor: 0,
+      extinct: false,
+    },
+    {
+      id: 7,
+      name: "Kae line",
+      speciesId: 2,
+      founderCreatureId: 7,
+      foundedTick: 0,
+      playerFavor: 0,
+      extinct: false,
+    },
+    {
+      id: 8,
+      name: "Lun line",
+      speciesId: 2,
+      founderCreatureId: 8,
+      foundedTick: 0,
+      playerFavor: 0,
+      extinct: false,
+    },
+    {
+      id: 9,
+      name: "Tor line",
+      speciesId: 3,
+      founderCreatureId: 9,
+      foundedTick: 0,
+      playerFavor: 0,
+      extinct: false,
+    },
+    {
+      id: 10,
+      name: "Vess line",
+      speciesId: 3,
+      founderCreatureId: 10,
+      foundedTick: 0,
+      playerFavor: 0,
+      extinct: false,
+    },
+    {
+      id: 11,
+      name: "Nima line",
+      speciesId: 3,
+      founderCreatureId: 11,
+      foundedTick: 0,
+      playerFavor: 0,
+      extinct: false,
+    },
+    {
+      id: 12,
+      name: "Oak line",
+      speciesId: 3,
+      founderCreatureId: 12,
+      foundedTick: 0,
+      playerFavor: 0,
+      extinct: false,
+    },
+  ],
+  creatures: [
+    founder({
+      id: 1,
+      name: "Bri",
+      speciesId: 1,
+      gender: Gender.FEMALE,
+      territoryId: 1,
+      lineageId: 1,
+    }),
+    { ...fenFather, relationships: [childPair] },
+    founder({
+      id: 3,
+      name: "Mos",
+      speciesId: 1,
+      gender: Gender.FEMALE,
+      territoryId: 1,
+      lineageId: 3,
+    }),
+    founder({
+      id: 4,
+      name: "Pel",
+      speciesId: 1,
+      gender: Gender.MALE,
+      territoryId: 1,
+      lineageId: 4,
+    }),
+    founder({
+      id: 5,
+      name: "Ari",
+      speciesId: 2,
+      gender: Gender.FEMALE,
+      territoryId: 2,
+      lineageId: 5,
+    }),
+    founder({
+      id: 6,
+      name: "Sol",
+      speciesId: 2,
+      gender: Gender.MALE,
+      territoryId: 2,
+      lineageId: 6,
+    }),
+    founder({
+      id: 7,
+      name: "Kae",
+      speciesId: 2,
+      gender: Gender.FEMALE,
+      territoryId: 2,
+      lineageId: 7,
+    }),
+    founder({
+      id: 8,
+      name: "Lun",
+      speciesId: 2,
+      gender: Gender.MALE,
+      territoryId: 2,
+      lineageId: 8,
+    }),
+    founder({
+      id: 9,
+      name: "Tor",
+      speciesId: 3,
+      gender: Gender.FEMALE,
+      territoryId: 3,
+      lineageId: 9,
+    }),
+    founder({
+      id: 10,
+      name: "Vess",
+      speciesId: 3,
+      gender: Gender.MALE,
+      territoryId: 3,
+      lineageId: 10,
+    }),
+    founder({
+      id: 11,
+      name: "Nima",
+      speciesId: 3,
+      gender: Gender.FEMALE,
+      territoryId: 3,
+      lineageId: 11,
+    }),
+    founder({
+      id: 12,
+      name: "Oak",
+      speciesId: 3,
+      gender: Gender.MALE,
+      territoryId: 3,
+      lineageId: 12,
+    }),
+    // Dead mother stays in the cache for lineage panels; map filters ALIVE.
+    deadMother,
+    inspectableChild,
+  ],
+  relationships: [childPair],
+  events: [],
+};
+
+/** Host-side family response for Quill — includes dead mother Ash. */
+export const FIXTURE_FAMILY_BY_CREATURE_ID: Record<number, FamilyQueryResult> =
+  {
+    [CHILD_ID]: {
+      children: [],
+      siblings: [],
+      ancestors: [
+        { creature: deadMother, depth: 1 },
+        { creature: fenFather, depth: 1 },
+      ],
+      descendants: [],
+    },
+  };
+
+export const FIXTURE_INSPECTABLE_CHILD_ID = CHILD_ID;
+export const FIXTURE_DEAD_MOTHER_ID = DEAD_MOTHER_ID;

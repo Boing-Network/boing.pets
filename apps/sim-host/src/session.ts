@@ -1,7 +1,8 @@
 /**
  * Single-writer host session: load, step, dirty commit, discard-on-crash.
- * Catch-up wall clock is M12. This milestone only covers persist boundaries.
+ * Offline catch-up and live clock both commit through this dirty path.
  */
+import type { CatchupReport } from "@boing-pets/contract";
 import { createWorld, step, type WorldSnapshot } from "@boing-pets/sim";
 import {
   clearDirty,
@@ -19,12 +20,18 @@ export type HostSession = {
   snapshot: WorldSnapshot;
   dirty: DirtySet;
   repository: WorldRepository;
+  /**
+   * True while catch-up is running. Influence submits wait until false so
+   * `issuedAtTick` uses the post-catch-up `lastTick + 1`.
+   */
+  catchingUp: boolean;
 };
 
 /** Boot from the store, or createWorld(seed) when empty and persist it. */
 export async function bootSession(
   repository: WorldRepository,
   seed: number,
+  options: { nowMs?: number } = {},
 ): Promise<HostSession> {
   const loaded = await loadSnapshot(repository);
   if (loaded != null) {
@@ -32,14 +39,19 @@ export async function bootSession(
       snapshot: loaded,
       dirty: createDirtySet(),
       repository,
+      catchingUp: false,
     };
   }
   const { snapshot, events } = createWorld(seed);
+  // createWorld leaves clockAtMs at 0; the host stamps wall time on insert
+  // so a cold launch does not owe an epoch→now catch-up.
+  snapshot.world.clockAtMs = options.nowMs ?? Date.now();
   await saveWorldgen(repository, snapshot, events);
   return {
     snapshot,
     dirty: createDirtySet(),
     repository,
+    catchingUp: false,
   };
 }
 
@@ -51,8 +63,16 @@ export function stepSession(session: HostSession): void {
 }
 
 /** Persist the dirty window, then prune DEAD rows from the hot snapshot. */
-export async function commitSession(session: HostSession): Promise<void> {
-  await saveDirty(session.repository, session.snapshot, session.dirty);
+export async function commitSession(
+  session: HostSession,
+  options: { catchup?: CatchupReport | null } = {},
+): Promise<void> {
+  await saveDirty(
+    session.repository,
+    session.snapshot,
+    session.dirty,
+    options.catchup ?? null,
+  );
   pruneHotSnapshot(session.snapshot);
   clearDirty(session.dirty);
 }

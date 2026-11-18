@@ -1,0 +1,12 @@
+{
+  "seed": 17,
+  "livingAtStart": 5000,
+  "livingAtEnd": 0,
+  "ticks": 144,
+  "lastTick": 144,
+  "worldgenMs": 218.516,
+  "stepMs": 630729.828,
+  "commitMs": 107.103,
+  "totalMs": 631055.447,
+  "recordedAt": "2026-11-18T13:07:15.122Z"
+}

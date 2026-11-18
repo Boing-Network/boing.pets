@@ -1,0 +1,23 @@
+{
+  "name": "@boing-pets/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "node ./scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "npm run build && electron .",
+    "smoke": "node --import tsx ./scripts/smoke-cold-boot.mjs"
+  },
+  "dependencies": {
+    "@boing-pets/contract": "0.0.0",
+    "@boing-pets/db": "0.0.0",
+    "@boing-pets/sim-host": "0.0.0",
+    "embedded-postgres": "18.6.0-beta.19"
+  },
+  "devDependencies": {
+    "electron": "45.3.4",
+    "esbuild": "^0.25.12"
+  }
+}

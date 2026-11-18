@@ -192,7 +192,7 @@ const livingPets = { rules: { boundaries: boundaryRule } };
 
 export default ts.config(
   {
-    ignores: ["dist/**", "node_modules/**"],
+    ignores: ["**/dist/**", "node_modules/**"],
   },
   js.configs.recommended,
   ...ts.configs.recommended,
@@ -289,6 +289,8 @@ export default ts.config(
             "@boing-pets/contract",
             "@boing-pets/db",
             "@boing-pets/sim",
+            "node:fs",
+            "node:path",
           ],
         },
       ],
@@ -308,13 +310,130 @@ export default ts.config(
             "@boing-pets/sim",
             "node:test",
             "node:assert",
+            "node:fs",
+            "node:path",
+            "node:url",
+            "node:os",
           ],
         },
       ],
     },
   },
   {
-    files: ["packages/db/scripts/**/*.mjs"],
+    files: ["apps/client/src/**/*.{ts,tsx}"],
+    plugins: { "living-pets": livingPets },
+    rules: {
+      "living-pets/boundaries": [
+        "error",
+        {
+          packageDir: "apps/client",
+          allowPackages: [
+            "@boing-pets/contract",
+            "react",
+            "react-dom",
+            "react/jsx-runtime",
+            "three",
+            "@react-three/fiber",
+            "@react-three/drei",
+            "zustand",
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["apps/client/test/**/*.ts"],
+    plugins: { "living-pets": livingPets },
+    rules: {
+      "living-pets/boundaries": [
+        "error",
+        {
+          packageDir: "apps/client",
+          allowPackages: [
+            "@boing-pets/contract",
+            "react",
+            "react-dom",
+            "react/jsx-runtime",
+            "three",
+            "@react-three/fiber",
+            "@react-three/drei",
+            "zustand",
+            "node:test",
+            "node:assert",
+            "node:fs",
+            "node:path",
+            "node:url",
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["apps/desktop/src/**/*.{ts,tsx}"],
+    plugins: { "living-pets": livingPets },
+    rules: {
+      "living-pets/boundaries": [
+        "error",
+        {
+          packageDir: "apps/desktop",
+          allowPackages: [
+            "@boing-pets/contract",
+            "@boing-pets/db",
+            "@boing-pets/sim-host",
+            "electron",
+            "embedded-postgres",
+            "node:fs",
+            "node:path",
+            "node:url",
+            "node:child_process",
+            "node:module",
+            "node:os",
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["apps/desktop/test/**/*.ts"],
+    plugins: { "living-pets": livingPets },
+    rules: {
+      "living-pets/boundaries": [
+        "error",
+        {
+          packageDir: "apps/desktop",
+          allowPackages: [
+            "@boing-pets/contract",
+            "@boing-pets/db",
+            "@boing-pets/sim-host",
+            "electron",
+            "embedded-postgres",
+            "node:test",
+            "node:assert",
+            "node:fs",
+            "node:path",
+            "node:url",
+            "node:child_process",
+            "node:os",
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["apps/client/vite.config.ts"],
+    languageOptions: {
+      globals: {
+        process: "readonly",
+      },
+    },
+  },
+  {
+    files: [
+      "packages/db/scripts/**/*.mjs",
+      "apps/client/scripts/**/*.mjs",
+      "apps/sim-host/scripts/**/*.mjs",
+      "apps/desktop/scripts/**/*.mjs",
+    ],
     languageOptions: {
       globals: {
         console: "readonly",

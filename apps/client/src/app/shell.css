@@ -1,0 +1,93 @@
+:root {
+  color-scheme: dark;
+  --bg-deep: #071018;
+  --bg-panel: #0e1a24;
+  --ink: #e4f0ec;
+  --ink-muted: #8eabb0;
+  --line: #1e3640;
+  --brand: #d7efe8;
+  --glow: #3ecfc0;
+  font-family:
+    "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia,
+    serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: var(--bg-deep);
+  color: var(--ink);
+}
+
+body {
+  background:
+    radial-gradient(ellipse at 18% 8%, #1a3a48 0%, transparent 50%),
+    radial-gradient(ellipse at 82% 92%, #1a2830 0%, transparent 48%),
+    radial-gradient(ellipse at 50% 100%, #0f2a28 0%, transparent 40%),
+    linear-gradient(165deg, #061018 0%, #0a1822 45%, #07141c 100%);
+}
+
+.app-shell {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  min-height: 100vh;
+}
+
+.app-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg-panel) 88%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.brand {
+  margin: 0;
+  font-size: clamp(1.4rem, 2.4vw, 1.9rem);
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  color: var(--brand);
+  text-shadow: 0 0 18px color-mix(in srgb, var(--glow) 35%, transparent);
+}
+
+.meta {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+}
+
+.map-stage {
+  position: relative;
+  min-height: 0;
+}
+
+.map-stage canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.status-chip {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg-panel) 90%, transparent);
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  pointer-events: none;
+  box-shadow: 0 0 20px color-mix(in srgb, var(--glow) 12%, transparent);
+}

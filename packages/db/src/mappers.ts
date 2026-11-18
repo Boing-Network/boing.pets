@@ -5,6 +5,7 @@
 import type {
   Action,
   ActionTargetKind,
+  CatchupSummary,
   CreatureStatus,
   DeathCause,
   Diet,
@@ -557,6 +558,105 @@ export function worldHeaderToDb(header: MappedWorldHeader, ruleset: Ruleset) {
   };
 }
 
+/** Clock / counter update payload for an existing world row. */
+export function worldHeaderUpdateToDb(
+  header: MappedWorldHeader,
+  ruleset: Ruleset,
+) {
+  return {
+    name: header.name,
+    schemaVersion: header.schemaVersion,
+    rulesetVersion: header.rulesetVersion,
+    ruleset,
+    clockAt: new Date(header.clockAtMs),
+    lastTick: toBigInt(header.lastTick),
+    nextCreatureId: toBigInt(header.nextCreatureId),
+    nextMemoryId: toBigInt(header.nextMemoryId),
+    nextRelationshipId: toBigInt(header.nextRelationshipId),
+    nextEventId: toBigInt(header.nextEventId),
+    nextLineageId: toBigInt(header.nextLineageId),
+    nextModifierId: toBigInt(header.nextModifierId),
+    nextTerritoryId: toBigInt(header.nextTerritoryId),
+    nextInfluenceId: toBigInt(header.nextInfluenceId),
+  };
+}
+
+export function speciesToDb(row: MappedSpecies) {
+  return {
+    id: toBigInt(row.id),
+    worldId: toBigInt(row.worldId),
+    slug: row.slug,
+    displayName: row.displayName,
+    diet: row.diet,
+    maturityDays: row.maturityDays,
+    baseLifespanDays: row.baseLifespanDays,
+    gestationDays: row.gestationDays,
+    juvenileDays: row.juvenileDays,
+    baseCuriosity: row.baseCuriosity,
+    baseAggression: row.baseAggression,
+    baseLoyalty: row.baseLoyalty,
+    baseSociability: row.baseSociability,
+    baseBravery: row.baseBravery,
+    baseRiskTaking: row.baseRiskTaking,
+    colorHex: row.colorHex,
+  };
+}
+
+export function compatibilityToDb(row: MappedCompatibility) {
+  return {
+    worldId: toBigInt(row.worldId),
+    speciesLowId: toBigInt(row.speciesLowId),
+    speciesHighId: toBigInt(row.speciesHighId),
+    fertility: row.fertility,
+  };
+}
+
+export function territoryToDb(row: MappedTerritory) {
+  return {
+    id: toBigInt(row.id),
+    worldId: toBigInt(row.worldId),
+    slug: row.slug,
+    name: row.name,
+    foodAbundance: row.foodAbundance,
+    danger: row.danger,
+    capacity: row.capacity,
+  };
+}
+
+export function territoryLinkToDb(row: MappedTerritoryLink) {
+  return {
+    worldId: toBigInt(row.worldId),
+    fromId: toBigInt(row.fromId),
+    toId: toBigInt(row.toId),
+    travelTicks: row.travelTicks,
+  };
+}
+
+export function territoryModifierToDb(row: MappedTerritoryModifier) {
+  return {
+    id: toBigInt(row.id),
+    worldId: toBigInt(row.worldId),
+    territoryId: toBigInt(row.territoryId),
+    kind: row.kind,
+    amount: row.amount,
+    startTick: toBigInt(row.startTick),
+    endTick: toBigInt(row.endTick),
+    sourceInfluenceId: toBigIntOrNull(row.sourceInfluenceId),
+  };
+}
+
+export function lineageToDb(row: MappedLineage) {
+  return {
+    id: toBigInt(row.id),
+    worldId: toBigInt(row.worldId),
+    founderCreatureId: toBigIntOrNull(row.founderCreatureId),
+    speciesId: toBigInt(row.speciesId),
+    name: row.name,
+    foundedTick: toBigInt(row.foundedTick),
+    playerFavor: row.playerFavor,
+  };
+}
+
 export function creatureToDb(row: MappedCreature) {
   return {
     id: toBigInt(row.id),
@@ -604,4 +704,111 @@ export function creatureToDb(row: MappedCreature) {
     gestationEndTick: toBigIntOrNull(row.gestationEndTick),
     mateCooldownUntilTick: toBigIntOrNull(row.mateCooldownUntilTick),
   };
+}
+
+export function relationshipToDb(row: MappedRelationship) {
+  return {
+    id: toBigInt(row.id),
+    worldId: toBigInt(row.worldId),
+    creatureAId: toBigInt(row.creatureAId),
+    creatureBId: toBigInt(row.creatureBId),
+    score: row.score,
+    friendship: row.friendship,
+    romance: row.romance,
+    trust: row.trust,
+    cooperation: row.cooperation,
+    avoidance: row.avoidance,
+    conflict: row.conflict,
+    metTick: toBigInt(row.metTick),
+    lastInteractionTick: toBigInt(row.lastInteractionTick),
+    interactionCount: row.interactionCount,
+  };
+}
+
+export function memoryToDb(row: MappedMemory) {
+  return {
+    id: toBigInt(row.id),
+    worldId: toBigInt(row.worldId),
+    creatureId: toBigInt(row.creatureId),
+    tick: toBigInt(row.tick),
+    kind: row.kind,
+    importance: row.importance,
+    emotionalValue: row.emotionalValue,
+    initialStrength: row.initialStrength,
+    subjectCreatureId: toBigIntOrNull(row.subjectCreatureId),
+    territoryId: toBigIntOrNull(row.territoryId),
+    payload: row.payload,
+    archived: row.archived,
+  };
+}
+
+export function worldEventToDb(row: MappedWorldEvent) {
+  return {
+    id: toBigInt(row.id),
+    worldId: toBigInt(row.worldId),
+    tick: toBigInt(row.tick),
+    kind: row.kind,
+    actorId: toBigIntOrNull(row.actorId),
+    subjectId: toBigIntOrNull(row.subjectId),
+    territoryId: toBigIntOrNull(row.territoryId),
+    lineageId: toBigIntOrNull(row.lineageId),
+    summary: row.summary,
+    payload: row.payload,
+  };
+}
+
+export function influenceToDb(row: MappedInfluence) {
+  return {
+    id: toBigInt(row.id),
+    worldId: toBigInt(row.worldId),
+    kind: row.kind,
+    issuedAtTick: toBigInt(row.issuedAtTick),
+    payload: row.payload,
+    applied: row.applied,
+  };
+}
+
+export type MappedCatchupReport = {
+  id: number;
+  worldId: number;
+  fromTick: number;
+  toTick: number;
+  createdAtMs: number;
+  summary: CatchupSummary;
+};
+
+export function mapCatchupReport(row: {
+  id: bigint;
+  worldId: bigint;
+  fromTick: bigint;
+  toTick: bigint;
+  createdAt: Date;
+  summary: unknown;
+}): MappedCatchupReport {
+  return {
+    id: toNumber(row.id),
+    worldId: toNumber(row.worldId),
+    fromTick: toNumber(row.fromTick),
+    toTick: toNumber(row.toTick),
+    createdAtMs: row.createdAt.getTime(),
+    summary: asCatchupSummary(row.summary),
+  };
+}
+
+export function catchupReportToDb(row: MappedCatchupReport) {
+  return {
+    id: toBigInt(row.id),
+    worldId: toBigInt(row.worldId),
+    fromTick: toBigInt(row.fromTick),
+    toTick: toBigInt(row.toTick),
+    createdAt: new Date(row.createdAtMs),
+    summary: row.summary,
+  };
+}
+
+function asCatchupSummary(value: unknown): CatchupSummary {
+  if (value == null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("expected catchup summary");
+  }
+  return value as CatchupSummary;
 }
