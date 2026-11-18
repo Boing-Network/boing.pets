@@ -32,29 +32,32 @@ const SKIN_PALETTES: Record<CreatureSkinId, CreatureSkinPalette> = {
   "fire-fox": {
     id: "fire-fox",
     label: "Fire fox",
-    primary: "#E07A3D",
-    secondary: "#F4E6D0",
+    primary: "#D47238",
+    secondary: "#F0E4D0",
     accent: "#2A2420",
-    emissive: "#FFB347",
-    emissiveIntensity: 1.35,
+    emissive: "#E89840",
+    // Soft ember — readable at night, not toy neon.
+    emissiveIntensity: 0.72,
   },
   "moss-stag": {
     id: "moss-stag",
     label: "Moss stag",
-    primary: "#5F8A62",
-    secondary: "#E8E2D4",
+    primary: "#5A8260",
+    secondary: "#E6E0D2",
     accent: "#6B4E2E",
-    emissive: "#7FE8FF",
-    emissiveIntensity: 1.1,
+    emissive: "#6BC8D8",
+    // Cyan lichen biolights, atmospheric.
+    emissiveIntensity: 0.55,
   },
   "lantern-moth": {
     id: "lantern-moth",
     label: "Lantern moth",
-    primary: "#F0EEF8",
+    primary: "#F2F0F6",
     secondary: "#B9A6D9",
-    accent: "#6AD4C8",
-    emissive: "#FFD56A",
-    emissiveIntensity: 1.55,
+    accent: "#5FC4B8",
+    emissive: "#E8C060",
+    // Warm lantern core through soft down.
+    emissiveIntensity: 0.85,
   },
 };
 

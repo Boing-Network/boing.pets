@@ -92,6 +92,17 @@ export function CameraRig({ model, focus, onTarget }: Props) {
         driveUntil.current = 0;
         onTarget({ x, y, z });
       },
+      /** Frame the current selection focus (set by WorldScene). */
+      frameFocus(distance = 14) {
+        const point = (
+          window as unknown as {
+            __livingPetsFocus?: { x: number; y: number; z: number };
+          }
+        ).__livingPetsFocus;
+        if (!point) return false;
+        api.lookAt(point.x, point.y + 0.35, point.z, distance);
+        return true;
+      },
       home() {
         const ctrl = controls.current;
         if (!ctrl) return;

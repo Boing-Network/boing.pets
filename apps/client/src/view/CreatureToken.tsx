@@ -20,6 +20,7 @@ import {
 import { behaviorFor, locomotionForSpecies } from "./motion/behavior";
 import { NEUTRAL_POSE, mixPose, type CreaturePose } from "./motion/pose";
 import { relocateProgress } from "./presentation";
+import { worldScaleForSkin } from "./creatures/materials";
 import { skinForSpecies } from "./species-skins";
 import { worldTime } from "./world/gfx";
 import { hash01 } from "./world/noise";
@@ -396,10 +397,12 @@ export function CreatureToken({
     onFocus?.({ x: s.x, y: s.y + hover, z: s.z });
   });
 
+  const scale = worldScaleForSkin(skin.id, selected);
+
   return (
     <group
       ref={group}
-      scale={5.2}
+      scale={scale}
       onClick={(event) => {
         event.stopPropagation();
         onSelect(creature.id);
@@ -414,9 +417,14 @@ export function CreatureToken({
         <meshBasicMaterial />
       </mesh>
       {selected ? (
-        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[0.32, 0.4, 32]} />
-          <meshBasicMaterial color={skin.emissive} transparent opacity={0.9} />
+        <mesh position={[0, 0.018, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.34, 0.42, 36]} />
+          <meshBasicMaterial
+            color={skin.emissive}
+            transparent
+            opacity={0.55}
+            depthWrite={false}
+          />
         </mesh>
       ) : null}
       <CreaturePresentation

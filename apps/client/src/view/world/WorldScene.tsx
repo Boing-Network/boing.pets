@@ -49,6 +49,12 @@ export function WorldScene() {
 
   useFrame((_, delta) => {
     worldTime.value += Math.min(delta, 0.05);
+    // Demo / media helper for framing the selected creature.
+    (
+      window as unknown as {
+        __livingPetsFocus?: { x: number; y: number; z: number } | null;
+      }
+    ).__livingPetsFocus = creatureFocus;
   });
 
   if (!view || !model || !flora) return null;

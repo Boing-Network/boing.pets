@@ -4,6 +4,13 @@ import { useRef, type RefObject } from "react";
 import type { Group } from "three";
 import type { CreaturePose } from "../motion/pose";
 import type { CreatureSkinPalette } from "../species-skins";
+import { GroundContact } from "./GroundContact";
+import {
+  downMaterial,
+  hardMaterial,
+  loreGlow,
+  wingMembrane,
+} from "./materials";
 
 type Props = {
   palette: CreatureSkinPalette;
@@ -11,157 +18,185 @@ type Props = {
   pose: RefObject<CreaturePose>;
 };
 
-/** Stylized lantern-moth silhouette: fluffy body, glowing core, wide wings. */
+/**
+ * Lantern-moth: downy white body, warm lantern core, iridescent membranes.
+ * Glow is an inner volume light — soft and atmospheric, not neon discs.
+ */
 export function LanternMothMesh({ palette, selected, pose }: Props) {
-  const scale = selected ? 1.1 : 1;
   const root = useRef<Group>(null);
   const head = useRef<Group>(null);
   const leftWing = useRef<Group>(null);
   const rightWing = useRef<Group>(null);
+  const down = downMaterial(palette.primary);
+  const fluff = downMaterial("#E8E6F2");
+  const antenna = hardMaterial(palette.secondary, 0.7);
+  const leg = hardMaterial("#5A4A6A", 0.75);
+  const core = loreGlow(palette, selected ? 1.05 : 0.75);
+  const wing = wingMembrane(palette.accent);
+
   useFrame(() => {
     const p = pose.current;
     if (!p || !root.current) return;
     root.current.rotation.x = p.bodyPitch * 0.25;
     if (head.current) head.current.rotation.x = p.headPitch * 0.5;
     const flap =
-      Math.sin(p.gait * Math.PI * 2) * 0.55 * Math.max(0.25, p.gaitWeight);
-    if (leftWing.current) leftWing.current.rotation.z = 0.35 + flap;
-    if (rightWing.current) rightWing.current.rotation.z = -0.35 - flap;
+      Math.sin(p.gait * Math.PI * 2) * 0.5 * Math.max(0.25, p.gaitWeight);
+    if (leftWing.current) leftWing.current.rotation.z = 0.32 + flap;
+    if (rightWing.current) rightWing.current.rotation.z = -0.32 - flap;
   });
+
   return (
-    <group ref={root} scale={scale} position={[0, 0.12, 0]}>
-      {/* Fluffy body */}
+    <group ref={root} position={[0, 0.1, 0]}>
+      {/* Soft ground pool under hovering moth */}
+      <GroundContact radius={0.34} opacity={selected ? 0.36 : 0.26} y={-0.08} />
+
+      {/* Fluffy body with layered down suggestion */}
       <mesh position={[0, 0.14, 0]} castShadow>
-        <sphereGeometry args={[0.14, 16, 14]} />
-        <meshStandardMaterial
-          color={palette.primary}
-          roughness={0.85}
-          metalness={0}
-        />
+        <sphereGeometry args={[0.14, 18, 16]} />
+        <meshStandardMaterial {...down} />
       </mesh>
-      {/* Lantern abdomen glow */}
-      <mesh position={[0, 0.06, 0.02]}>
-        <sphereGeometry args={[0.085, 12, 10]} />
+      <mesh position={[0, 0.16, -0.02]} scale={[0.95, 0.85, 1.05]}>
+        <sphereGeometry args={[0.12, 12, 10]} />
+        <meshStandardMaterial {...fluff} />
+      </mesh>
+      {(
+        [
+          [-0.08, 0.18, 0.02],
+          [0.08, 0.18, 0.02],
+          [0, 0.2, -0.06],
+          [0, 0.1, 0.08],
+        ] as const
+      ).map((pos, i) => (
+        <mesh key={`tuft-${i}`} position={pos} scale={[0.85, 1, 0.85]}>
+          <sphereGeometry args={[0.04, 8, 6]} />
+          <meshStandardMaterial {...down} />
+        </mesh>
+      ))}
+
+      {/* Inner lantern — warm volume glow */}
+      <mesh position={[0, 0.08, 0.02]}>
+        <sphereGeometry args={[0.078, 14, 12]} />
+        <meshStandardMaterial {...core} />
+      </mesh>
+      <mesh position={[0, 0.08, 0.02]} scale={1.15}>
+        <sphereGeometry args={[0.078, 12, 10]} />
         <meshStandardMaterial
           color={palette.emissive}
           emissive={palette.emissive}
-          emissiveIntensity={palette.emissiveIntensity}
-          roughness={0.25}
+          emissiveIntensity={palette.emissiveIntensity * 0.35}
+          transparent
+          opacity={0.28}
+          depthWrite={false}
+          roughness={0.6}
         />
       </mesh>
       <pointLight
-        position={[0, 0.08, 0.06]}
+        position={[0, 0.08, 0.04]}
         color={palette.emissive}
-        intensity={selected ? 1.1 : 0.7}
-        distance={2.6}
+        intensity={selected ? 0.55 : 0.32}
+        distance={2.0}
+        decay={2}
       />
-      {/* Head */}
-      <mesh position={[0, 0.24, 0.1]}>
-        <sphereGeometry args={[0.08, 12, 10]} />
-        <meshStandardMaterial color={palette.primary} roughness={0.8} />
-      </mesh>
-      {/* Large amber eyes */}
-      <mesh position={[-0.035, 0.25, 0.16]}>
-        <sphereGeometry args={[0.028, 10, 10]} />
-        <meshStandardMaterial
-          color="#3B2418"
-          emissive="#C48A2A"
-          emissiveIntensity={0.4}
-          roughness={0.15}
-        />
-      </mesh>
-      <mesh position={[0.035, 0.25, 0.16]}>
-        <sphereGeometry args={[0.028, 10, 10]} />
-        <meshStandardMaterial
-          color="#3B2418"
-          emissive="#C48A2A"
-          emissiveIntensity={0.4}
-          roughness={0.15}
-        />
-      </mesh>
-      {/* Feathered antennae */}
-      <mesh position={[-0.05, 0.36, 0.1]} rotation={[0.15, 0, -0.55]}>
-        <cylinderGeometry args={[0.006, 0.01, 0.16, 5]} />
-        <meshStandardMaterial color={palette.secondary} roughness={0.55} />
-      </mesh>
-      <mesh position={[0.05, 0.36, 0.1]} rotation={[0.15, 0, 0.55]}>
-        <cylinderGeometry args={[0.006, 0.01, 0.16, 5]} />
-        <meshStandardMaterial color={palette.secondary} roughness={0.55} />
-      </mesh>
-      <mesh position={[-0.1, 0.43, 0.07]}>
-        <sphereGeometry args={[0.025, 8, 6]} />
-        <meshStandardMaterial color={palette.secondary} roughness={0.65} />
-      </mesh>
-      <mesh position={[0.1, 0.43, 0.07]}>
-        <sphereGeometry args={[0.025, 8, 6]} />
-        <meshStandardMaterial color={palette.secondary} roughness={0.65} />
-      </mesh>
-      {/* Wide iridescent wings */}
-      <group ref={leftWing} position={[-0.06, 0.16, -0.02]}>
-        <mesh
-          position={[-0.14, 0.04, 0]}
-          rotation={[0.25, 0.45, -0.45]}
-          castShadow
-        >
-          <planeGeometry args={[0.42, 0.28]} />
+
+      <group ref={head}>
+        <mesh position={[0, 0.24, 0.1]}>
+          <sphereGeometry args={[0.078, 14, 12]} />
+          <meshStandardMaterial {...down} />
+        </mesh>
+        {/* Dark liquid eyes with warm catchlight */}
+        <mesh position={[-0.034, 0.25, 0.155]}>
+          <sphereGeometry args={[0.028, 12, 12]} />
           <meshStandardMaterial
-            color={palette.accent}
-            emissive={palette.accent}
-            emissiveIntensity={0.75}
-            transparent
-            opacity={0.78}
-            side={DoubleSide}
-            roughness={0.2}
-            metalness={0.2}
+            color="#1A1410"
+            emissive="#8A6020"
+            emissiveIntensity={0.18}
+            roughness={0.12}
+            metalness={0.15}
           />
         </mesh>
-        <mesh position={[-0.22, 0.06, 0.04]}>
-          <sphereGeometry args={[0.03, 8, 8]} />
+        <mesh position={[0.034, 0.25, 0.155]}>
+          <sphereGeometry args={[0.028, 12, 12]} />
           <meshStandardMaterial
-            color={palette.emissive}
-            emissive={palette.emissive}
-            emissiveIntensity={1}
+            color="#1A1410"
+            emissive="#8A6020"
+            emissiveIntensity={0.18}
+            roughness={0.12}
+            metalness={0.15}
           />
+        </mesh>
+        {/* Feathered antennae */}
+        <mesh position={[-0.05, 0.36, 0.1]} rotation={[0.15, 0, -0.55]}>
+          <cylinderGeometry args={[0.005, 0.01, 0.16, 5]} />
+          <meshStandardMaterial {...antenna} />
+        </mesh>
+        <mesh position={[0.05, 0.36, 0.1]} rotation={[0.15, 0, 0.55]}>
+          <cylinderGeometry args={[0.005, 0.01, 0.16, 5]} />
+          <meshStandardMaterial {...antenna} />
+        </mesh>
+        <mesh position={[-0.1, 0.43, 0.07]} scale={[1.2, 0.7, 0.8]}>
+          <sphereGeometry args={[0.024, 8, 6]} />
+          <meshStandardMaterial {...antenna} />
+        </mesh>
+        <mesh position={[0.1, 0.43, 0.07]} scale={[1.2, 0.7, 0.8]}>
+          <sphereGeometry args={[0.024, 8, 6]} />
+          <meshStandardMaterial {...antenna} />
         </mesh>
       </group>
-      <group ref={rightWing} position={[0.06, 0.16, -0.02]}>
+
+      {/* Four-wing suggestion: soft oval membranes (not neon rectangles) */}
+      <group ref={leftWing} position={[-0.05, 0.16, -0.02]}>
         <mesh
-          position={[0.14, 0.04, 0]}
-          rotation={[0.25, -0.45, 0.45]}
+          position={[-0.15, 0.05, 0]}
+          rotation={[0.2, 0.4, -0.4]}
+          scale={[1, 0.7, 1]}
           castShadow
         >
-          <planeGeometry args={[0.42, 0.28]} />
-          <meshStandardMaterial
-            color={palette.accent}
-            emissive={palette.accent}
-            emissiveIntensity={0.75}
-            transparent
-            opacity={0.78}
-            side={DoubleSide}
-            roughness={0.2}
-            metalness={0.2}
-          />
+          <circleGeometry args={[0.2, 18]} />
+          <meshStandardMaterial {...wing} side={DoubleSide} />
         </mesh>
-        <mesh position={[0.22, 0.06, 0.04]}>
-          <sphereGeometry args={[0.03, 8, 8]} />
-          <meshStandardMaterial
-            color={palette.emissive}
-            emissive={palette.emissive}
-            emissiveIntensity={1}
-          />
+        <mesh
+          position={[-0.12, -0.04, 0.02]}
+          rotation={[0.35, 0.35, -0.55]}
+          scale={[1, 0.65, 1]}
+        >
+          <circleGeometry args={[0.13, 14]} />
+          <meshStandardMaterial {...wing} side={DoubleSide} opacity={0.45} />
         </mesh>
       </group>
-      {/* Tiny legs */}
+      <group ref={rightWing} position={[0.05, 0.16, -0.02]}>
+        <mesh
+          position={[0.15, 0.05, 0]}
+          rotation={[0.2, -0.4, 0.4]}
+          scale={[1, 0.7, 1]}
+          castShadow
+        >
+          <circleGeometry args={[0.2, 18]} />
+          <meshStandardMaterial {...wing} side={DoubleSide} />
+        </mesh>
+        <mesh
+          position={[0.12, -0.04, 0.02]}
+          rotation={[0.35, -0.35, 0.55]}
+          scale={[1, 0.65, 1]}
+        >
+          <circleGeometry args={[0.13, 14]} />
+          <meshStandardMaterial {...wing} side={DoubleSide} opacity={0.45} />
+        </mesh>
+      </group>
+
+      {/* Tiny tucked legs */}
       {(
         [
-          [-0.04, 0.02, 0.05],
-          [0.04, 0.02, 0.05],
-          [0, 0.02, -0.03],
+          [-0.045, 0.02, 0.05],
+          [0.045, 0.02, 0.05],
+          [-0.03, 0.02, -0.02],
+          [0.03, 0.02, -0.02],
+          [0, 0.015, 0.08],
+          [0, 0.015, -0.05],
         ] as const
       ).map((pos, index) => (
-        <mesh key={index} position={pos}>
-          <cylinderGeometry args={[0.007, 0.01, 0.06, 4]} />
-          <meshStandardMaterial color={palette.secondary} roughness={0.7} />
+        <mesh key={`leg-${index}`} position={pos} rotation={[0.4, 0, 0]}>
+          <cylinderGeometry args={[0.006, 0.009, 0.055, 4]} />
+          <meshStandardMaterial {...leg} />
         </mesh>
       ))}
     </group>
