@@ -1,6 +1,8 @@
 import {
   Action,
   ActionTargetKind,
+  CreatureStatus,
+  DeathCause,
   EventTemplate,
   Goal,
   MemoryKind,
@@ -8,11 +10,19 @@ import {
   MigrationReason,
 } from "@boing-pets/contract";
 import { discoveryEvent, migrationEvent } from "../history/events";
+import { die } from "../kernel/death";
 import type { TerritoryTick } from "../kernel/needs";
 import { settleScore } from "../kernel/territories";
 import { clamp, divRound } from "../math";
 import { initialMemoryStrength } from "../memories/strength";
 import { isMemoryThrottled } from "../memories/throttle";
+import {
+  applyContestDelta,
+  applyCooperateForageDelta,
+  applySnubDelta,
+  applySocializeDelta,
+  ensureRelationship,
+} from "../relationships/delta";
 import type { CreatureRow, WorldEvent, WorldSnapshot } from "../types";
 import {
   bestMateTarget,
@@ -393,7 +403,7 @@ function contestGateOpen(
 
 /**
  * Flat goal → action table. Picks the first matching gate and starts the action.
- * Resolution of forage, contest, court, and the rest is a later milestone.
+ * Contest, approach, and cooperate resolve when the slot ends; court/forage later.
  */
 export function startActionForGoal(
   snapshot: WorldSnapshot,
@@ -599,11 +609,255 @@ export function chooseAndStartAction(
   startActionForGoal(snapshot, creature, tick, goal, territories);
 }
 
+const CONFLICT_IMPORTANCE = 8;
+const CONFLICT_EMOTION = -400;
+const CONVERSATION_IMPORTANCE = 1;
+const CONVERSATION_EMOTION = 200;
+const COOPERATION_IMPORTANCE = 6;
+const COOPERATION_EMOTION = 250;
+
+function rememberFor(
+  snapshot: WorldSnapshot,
+  creature: CreatureRow,
+  tick: number,
+  kind: MemoryKind,
+  importance: number,
+  emotionalValue: number,
+  subjectCreatureId: number | null,
+  territoryId: number | null,
+  tags: MemoryTag[],
+  template: string,
+): void {
+  if (
+    isMemoryThrottled(snapshot, {
+      creatureId: creature.id,
+      kind,
+      tick,
+      subjectCreatureId,
+      territoryId,
+      tags,
+    })
+  ) {
+    return;
+  }
+  snapshot.memories.push({
+    id: take(snapshot, "nextMemoryId"),
+    worldId: snapshot.world.id,
+    creatureId: creature.id,
+    tick,
+    kind,
+    importance,
+    emotionalValue,
+    initialStrength: initialMemoryStrength(importance, snapshot.ruleset),
+    subjectCreatureId,
+    territoryId,
+    payload: { tags, template },
+    archived: false,
+  });
+}
+
+function contestPower(creature: CreatureRow): number {
+  return creature.geneStrength * 2 + creature.traitAggression;
+}
+
 /**
- * End an action whose effects are not implemented yet. Relocate resolves
- * through `resolveRelocate`. Forage, contest, and the rest clear the slot so
- * utility can run on the same tick.
+ * Higher power wins. Tie: lower creature id. Both get conflict deltas and a
+ * CONFLICT memory. A loser at 0 health dies of INJURY.
  */
+export function resolveContest(
+  snapshot: WorldSnapshot,
+  actor: CreatureRow,
+  tick: number,
+): WorldEvent[] {
+  const rules = snapshot.ruleset;
+  const targetId = actor.actionTargetId;
+  if (
+    actor.actionTargetKind !== ActionTargetKind.CREATURE ||
+    targetId == null
+  ) {
+    throw new Error("contest target");
+  }
+  const target = snapshot.creatures.find((row) => row.id === targetId);
+  clearAction(actor);
+  if (!target || target.status !== CreatureStatus.ALIVE) return [];
+
+  const actorPower = contestPower(actor);
+  const targetPower = contestPower(target);
+  const actorWins =
+    actorPower > targetPower ||
+    (actorPower === targetPower && actor.id < target.id);
+  const winner = actorWins ? actor : target;
+  const loser = actorWins ? target : actor;
+
+  winner.hunger = clamp(winner.hunger - rules.contestHungerWin, 0, 1000);
+  loser.hunger = clamp(loser.hunger - rules.contestHungerLose, 0, 1000);
+  loser.health = clamp(loser.health - rules.contestHealthLose, 0, 1000);
+  loser.unsafety = clamp(loser.unsafety + 200, 0, 1000);
+
+  const pair = ensureRelationship(snapshot, actor.id, target.id, tick);
+  applyContestDelta(pair, tick);
+
+  const territory = snapshot.territories.find(
+    (row) => row.id === actor.territoryId,
+  );
+  if (!territory) throw new Error("territory");
+  for (const creature of [actor, target]) {
+    const other = creature.id === actor.id ? target : actor;
+    rememberFor(
+      snapshot,
+      creature,
+      tick,
+      MemoryKind.CONFLICT,
+      CONFLICT_IMPORTANCE,
+      CONFLICT_EMOTION,
+      other.id,
+      actor.territoryId,
+      [MemoryTag.INJURY, MemoryTag.FEAR_TERRITORY],
+      "conflict.v1",
+    );
+  }
+
+  const events: WorldEvent[] = [];
+  if (loser.health <= 0 && loser.status === CreatureStatus.ALIVE) {
+    events.push(die(snapshot, loser, tick, DeathCause.INJURY, territory.name));
+  }
+  return events;
+}
+
+/**
+ * First approach creates the pair. Snub or socialize deltas follow. Missing
+ * or dead targets end with no deltas.
+ */
+export function resolveApproach(
+  snapshot: WorldSnapshot,
+  actor: CreatureRow,
+  tick: number,
+): void {
+  const rules = snapshot.ruleset;
+  const targetId = actor.actionTargetId;
+  if (
+    actor.actionTargetKind !== ActionTargetKind.CREATURE ||
+    targetId == null
+  ) {
+    throw new Error("approach target");
+  }
+  const target = snapshot.creatures.find((row) => row.id === targetId);
+  clearAction(actor);
+  if (
+    !target ||
+    target.status !== CreatureStatus.ALIVE ||
+    target.territoryId !== actor.territoryId
+  ) {
+    return;
+  }
+
+  const pair = ensureRelationship(snapshot, actor.id, target.id, tick);
+  if (
+    target.traitSociability < rules.snubSociabilityMax &&
+    actor.traitAggression >= rules.snubAggressionMin
+  ) {
+    applySnubDelta(pair, tick, rules);
+    return;
+  }
+
+  applySocializeDelta(pair, actor.traitSociability, tick, rules);
+  actor.loneliness = clamp(
+    actor.loneliness - rules.socializeLonelinessActor,
+    0,
+    1000,
+  );
+  target.loneliness = clamp(
+    target.loneliness - rules.socializeLonelinessTarget,
+    0,
+    1000,
+  );
+  for (const creature of [actor, target]) {
+    const other = creature.id === actor.id ? target : actor;
+    rememberFor(
+      snapshot,
+      creature,
+      tick,
+      MemoryKind.CONVERSATION,
+      CONVERSATION_IMPORTANCE,
+      CONVERSATION_EMOTION,
+      other.id,
+      null,
+      [],
+      "conversation.v1",
+    );
+  }
+}
+
+/** Lower-id actor owns the action; both creatures share the hunger relief. */
+export function resolveCooperateForage(
+  snapshot: WorldSnapshot,
+  actor: CreatureRow,
+  tick: number,
+): void {
+  const rules = snapshot.ruleset;
+  const targetId = actor.actionTargetId;
+  if (
+    actor.actionTargetKind !== ActionTargetKind.CREATURE ||
+    targetId == null
+  ) {
+    throw new Error("cooperate target");
+  }
+  const target = snapshot.creatures.find((row) => row.id === targetId);
+  clearAction(actor);
+  if (
+    !target ||
+    target.status !== CreatureStatus.ALIVE ||
+    target.territoryId !== actor.territoryId
+  ) {
+    return;
+  }
+
+  actor.hunger = clamp(actor.hunger - rules.coopHungerRelief, 0, 1000);
+  target.hunger = clamp(target.hunger - rules.coopHungerRelief, 0, 1000);
+  const pair = ensureRelationship(snapshot, actor.id, target.id, tick);
+  applyCooperateForageDelta(pair, tick);
+  for (const creature of [actor, target]) {
+    const other = creature.id === actor.id ? target : actor;
+    rememberFor(
+      snapshot,
+      creature,
+      tick,
+      MemoryKind.COOPERATION,
+      COOPERATION_IMPORTANCE,
+      COOPERATION_EMOTION,
+      other.id,
+      null,
+      [],
+      "cooperation.v1",
+    );
+  }
+}
+
+/**
+ * Resolve a finished non-relocate action. Contest, approach, and cooperate
+ * write relationship deltas. Other actions clear the slot for utility.
+ */
+export function resolveFinishedAction(
+  snapshot: WorldSnapshot,
+  creature: CreatureRow,
+  tick: number,
+): WorldEvent[] {
+  switch (creature.currentAction) {
+    case Action.CONTEST:
+      return resolveContest(snapshot, creature, tick);
+    case Action.APPROACH:
+      resolveApproach(snapshot, creature, tick);
+      return [];
+    case Action.COOPERATE_FORAGE:
+      resolveCooperateForage(snapshot, creature, tick);
+      return [];
+    default:
+      clearAction(creature);
+      return [];
+  }
+}
+
+/** End an action whose effects are not implemented yet. */
 export function clearFinishedAction(creature: CreatureRow): void {
   clearAction(creature);
 }

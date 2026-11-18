@@ -11,6 +11,27 @@ export {
 } from "./memories/strength";
 export { isMemoryThrottled } from "./memories/throttle";
 export { hotMemories, memoryTermForGoal } from "./memories/score";
+export {
+  applyContestDelta,
+  applyCooperateForageDelta,
+  applyCourtAcceptDelta,
+  applyCourtRejectDelta,
+  applyGiftDelta,
+  applyGuardOffspringDelta,
+  applyRescueDelta,
+  applySnubDelta,
+  applySocializeDelta,
+  createParentChildRelationship,
+  createRelationship,
+  ensureRelationship,
+  findRelationship,
+  orderedPairIds,
+  touchInteraction,
+} from "./relationships/delta";
+export {
+  applyRelationshipDecay,
+  decayQuietRelationships,
+} from "./relationships/decay";
 export type { RngDomain } from "./rng";
 export type { CreateWorldResult } from "./worldgen/create-world";
 export type {

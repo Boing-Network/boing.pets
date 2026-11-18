@@ -47,7 +47,7 @@ function fertility(
   return row?.fertility ?? 0;
 }
 
-/** Missing pairs read as zeros. Creation is a later milestone. */
+/** Missing pairs read as zeros. Creation happens on first APPROACH (or birth). */
 export function pairOf(
   relationships: readonly RelationshipRow[],
   creatureAId: number,

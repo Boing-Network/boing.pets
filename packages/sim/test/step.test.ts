@@ -548,7 +548,7 @@ test("death records gestation, grief, and leaves the pair row", () => {
   assert.equal(once.world.nextMemoryId, 2);
 });
 
-test("births, influences, and pair decay stay outside this step", () => {
+test("births and influences stay outside this step", () => {
   const snapshot = world();
   const mother = byId(snapshot, 1);
   mother.gestationEndTick = 1;
@@ -573,6 +573,7 @@ test("births, influences, and pair decay stay outside this step", () => {
     payload: { territoryId: 1 },
     applied: false,
   });
+  // Recent interaction so the daily decay pass skips this pair.
   snapshot.relationships.push({
     id: 1,
     worldId: 1,
@@ -586,7 +587,7 @@ test("births, influences, and pair decay stay outside this step", () => {
     avoidance: 0,
     conflict: 0,
     metTick: 0,
-    lastInteractionTick: 0,
+    lastInteractionTick: 100,
     interactionCount: 1,
   });
   snapshot.world.lastTick = 143;

@@ -1,9 +1,10 @@
 import { Action, CreatureStatus, DeathCause } from "@boing-pets/contract";
 import {
   chooseAndStartAction,
-  clearFinishedAction,
+  resolveFinishedAction,
   resolveRelocate,
 } from "../ai/actions";
+import { decayQuietRelationships } from "../relationships/decay";
 import type { StepResult, WorldEvent, WorldSnapshot } from "../types";
 import { die, driftDeathCause, lifespanTicks } from "./death";
 import { applyHealthDrift, applyNeedDrift, type TerritoryTick } from "./needs";
@@ -59,7 +60,7 @@ function stepCreatures(
       if (creature.currentAction === Action.RELOCATE) {
         events.push(...resolveRelocate(snapshot, creature, tick));
       } else {
-        clearFinishedAction(creature);
+        events.push(...resolveFinishedAction(snapshot, creature, tick));
       }
     }
 
@@ -71,15 +72,15 @@ function stepCreatures(
 
 /**
  * Simulate the next tick in place.
- * Utility scores and starts an action when the slot is empty. Relocate still
- * resolves here; other action effects land in later milestones. Influences,
- * births, and relationship decay stay later too.
+ * Creatures act, then quiet pairs decay on the daily boundary. Influences and
+ * births stay later milestones.
  */
 export function step(snapshot: WorldSnapshot): StepResult {
   const tick = snapshot.world.lastTick + 1;
   const events: WorldEvent[] = [];
   const territories = aggregateTerritories(snapshot, tick);
   stepCreatures(snapshot, tick, territories, events);
+  decayQuietRelationships(snapshot, tick);
   snapshot.world.lastTick = tick;
   return { snapshot, events };
 }
