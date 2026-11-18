@@ -1,6 +1,6 @@
 /**
  * Sim host: clock, persistence, and (later) IPC. Single writer.
- * M12 lands offline catch-up and CatchupReport on the same step() path.
+ * M13 lands pause and time scale on top of M12 catch-up.
  */
 export {
   catchupOnLaunch,
@@ -8,6 +8,27 @@ export {
   type CatchupProgress,
   type RunCatchupOptions,
 } from "./catchup";
+export {
+  advanceClock,
+  clockView,
+  createHostClock,
+  isTimeScale,
+  noteLiveCommit,
+  pauseClock,
+  persistPauseSnap,
+  quitAndPersist,
+  quitStamp,
+  resumeClock,
+  setClockScale,
+  tickWhilePaused,
+  LIVE_COMMIT_TICKS,
+  LIVE_COMMIT_WALL_MS,
+  PAUSE_SNAP_INTERVAL_MS,
+  type AdvanceResult,
+  type HostClock,
+  type HostClockOptions,
+  type PauseTickResult,
+} from "./clock";
 export {
   clearDirty,
   createDirtySet,

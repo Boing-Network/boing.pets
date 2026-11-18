@@ -1,7 +1,6 @@
 /**
  * Single-writer host session: load, step, dirty commit, discard-on-crash.
- * Offline catch-up (M12) commits through the same dirty path and may attach
- * a CatchupReport on the final gap commit.
+ * Offline catch-up and live clock both commit through this dirty path.
  */
 import type { CatchupReport } from "@boing-pets/contract";
 import { createWorld, step, type WorldSnapshot } from "@boing-pets/sim";

@@ -1,6 +1,6 @@
 /**
  * Offline catch-up: loop the same step() as live play, batch-commit, report.
- * Pause / time scale are M13. This module only closes a wall-clock gap.
+ * Pause / time scale live in clock.ts. This module only closes a wall-clock gap.
  */
 import type { CatchupReport } from "@boing-pets/contract";
 import {
