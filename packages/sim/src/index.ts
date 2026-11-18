@@ -3,6 +3,9 @@ export { createWorld } from "./worldgen/create-world";
 export { RULESET_V1 } from "./ruleset";
 export { canonicalHash, canonicalJson } from "./hash";
 export { RNG_DOMAINS, fnv1a64, rngInt, splitmix64 } from "./rng";
+export { buildCatchupSummary, catchupEventRank } from "./catchup/summary";
+export { owedTicks, runSteps } from "./catchup/run";
+export type { RunStepsResult } from "./catchup/run";
 export {
   MVP_GENES,
   generateName,

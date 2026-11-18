@@ -1,6 +1,7 @@
 /**
  * Commit a dirty batch. Inserts always carry explicit kernel ids.
  */
+import type { CatchupReport } from "@boing-pets/contract";
 import {
   memoryStrength,
   type WorldEvent,
@@ -41,6 +42,7 @@ export function worldgenTables(
     memories: clone(snapshot.memories),
     influences: clone(snapshot.pendingInfluences),
     events: clone([...events]),
+    catchups: [],
   };
 }
 
@@ -69,6 +71,7 @@ export function collectArchiveIds(
 export function buildCommitBatch(
   snapshot: WorldSnapshot,
   dirty: DirtySet,
+  catchup: CatchupReport | null = null,
 ): CommitBatch {
   const archiveMemoryIds = collectArchiveIds(snapshot, dirty);
   return {
@@ -84,6 +87,7 @@ export function buildCommitBatch(
     upsertLineages: clone(dirtyLineages(snapshot, dirty)),
     insertEvents: clone(dirty.events),
     appliedInfluenceIds: [...dirty.appliedInfluenceIds],
+    insertCatchup: catchup == null ? null : clone(catchup),
   };
 }
 
@@ -91,8 +95,9 @@ export async function saveDirty(
   repository: WorldRepository,
   snapshot: WorldSnapshot,
   dirty: DirtySet,
+  catchup: CatchupReport | null = null,
 ): Promise<void> {
-  const batch = buildCommitBatch(snapshot, dirty);
+  const batch = buildCommitBatch(snapshot, dirty, catchup);
   await repository.commit(batch);
 }
 

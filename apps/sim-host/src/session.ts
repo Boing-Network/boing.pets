@@ -1,7 +1,9 @@
 /**
  * Single-writer host session: load, step, dirty commit, discard-on-crash.
- * Catch-up wall clock is M12. This milestone only covers persist boundaries.
+ * Offline catch-up (M12) commits through the same dirty path and may attach
+ * a CatchupReport on the final gap commit.
  */
+import type { CatchupReport } from "@boing-pets/contract";
 import { createWorld, step, type WorldSnapshot } from "@boing-pets/sim";
 import {
   clearDirty,
@@ -51,8 +53,16 @@ export function stepSession(session: HostSession): void {
 }
 
 /** Persist the dirty window, then prune DEAD rows from the hot snapshot. */
-export async function commitSession(session: HostSession): Promise<void> {
-  await saveDirty(session.repository, session.snapshot, session.dirty);
+export async function commitSession(
+  session: HostSession,
+  options: { catchup?: CatchupReport | null } = {},
+): Promise<void> {
+  await saveDirty(
+    session.repository,
+    session.snapshot,
+    session.dirty,
+    options.catchup ?? null,
+  );
   pruneHotSnapshot(session.snapshot);
   clearDirty(session.dirty);
 }

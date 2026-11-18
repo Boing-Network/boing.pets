@@ -49,6 +49,7 @@ export class MemoryWorldRepository implements WorldRepository {
     assertExplicitIds(tables.memories, "memory");
     assertExplicitIds(tables.influences, "influence");
     assertExplicitIds(tables.events, "event");
+    assertExplicitIds(tables.catchups, "catchup");
     this.#tables = clone(tables);
   }
 
@@ -144,6 +145,16 @@ export class MemoryWorldRepository implements WorldRepository {
     next.influences = next.influences.map((row) =>
       applied.has(row.id) ? { ...row, applied: true } : row,
     );
+
+    if (batch.insertCatchup != null) {
+      assertExplicitIds([batch.insertCatchup], "catchup");
+      const catchups = indexById(next.catchups);
+      if (catchups.has(batch.insertCatchup.id)) {
+        throw new Error(`catchup id ${batch.insertCatchup.id} already exists`);
+      }
+      catchups.set(batch.insertCatchup.id, clone(batch.insertCatchup));
+      next.catchups = [...catchups.values()].sort((a, b) => a.id - b.id);
+    }
 
     this.#tables = next;
   }

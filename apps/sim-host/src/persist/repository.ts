@@ -2,7 +2,7 @@
  * Durability boundary. Postgres is the production store; tests use memory.
  * Every insert carries an explicit kernel-assigned id — no database sequences.
  */
-import type { Ruleset } from "@boing-pets/contract";
+import type { CatchupReport, Ruleset } from "@boing-pets/contract";
 import type {
   CompatibilityRow,
   CreatureRow,
@@ -32,6 +32,7 @@ export type DurableTables = {
   memories: MemoryRow[];
   influences: PlayerInfluenceRow[];
   events: WorldEvent[];
+  catchups: CatchupReport[];
 };
 
 export type CommitBatch = {
@@ -47,6 +48,8 @@ export type CommitBatch = {
   upsertLineages: LineageRow[];
   insertEvents: WorldEvent[];
   appliedInfluenceIds: number[];
+  /** Set when this commit closes an offline catch-up gap. */
+  insertCatchup: CatchupReport | null;
 };
 
 export type WorldRepository = {

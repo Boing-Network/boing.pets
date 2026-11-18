@@ -1,7 +1,13 @@
 /**
  * Sim host: clock, persistence, and (later) IPC. Single writer.
- * M11 lands load, dirty save, explicit ids, and crash redo.
+ * M12 lands offline catch-up and CatchupReport on the same step() path.
  */
+export {
+  catchupOnLaunch,
+  runCatchup,
+  type CatchupProgress,
+  type RunCatchupOptions,
+} from "./catchup";
 export {
   clearDirty,
   createDirtySet,
