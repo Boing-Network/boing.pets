@@ -1,5 +1,9 @@
 import { Action, CreatureStatus, DeathCause } from "@boing-pets/contract";
-import { resolveRelocate } from "../ai/actions";
+import {
+  chooseAndStartAction,
+  clearFinishedAction,
+  resolveRelocate,
+} from "../ai/actions";
 import type { StepResult, WorldEvent, WorldSnapshot } from "../types";
 import { die, driftDeathCause, lifespanTicks } from "./death";
 import { applyHealthDrift, applyNeedDrift, type TerritoryTick } from "./needs";
@@ -11,6 +15,10 @@ function indexById<T extends { id: number }>(
   const map = new Map<number, T>();
   for (const row of rows) map.set(row.id, row);
   return map;
+}
+
+function actionSlotEmpty(creature: { currentAction: Action | null }): boolean {
+  return creature.currentAction == null;
 }
 
 function stepCreatures(
@@ -47,19 +55,25 @@ function stepCreatures(
       continue;
     }
 
-    if (
-      creature.currentAction === Action.RELOCATE &&
-      creature.actionEndsTick === tick
-    ) {
-      events.push(...resolveRelocate(snapshot, creature, tick));
+    if (creature.actionEndsTick === tick) {
+      if (creature.currentAction === Action.RELOCATE) {
+        events.push(...resolveRelocate(snapshot, creature, tick));
+      } else {
+        clearFinishedAction(creature);
+      }
+    }
+
+    if (creature.status === CreatureStatus.ALIVE && actionSlotEmpty(creature)) {
+      chooseAndStartAction(snapshot, creature, tick, territories);
     }
   }
 }
 
 /**
  * Simulate the next tick in place.
- * A finished relocate arrives here. Influences, other actions, births, and
- * relationship decay land in later milestones.
+ * Utility scores and starts an action when the slot is empty. Relocate still
+ * resolves here; other action effects land in later milestones. Influences,
+ * births, and relationship decay stay later too.
  */
 export function step(snapshot: WorldSnapshot): StepResult {
   const tick = snapshot.world.lastTick + 1;

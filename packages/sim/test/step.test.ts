@@ -164,7 +164,8 @@ test("awake drift uses territory danger and the ruleset", () => {
   assert.equal(ridge.discomfort, 103);
   assert.equal(ridge.unsafety, 148);
   assert.equal(ridge.health, 855);
-  assert.equal(meadow.currentAction, null);
+  assert.ok(meadow.currentAction);
+  assert.ok(meadow.currentGoal !== "IDLE");
   assert.equal(snapshot.world.lastTick, 1);
 
   const custom = world();
@@ -547,14 +548,23 @@ test("death records gestation, grief, and leaves the pair row", () => {
   assert.equal(once.world.nextMemoryId, 2);
 });
 
-test("later milestone phases do not run inside this step", () => {
+test("births, influences, and pair decay stay outside this step", () => {
   const snapshot = world();
   const mother = byId(snapshot, 1);
   mother.gestationEndTick = 1;
   mother.gestationSireId = 2;
   mother.currentAction = "FORAGE";
-  mother.actionEndsTick = 1;
+  mother.currentGoal = "FIND_FOOD";
+  mother.actionStartedTick = 0;
+  mother.actionEndsTick = 200;
   mother.hunger = 500;
+  for (const creature of snapshot.creatures) {
+    if (creature.id === mother.id) continue;
+    creature.currentAction = "REST";
+    creature.currentGoal = "SEEK_SHELTER";
+    creature.actionStartedTick = 0;
+    creature.actionEndsTick = 1_000_000;
+  }
   snapshot.pendingInfluences.push({
     id: 1,
     worldId: 1,
@@ -588,7 +598,7 @@ test("later milestone phases do not run inside this step", () => {
   assert.equal(snapshot.world.nextCreatureId, 13);
   assert.equal(mother.gestationEndTick, 1);
   assert.equal(mother.currentAction, "FORAGE");
-  assert.equal(mother.actionEndsTick, 1);
+  assert.equal(mother.actionEndsTick, 200);
   assert.equal(mother.hunger, 504);
   assert.equal(mother.status, "ALIVE");
   assert.equal(snapshot.modifiers.length, 0);

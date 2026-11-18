@@ -32,6 +32,19 @@ function byId(snapshot: WorldSnapshot, id: number): CreatureRow {
   return row;
 }
 
+/** Keep utility from starting new travel while a relocate fixture runs. */
+function pinOthers(snapshot: WorldSnapshot, exceptId: number): void {
+  for (const creature of snapshot.creatures) {
+    if (creature.id === exceptId) continue;
+    creature.currentGoal = Goal.SEEK_SHELTER;
+    creature.currentAction = "REST";
+    creature.actionTargetKind = "NONE";
+    creature.actionTargetId = null;
+    creature.actionStartedTick = 0;
+    creature.actionEndsTick = 1_000_000;
+  }
+}
+
 function territory(snapshot: WorldSnapshot, slug: string) {
   const row = snapshot.territories.find((item) => item.slug === slug);
   assert.ok(row);
@@ -99,6 +112,7 @@ test("a flee from ridge arrives in thicket and a second visit is not a discovery
     8,
   );
   hare.geneSpeed = 0;
+  pinOthers(snapshot, hare.id);
 
   const duration = beginFlee(
     snapshot,
@@ -125,12 +139,9 @@ test("a flee from ridge arrives in thicket and a second visit is not a discovery
   const arrived = step(snapshot);
   assert.equal(snapshot.world.lastTick, 16);
   assert.equal(hare.territoryId, thicket.id);
-  assert.equal(hare.currentGoal, "SEEK_SHELTER");
-  assert.equal(hare.currentAction, null);
-  assert.equal(hare.actionTargetKind, "NONE");
-  assert.equal(hare.actionTargetId, null);
-  assert.equal(hare.actionStartedTick, null);
-  assert.equal(hare.actionEndsTick, null);
+  assert.ok(hare.currentAction);
+  assert.equal(hare.actionStartedTick, 16);
+  assert.ok(hare.actionEndsTick != null && hare.actionEndsTick > 16);
   assert.equal(arrived.events.length, 2);
   const migration = arrived.events[0];
   const discovery = arrived.events[1];
@@ -192,6 +203,7 @@ test("a flee from ridge arrives in thicket and a second visit is not a discovery
     1,
   );
   snapshot.memories.length = 0;
+  pinOthers(snapshot, hare.id);
 
   const back = beginRelocate(
     snapshot,
@@ -214,6 +226,7 @@ test("a flee from ridge arrives in thicket and a second visit is not a discovery
   assert.equal(returned[0].payload.fromTerritoryId, thicket.id);
   assert.equal(returned[0].payload.toTerritoryId, ridge.id);
   assert.equal(snapshot.memories.length, 0);
+  pinOthers(snapshot, hare.id);
 
   const again = beginFlee(
     snapshot,
@@ -252,6 +265,7 @@ test("a faster hare arrives on the shortened travel", () => {
   const hare = byId(snapshot, 9);
   const thicket = territory(snapshot, "thicket");
   hare.geneSpeed = 1000;
+  pinOthers(snapshot, hare.id);
   const duration = beginFlee(
     snapshot,
     hare,
@@ -277,6 +291,7 @@ test("death during travel writes no migration and stays on the origin", () => {
   const ridge = territory(snapshot, "ridge");
   const hare = byId(snapshot, 9);
   hare.geneSpeed = 1000;
+  pinOthers(snapshot, hare.id);
   assert.equal(
     beginFlee(snapshot, hare, 0, aggregateTerritories(snapshot, 0)),
     5,
@@ -305,6 +320,11 @@ test("a traveler still counts toward the origin", () => {
   const hare = byId(snapshot, 9);
   const neighbor = byId(snapshot, 10);
   hare.geneSpeed = 0;
+  pinOthers(snapshot, hare.id);
+  // Awake pin so overcrowding drift matches the capacity=1 fixture.
+  neighbor.currentAction = "FORAGE";
+  neighbor.currentGoal = Goal.FIND_FOOD;
+  neighbor.actionEndsTick = 1_000_000;
   assert.equal(
     beginFlee(snapshot, hare, 0, aggregateTerritories(snapshot, 0)),
     16,
@@ -440,6 +460,13 @@ test("two arrivals in one tick write one discovery for the lineage", () => {
   follower.lineageId = leader.lineageId;
   leader.geneSpeed = 500;
   follower.geneSpeed = 500;
+  for (const creature of snapshot.creatures) {
+    if (creature.id === leader.id || creature.id === follower.id) continue;
+    creature.currentGoal = Goal.SEEK_SHELTER;
+    creature.currentAction = "REST";
+    creature.actionEndsTick = 1_000_000;
+    creature.actionStartedTick = 0;
+  }
   const stats = aggregateTerritories(snapshot, 0);
   assert.equal(beginFlee(snapshot, leader, 0, stats), 8);
   assert.equal(beginFlee(snapshot, follower, 0, stats), 8);
@@ -472,6 +499,8 @@ test("two arrivals in one tick write one discovery for the lineage", () => {
 test("reversed rows flee to the same hash", () => {
   const forward = world();
   const backward = reverseArrays(world());
+  pinOthers(forward, 9);
+  pinOthers(backward, 9);
   const duration = beginFlee(
     forward,
     byId(forward, 9),
@@ -499,17 +528,27 @@ test("reversed rows flee to the same hash", () => {
   assert.equal(byId(forward, 9).territoryId, territory(forward, "thicket").id);
 });
 
-test("a finished forage still waits for a later milestone", () => {
+test("a finished forage clears so utility can choose again", () => {
   const snapshot = world();
   const founder = byId(snapshot, 1);
+  pinOthers(snapshot, founder.id);
   founder.currentAction = "FORAGE";
+  founder.currentGoal = Goal.FIND_FOOD;
   founder.actionEndsTick = 1;
+  founder.actionStartedTick = 0;
   founder.hunger = 500;
+  founder.thirst = 100;
+  founder.fatigue = 50;
+  founder.discomfort = 20;
+  founder.unsafety = 20;
+  founder.loneliness = 20;
+  founder.traitAggression = 800;
   const result = step(snapshot);
-  assert.equal(founder.currentAction, "FORAGE");
-  assert.equal(founder.actionEndsTick, 1);
   assert.equal(founder.hunger, 504);
   assert.equal(founder.territoryId, 1);
+  assert.equal(founder.currentGoal, Goal.FIND_FOOD);
+  assert.equal(founder.currentAction, "FORAGE");
+  assert.ok(founder.actionEndsTick != null && founder.actionEndsTick > 1);
   assert.deepEqual(result.events, []);
   assert.equal(snapshot.discoveries.length, 12);
 });
