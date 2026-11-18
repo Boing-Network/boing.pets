@@ -6,6 +6,7 @@ import { useWorldViewStore } from "../state/worldViewStore";
 import { CreatureToken } from "./CreatureToken";
 import { layoutForSlug } from "./layout";
 import { TerritoryMesh } from "./TerritoryMesh";
+import { WorldAtmosphere } from "./WorldAtmosphere";
 
 function WorldScene() {
   const view = useWorldViewStore((s) => s.view);
@@ -25,23 +26,7 @@ function WorldScene() {
 
   return (
     <>
-      <color attach="background" args={["#1a2218"]} />
-      <ambientLight intensity={0.55} />
-      <directionalLight
-        position={[6, 10, 4]}
-        intensity={1.1}
-        castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
-      />
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, -0.02, 0]}
-        receiveShadow
-      >
-        <planeGeometry args={[24, 16]} />
-        <meshStandardMaterial color="#12180f" roughness={1} />
-      </mesh>
+      <WorldAtmosphere />
 
       {view.links.map((link) => {
         const from = territoriesById.get(link.fromId);
@@ -60,11 +45,17 @@ function WorldScene() {
         return (
           <mesh
             key={`${link.fromId}-${link.toId}`}
-            position={[midX, 0.03, midZ]}
+            position={[midX, 0.04, midZ]}
             rotation={[0, -angle, 0]}
           >
-            <boxGeometry args={[length, 0.02, 0.08]} />
-            <meshBasicMaterial color="#4a5a40" transparent opacity={0.7} />
+            <boxGeometry args={[length, 0.025, 0.1]} />
+            <meshStandardMaterial
+              color="#1a3a40"
+              emissive="#2ec4b0"
+              emissiveIntensity={0.45}
+              transparent
+              opacity={0.75}
+            />
           </mesh>
         );
       })}
@@ -87,10 +78,10 @@ function WorldScene() {
 
       <OrbitControls
         enablePan
-        maxPolarAngle={Math.PI / 2.15}
-        minDistance={4}
-        maxDistance={22}
-        target={[0, 0, 0]}
+        maxPolarAngle={Math.PI / 2.05}
+        minDistance={5}
+        maxDistance={30}
+        target={[0, 0.6, 0.5]}
       />
     </>
   );
@@ -100,7 +91,7 @@ export function WorldCanvas() {
   return (
     <Canvas
       shadows
-      camera={{ position: [0, 11, 10], fov: 42, near: 0.1, far: 100 }}
+      camera={{ position: [1.5, 7.2, 13.5], fov: 40, near: 0.1, far: 90 }}
       gl={{ antialias: true }}
     >
       <WorldScene />

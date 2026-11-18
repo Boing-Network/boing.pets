@@ -52,6 +52,17 @@
   color: var(--brand);
 }
 
+.inspect-picker--compact {
+  margin: 0 0 0.85rem;
+  max-height: 4.5rem;
+}
+
+.inspect-picker-btn--active {
+  border-color: color-mix(in srgb, var(--glow, #3ecfc0) 55%, var(--line));
+  color: var(--brand);
+  background: color-mix(in srgb, var(--glow, #3ecfc0) 18%, transparent);
+}
+
 .inspect-hint,
 .inspect-empty,
 .inspect-sub,

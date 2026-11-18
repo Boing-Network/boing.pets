@@ -154,6 +154,29 @@ export function InspectionPanel({ ipc }: Props) {
         </button>
       </header>
 
+      {living.length > 1 ? (
+        <ul
+          className="inspect-picker inspect-picker--compact"
+          aria-label="Switch creature"
+        >
+          {living.map((row) => (
+            <li key={row.id}>
+              <button
+                type="button"
+                className={
+                  row.id === creature.id
+                    ? "inspect-picker-btn inspect-picker-btn--active"
+                    : "inspect-picker-btn"
+                }
+                onClick={() => selectCreature(row.id)}
+              >
+                {row.name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
       <section className="inspect-section">
         <h3>Goal</h3>
         <p className="inspect-goal">{creature.currentGoal}</p>
