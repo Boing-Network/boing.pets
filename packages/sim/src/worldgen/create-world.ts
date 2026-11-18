@@ -7,6 +7,7 @@ import {
   type GeneticProfile,
   type Ruleset,
 } from "@boing-pets/contract";
+import { generateName } from "../genetics/inherit";
 import { discoveryEvent, founderBirthEvent } from "../history/events";
 import { assertInteger, clamp } from "../math";
 import { rngInt } from "../rng";
@@ -27,29 +28,6 @@ const WORLD_ID = 1;
 const WORLD_NAME = "Living World";
 const SCHEMA_VERSION = 1;
 const RULESET_VERSION = 1;
-
-const NAME_SYLLABLES = [
-  "bri",
-  "fen",
-  "mos",
-  "pel",
-  "ari",
-  "sol",
-  "kae",
-  "lun",
-  "tor",
-  "vess",
-  "nima",
-  "oak",
-  "quill",
-  "wren",
-  "ith",
-  "sae",
-  "dorr",
-  "pax",
-  "elio",
-  "mira",
-] as const;
 
 const GENE_SALTS = [0, 1, 2, 3, 4] as const;
 /** Trait index order: curiosity, aggression, loyalty, sociability, bravery, risk taking. */
@@ -183,21 +161,6 @@ function copyRuleset(rules: Ruleset): Ruleset {
   };
 }
 
-function rollName(seed: number, creatureId: number, used: Set<string>): string {
-  if (NAME_SYLLABLES.length !== 20) throw new Error("name syllable table");
-  const parts = [0, 1, 2].map((salt) => {
-    const index = rngInt(seed, 0, "name", creatureId, salt, 0, 19);
-    const syllable = NAME_SYLLABLES[index];
-    if (syllable === undefined) throw new Error("name syllable");
-    return syllable;
-  });
-  const raw = parts.join("");
-  let name = raw.charAt(0).toUpperCase() + raw.slice(1);
-  if (used.has(name)) name = `${name}-${creatureId}`;
-  used.add(name);
-  return name;
-}
-
 function geneticProfile(creature: CreatureRow): GeneticProfile {
   return {
     strength: creature.geneStrength,
@@ -324,7 +287,8 @@ export function createWorld(seed: number): CreateWorldResult {
           ),
           "trait",
         );
-      const name = rollName(seed, creatureId, usedNames);
+      const name = generateName(seed, 0, creatureId, usedNames);
+      usedNames.add(name);
       const gender = index % 2 === 0 ? Gender.FEMALE : Gender.MALE;
       const creature: CreatureRow = {
         id: creatureId,

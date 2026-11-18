@@ -4,13 +4,14 @@ import {
   CreatureStatus,
   DeathCause,
   EventTemplate,
+  Gender,
   Goal,
   MemoryKind,
   MemoryTag,
   MigrationReason,
 } from "@boing-pets/contract";
-import { discoveryEvent, migrationEvent } from "../history/events";
-import { die } from "../kernel/death";
+import { discoveryEvent, matingEvent, migrationEvent } from "../history/events";
+import { ageDays, die } from "../kernel/death";
 import type { TerritoryTick } from "../kernel/needs";
 import { settleScore } from "../kernel/territories";
 import { clamp, divRound } from "../math";
@@ -19,11 +20,20 @@ import { isMemoryThrottled } from "../memories/throttle";
 import {
   applyContestDelta,
   applyCooperateForageDelta,
+  applyCourtAcceptDelta,
+  applyCourtRejectDelta,
   applySnubDelta,
   applySocializeDelta,
   ensureRelationship,
+  findRelationship,
 } from "../relationships/delta";
-import type { CreatureRow, WorldEvent, WorldSnapshot } from "../types";
+import type {
+  CompatibilityRow,
+  CreatureRow,
+  SpeciesRow,
+  WorldEvent,
+  WorldSnapshot,
+} from "../types";
 import {
   bestMateTarget,
   bestSocialTarget,
@@ -833,9 +843,202 @@ export function resolveCooperateForage(
   }
 }
 
+const MATE_IMPORTANCE = 15;
+const MATE_EMOTION = 500;
+
+function fertilityOf(
+  compatibility: readonly CompatibilityRow[],
+  speciesA: number,
+  speciesB: number,
+): number {
+  const low = Math.min(speciesA, speciesB);
+  const high = Math.max(speciesA, speciesB);
+  const row = compatibility.find(
+    (entry) => entry.speciesLowId === low && entry.speciesHighId === high,
+  );
+  return row?.fertility ?? 0;
+}
+
+function speciesRow(
+  snapshot: WorldSnapshot,
+  creature: CreatureRow,
+): SpeciesRow {
+  const species = snapshot.species.find((row) => row.id === creature.speciesId);
+  if (!species) throw new Error("species");
+  return species;
+}
+
+function isMatureAt(
+  creature: CreatureRow,
+  species: SpeciesRow,
+  tick: number,
+  ticksPerDay: number,
+): boolean {
+  return ageDays(creature.birthTick, tick, ticksPerDay) >= species.maturityDays;
+}
+
+function isGestatingAt(creature: CreatureRow, tick: number): boolean {
+  return creature.gestationEndTick != null && tick < creature.gestationEndTick;
+}
+
+function cooldownClearAt(creature: CreatureRow, tick: number): boolean {
+  return (
+    creature.mateCooldownUntilTick == null ||
+    tick >= creature.mateCooldownUntilTick
+  );
+}
+
 /**
- * Resolve a finished non-relocate action. Contest, approach, and cooperate
- * write relationship deltas. Other actions clear the slot for utility.
+ * COURT accept gates are checked at resolution, not only at decision time.
+ * Acceptance does not require the target to have selected FIND_MATE.
+ */
+export function courtAccepts(
+  snapshot: WorldSnapshot,
+  actor: CreatureRow,
+  target: CreatureRow,
+  tick: number,
+): boolean {
+  const rules = snapshot.ruleset;
+  if (actor.status !== CreatureStatus.ALIVE) return false;
+  if (target.status !== CreatureStatus.ALIVE) return false;
+  if (actor.territoryId !== target.territoryId) return false;
+  if (actor.gender === target.gender) return false;
+  if (
+    fertilityOf(snapshot.compatibility, actor.speciesId, target.speciesId) <= 0
+  ) {
+    return false;
+  }
+  const actorSpecies = speciesRow(snapshot, actor);
+  const targetSpecies = speciesRow(snapshot, target);
+  if (!isMatureAt(actor, actorSpecies, tick, rules.ticksPerDay)) return false;
+  if (!isMatureAt(target, targetSpecies, tick, rules.ticksPerDay)) return false;
+  if (
+    actor.health < rules.mateHealthMin ||
+    target.health < rules.mateHealthMin
+  ) {
+    return false;
+  }
+  if (
+    actor.hunger >= rules.mateHungerMax ||
+    target.hunger >= rules.mateHungerMax
+  ) {
+    return false;
+  }
+  if (
+    actor.thirst >= rules.mateThirstMax ||
+    target.thirst >= rules.mateThirstMax
+  ) {
+    return false;
+  }
+  if (isGestatingAt(actor, tick) || isGestatingAt(target, tick)) return false;
+  if (!cooldownClearAt(actor, tick) || !cooldownClearAt(target, tick)) {
+    return false;
+  }
+  const pair = findRelationship(snapshot.relationships, actor.id, target.id);
+  const score = pair?.score ?? 0;
+  const romance = pair?.romance ?? 0;
+  const conflict = pair?.conflict ?? 0;
+  if (score < rules.mateScoreMin) return false;
+  if (romance < rules.mateRomanceMin) return false;
+  if (conflict >= rules.mateConflictMax) return false;
+  return true;
+}
+
+function applyMateCooldown(
+  creature: CreatureRow,
+  tick: number,
+  cooldown: number,
+): void {
+  const until = tick + cooldown;
+  creature.mateCooldownUntilTick =
+    creature.mateCooldownUntilTick == null
+      ? until
+      : Math.max(creature.mateCooldownUntilTick, until);
+}
+
+/**
+ * On accept: female gestates, both take a mate cooldown, mating deltas, two
+ * MATE memories, one MATING event. On reject: small romance/avoidance bump.
+ */
+export function resolveCourt(
+  snapshot: WorldSnapshot,
+  actor: CreatureRow,
+  tick: number,
+): WorldEvent[] {
+  const rules = snapshot.ruleset;
+  const targetId = actor.actionTargetId;
+  if (
+    actor.actionTargetKind !== ActionTargetKind.CREATURE ||
+    targetId == null
+  ) {
+    throw new Error("court target");
+  }
+  const target = snapshot.creatures.find((row) => row.id === targetId);
+  clearAction(actor);
+  if (!target) return [];
+
+  const pair = ensureRelationship(snapshot, actor.id, target.id, tick);
+  if (!courtAccepts(snapshot, actor, target, tick)) {
+    applyCourtRejectDelta(pair, tick);
+    return [];
+  }
+
+  const mother = actor.gender === Gender.FEMALE ? actor : target;
+  const father = actor.gender === Gender.MALE ? actor : target;
+  if (mother.gender !== Gender.FEMALE || father.gender !== Gender.MALE) {
+    throw new Error("court genders");
+  }
+
+  const motherSpecies = speciesRow(snapshot, mother);
+  mother.gestationSireId = father.id;
+  mother.gestationEndTick =
+    tick + motherSpecies.gestationDays * rules.ticksPerDay;
+  applyMateCooldown(mother, tick, rules.postpartumCooldownTicks);
+  applyMateCooldown(father, tick, rules.maleCooldownTicks);
+
+  applyCourtAcceptDelta(pair, tick);
+
+  for (const creature of [mother, father]) {
+    const other = creature.id === mother.id ? father : mother;
+    rememberFor(
+      snapshot,
+      creature,
+      tick,
+      MemoryKind.MATE,
+      MATE_IMPORTANCE,
+      MATE_EMOTION,
+      other.id,
+      null,
+      [],
+      "mate.v1",
+    );
+  }
+
+  const territory = snapshot.territories.find(
+    (row) => row.id === mother.territoryId,
+  );
+  if (!territory) throw new Error("territory");
+
+  return [
+    matingEvent({
+      id: take(snapshot, "nextEventId"),
+      worldId: snapshot.world.id,
+      tick,
+      motherId: mother.id,
+      fatherId: father.id,
+      lineageId: mother.lineageId,
+      territoryId: mother.territoryId,
+      motherName: mother.name,
+      fatherName: father.name,
+      territoryName: territory.name,
+      relationshipScore: pair.score,
+    }),
+  ];
+}
+
+/**
+ * Resolve a finished non-relocate action. Contest, approach, cooperate, and
+ * court write relationship deltas. Other actions clear the slot for utility.
  */
 export function resolveFinishedAction(
   snapshot: WorldSnapshot,
@@ -851,6 +1054,8 @@ export function resolveFinishedAction(
     case Action.COOPERATE_FORAGE:
       resolveCooperateForage(snapshot, creature, tick);
       return [];
+    case Action.COURT:
+      return resolveCourt(snapshot, creature, tick);
     default:
       clearAction(creature);
       return [];

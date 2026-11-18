@@ -4,6 +4,16 @@ export { RULESET_V1 } from "./ruleset";
 export { canonicalHash, canonicalJson } from "./hash";
 export { RNG_DOMAINS, fnv1a64, rngInt, splitmix64 } from "./rng";
 export {
+  MVP_GENES,
+  generateName,
+  inheritGenes,
+  inheritPersonality,
+  mutationDelta,
+  rollGender,
+} from "./genetics/inherit";
+export { resolveBirths } from "./kernel/birth";
+export { courtAccepts, resolveCourt } from "./ai/actions";
+export {
   MEMORY_DECAY_LUT,
   initialMemoryStrength,
   memoryResidue,

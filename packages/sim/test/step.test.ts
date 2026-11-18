@@ -548,9 +548,10 @@ test("death records gestation, grief, and leaves the pair row", () => {
   assert.equal(once.world.nextMemoryId, 2);
 });
 
-test("births and influences stay outside this step", () => {
+test("influences stay outside this step; births need matching endTick", () => {
   const snapshot = world();
   const mother = byId(snapshot, 1);
+  // End tick 1 does not match this step's tick 144, so no birth fires.
   mother.gestationEndTick = 1;
   mother.gestationSireId = 2;
   mother.currentAction = "FORAGE";

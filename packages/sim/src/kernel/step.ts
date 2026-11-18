@@ -6,6 +6,7 @@ import {
 } from "../ai/actions";
 import { decayQuietRelationships } from "../relationships/decay";
 import type { StepResult, WorldEvent, WorldSnapshot } from "../types";
+import { resolveBirths } from "./birth";
 import { die, driftDeathCause, lifespanTicks } from "./death";
 import { applyHealthDrift, applyNeedDrift, type TerritoryTick } from "./needs";
 import { aggregateTerritories } from "./territories";
@@ -72,14 +73,15 @@ function stepCreatures(
 
 /**
  * Simulate the next tick in place.
- * Creatures act, then quiet pairs decay on the daily boundary. Influences and
- * births stay later milestones.
+ * Creatures act, then births resolve, then quiet pairs decay on the daily
+ * boundary. Influences stay a later milestone.
  */
 export function step(snapshot: WorldSnapshot): StepResult {
   const tick = snapshot.world.lastTick + 1;
   const events: WorldEvent[] = [];
   const territories = aggregateTerritories(snapshot, tick);
   stepCreatures(snapshot, tick, territories, events);
+  resolveBirths(snapshot, tick, events);
   decayQuietRelationships(snapshot, tick);
   snapshot.world.lastTick = tick;
   return { snapshot, events };

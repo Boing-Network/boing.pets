@@ -2,6 +2,7 @@ import {
   DeathCause,
   EventKind,
   EventTemplate,
+  type GeneMutation,
   type GeneticProfile,
   type MigrationReason,
 } from "@boing-pets/contract";
@@ -207,6 +208,107 @@ export function discoveryEvent(input: {
       creatureId: input.creatureId,
       territoryId: input.territoryId,
       lineageId: input.lineageId,
+    },
+  };
+}
+
+/** `{name} was born to {mother} and {father} in {territory}.` */
+export function birthSummary(
+  name: string,
+  motherName: string,
+  fatherName: string,
+  territoryName: string,
+): string {
+  return `${name} was born to ${motherName} and ${fatherName} in ${territoryName}.`;
+}
+
+export function birthEvent(input: {
+  id: number;
+  worldId: number;
+  tick: number;
+  childId: number;
+  motherId: number;
+  fatherId: number;
+  lineageId: number;
+  speciesId: number;
+  territoryId: number;
+  name: string;
+  motherName: string;
+  fatherName: string;
+  territoryName: string;
+  genes: GeneticProfile;
+  mutations: GeneMutation[];
+}): WorldEvent {
+  return {
+    id: input.id,
+    worldId: input.worldId,
+    tick: input.tick,
+    kind: EventKind.BIRTH,
+    actorId: input.childId,
+    subjectId: input.motherId,
+    territoryId: input.territoryId,
+    lineageId: input.lineageId,
+    summary: birthSummary(
+      input.name,
+      input.motherName,
+      input.fatherName,
+      input.territoryName,
+    ),
+    payload: {
+      template: EventTemplate.BIRTH,
+      motherId: input.motherId,
+      fatherId: input.fatherId,
+      lineageId: input.lineageId,
+      speciesId: input.speciesId,
+      genes: input.genes,
+      mutations: input.mutations,
+      territoryId: input.territoryId,
+    },
+  };
+}
+
+/** `{mother} and {father} mated in {territory}.` */
+export function matingSummary(
+  motherName: string,
+  fatherName: string,
+  territoryName: string,
+): string {
+  return `${motherName} and ${fatherName} mated in ${territoryName}.`;
+}
+
+export function matingEvent(input: {
+  id: number;
+  worldId: number;
+  tick: number;
+  motherId: number;
+  fatherId: number;
+  lineageId: number;
+  territoryId: number;
+  motherName: string;
+  fatherName: string;
+  territoryName: string;
+  relationshipScore: number;
+}): WorldEvent {
+  return {
+    id: input.id,
+    worldId: input.worldId,
+    tick: input.tick,
+    kind: EventKind.MATING,
+    actorId: input.motherId,
+    subjectId: input.fatherId,
+    territoryId: input.territoryId,
+    lineageId: input.lineageId,
+    summary: matingSummary(
+      input.motherName,
+      input.fatherName,
+      input.territoryName,
+    ),
+    payload: {
+      template: EventTemplate.MATING,
+      motherId: input.motherId,
+      fatherId: input.fatherId,
+      territoryId: input.territoryId,
+      relationshipScore: input.relationshipScore,
     },
   };
 }
