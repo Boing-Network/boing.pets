@@ -1,0 +1,14 @@
+{
+  "name": "@boing-pets/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@boing-pets/contract": "0.0.0",
+    "@prisma/client": "6.19.3"
+  },
+  "devDependencies": {
+    "pg": "^8.23.1",
+    "prisma": "6.19.3"
+  }
+}

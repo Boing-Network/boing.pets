@@ -5,11 +5,14 @@
   "type": "module",
   "workspaces": [
     "packages/contract",
-    "packages/sim"
+    "packages/sim",
+    "packages/db"
   ],
   "scripts": {
-    "typecheck": "tsc -p packages/contract/tsconfig.json --noEmit && tsc -p packages/sim/tsconfig.json --noEmit",
-    "lint": "eslint packages/contract packages/sim eslint.config.js --max-warnings 0",
+    "typecheck": "tsc -p packages/contract/tsconfig.json --noEmit && tsc -p packages/sim/tsconfig.json --noEmit && tsc -p packages/db/tsconfig.json --noEmit",
+    "lint": "eslint packages/contract packages/sim packages/db eslint.config.js --max-warnings 0",
+    "db:validate": "prisma validate --schema packages/db/prisma/schema.prisma",
+    "db:check": "node packages/db/scripts/check-sql.mjs",
     "format:check": "prettier --check .",
     "verify": "npm run format:check && npm run lint && npm run typecheck"
   },

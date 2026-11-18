@@ -224,4 +224,26 @@ export default ts.config(
       ],
     },
   },
+  {
+    files: ["packages/db/**/*.{ts,tsx}"],
+    plugins: { "living-pets": livingPets },
+    rules: {
+      "living-pets/boundaries": [
+        "error",
+        {
+          packageDir: "packages/db",
+          allowPackages: ["@boing-pets/contract", "@prisma/client"],
+        },
+      ],
+    },
+  },
+  {
+    files: ["packages/db/scripts/**/*.mjs"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        process: "readonly",
+      },
+    },
+  },
 );
