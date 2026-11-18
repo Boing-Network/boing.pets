@@ -278,6 +278,42 @@ export default ts.config(
     },
   },
   {
+    files: ["apps/sim-host/**/*.{ts,tsx}"],
+    plugins: { "living-pets": livingPets },
+    rules: {
+      "living-pets/boundaries": [
+        "error",
+        {
+          packageDir: "apps/sim-host",
+          allowPackages: [
+            "@boing-pets/contract",
+            "@boing-pets/db",
+            "@boing-pets/sim",
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["apps/sim-host/test/**/*.ts"],
+    plugins: { "living-pets": livingPets },
+    rules: {
+      "living-pets/boundaries": [
+        "error",
+        {
+          packageDir: "apps/sim-host",
+          allowPackages: [
+            "@boing-pets/contract",
+            "@boing-pets/db",
+            "@boing-pets/sim",
+            "node:test",
+            "node:assert",
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["packages/db/scripts/**/*.mjs"],
     languageOptions: {
       globals: {
