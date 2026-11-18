@@ -95,3 +95,12 @@ export {
   type HostSession,
 } from "./session";
 export { buildWorldView } from "./view/world-view";
+export {
+  formatScaleRehearsalTiming,
+  runScaleRehearsal,
+  SCALE_REHEARSAL_LIVING,
+  SCALE_REHEARSAL_SEED,
+  SCALE_REHEARSAL_TICKS,
+  type ScaleRehearsalOptions,
+  type ScaleRehearsalTiming,
+} from "./scale-rehearsal";

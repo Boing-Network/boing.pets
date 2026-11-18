@@ -19,6 +19,7 @@
     "db:validate": "prisma validate --schema packages/db/prisma/schema.prisma",
     "db:generate": "prisma generate --schema packages/db/prisma/schema.prisma",
     "db:check": "node packages/db/scripts/check-sql.mjs",
+    "scale-rehearsal": "node --import tsx apps/sim-host/scripts/run-scale-rehearsal.mjs",
     "format:check": "prettier --check .",
     "verify": "npm run format:check && npm run lint && npm run db:generate && npm run typecheck && npm run test && npm run client:build && npm run client:check-bundle"
   },

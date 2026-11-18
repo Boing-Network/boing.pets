@@ -308,6 +308,9 @@ export default ts.config(
             "@boing-pets/sim",
             "node:test",
             "node:assert",
+            "node:fs",
+            "node:path",
+            "node:url",
           ],
         },
       ],
@@ -371,7 +374,11 @@ export default ts.config(
     },
   },
   {
-    files: ["packages/db/scripts/**/*.mjs", "apps/client/scripts/**/*.mjs"],
+    files: [
+      "packages/db/scripts/**/*.mjs",
+      "apps/client/scripts/**/*.mjs",
+      "apps/sim-host/scripts/**/*.mjs",
+    ],
     languageOptions: {
       globals: {
         console: "readonly",

@@ -2,6 +2,10 @@ export { step } from "./kernel/step";
 export { applyInfluences } from "./kernel/influences";
 export { aggregateTerritories } from "./kernel/territories";
 export { createWorld } from "./worldgen/create-world";
+export {
+  createScaleWorld,
+  livingCountsPerSpecies,
+} from "./worldgen/create-scale-world";
 export { RULESET_V1 } from "./ruleset";
 export { canonicalHash, canonicalJson } from "./hash";
 export { RNG_DOMAINS, fnv1a64, rngInt, splitmix64 } from "./rng";
