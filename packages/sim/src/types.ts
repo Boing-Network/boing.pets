@@ -76,6 +76,12 @@ export type TerritoryLinkRow = {
   travelTicks: number;
 };
 
+/** A lineage already has a DISCOVERY for this territory. */
+export type DiscoveryRow = {
+  lineageId: number;
+  territoryId: number;
+};
+
 export type TerritoryModifierRow = {
   id: number;
   worldId: number;
@@ -195,6 +201,11 @@ export type WorldSnapshot = {
   compatibility: CompatibilityRow[];
   territories: TerritoryRow[];
   links: TerritoryLinkRow[];
+  /**
+   * Lineage discoveries step can see. Worldgen stores founder homes here
+   * because DISCOVERY events are not reloaded into the kernel.
+   */
+  discoveries: DiscoveryRow[];
   modifiers: TerritoryModifierRow[];
   lineages: LineageRow[];
   creatures: CreatureRow[];

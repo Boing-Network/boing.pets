@@ -41,6 +41,7 @@ function reverseArrays(snapshot: WorldSnapshot): WorldSnapshot {
   copy.compatibility.reverse();
   copy.territories.reverse();
   copy.links.reverse();
+  copy.discoveries.reverse();
   copy.modifiers.reverse();
   copy.lineages.reverse();
   copy.creatures.reverse();
@@ -95,7 +96,7 @@ test("seed 1 twice produces the same founders", () => {
   assert.equal(canonicalHash(first.snapshot), canonicalHash(second.snapshot));
   assert.equal(
     canonicalHash(second.snapshot),
-    "3b14ad1099be9d15cd515b30726700995344c9c649a1d562bceb1de2fe74d965",
+    "10833d69126bdc73beee2d06d31109e31bc25126bb63f4e1c52bd934b40f5f5d",
   );
   assert.notEqual(
     canonicalHash(first.snapshot),
@@ -120,6 +121,7 @@ test("seed 1 twice produces the same founders", () => {
 
   assert.equal(snapshot.creatures.length, 12);
   assert.equal(snapshot.lineages.length, 12);
+  assert.equal(snapshot.discoveries.length, 12);
   assert.equal(events.length, 24);
   assert.deepEqual(
     snapshot.compatibility.map((row) => [
@@ -199,6 +201,13 @@ test("seed 1 twice produces the same founders", () => {
     assert.equal(species?.slug, slug);
     assert.equal(creature.gender, gender);
     assert.equal(territory?.slug, home);
+    assert.ok(
+      snapshot.discoveries.some(
+        (row) =>
+          row.lineageId === creature.lineageId &&
+          row.territoryId === territory?.id,
+      ),
+    );
     assert.equal(creature.name, name);
     assert.equal(lineage?.name, `${name} line`);
     assert.equal(lineage?.founderCreatureId, creature.id);

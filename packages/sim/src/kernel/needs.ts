@@ -2,7 +2,7 @@ import { Action, CreatureStatus, type Ruleset } from "@boing-pets/contract";
 import { assertInteger, clamp } from "../math";
 import type { CreatureRow } from "../types";
 
-/** Territory stats for one tick. Food is aggregated for later milestones. */
+/** Effective territory stats for one tick. Population includes creatures in transit. */
 export type TerritoryTick = {
   name: string;
   food: number;

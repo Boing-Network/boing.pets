@@ -1,0 +1,515 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { Goal } from "@boing-pets/contract";
+import {
+  beginFlee,
+  beginRelocate,
+  fleeDestination,
+  travelDuration,
+} from "../src/ai/actions";
+import { aggregateTerritories } from "../src/kernel/territories";
+import { divRound } from "../src/math";
+import {
+  canonicalHash,
+  createWorld,
+  step,
+  type CreatureRow,
+  type WorldEvent,
+  type WorldSnapshot,
+} from "../src/index";
+
+function clone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function world(): WorldSnapshot {
+  return createWorld(1).snapshot;
+}
+
+function byId(snapshot: WorldSnapshot, id: number): CreatureRow {
+  const row = snapshot.creatures.find((creature) => creature.id === id);
+  assert.ok(row);
+  return row;
+}
+
+function territory(snapshot: WorldSnapshot, slug: string) {
+  const row = snapshot.territories.find((item) => item.slug === slug);
+  assert.ok(row);
+  return row;
+}
+
+function reverseArrays(snapshot: WorldSnapshot): WorldSnapshot {
+  const copy = clone(snapshot);
+  copy.species.reverse();
+  copy.compatibility.reverse();
+  copy.territories.reverse();
+  copy.links.reverse();
+  copy.discoveries.reverse();
+  copy.modifiers.reverse();
+  copy.lineages.reverse();
+  copy.creatures.reverse();
+  copy.relationships.reverse();
+  copy.memories.reverse();
+  copy.pendingInfluences.reverse();
+  return copy;
+}
+
+function openMeadowPath(snapshot: WorldSnapshot): void {
+  snapshot.links.push({
+    worldId: snapshot.world.id,
+    fromId: territory(snapshot, "ridge").id,
+    toId: territory(snapshot, "meadow").id,
+    travelTicks: 6,
+  });
+}
+
+function chosenFlee(snapshot: WorldSnapshot, tick: number): number {
+  const hare = byId(snapshot, 9);
+  const destination = fleeDestination(
+    snapshot,
+    hare.territoryId,
+    aggregateTerritories(snapshot, tick),
+  );
+  assert.ok(destination);
+  return destination.territoryId;
+}
+
+test("travel duration scales with gene speed", () => {
+  assert.equal(travelDuration(8, 0), 16);
+  assert.equal(travelDuration(8, 500), 8);
+  assert.equal(travelDuration(8, 1000), 5);
+  assert.equal(travelDuration(8, 0), Math.max(1, divRound(8000, 500)));
+  assert.equal(travelDuration(8, 500), Math.max(1, divRound(8000, 1000)));
+  assert.equal(travelDuration(8, 1000), Math.max(1, divRound(8000, 1500)));
+  assert.equal(travelDuration(1, 1000), 1);
+});
+
+test("a flee from ridge arrives in thicket and a second visit is not a discovery", () => {
+  const snapshot = world();
+  const ridge = territory(snapshot, "ridge");
+  const thicket = territory(snapshot, "thicket");
+  const hare = byId(snapshot, 9);
+  const lineage = snapshot.lineages.find((row) => row.id === hare.lineageId);
+  assert.ok(lineage);
+  assert.equal(hare.territoryId, ridge.id);
+  assert.equal(
+    snapshot.links.find(
+      (link) => link.fromId === ridge.id && link.toId === thicket.id,
+    )?.travelTicks,
+    8,
+  );
+  hare.geneSpeed = 0;
+
+  const duration = beginFlee(
+    snapshot,
+    hare,
+    0,
+    aggregateTerritories(snapshot, 0),
+  );
+  assert.equal(duration, 16);
+  assert.equal(hare.currentGoal, "SEEK_SHELTER");
+  assert.equal(hare.currentAction, "RELOCATE");
+  assert.equal(hare.actionTargetKind, "TERRITORY");
+  assert.equal(hare.actionTargetId, thicket.id);
+  assert.equal(hare.actionStartedTick, 0);
+  assert.equal(hare.actionEndsTick, 16);
+
+  for (let tick = 1; tick < duration; tick += 1) {
+    const passed = step(snapshot);
+    assert.equal(snapshot.world.lastTick, tick);
+    assert.equal(hare.territoryId, ridge.id);
+    assert.equal(hare.currentAction, "RELOCATE");
+    assert.deepEqual(passed.events, []);
+  }
+
+  const arrived = step(snapshot);
+  assert.equal(snapshot.world.lastTick, 16);
+  assert.equal(hare.territoryId, thicket.id);
+  assert.equal(hare.currentGoal, "SEEK_SHELTER");
+  assert.equal(hare.currentAction, null);
+  assert.equal(hare.actionTargetKind, "NONE");
+  assert.equal(hare.actionTargetId, null);
+  assert.equal(hare.actionStartedTick, null);
+  assert.equal(hare.actionEndsTick, null);
+  assert.equal(arrived.events.length, 2);
+  const migration = arrived.events[0];
+  const discovery = arrived.events[1];
+  assert.ok(migration);
+  assert.ok(discovery);
+  assert.equal(migration.kind, "MIGRATION");
+  assert.equal(migration.id, 25);
+  assert.equal(migration.tick, 16);
+  assert.equal(migration.actorId, hare.id);
+  assert.equal(migration.subjectId, null);
+  assert.equal(migration.territoryId, thicket.id);
+  assert.equal(migration.lineageId, hare.lineageId);
+  assert.equal(migration.summary, `${hare.name} moved from Ridge to Thicket.`);
+  assert.deepEqual(migration.payload, {
+    template: "migration.v1",
+    creatureId: hare.id,
+    fromTerritoryId: ridge.id,
+    toTerritoryId: thicket.id,
+    reason: "FLEE",
+  });
+  assert.equal(discovery.kind, "DISCOVERY");
+  assert.equal(discovery.id, 26);
+  assert.equal(discovery.tick, 16);
+  assert.equal(discovery.actorId, hare.id);
+  assert.equal(discovery.territoryId, thicket.id);
+  assert.equal(discovery.lineageId, hare.lineageId);
+  assert.equal(
+    discovery.summary,
+    `${hare.name} of ${lineage.name} discovered Thicket.`,
+  );
+  assert.deepEqual(discovery.payload, {
+    template: "discovery.v1",
+    creatureId: hare.id,
+    territoryId: thicket.id,
+    lineageId: hare.lineageId,
+  });
+  assert.equal(snapshot.world.nextEventId, 27);
+  assert.equal(snapshot.memories.length, 1);
+  const memory = snapshot.memories[0];
+  assert.ok(memory);
+  assert.equal(memory.kind, "DISCOVERY");
+  assert.equal(memory.creatureId, hare.id);
+  assert.equal(memory.territoryId, thicket.id);
+  assert.equal(memory.importance, 10);
+  assert.equal(memory.emotionalValue, 300);
+  assert.equal(
+    memory.initialStrength,
+    10 * snapshot.ruleset.memoryStrengthPerImportance,
+  );
+  assert.deepEqual(memory.payload, {
+    tags: ["discovery"],
+    template: "discovery.v1",
+  });
+  assert.equal(
+    snapshot.discoveries.filter(
+      (row) =>
+        row.lineageId === hare.lineageId && row.territoryId === thicket.id,
+    ).length,
+    1,
+  );
+  snapshot.memories.length = 0;
+
+  const back = beginRelocate(
+    snapshot,
+    hare,
+    snapshot.world.lastTick,
+    ridge.id,
+    Goal.EXPLORE,
+  );
+  assert.equal(back, 16);
+  const returned: WorldEvent[] = [];
+  for (let i = 0; i < back; i += 1) returned.push(...step(snapshot).events);
+  assert.equal(hare.territoryId, ridge.id);
+  assert.deepEqual(
+    returned.map((event) => event.kind),
+    ["MIGRATION"],
+  );
+  assert.equal(returned[0]?.payload.template, "migration.v1");
+  if (returned[0]?.payload.template !== "migration.v1") throw new Error("move");
+  assert.equal(returned[0].payload.reason, "SETTLE");
+  assert.equal(returned[0].payload.fromTerritoryId, thicket.id);
+  assert.equal(returned[0].payload.toTerritoryId, ridge.id);
+  assert.equal(snapshot.memories.length, 0);
+
+  const again = beginFlee(
+    snapshot,
+    hare,
+    snapshot.world.lastTick,
+    aggregateTerritories(snapshot, snapshot.world.lastTick),
+  );
+  assert.equal(again, 16);
+  const revisit: WorldEvent[] = [];
+  for (let i = 0; i < again; i += 1) revisit.push(...step(snapshot).events);
+  assert.equal(hare.territoryId, thicket.id);
+  assert.deepEqual(
+    revisit.map((event) => event.kind),
+    ["MIGRATION"],
+  );
+  assert.equal(revisit[0]?.payload.template, "migration.v1");
+  if (revisit[0]?.payload.template !== "migration.v1") throw new Error("move");
+  assert.equal(revisit[0].payload.reason, "FLEE");
+  assert.equal(revisit[0].payload.toTerritoryId, thicket.id);
+  assert.equal(snapshot.memories.length, 0);
+  assert.equal(snapshot.world.nextMemoryId, 2);
+  assert.equal(snapshot.world.nextEventId, 29);
+  assert.equal(
+    snapshot.discoveries.filter(
+      (row) =>
+        row.lineageId === hare.lineageId && row.territoryId === thicket.id,
+    ).length,
+    1,
+  );
+  assert.equal(ridge.danger, 700);
+  assert.equal(thicket.foodAbundance, 500);
+});
+
+test("a faster hare arrives on the shortened travel", () => {
+  const snapshot = world();
+  const hare = byId(snapshot, 9);
+  const thicket = territory(snapshot, "thicket");
+  hare.geneSpeed = 1000;
+  const duration = beginFlee(
+    snapshot,
+    hare,
+    0,
+    aggregateTerritories(snapshot, 0),
+  );
+  assert.equal(duration, 5);
+  for (let tick = 1; tick < 5; tick += 1) {
+    step(snapshot);
+    assert.equal(hare.territoryId, territory(snapshot, "ridge").id);
+  }
+  const arrived = step(snapshot);
+  assert.equal(snapshot.world.lastTick, 5);
+  assert.equal(hare.territoryId, thicket.id);
+  assert.deepEqual(
+    arrived.events.map((event) => event.kind),
+    ["MIGRATION", "DISCOVERY"],
+  );
+});
+
+test("death during travel writes no migration and stays on the origin", () => {
+  const snapshot = world();
+  const ridge = territory(snapshot, "ridge");
+  const hare = byId(snapshot, 9);
+  hare.geneSpeed = 1000;
+  assert.equal(
+    beginFlee(snapshot, hare, 0, aggregateTerritories(snapshot, 0)),
+    5,
+  );
+  for (let tick = 0; tick < 4; tick += 1) step(snapshot);
+  assert.equal(hare.territoryId, ridge.id);
+  hare.hunger = 996;
+  const result = step(snapshot);
+  assert.equal(hare.status, "DEAD");
+  assert.equal(hare.deathCause, "STARVATION");
+  assert.equal(hare.deathTick, 5);
+  assert.equal(hare.territoryId, ridge.id);
+  assert.equal(hare.currentAction, null);
+  assert.equal(result.events.length, 1);
+  assert.equal(result.events[0]?.kind, "DEATH");
+  assert.equal(result.events[0]?.territoryId, ridge.id);
+  assert.equal(snapshot.discoveries.length, 12);
+  assert.equal(snapshot.memories.length, 0);
+  assert.equal(snapshot.world.nextEventId, 26);
+});
+
+test("a traveler still counts toward the origin", () => {
+  const snapshot = world();
+  const ridge = territory(snapshot, "ridge");
+  ridge.capacity = 1;
+  const hare = byId(snapshot, 9);
+  const neighbor = byId(snapshot, 10);
+  hare.geneSpeed = 0;
+  assert.equal(
+    beginFlee(snapshot, hare, 0, aggregateTerritories(snapshot, 0)),
+    16,
+  );
+  step(snapshot);
+  assert.equal(hare.territoryId, ridge.id);
+  assert.equal(hare.currentAction, "RELOCATE");
+  assert.equal(neighbor.territoryId, ridge.id);
+  assert.equal(hare.discomfort, 109);
+  assert.equal(neighbor.discomfort, 109);
+});
+
+test("flee uses effective danger, then settle, then territory id", () => {
+  const plain = world();
+  openMeadowPath(plain);
+  assert.equal(chosenFlee(plain, 0), territory(plain, "meadow").id);
+
+  const calmed = world();
+  openMeadowPath(calmed);
+  const meadow = territory(calmed, "meadow");
+  calmed.modifiers.push({
+    id: 1,
+    worldId: 1,
+    territoryId: meadow.id,
+    kind: "DANGER",
+    amount: 300,
+    startTick: 0,
+    endTick: 10,
+    sourceInfluenceId: null,
+  });
+  assert.equal(chosenFlee(calmed, 0), territory(calmed, "thicket").id);
+  assert.equal(meadow.danger, 200);
+  assert.equal(meadow.foodAbundance, 700);
+
+  const later = world();
+  openMeadowPath(later);
+  later.modifiers.push({
+    id: 1,
+    worldId: 1,
+    territoryId: territory(later, "meadow").id,
+    kind: "DANGER",
+    amount: 1000,
+    startTick: 1,
+    endTick: 4,
+    sourceInfluenceId: null,
+  });
+  assert.equal(chosenFlee(later, 0), territory(later, "meadow").id);
+  assert.equal(chosenFlee(later, 1), territory(later, "thicket").id);
+
+  const settled = world();
+  openMeadowPath(settled);
+  settled.modifiers.push({
+    id: 1,
+    worldId: 1,
+    territoryId: territory(settled, "meadow").id,
+    kind: "DANGER",
+    amount: 250,
+    startTick: 0,
+    endTick: 2,
+    sourceInfluenceId: null,
+  });
+  assert.equal(chosenFlee(settled, 0), territory(settled, "meadow").id);
+
+  const tied = world();
+  openMeadowPath(tied);
+  tied.modifiers.push(
+    {
+      id: 1,
+      worldId: 1,
+      territoryId: territory(tied, "meadow").id,
+      kind: "DANGER",
+      amount: 250,
+      startTick: 0,
+      endTick: 2,
+      sourceInfluenceId: null,
+    },
+    {
+      id: 2,
+      worldId: 1,
+      territoryId: territory(tied, "meadow").id,
+      kind: "FOOD",
+      amount: -200,
+      startTick: 0,
+      endTick: 2,
+      sourceInfluenceId: null,
+    },
+  );
+  assert.equal(chosenFlee(tied, 0), territory(tied, "meadow").id);
+
+  const crowded = world();
+  openMeadowPath(crowded);
+  territory(crowded, "meadow").capacity = 0;
+  crowded.modifiers.push(
+    {
+      id: 1,
+      worldId: 1,
+      territoryId: territory(crowded, "meadow").id,
+      kind: "DANGER",
+      amount: 250,
+      startTick: 0,
+      endTick: 2,
+      sourceInfluenceId: null,
+    },
+    {
+      id: 2,
+      worldId: 1,
+      territoryId: territory(crowded, "meadow").id,
+      kind: "FOOD",
+      amount: -200,
+      startTick: 0,
+      endTick: 2,
+      sourceInfluenceId: null,
+    },
+  );
+  assert.equal(chosenFlee(crowded, 0), territory(crowded, "thicket").id);
+
+  const blocked = world();
+  blocked.links = blocked.links.filter(
+    (link) => link.fromId !== territory(blocked, "ridge").id,
+  );
+  assert.equal(
+    beginFlee(blocked, byId(blocked, 9), 0, aggregateTerritories(blocked, 0)),
+    null,
+  );
+  assert.equal(byId(blocked, 9).currentAction, null);
+});
+
+test("two arrivals in one tick write one discovery for the lineage", () => {
+  const snapshot = world();
+  const thicket = territory(snapshot, "thicket");
+  const leader = byId(snapshot, 9);
+  const follower = byId(snapshot, 10);
+  follower.lineageId = leader.lineageId;
+  leader.geneSpeed = 500;
+  follower.geneSpeed = 500;
+  const stats = aggregateTerritories(snapshot, 0);
+  assert.equal(beginFlee(snapshot, leader, 0, stats), 8);
+  assert.equal(beginFlee(snapshot, follower, 0, stats), 8);
+
+  let events: WorldEvent[] = [];
+  for (let tick = 0; tick < 8; tick += 1) events = step(snapshot).events;
+  assert.equal(leader.territoryId, thicket.id);
+  assert.equal(follower.territoryId, thicket.id);
+  assert.deepEqual(
+    events.map((event) => [event.actorId, event.kind]),
+    [
+      [9, "MIGRATION"],
+      [9, "DISCOVERY"],
+      [10, "MIGRATION"],
+    ],
+  );
+  assert.deepEqual(
+    snapshot.memories.map((memory) => [memory.creatureId, memory.kind]),
+    [[9, "DISCOVERY"]],
+  );
+  assert.equal(
+    snapshot.discoveries.filter(
+      (row) =>
+        row.lineageId === leader.lineageId && row.territoryId === thicket.id,
+    ).length,
+    1,
+  );
+});
+
+test("reversed rows flee to the same hash", () => {
+  const forward = world();
+  const backward = reverseArrays(world());
+  const duration = beginFlee(
+    forward,
+    byId(forward, 9),
+    0,
+    aggregateTerritories(forward, 0),
+  );
+  assert.equal(
+    beginFlee(
+      backward,
+      byId(backward, 9),
+      0,
+      aggregateTerritories(backward, 0),
+    ),
+    duration,
+  );
+  assert.ok(duration);
+  let left: WorldEvent[] = [];
+  let right: WorldEvent[] = [];
+  for (let tick = 0; tick < duration; tick += 1) {
+    left = step(forward).events;
+    right = step(backward).events;
+  }
+  assert.deepEqual(left, right);
+  assert.equal(canonicalHash(forward), canonicalHash(backward));
+  assert.equal(byId(forward, 9).territoryId, territory(forward, "thicket").id);
+});
+
+test("a finished forage still waits for a later milestone", () => {
+  const snapshot = world();
+  const founder = byId(snapshot, 1);
+  founder.currentAction = "FORAGE";
+  founder.actionEndsTick = 1;
+  founder.hunger = 500;
+  const result = step(snapshot);
+  assert.equal(founder.currentAction, "FORAGE");
+  assert.equal(founder.actionEndsTick, 1);
+  assert.equal(founder.hunger, 504);
+  assert.equal(founder.territoryId, 1);
+  assert.deepEqual(result.events, []);
+  assert.equal(snapshot.discoveries.length, 12);
+});

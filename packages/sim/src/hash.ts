@@ -1,5 +1,6 @@
 import type {
   CompatibilityRow,
+  DiscoveryRow,
   MemoryRow,
   PlayerInfluenceRow,
   RelationshipRow,
@@ -137,6 +138,13 @@ function byLink(rows: readonly TerritoryLinkRow[]): TerritoryLinkRow[] {
   });
 }
 
+function byDiscovery(rows: readonly DiscoveryRow[]): DiscoveryRow[] {
+  return [...rows].sort((a, b) => {
+    if (a.lineageId !== b.lineageId) return a.lineageId - b.lineageId;
+    return a.territoryId - b.territoryId;
+  });
+}
+
 /** Header fields that are sim state. `clockAtMs` is wall time and stays out. */
 function hashedWorld(world: WorldHeader) {
   return {
@@ -170,6 +178,7 @@ function hashedSnapshot(snapshot: WorldSnapshot) {
     compatibility: byPair(snapshot.compatibility),
     territories: byId(snapshot.territories),
     links: byLink(snapshot.links),
+    discoveries: byDiscovery(snapshot.discoveries),
     modifiers,
     lineages: byId(snapshot.lineages),
     creatures,

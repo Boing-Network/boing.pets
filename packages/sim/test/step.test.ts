@@ -39,6 +39,7 @@ function reverseArrays(snapshot: WorldSnapshot): WorldSnapshot {
   copy.compatibility.reverse();
   copy.territories.reverse();
   copy.links.reverse();
+  copy.discoveries.reverse();
   copy.modifiers.reverse();
   copy.lineages.reverse();
   copy.creatures.reverse();

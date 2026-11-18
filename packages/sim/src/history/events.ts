@@ -3,6 +3,7 @@ import {
   EventKind,
   EventTemplate,
   type GeneticProfile,
+  type MigrationReason,
 } from "@boing-pets/contract";
 import type { WorldEvent } from "../types";
 
@@ -130,9 +131,56 @@ export function deathEvent(input: {
   };
 }
 
+/** `{name} moved from {from} to {to}.` */
+export function migrationSummary(
+  name: string,
+  fromTerritory: string,
+  toTerritory: string,
+): string {
+  return `${name} moved from ${fromTerritory} to ${toTerritory}.`;
+}
+
+export function migrationEvent(input: {
+  id: number;
+  worldId: number;
+  tick: number;
+  creatureId: number;
+  lineageId: number;
+  fromTerritoryId: number;
+  toTerritoryId: number;
+  name: string;
+  fromTerritory: string;
+  toTerritory: string;
+  reason: MigrationReason;
+}): WorldEvent {
+  return {
+    id: input.id,
+    worldId: input.worldId,
+    tick: input.tick,
+    kind: EventKind.MIGRATION,
+    actorId: input.creatureId,
+    subjectId: null,
+    territoryId: input.toTerritoryId,
+    lineageId: input.lineageId,
+    summary: migrationSummary(
+      input.name,
+      input.fromTerritory,
+      input.toTerritory,
+    ),
+    payload: {
+      template: EventTemplate.MIGRATION,
+      creatureId: input.creatureId,
+      fromTerritoryId: input.fromTerritoryId,
+      toTerritoryId: input.toTerritoryId,
+      reason: input.reason,
+    },
+  };
+}
+
 export function discoveryEvent(input: {
   id: number;
   worldId: number;
+  tick: number;
   creatureId: number;
   lineageId: number;
   territoryId: number;
@@ -143,7 +191,7 @@ export function discoveryEvent(input: {
   return {
     id: input.id,
     worldId: input.worldId,
-    tick: 0,
+    tick: input.tick,
     kind: EventKind.DISCOVERY,
     actorId: input.creatureId,
     subjectId: null,

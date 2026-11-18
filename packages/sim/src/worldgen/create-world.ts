@@ -14,6 +14,7 @@ import { RULESET_V1 } from "../ruleset";
 import type {
   CompatibilityRow,
   CreatureRow,
+  DiscoveryRow,
   LineageRow,
   SpeciesRow,
   TerritoryLinkRow,
@@ -288,6 +289,7 @@ export function createWorld(seed: number): CreateWorldResult {
 
   const creatures: CreatureRow[] = [];
   const lineages: LineageRow[] = [];
+  const discoveries: DiscoveryRow[] = [];
   const events: WorldEvent[] = [];
   const usedNames = new Set<string>();
   const founderSpecies = [...SPECIES].sort((a, b) =>
@@ -399,6 +401,7 @@ export function createWorld(seed: number): CreateWorldResult {
         discoveryEvent({
           id: take("event"),
           worldId: WORLD_ID,
+          tick: 0,
           creatureId,
           lineageId,
           territoryId: home.id,
@@ -409,6 +412,7 @@ export function createWorld(seed: number): CreateWorldResult {
       );
       creatures.push(creature);
       lineages.push(lineage);
+      discoveries.push({ lineageId, territoryId: home.id });
     }
   }
 
@@ -435,6 +439,7 @@ export function createWorld(seed: number): CreateWorldResult {
     compatibility,
     territories,
     links,
+    discoveries,
     modifiers: [],
     lineages,
     creatures,

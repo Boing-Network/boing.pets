@@ -8,6 +8,7 @@ export type { CreateWorldResult } from "./worldgen/create-world";
 export type {
   CompatibilityRow,
   CreatureRow,
+  DiscoveryRow,
   LineageRow,
   MemoryRow,
   PlayerInfluenceRow,
