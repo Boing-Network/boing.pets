@@ -257,6 +257,27 @@ export default ts.config(
     },
   },
   {
+    files: ["packages/db/test/**/*.ts"],
+    plugins: { "living-pets": livingPets },
+    rules: {
+      "living-pets/boundaries": [
+        "error",
+        {
+          packageDir: "packages/db",
+          allowPackages: [
+            "@boing-pets/contract",
+            "@prisma/client",
+            "node:test",
+            "node:assert",
+            "node:fs",
+            "node:path",
+            "node:url",
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["packages/db/scripts/**/*.mjs"],
     languageOptions: {
       globals: {

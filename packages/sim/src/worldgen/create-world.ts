@@ -7,6 +7,7 @@ import {
   type GeneticProfile,
   type Ruleset,
 } from "@boing-pets/contract";
+import { createFounderLineage } from "../family/lineage";
 import { generateName } from "../genetics/inherit";
 import { discoveryEvent, founderBirthEvent } from "../history/events";
 import { assertInteger, clamp } from "../math";
@@ -339,15 +340,14 @@ export function createWorld(seed: number): CreateWorldResult {
         gestationEndTick: null,
         mateCooldownUntilTick: null,
       };
-      const lineage: LineageRow = {
+      const lineage = createFounderLineage({
         id: lineageId,
         worldId: WORLD_ID,
         founderCreatureId: creatureId,
         speciesId: catalog.id,
-        name: `${name} line`,
+        founderName: name,
         foundedTick: 0,
-        playerFavor: 0,
-      };
+      });
       const genes = geneticProfile(creature);
       events.push(
         founderBirthEvent({

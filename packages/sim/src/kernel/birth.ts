@@ -10,6 +10,7 @@ import {
   Goal,
   MemoryKind,
 } from "@boing-pets/contract";
+import { generationForChild, lineageIdForChild } from "../family/lineage";
 import {
   generateName,
   inheritGenes,
@@ -111,7 +112,8 @@ function deliverChild(
   const names = usedNames(snapshot);
   const name = generateName(seed, tick, childId, names);
   const gender = rollGender(seed, tick, childId);
-  const generation = Math.max(mother.generation, father.generation) + 1;
+  const lineageId = lineageIdForChild(mother);
+  const generation = generationForChild(mother, father);
 
   const child: CreatureRow = {
     id: childId,
@@ -125,7 +127,7 @@ function deliverChild(
     deathTick: null,
     deathCause: null,
     territoryId: mother.territoryId,
-    lineageId: mother.lineageId,
+    lineageId,
     motherId: mother.id,
     fatherId: father.id,
     generation,
@@ -174,7 +176,7 @@ function deliverChild(
       childId,
       motherId: mother.id,
       fatherId: father.id,
-      lineageId: mother.lineageId,
+      lineageId,
       speciesId: mother.speciesId,
       territoryId: mother.territoryId,
       name: child.name,

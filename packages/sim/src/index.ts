@@ -12,6 +12,11 @@ export {
   rollGender,
 } from "./genetics/inherit";
 export { resolveBirths } from "./kernel/birth";
+export {
+  createFounderLineage,
+  generationForChild,
+  lineageIdForChild,
+} from "./family/lineage";
 export { courtAccepts, resolveCourt } from "./ai/actions";
 export {
   MEMORY_DECAY_LUT,

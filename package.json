@@ -9,8 +9,8 @@
     "packages/db"
   ],
   "scripts": {
-    "typecheck": "tsc -p packages/contract/tsconfig.json --noEmit && tsc -p packages/sim/tsconfig.json --noEmit && tsc -p packages/sim/tsconfig.test.json --noEmit && tsc -p packages/db/tsconfig.json --noEmit",
-    "test": "node --import tsx --test packages/sim/test/*.test.ts",
+    "typecheck": "tsc -p packages/contract/tsconfig.json --noEmit && tsc -p packages/sim/tsconfig.json --noEmit && tsc -p packages/sim/tsconfig.test.json --noEmit && tsc -p packages/db/tsconfig.json --noEmit && tsc -p packages/db/tsconfig.test.json --noEmit",
+    "test": "node --import tsx --test packages/sim/test/*.test.ts packages/db/test/*.test.ts",
     "lint": "eslint packages/contract packages/sim packages/db eslint.config.js --max-warnings 0",
     "db:validate": "prisma validate --schema packages/db/prisma/schema.prisma",
     "db:check": "node packages/db/scripts/check-sql.mjs",
