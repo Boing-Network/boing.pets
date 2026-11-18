@@ -41,6 +41,7 @@ export function worldgenTables(
     relationships: clone(snapshot.relationships),
     memories: clone(snapshot.memories),
     influences: clone(snapshot.pendingInfluences),
+    influenceAcceptedAtMs: [],
     events: clone([...events]),
     catchups: [],
   };
@@ -86,7 +87,9 @@ export function buildCommitBatch(
     insertModifiers: clone(newModifiers(snapshot, dirty)),
     upsertLineages: clone(dirtyLineages(snapshot, dirty)),
     insertEvents: clone(dirty.events),
+    insertInfluences: [],
     appliedInfluenceIds: [...dirty.appliedInfluenceIds],
+    influenceAcceptedAtMs: null,
     insertCatchup: catchup == null ? null : clone(catchup),
   };
 }

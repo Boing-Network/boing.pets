@@ -20,6 +20,11 @@ export type HostSession = {
   snapshot: WorldSnapshot;
   dirty: DirtySet;
   repository: WorldRepository;
+  /**
+   * True while catch-up is running. Influence submits wait until false so
+   * `issuedAtTick` uses the post-catch-up `lastTick + 1`.
+   */
+  catchingUp: boolean;
 };
 
 /** Boot from the store, or createWorld(seed) when empty and persist it. */
@@ -33,6 +38,7 @@ export async function bootSession(
       snapshot: loaded,
       dirty: createDirtySet(),
       repository,
+      catchingUp: false,
     };
   }
   const { snapshot, events } = createWorld(seed);
@@ -41,6 +47,7 @@ export async function bootSession(
     snapshot,
     dirty: createDirtySet(),
     repository,
+    catchingUp: false,
   };
 }
 

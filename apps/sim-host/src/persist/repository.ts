@@ -31,6 +31,11 @@ export type DurableTables = {
   relationships: RelationshipRow[];
   memories: MemoryRow[];
   influences: PlayerInfluenceRow[];
+  /**
+   * Wall-clock accept times for the host rate limit (3 / 24h).
+   * Not read by `step()`.
+   */
+  influenceAcceptedAtMs: number[];
   events: WorldEvent[];
   catchups: CatchupReport[];
 };
@@ -47,7 +52,10 @@ export type CommitBatch = {
   insertModifiers: TerritoryModifierRow[];
   upsertLineages: LineageRow[];
   insertEvents: WorldEvent[];
+  insertInfluences: PlayerInfluenceRow[];
   appliedInfluenceIds: number[];
+  /** Replace the durable accept-time log when non-null. */
+  influenceAcceptedAtMs: number[] | null;
   /** Set when this commit closes an offline catch-up gap. */
   insertCatchup: CatchupReport | null;
 };

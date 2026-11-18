@@ -1,6 +1,6 @@
 /**
- * Sim host: clock, persistence, and (later) IPC. Single writer.
- * M13 lands pause and time scale on top of M12 catch-up.
+ * Sim host: clock, persistence, influences, and (later) IPC. Single writer.
+ * M14 lands the five influence verbs and the host rate limit.
  */
 export {
   catchupOnLaunch,
@@ -29,6 +29,22 @@ export {
   type HostClockOptions,
   type PauseTickResult,
 } from "./clock";
+export {
+  acceptedInWindow,
+  beginCatchupGuard,
+  canAcceptInfluence,
+  createInfluenceGate,
+  endCatchupGuard,
+  loadInfluenceGate,
+  pruneInfluenceGate,
+  submitInfluence,
+  INFLUENCE_RATE_LIMIT,
+  INFLUENCE_RATE_WINDOW_MS,
+  type InfluenceGate,
+  type InfluenceSubmitOk,
+  type InfluenceSubmitRejected,
+  type InfluenceSubmitResult,
+} from "./influence";
 export {
   clearDirty,
   createDirtySet,

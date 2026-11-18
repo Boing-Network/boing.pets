@@ -50,6 +50,9 @@ export class MemoryWorldRepository implements WorldRepository {
     assertExplicitIds(tables.influences, "influence");
     assertExplicitIds(tables.events, "event");
     assertExplicitIds(tables.catchups, "catchup");
+    if (!Array.isArray(tables.influenceAcceptedAtMs)) {
+      throw new Error("influenceAcceptedAtMs");
+    }
     this.#tables = clone(tables);
   }
 
@@ -67,6 +70,7 @@ export class MemoryWorldRepository implements WorldRepository {
     assertExplicitIds(batch.insertModifiers, "modifier");
     assertExplicitIds(batch.upsertLineages, "lineage");
     assertExplicitIds(batch.insertEvents, "event");
+    assertExplicitIds(batch.insertInfluences, "influence");
 
     const creatures = indexById(next.creatures);
     for (const row of batch.insertCreatures) {
@@ -141,10 +145,21 @@ export class MemoryWorldRepository implements WorldRepository {
       return a.id - b.id;
     });
 
+    const influences = indexById(next.influences);
+    for (const row of batch.insertInfluences) {
+      if (influences.has(row.id)) {
+        throw new Error(`influence id ${row.id} already exists`);
+      }
+      influences.set(row.id, clone(row));
+    }
     const applied = new Set(batch.appliedInfluenceIds);
-    next.influences = next.influences.map((row) =>
-      applied.has(row.id) ? { ...row, applied: true } : row,
-    );
+    next.influences = [...influences.values()]
+      .map((row) => (applied.has(row.id) ? { ...row, applied: true } : row))
+      .sort((a, b) => a.id - b.id);
+
+    if (batch.influenceAcceptedAtMs != null) {
+      next.influenceAcceptedAtMs = clone(batch.influenceAcceptedAtMs);
+    }
 
     if (batch.insertCatchup != null) {
       assertExplicitIds([batch.insertCatchup], "catchup");

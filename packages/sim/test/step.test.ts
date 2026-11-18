@@ -548,7 +548,7 @@ test("death records gestation, grief, and leaves the pair row", () => {
   assert.equal(once.world.nextMemoryId, 2);
 });
 
-test("influences stay outside this step; births need matching endTick", () => {
+test("influences for other ticks stay pending; births need matching endTick", () => {
   const snapshot = world();
   const mother = byId(snapshot, 1);
   // End tick 1 does not match this step's tick 144, so no birth fires.
@@ -566,6 +566,7 @@ test("influences stay outside this step; births need matching endTick", () => {
     creature.actionStartedTick = 0;
     creature.actionEndsTick = 1_000_000;
   }
+  // issuedAtTick 1 ≠ this step's tick 144, so Enrich does not apply yet.
   snapshot.pendingInfluences.push({
     id: 1,
     worldId: 1,

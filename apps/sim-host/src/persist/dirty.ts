@@ -2,7 +2,12 @@
  * Dirty tracking for a commit window.
  * Needs drift every tick, so every creature alive during the batch is dirty.
  */
-import { CreatureStatus } from "@boing-pets/contract";
+import {
+  CreatureStatus,
+  InfluenceKind,
+  type FavorBloodlinePayload,
+  type NameLineagePayload,
+} from "@boing-pets/contract";
 import type {
   CreatureRow,
   LineageRow,
@@ -110,7 +115,16 @@ export function markAfterTick(
     if (lineage.id >= before.nextLineageId) dirty.lineageIds.add(lineage.id);
   }
   for (const influence of snapshot.pendingInfluences) {
-    if (influence.applied) dirty.appliedInfluenceIds.add(influence.id);
+    if (!influence.applied) continue;
+    dirty.appliedInfluenceIds.add(influence.id);
+    if (
+      influence.kind === InfluenceKind.NAME_LINEAGE ||
+      influence.kind === InfluenceKind.FAVOR_BLOODLINE
+    ) {
+      const payload = influence.payload as
+        NameLineagePayload | FavorBloodlinePayload;
+      dirty.lineageIds.add(payload.lineageId);
+    }
   }
   for (const event of events) dirty.events.push(event);
 }
