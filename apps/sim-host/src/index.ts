@@ -1,6 +1,6 @@
 /**
- * Sim host: clock, persistence, influences, and (later) IPC. Single writer.
- * M14 lands the five influence verbs and the host rate limit.
+ * Sim host: clock, persistence, influences, WorldView mapping, and (later) IPC.
+ * Single writer. M15 adds the host → client WorldView builder.
  */
 export {
   catchupOnLaunch,
@@ -87,3 +87,4 @@ export {
   stepSession,
   type HostSession,
 } from "./session";
+export { buildWorldView } from "./view/world-view";
