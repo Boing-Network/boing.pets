@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import {
   Action,
   ActionTargetKind,
@@ -6,28 +6,31 @@ import {
   type TerritoryView,
 } from "@boing-pets/contract";
 import { CreaturePresentation } from "./creatures/CreaturePresentation";
-import { layoutForSlug } from "./layout";
+import { layoutForTerritory } from "./layout";
 import { lerp, relocateProgress, tokenOffset } from "./presentation";
 import { skinForSpecies } from "./species-skins";
+import type { WorldModel } from "./world/world-model";
 
 type Props = {
   creature: CreatureView;
   worldSeed: number;
   viewTick: number;
   territoriesById: Map<number, TerritoryView>;
+  model: WorldModel;
   selected: boolean;
   onSelect: (creatureId: number) => void;
+  /** Reports the token's world point so the camera can ease toward it. */
+  onFocus?: (point: { x: number; y: number; z: number }) => void;
 };
 
-function territoryCenter(territory: TerritoryView | undefined): {
-  x: number;
-  z: number;
-  visualRadius: number;
-} {
+function territoryHome(
+  territory: TerritoryView | undefined,
+  model: WorldModel,
+): { x: number; z: number; visualRadius: number } {
   if (!territory) {
-    return { x: 0, z: 0, visualRadius: 2 };
+    return { x: 0, z: 0, visualRadius: 24 };
   }
-  const layout = layoutForSlug(territory.slug);
+  const layout = layoutForTerritory(territory.id, territory.slug, model);
   return {
     x: layout.x,
     z: layout.z,
@@ -35,18 +38,24 @@ function territoryCenter(territory: TerritoryView | undefined): {
   };
 }
 
+/**
+ * Presentation placement. PR 1 keeps tokens at a stable shore offset inside
+ * their territory; PR 2 will drive motion from the creature's goal/action.
+ */
 export function CreatureToken({
   creature,
   worldSeed,
   viewTick,
   territoriesById,
+  model,
   selected,
   onSelect,
+  onFocus,
 }: Props) {
   const home = territoriesById.get(creature.territoryId);
-  const homeCenter = territoryCenter(home);
+  const homeCenter = territoryHome(home, model);
   const offset = useMemo(
-    () => tokenOffset(worldSeed, creature.id, homeCenter.visualRadius * 0.62),
+    () => tokenOffset(worldSeed, creature.id, homeCenter.visualRadius * 0.42),
     [worldSeed, creature.id, homeCenter.visualRadius],
   );
 
@@ -59,33 +68,50 @@ export function CreatureToken({
     creature.actionTargetId != null
   ) {
     const destination = territoriesById.get(creature.actionTargetId);
-    const destCenter = territoryCenter(destination);
+    const destCenter = territoryHome(destination, model);
     const destOffset = tokenOffset(
       worldSeed,
       creature.id,
-      destCenter.visualRadius * 0.62,
+      destCenter.visualRadius * 0.42,
     );
     const t = relocateProgress(
       viewTick,
       creature.actionStartedTick,
       creature.actionEndsTick,
     );
-    const fromX = homeCenter.x + offset.x;
-    const fromZ = homeCenter.z + offset.z;
-    const toX = destCenter.x + destOffset.x;
-    const toZ = destCenter.z + destOffset.z;
-    x = lerp(fromX, toX, t);
-    z = lerp(fromZ, toZ, t);
+    x = lerp(homeCenter.x + offset.x, destCenter.x + destOffset.x, t);
+    z = lerp(homeCenter.z + offset.z, destCenter.z + destOffset.z, t);
   }
 
+  // Keep standing creatures on dry ground near water rather than mid-channel.
+  const water = model.waterDistAt(x, z);
+  if (water < 0.6) {
+    const region = model.regionByTerritoryId.get(creature.territoryId);
+    const away = region
+      ? {
+          x: x - region.center.x - region.waterSide.x * region.radius,
+          z: z - region.center.z - region.waterSide.z * region.radius,
+        }
+      : { x: x - homeCenter.x, z: z - homeCenter.z };
+    const len = Math.hypot(away.x, away.z) || 1;
+    const push = 0.8 - water;
+    x += (away.x / len) * push;
+    z += (away.z / len) * push;
+  }
+
+  const ground = model.heightAt(x, z);
   const skin = skinForSpecies(creature.speciesId);
   // Moths hover; foxes and stags stand on the shore.
-  const y = skin.id === "lantern-moth" ? 0.55 : 0.02;
+  const y = skin.id === "lantern-moth" ? ground + 1.4 : ground + 0.02;
+
+  useEffect(() => {
+    onFocus?.({ x, y, z });
+  }, [onFocus, x, y, z]);
 
   return (
     <group
       position={[x, y, z]}
-      scale={2.35}
+      scale={5.2}
       onClick={(event) => {
         event.stopPropagation();
         onSelect(creature.id);
