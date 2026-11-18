@@ -1,121 +1,218 @@
+import { useFrame } from "@react-three/fiber";
+import { useRef, type RefObject } from "react";
+import type { Group } from "three";
+import type { CreaturePose } from "../motion/pose";
 import type { CreatureSkinPalette } from "../species-skins";
+import { GroundContact } from "./GroundContact";
+import { furMaterial, hardMaterial, loreGlow } from "./materials";
 
 type Props = {
   palette: CreatureSkinPalette;
   selected: boolean;
+  pose: RefObject<CreaturePose>;
 };
 
-/** Stylized fire-fox silhouette: tall ears, bushy flame-tail, glowing chest. */
-export function FireFoxMesh({ palette, selected }: Props) {
-  const scale = selected ? 1.1 : 1;
+/**
+ * Fire-fox: burnt-orange fur, cream chest, dark socks, soft ember mark.
+ * Fur is suggested with layered tufts and high roughness — not flat plastic.
+ */
+export function FireFoxMesh({ palette, selected, pose }: Props) {
+  const root = useRef<Group>(null);
+  const head = useRef<Group>(null);
+  const frontLegs = useRef<Group>(null);
+  const hindLegs = useRef<Group>(null);
+  const tail = useRef<Group>(null);
+  const fur = furMaterial(palette.primary, 0.9);
+  const cream = furMaterial(palette.secondary, 0.93);
+  const dark = hardMaterial(palette.accent, 0.82);
+  const ember = loreGlow(palette, selected ? 1.15 : 0.85);
+  const mane = furMaterial("#C86A32", 0.94);
+  const tip = furMaterial("#3A2A22", 0.88);
+
+  useFrame(() => {
+    const p = pose.current;
+    if (!p || !root.current) return;
+    root.current.rotation.x = p.bodyPitch * 0.35;
+    if (head.current) head.current.rotation.x = p.headPitch;
+    const swing = Math.sin(p.gait * Math.PI * 2) * 0.42 * p.gaitWeight;
+    if (frontLegs.current) frontLegs.current.rotation.x = swing;
+    if (hindLegs.current) hindLegs.current.rotation.x = -swing * 0.9;
+    if (tail.current) {
+      tail.current.rotation.x = 0.15 + Math.sin(p.gait * Math.PI * 2) * 0.08;
+      tail.current.rotation.z = Math.sin(p.gait * Math.PI * 2 + 0.6) * 0.12;
+    }
+  });
+
   return (
-    <group scale={scale}>
-      {/* Torso */}
-      <mesh position={[0, 0.18, 0.02]} scale={[0.85, 0.7, 1.15]} castShadow>
-        <sphereGeometry args={[0.16, 16, 14]} />
-        <meshStandardMaterial
-          color={palette.primary}
-          roughness={0.5}
-          metalness={0.05}
-        />
+    <group ref={root}>
+      <GroundContact radius={0.3} opacity={selected ? 0.5 : 0.38} />
+
+      {/* Torso + layered fur volume */}
+      <mesh position={[0, 0.2, 0.02]} scale={[0.9, 0.72, 1.2]} castShadow>
+        <sphereGeometry args={[0.16, 18, 16]} />
+        <meshStandardMaterial {...fur} />
       </mesh>
-      {/* Chest cream + ember */}
-      <mesh position={[0, 0.15, 0.12]} scale={[0.7, 0.65, 0.55]}>
-        <sphereGeometry args={[0.1, 12, 10]} />
-        <meshStandardMaterial color={palette.secondary} roughness={0.55} />
+      <mesh position={[0, 0.24, -0.02]} scale={[0.72, 0.45, 0.95]}>
+        <sphereGeometry args={[0.14, 12, 10]} />
+        <meshStandardMaterial {...mane} />
       </mesh>
-      <mesh position={[0, 0.16, 0.17]}>
-        <sphereGeometry args={[0.04, 12, 12]} />
-        <meshStandardMaterial
-          color={palette.emissive}
-          emissive={palette.emissive}
-          emissiveIntensity={palette.emissiveIntensity}
-        />
+      {/* Chest cream + soft ember (lore glow, atmospheric) */}
+      <mesh position={[0, 0.16, 0.13]} scale={[0.72, 0.68, 0.58]}>
+        <sphereGeometry args={[0.1, 14, 12]} />
+        <meshStandardMaterial {...cream} />
+      </mesh>
+      <mesh position={[0, 0.17, 0.18]}>
+        <sphereGeometry args={[0.038, 12, 12]} />
+        <meshStandardMaterial {...ember} />
       </mesh>
       <pointLight
-        position={[0, 0.16, 0.22]}
+        position={[0, 0.17, 0.22]}
         color={palette.emissive}
-        intensity={selected ? 0.9 : 0.5}
-        distance={2.2}
+        intensity={selected ? 0.45 : 0.22}
+        distance={1.6}
+        decay={2}
       />
-      {/* Head */}
-      <mesh position={[0, 0.34, 0.12]} castShadow>
-        <sphereGeometry args={[0.11, 14, 12]} />
-        <meshStandardMaterial color={palette.primary} roughness={0.45} />
-      </mesh>
-      <mesh position={[0, 0.31, 0.2]} rotation={[0.4, 0, 0]}>
-        <coneGeometry args={[0.04, 0.08, 8]} />
-        <meshStandardMaterial color={palette.secondary} roughness={0.5} />
-      </mesh>
-      {/* Tall ears */}
-      <mesh position={[-0.07, 0.48, 0.08]} rotation={[0.15, 0, -0.3]}>
-        <coneGeometry args={[0.045, 0.16, 6]} />
-        <meshStandardMaterial color={palette.primary} roughness={0.45} />
-      </mesh>
-      <mesh position={[0.07, 0.48, 0.08]} rotation={[0.15, 0, 0.3]}>
-        <coneGeometry args={[0.045, 0.16, 6]} />
-        <meshStandardMaterial color={palette.primary} roughness={0.45} />
-      </mesh>
-      <mesh position={[-0.07, 0.49, 0.09]} rotation={[0.15, 0, -0.3]}>
-        <coneGeometry args={[0.022, 0.1, 5]} />
-        <meshStandardMaterial color={palette.accent} roughness={0.6} />
-      </mesh>
-      <mesh position={[0.07, 0.49, 0.09]} rotation={[0.15, 0, 0.3]}>
-        <coneGeometry args={[0.022, 0.1, 5]} />
-        <meshStandardMaterial color={palette.accent} roughness={0.6} />
-      </mesh>
-      {/* Eyes */}
-      <mesh position={[-0.035, 0.36, 0.2]}>
-        <sphereGeometry args={[0.02, 8, 8]} />
-        <meshStandardMaterial
-          color="#1A120C"
-          emissive="#E07020"
-          emissiveIntensity={0.55}
-        />
-      </mesh>
-      <mesh position={[0.035, 0.36, 0.2]}>
-        <sphereGeometry args={[0.02, 8, 8]} />
-        <meshStandardMaterial
-          color="#1A120C"
-          emissive="#E07020"
-          emissiveIntensity={0.55}
-        />
-      </mesh>
-      {/* Dark socks */}
+
+      {/* Neck mane tufts */}
       {(
         [
-          [-0.07, 0.05, 0.08],
-          [0.07, 0.05, 0.08],
-          [-0.06, 0.05, -0.08],
-          [0.06, 0.05, -0.08],
+          [-0.06, 0.28, 0.1],
+          [0.06, 0.28, 0.1],
+          [0, 0.3, 0.06],
         ] as const
-      ).map((pos, index) => (
-        <mesh key={index} position={pos}>
-          <cylinderGeometry args={[0.022, 0.026, 0.1, 6]} />
-          <meshStandardMaterial color={palette.accent} roughness={0.7} />
+      ).map((pos, i) => (
+        <mesh key={`mane-${i}`} position={pos} scale={[0.7, 1, 0.7]}>
+          <sphereGeometry args={[0.045, 8, 6]} />
+          <meshStandardMaterial {...cream} />
         </mesh>
       ))}
-      {/* Bushy flame tail (signature silhouette) */}
-      <mesh position={[0, 0.2, -0.18]} rotation={[0.9, 0, 0]} castShadow>
-        <sphereGeometry args={[0.11, 12, 10]} />
-        <meshStandardMaterial color={palette.primary} roughness={0.4} />
-      </mesh>
-      <mesh position={[0, 0.34, -0.28]} rotation={[1.05, 0, 0]}>
-        <sphereGeometry args={[0.09, 10, 8]} />
-        <meshStandardMaterial
-          color={palette.accent}
-          emissive={palette.emissive}
-          emissiveIntensity={0.55}
-        />
-      </mesh>
-      <mesh position={[0, 0.46, -0.34]}>
-        <sphereGeometry args={[0.055, 8, 8]} />
-        <meshStandardMaterial
-          color={palette.emissive}
-          emissive={palette.emissive}
-          emissiveIntensity={1.2}
-        />
-      </mesh>
+
+      <group ref={head}>
+        <mesh position={[0, 0.36, 0.13]} castShadow>
+          <sphereGeometry args={[0.11, 16, 14]} />
+          <meshStandardMaterial {...fur} />
+        </mesh>
+        <mesh position={[0, 0.33, 0.21]} rotation={[0.35, 0, 0]}>
+          <coneGeometry args={[0.042, 0.085, 8]} />
+          <meshStandardMaterial {...cream} />
+        </mesh>
+        <mesh position={[0, 0.325, 0.255]}>
+          <sphereGeometry args={[0.018, 8, 8]} />
+          <meshStandardMaterial {...dark} />
+        </mesh>
+        {/* Tall ears with dark rims */}
+        <mesh position={[-0.07, 0.5, 0.09]} rotation={[0.12, 0, -0.28]}>
+          <coneGeometry args={[0.048, 0.17, 7]} />
+          <meshStandardMaterial {...fur} />
+        </mesh>
+        <mesh position={[0.07, 0.5, 0.09]} rotation={[0.12, 0, 0.28]}>
+          <coneGeometry args={[0.048, 0.17, 7]} />
+          <meshStandardMaterial {...fur} />
+        </mesh>
+        <mesh position={[-0.07, 0.51, 0.1]} rotation={[0.12, 0, -0.28]}>
+          <coneGeometry args={[0.024, 0.11, 6]} />
+          <meshStandardMaterial {...cream} />
+        </mesh>
+        <mesh position={[0.07, 0.51, 0.1]} rotation={[0.12, 0, 0.28]}>
+          <coneGeometry args={[0.024, 0.11, 6]} />
+          <meshStandardMaterial {...cream} />
+        </mesh>
+        <mesh position={[-0.075, 0.58, 0.08]}>
+          <sphereGeometry args={[0.018, 6, 6]} />
+          <meshStandardMaterial {...tip} />
+        </mesh>
+        <mesh position={[0.075, 0.58, 0.08]}>
+          <sphereGeometry args={[0.018, 6, 6]} />
+          <meshStandardMaterial {...tip} />
+        </mesh>
+        {/* Amber eyes — luminous, not neon */}
+        <mesh position={[-0.036, 0.38, 0.21]}>
+          <sphereGeometry args={[0.02, 10, 10]} />
+          <meshStandardMaterial
+            color="#1A120C"
+            emissive="#C86828"
+            emissiveIntensity={0.28}
+            roughness={0.25}
+          />
+        </mesh>
+        <mesh position={[0.036, 0.38, 0.21]}>
+          <sphereGeometry args={[0.02, 10, 10]} />
+          <meshStandardMaterial
+            color="#1A120C"
+            emissive="#C86828"
+            emissiveIntensity={0.28}
+            roughness={0.25}
+          />
+        </mesh>
+      </group>
+
+      {/* Dark socks */}
+      <group ref={frontLegs}>
+        {(
+          [
+            [-0.075, 0.055, 0.1],
+            [0.075, 0.055, 0.1],
+          ] as const
+        ).map((pos, index) => (
+          <group key={`fl-${index}`} position={pos}>
+            <mesh position={[0, 0.04, 0]}>
+              <cylinderGeometry args={[0.024, 0.028, 0.08, 7]} />
+              <meshStandardMaterial {...fur} />
+            </mesh>
+            <mesh position={[0, -0.02, 0]}>
+              <cylinderGeometry args={[0.022, 0.026, 0.07, 7]} />
+              <meshStandardMaterial {...dark} />
+            </mesh>
+            <mesh position={[0, -0.055, 0.01]} scale={[1, 0.55, 1.25]}>
+              <sphereGeometry args={[0.028, 8, 6]} />
+              <meshStandardMaterial {...dark} />
+            </mesh>
+          </group>
+        ))}
+      </group>
+      <group ref={hindLegs}>
+        {(
+          [
+            [-0.07, 0.055, -0.1],
+            [0.07, 0.055, -0.1],
+          ] as const
+        ).map((pos, index) => (
+          <group key={`hl-${index}`} position={pos}>
+            <mesh position={[0, 0.045, 0]}>
+              <cylinderGeometry args={[0.026, 0.03, 0.09, 7]} />
+              <meshStandardMaterial {...fur} />
+            </mesh>
+            <mesh position={[0, -0.02, 0]}>
+              <cylinderGeometry args={[0.022, 0.026, 0.07, 7]} />
+              <meshStandardMaterial {...dark} />
+            </mesh>
+            <mesh position={[0, -0.055, 0.01]} scale={[1, 0.55, 1.25]}>
+              <sphereGeometry args={[0.028, 8, 6]} />
+              <meshStandardMaterial {...dark} />
+            </mesh>
+          </group>
+        ))}
+      </group>
+
+      {/* Bushy flame-tipped tail */}
+      <group ref={tail} position={[0, 0.18, -0.16]}>
+        <mesh position={[0, 0.04, -0.04]} rotation={[0.85, 0, 0]} castShadow>
+          <sphereGeometry args={[0.1, 14, 12]} />
+          <meshStandardMaterial {...fur} />
+        </mesh>
+        <mesh position={[0, 0.14, -0.12]} rotation={[1.0, 0, 0]}>
+          <sphereGeometry args={[0.085, 12, 10]} />
+          <meshStandardMaterial {...mane} />
+        </mesh>
+        <mesh position={[0, 0.24, -0.18]}>
+          <sphereGeometry args={[0.055, 10, 8]} />
+          <meshStandardMaterial {...tip} />
+        </mesh>
+        <mesh position={[0, 0.3, -0.2]}>
+          <sphereGeometry args={[0.028, 8, 8]} />
+          <meshStandardMaterial {...loreGlow(palette, 0.35)} />
+        </mesh>
+      </group>
     </group>
   );
 }

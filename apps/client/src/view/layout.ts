@@ -1,7 +1,9 @@
 /**
- * Fixed map layout for the three v1 territories.
- * Positions are presentation-only; simulation space remains the territory graph.
+ * Territory layout helpers. Region centers and radii come from the world
+ * model when it is available; the fixed catalog below is only a fallback for
+ * tests that do not build a landscape.
  */
+import type { WorldModel } from "./world/world-model";
 
 export type TerritoryLayout = {
   slug: string;
@@ -13,33 +15,34 @@ export type TerritoryLayout = {
   rim: string;
 };
 
+/** Fallback for unit tests that never open the 3D world. */
 export const TERRITORY_LAYOUT: Record<string, TerritoryLayout> = {
   meadow: {
     slug: "meadow",
-    x: -4.5,
-    z: 0,
-    visualRadius: 2.4,
-    color: "#2d4a38",
+    x: -70,
+    z: 64,
+    visualRadius: 34,
+    color: "#2f6b46",
     emissive: "#1f6a4e",
-    rim: "#4fd4b0",
+    rim: "#ffb46a",
   },
   thicket: {
     slug: "thicket",
-    x: 0,
-    z: 0,
-    visualRadius: 2.2,
-    color: "#1f3a32",
+    x: 13,
+    z: 14,
+    visualRadius: 31,
+    color: "#1d4a40",
     emissive: "#185a48",
-    rim: "#3ec9a8",
+    rim: "#4fe6c4",
   },
   ridge: {
     slug: "ridge",
-    x: 4.5,
-    z: 0,
-    visualRadius: 2.0,
-    color: "#3a3840",
+    x: 71,
+    z: -64,
+    visualRadius: 28,
+    color: "#4b4a63",
     emissive: "#4a3a28",
-    rim: "#c9a06a",
+    rim: "#8fd0ff",
   },
 };
 
@@ -49,4 +52,24 @@ export function layoutForSlug(slug: string): TerritoryLayout {
     throw new Error(`unknown territory slug ${slug}`);
   }
   return layout;
+}
+
+export function layoutForTerritory(
+  territoryId: number,
+  slug: string,
+  model: WorldModel | null | undefined,
+): TerritoryLayout {
+  const region = model?.regionByTerritoryId.get(territoryId);
+  if (region) {
+    return {
+      slug: region.slug,
+      x: region.center.x,
+      z: region.center.z,
+      visualRadius: region.radius,
+      color: region.biome.ground,
+      emissive: region.biome.glow,
+      rim: region.biome.glow,
+    };
+  }
+  return layoutForSlug(slug);
 }

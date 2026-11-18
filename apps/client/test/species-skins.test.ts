@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { worldScaleForSkin } from "../src/view/creatures/materials";
 import {
   colorForSpecies,
   skinForSpecies,
@@ -34,4 +35,19 @@ test("colorForSpecies matches the skin primary", () => {
   assert.equal(colorForSpecies(1), skinForSpecies(1).primary);
   assert.equal(colorForSpecies(2), skinForSpecies(2).primary);
   assert.equal(colorForSpecies(3), skinForSpecies(3).primary);
+});
+
+test("world scale keeps fox smaller than stag and moth compact", () => {
+  const fox = worldScaleForSkin("fire-fox", false);
+  const stag = worldScaleForSkin("moss-stag", false);
+  const moth = worldScaleForSkin("lantern-moth", false);
+  assert.ok(fox < stag);
+  assert.ok(moth < fox);
+  assert.ok(worldScaleForSkin("fire-fox", true) > fox);
+});
+
+test("lore emissives stay atmospheric (below first-pass neon levels)", () => {
+  assert.ok(skinForSpecies(1).emissiveIntensity < 1);
+  assert.ok(skinForSpecies(2).emissiveIntensity < 1);
+  assert.ok(skinForSpecies(3).emissiveIntensity < 1.1);
 });
