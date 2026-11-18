@@ -105,10 +105,28 @@ export function InspectionPanel({ ipc }: Props) {
     };
   }, [ipc, selectedCreatureId]);
 
+  const living =
+    view?.creatures.filter((row) => row.status === CreatureStatus.ALIVE) ?? [];
+
   if (selectedCreatureId == null || !creature) {
     return (
       <aside className="inspect-panel inspect-panel--empty" aria-live="polite">
         <p className="inspect-hint">Select a creature to inspect.</p>
+        {living.length > 0 ? (
+          <ul className="inspect-picker">
+            {living.map((row) => (
+              <li key={row.id}>
+                <button
+                  type="button"
+                  className="inspect-picker-btn"
+                  onClick={() => selectCreature(row.id)}
+                >
+                  {row.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </aside>
     );
   }

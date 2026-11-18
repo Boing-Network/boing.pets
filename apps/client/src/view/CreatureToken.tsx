@@ -80,22 +80,33 @@ export function CreatureToken({
   const color = colorForSpecies(creature.speciesId);
 
   return (
-    <mesh
+    <group
       position={[x, 0.22, z]}
-      castShadow
       onClick={(event) => {
         event.stopPropagation();
         onSelect(creature.id);
       }}
+      onPointerDown={(event) => {
+        // Prefer pointer-down so OrbitControls does not steal the selection.
+        event.stopPropagation();
+        onSelect(creature.id);
+      }}
     >
-      <sphereGeometry args={[selected ? 0.2 : 0.16, 16, 16]} />
-      <meshStandardMaterial
-        color={color}
-        emissive={selected ? color : "#000000"}
-        emissiveIntensity={selected ? 0.25 : 0}
-        roughness={0.45}
-        metalness={0.1}
-      />
-    </mesh>
+      {/* Larger invisible hit target for reliable picking. */}
+      <mesh visible={false}>
+        <sphereGeometry args={[0.45, 12, 12]} />
+        <meshBasicMaterial />
+      </mesh>
+      <mesh castShadow>
+        <sphereGeometry args={[selected ? 0.2 : 0.16, 16, 16]} />
+        <meshStandardMaterial
+          color={color}
+          emissive={selected ? color : "#000000"}
+          emissiveIntensity={selected ? 0.25 : 0}
+          roughness={0.45}
+          metalness={0.1}
+        />
+      </mesh>
+    </group>
   );
 }
