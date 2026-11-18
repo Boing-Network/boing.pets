@@ -192,45 +192,13 @@ const livingPets = { rules: { boundaries: boundaryRule } };
 
 export default ts.config(
   {
-    ignores: [
-      "dist/**",
-      "node_modules/**",
-      ".wrangler/**",
-      "worker/env.d.ts",
-      "playtest-artifacts/**",
-    ],
+    ignores: ["dist/**", "node_modules/**"],
   },
   js.configs.recommended,
   ...ts.configs.recommended,
   {
     files: ["**/*.{ts,tsx}"],
     rules: { "@typescript-eslint/no-explicit-any": "error" },
-  },
-  {
-    files: ["scripts/*.mjs"],
-    languageOptions: {
-      globals: {
-        console: "readonly",
-        process: "readonly",
-        fetch: "readonly",
-        AbortSignal: "readonly",
-        URL: "readonly",
-        setTimeout: "readonly",
-        TextEncoder: "readonly",
-        // Browser globals used inside Playwright page.addInitScript / waitForFunction.
-        window: "readonly",
-        document: "readonly",
-        localStorage: "readonly",
-        Event: "readonly",
-      },
-    },
-    rules: {
-      "@typescript-eslint/ban-ts-comment": "off",
-      "@typescript-eslint/no-unused-vars": [
-        "error",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
-      ],
-    },
   },
   {
     files: ["packages/contract/**/*.{ts,tsx}"],
