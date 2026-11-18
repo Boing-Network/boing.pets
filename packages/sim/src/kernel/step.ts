@@ -62,7 +62,9 @@ function stepCreatures(
       if (creature.currentAction === Action.RELOCATE) {
         events.push(...resolveRelocate(snapshot, creature, tick));
       } else {
-        events.push(...resolveFinishedAction(snapshot, creature, tick));
+        events.push(
+          ...resolveFinishedAction(snapshot, creature, tick, territories),
+        );
       }
     }
 

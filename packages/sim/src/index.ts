@@ -26,7 +26,12 @@ export {
   generationForChild,
   lineageIdForChild,
 } from "./family/lineage";
-export { courtAccepts, resolveCourt } from "./ai/actions";
+export {
+  courtAccepts,
+  resolveCourt,
+  resolveDrink,
+  resolveForage,
+} from "./ai/actions";
 export {
   MEMORY_DECAY_LUT,
   initialMemoryStrength,

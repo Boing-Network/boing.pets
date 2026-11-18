@@ -22,11 +22,13 @@ import {
   applyCooperateForageDelta,
   applyCourtAcceptDelta,
   applyCourtRejectDelta,
+  applyGiftDelta,
   applySnubDelta,
   applySocializeDelta,
   ensureRelationship,
   findRelationship,
 } from "../relationships/delta";
+import { rngInt } from "../rng";
 import type {
   CompatibilityRow,
   CreatureRow,
@@ -413,7 +415,7 @@ function contestGateOpen(
 
 /**
  * Flat goal → action table. Picks the first matching gate and starts the action.
- * Contest, approach, and cooperate resolve when the slot ends; court/forage later.
+ * Resolution runs when the slot ends; the new action never resolves on this tick.
  */
 export function startActionForGoal(
   snapshot: WorldSnapshot,
@@ -843,6 +845,148 @@ export function resolveCooperateForage(
   }
 }
 
+const FOOD_INSECURITY_IMPORTANCE = 8;
+const FOOD_INSECURITY_EMOTION = -500;
+const GIFT_IMPORTANCE = 5;
+const GIFT_EMOTION = 350;
+
+/**
+ * Effective-food forage roll. Success and failure both relieve some hunger.
+ * Failure may mint a food_insecurity THREAT memory. Gift runs on success when
+ * the pre-relief hunger gate and pair friendship allow it.
+ */
+export function resolveForage(
+  snapshot: WorldSnapshot,
+  actor: CreatureRow,
+  tick: number,
+  territories: ReadonlyMap<number, TerritoryTick>,
+): void {
+  const rules = snapshot.ruleset;
+  const territory = territories.get(actor.territoryId);
+  if (!territory) throw new Error("territory");
+
+  const hungerBefore = actor.hunger;
+  const chancePerMille = clamp(
+    territory.food -
+      territory.population * rules.foragePopPressure +
+      Math.floor(actor.geneIntelligence / 5),
+    rules.forageChanceMin,
+    rules.forageChanceMax,
+  );
+  const roll = rngInt(snapshot.world.seed, tick, "forage", actor.id, 0, 0, 999);
+  const success = roll < chancePerMille;
+  actor.hunger = clamp(
+    actor.hunger -
+      (success ? rules.forageHungerSuccess : rules.forageHungerFail),
+    0,
+    1000,
+  );
+  clearAction(actor);
+
+  if (!success) {
+    rememberFor(
+      snapshot,
+      actor,
+      tick,
+      MemoryKind.THREAT,
+      FOOD_INSECURITY_IMPORTANCE,
+      FOOD_INSECURITY_EMOTION,
+      null,
+      null,
+      [MemoryTag.FOOD_INSECURITY],
+      "threat.food.v1",
+    );
+    return;
+  }
+
+  maybeGiftAfterForage(snapshot, actor, tick, hungerBefore);
+}
+
+function pairHasRecentGift(
+  snapshot: WorldSnapshot,
+  actorId: number,
+  recipientId: number,
+  tick: number,
+): boolean {
+  const window = snapshot.ruleset.memoryThrottleTicks;
+  for (const memory of snapshot.memories) {
+    if (memory.kind !== MemoryKind.GIFT) continue;
+    if (tick - memory.tick > window) continue;
+    const a = memory.creatureId;
+    const b = memory.subjectCreatureId;
+    if (
+      (a === actorId && b === recipientId) ||
+      (a === recipientId && b === actorId)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Gift uses hunger from before forage relief. Actor id must be lower than the
+ * recipient. Recipient is the hungriest co-located friend who passes the gates.
+ */
+function maybeGiftAfterForage(
+  snapshot: WorldSnapshot,
+  actor: CreatureRow,
+  tick: number,
+  hungerBefore: number,
+): void {
+  const rules = snapshot.ruleset;
+  if (hungerBefore >= rules.giftActorHungerMax) return;
+
+  let recipient: CreatureRow | null = null;
+  for (const other of snapshot.creatures) {
+    if (other.status !== CreatureStatus.ALIVE) continue;
+    if (other.id <= actor.id) continue;
+    if (other.territoryId !== actor.territoryId) continue;
+    if (other.hunger <= rules.giftTargetHungerMin) continue;
+    const pair = findRelationship(snapshot.relationships, actor.id, other.id);
+    if (!pair || pair.friendship < rules.giftFriendMin) continue;
+    if (pairHasRecentGift(snapshot, actor.id, other.id, tick)) continue;
+    if (
+      !recipient ||
+      other.hunger > recipient.hunger ||
+      (other.hunger === recipient.hunger && other.id < recipient.id)
+    ) {
+      recipient = other;
+    }
+  }
+  if (!recipient) return;
+
+  actor.hunger = clamp(actor.hunger + rules.giftHungerActor, 0, 1000);
+  recipient.hunger = clamp(recipient.hunger - rules.giftHungerTarget, 0, 1000);
+  const pair = ensureRelationship(snapshot, actor.id, recipient.id, tick);
+  applyGiftDelta(pair, tick);
+  for (const creature of [actor, recipient]) {
+    const other = creature.id === actor.id ? recipient : actor;
+    rememberFor(
+      snapshot,
+      creature,
+      tick,
+      MemoryKind.GIFT,
+      GIFT_IMPORTANCE,
+      GIFT_EMOTION,
+      other.id,
+      null,
+      [],
+      "gift.v1",
+    );
+  }
+}
+
+/** Every territory has water. Relief is always applied. */
+export function resolveDrink(
+  snapshot: WorldSnapshot,
+  actor: CreatureRow,
+): void {
+  const rules = snapshot.ruleset;
+  actor.thirst = clamp(actor.thirst - rules.drinkThirstRelief, 0, 1000);
+  clearAction(actor);
+}
+
 const MATE_IMPORTANCE = 15;
 const MATE_EMOTION = 500;
 
@@ -1037,13 +1181,14 @@ export function resolveCourt(
 }
 
 /**
- * Resolve a finished non-relocate action. Contest, approach, cooperate, and
- * court write relationship deltas. Other actions clear the slot for utility.
+ * Resolve a finished non-relocate action. Contest, approach, cooperate, court,
+ * forage, and drink apply their effects. Other actions clear the slot.
  */
 export function resolveFinishedAction(
   snapshot: WorldSnapshot,
   creature: CreatureRow,
   tick: number,
+  territories: ReadonlyMap<number, TerritoryTick>,
 ): WorldEvent[] {
   switch (creature.currentAction) {
     case Action.CONTEST:
@@ -1056,6 +1201,12 @@ export function resolveFinishedAction(
       return [];
     case Action.COURT:
       return resolveCourt(snapshot, creature, tick);
+    case Action.FORAGE:
+      resolveForage(snapshot, creature, tick, territories);
+      return [];
+    case Action.DRINK:
+      resolveDrink(snapshot, creature);
+      return [];
     default:
       clearAction(creature);
       return [];
