@@ -6,20 +6,25 @@
   "workspaces": [
     "packages/contract",
     "packages/sim",
-    "packages/db"
+    "packages/db",
+    "apps/sim-host"
   ],
   "scripts": {
-    "typecheck": "tsc -p packages/contract/tsconfig.json --noEmit && tsc -p packages/sim/tsconfig.json --noEmit && tsc -p packages/db/tsconfig.json --noEmit",
-    "lint": "eslint packages/contract packages/sim packages/db eslint.config.js --max-warnings 0",
+    "typecheck": "tsc -p packages/contract/tsconfig.json --noEmit && tsc -p packages/sim/tsconfig.json --noEmit && tsc -p packages/sim/tsconfig.test.json --noEmit && tsc -p packages/db/tsconfig.json --noEmit && tsc -p packages/db/tsconfig.test.json --noEmit && tsc -p apps/sim-host/tsconfig.json --noEmit && tsc -p apps/sim-host/tsconfig.test.json --noEmit",
+    "test": "node --import tsx --test packages/sim/test/*.test.ts packages/db/test/*.test.ts apps/sim-host/test/*.test.ts",
+    "lint": "eslint packages/contract packages/sim packages/db apps/sim-host eslint.config.js --max-warnings 0",
+    "db:generate": "prisma generate --schema packages/db/prisma/schema.prisma",
     "db:validate": "prisma validate --schema packages/db/prisma/schema.prisma",
     "db:check": "node packages/db/scripts/check-sql.mjs",
     "format:check": "prettier --check .",
-    "verify": "npm run format:check && npm run lint && npm run typecheck"
+    "verify": "npm run format:check && npm run lint && npm run db:generate && npm run typecheck && npm run test"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
+    "@types/node": "^22.19.0",
     "eslint": "^9.39.0",
     "prettier": "^3.9.10",
+    "tsx": "^4.20.6",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.0"
   },

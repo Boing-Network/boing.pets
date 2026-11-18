@@ -238,6 +238,82 @@ export default ts.config(
     },
   },
   {
+    files: ["packages/sim/test/**/*.ts"],
+    plugins: { "living-pets": livingPets },
+    rules: {
+      "living-pets/boundaries": [
+        "error",
+        {
+          packageDir: "packages/sim",
+          allowPackages: [
+            "@boing-pets/contract",
+            "node:test",
+            "node:assert",
+            "node:crypto",
+          ],
+          banNondeterminism: true,
+        },
+      ],
+    },
+  },
+  {
+    files: ["packages/db/test/**/*.ts"],
+    plugins: { "living-pets": livingPets },
+    rules: {
+      "living-pets/boundaries": [
+        "error",
+        {
+          packageDir: "packages/db",
+          allowPackages: [
+            "@boing-pets/contract",
+            "@prisma/client",
+            "node:test",
+            "node:assert",
+            "node:fs",
+            "node:path",
+            "node:url",
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["apps/sim-host/**/*.{ts,tsx}"],
+    plugins: { "living-pets": livingPets },
+    rules: {
+      "living-pets/boundaries": [
+        "error",
+        {
+          packageDir: "apps/sim-host",
+          allowPackages: [
+            "@boing-pets/contract",
+            "@boing-pets/db",
+            "@boing-pets/sim",
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["apps/sim-host/test/**/*.ts"],
+    plugins: { "living-pets": livingPets },
+    rules: {
+      "living-pets/boundaries": [
+        "error",
+        {
+          packageDir: "apps/sim-host",
+          allowPackages: [
+            "@boing-pets/contract",
+            "@boing-pets/db",
+            "@boing-pets/sim",
+            "node:test",
+            "node:assert",
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["packages/db/scripts/**/*.mjs"],
     languageOptions: {
       globals: {
