@@ -10,7 +10,9 @@ import {
 import { discoveryEvent, migrationEvent } from "../history/events";
 import type { TerritoryTick } from "../kernel/needs";
 import { settleScore } from "../kernel/territories";
-import { assertInteger, clamp, divRound } from "../math";
+import { clamp, divRound } from "../math";
+import { initialMemoryStrength } from "../memories/strength";
+import { isMemoryThrottled } from "../memories/throttle";
 import type { CreatureRow, WorldEvent, WorldSnapshot } from "../types";
 import {
   bestMateTarget,
@@ -153,13 +155,16 @@ function rememberDiscovery(
   tick: number,
   territoryId: number,
 ): void {
-  const already = snapshot.memories.some(
-    (memory) =>
-      memory.creatureId === creature.id &&
-      memory.kind === MemoryKind.DISCOVERY &&
-      memory.territoryId === territoryId,
-  );
-  if (already) return;
+  if (
+    isMemoryThrottled(snapshot, {
+      creatureId: creature.id,
+      kind: MemoryKind.DISCOVERY,
+      tick,
+      territoryId,
+    })
+  ) {
+    return;
+  }
   snapshot.memories.push({
     id: take(snapshot, "nextMemoryId"),
     worldId: snapshot.world.id,
@@ -168,13 +173,9 @@ function rememberDiscovery(
     kind: MemoryKind.DISCOVERY,
     importance: DISCOVERY_IMPORTANCE,
     emotionalValue: DISCOVERY_EMOTION,
-    initialStrength: assertInteger(
-      clamp(
-        DISCOVERY_IMPORTANCE * snapshot.ruleset.memoryStrengthPerImportance,
-        1,
-        1000,
-      ),
-      "initialStrength",
+    initialStrength: initialMemoryStrength(
+      DISCOVERY_IMPORTANCE,
+      snapshot.ruleset,
     ),
     subjectCreatureId: null,
     territoryId,
@@ -185,7 +186,6 @@ function rememberDiscovery(
     archived: false,
   });
 }
-
 /**
  * Arrive, write MIGRATION, and write DISCOVERY the first time this lineage
  * enters the destination. Death before this call writes neither.

@@ -36,7 +36,7 @@ function byId(snapshot: WorldSnapshot, id: number): CreatureRow {
  * - FIND_FOOD Need = hunger 900; Personality = 400 + floor(800/5) = 560
  * - DRINK_WATER Need = thirst 100; Personality = 400
  * - SEEK_SHELTER Need = max(100,50,40) = 100
- * - Memory term is 0 until the memory milestone
+ * - Memory term is 0 when the fixture has no matching memories
  */
 function hungryAggressiveFixture(): {
   snapshot: WorldSnapshot;

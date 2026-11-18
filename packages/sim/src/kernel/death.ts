@@ -7,7 +7,9 @@ import {
   type Ruleset,
 } from "@boing-pets/contract";
 import { deathEvent } from "../history/events";
-import { assertInteger, clamp, divRound } from "../math";
+import { divRound } from "../math";
+import { initialMemoryStrength } from "../memories/strength";
+import { isMemoryThrottled } from "../memories/throttle";
 import type {
   CreatureRow,
   SpeciesRow,
@@ -65,19 +67,6 @@ function clearAction(creature: CreatureRow): void {
   creature.actionEndsTick = null;
 }
 
-function alreadyGrieving(
-  snapshot: WorldSnapshot,
-  childId: number,
-  parentId: number,
-): boolean {
-  return snapshot.memories.some(
-    (memory) =>
-      memory.creatureId === childId &&
-      memory.kind === MemoryKind.PARENT_DEATH &&
-      memory.subjectCreatureId === parentId,
-  );
-}
-
 /** PARENT_DEATH is importance 50 and emotional value −900. Once per child. */
 function rememberParentDeath(
   snapshot: WorldSnapshot,
@@ -94,7 +83,16 @@ function rememberParentDeath(
   const importance = 50;
   const emotionalValue = -900;
   for (const child of children) {
-    if (alreadyGrieving(snapshot, child.id, deceased.id)) continue;
+    if (
+      isMemoryThrottled(snapshot, {
+        creatureId: child.id,
+        kind: MemoryKind.PARENT_DEATH,
+        tick,
+        subjectCreatureId: deceased.id,
+      })
+    ) {
+      continue;
+    }
     snapshot.memories.push({
       id: take(snapshot, "nextMemoryId"),
       worldId: snapshot.world.id,
@@ -103,14 +101,7 @@ function rememberParentDeath(
       kind: MemoryKind.PARENT_DEATH,
       importance,
       emotionalValue,
-      initialStrength: assertInteger(
-        clamp(
-          importance * snapshot.ruleset.memoryStrengthPerImportance,
-          1,
-          1000,
-        ),
-        "initialStrength",
-      ),
+      initialStrength: initialMemoryStrength(importance, snapshot.ruleset),
       subjectCreatureId: deceased.id,
       territoryId: null,
       payload: {

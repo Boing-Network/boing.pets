@@ -1,6 +1,6 @@
 /**
  * Utility AI: score every eligible goal and take the argmax.
- * Memory strength decay lands in a later milestone; the Memory term is 0 here.
+ * Memory strength is derived; the Memory term uses the hot set of 32.
  */
 import {
   Action,
@@ -12,6 +12,7 @@ import {
 } from "@boing-pets/contract";
 import { ageDays } from "../kernel/death";
 import { assertInteger, clamp, divRound } from "../math";
+import { memoryTermForGoal } from "../memories/score";
 import type {
   CompatibilityRow,
   CreatureRow,
@@ -394,9 +395,15 @@ function relationshipTerm(
   }
 }
 
-/** Memory scoring arrives with decay in a later milestone. */
-function memoryTerm(): number {
-  return 0;
+function memoryTerm(
+  snapshot: WorldSnapshot,
+  creature: CreatureRow,
+  tick: number,
+  goal: Goal,
+): number {
+  const partners = legalPartners(snapshot, creature, tick);
+  const legalPartnerIds = new Set(partners.map((partner) => partner.id));
+  return memoryTermForGoal(snapshot, creature, tick, goal, legalPartnerIds);
 }
 
 export function scoreGoal(
@@ -415,7 +422,10 @@ export function scoreGoal(
     relationshipTerm(snapshot, creature, tick, goal, rules),
     "relationship",
   );
-  const memory = assertInteger(memoryTerm(), "memory");
+  const memory = assertInteger(
+    memoryTerm(snapshot, creature, tick, goal),
+    "memory",
+  );
   const score = assertInteger(
     divRound(
       rules.weightNeed * need +
