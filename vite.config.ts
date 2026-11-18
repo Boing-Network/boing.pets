@@ -20,7 +20,13 @@ export default defineConfig({
     alias: {
       "cloudflare:workers": resolve(root, "tests/stubs/cloudflare-workers.ts"),
     },
-    exclude: ["**/node_modules/**", "**/dist/**", "**/playtest-artifacts/**"],
+    exclude: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/playtest-artifacts/**",
+      // Kernel suites live under packages/ and are not part of the pasture run.
+      "packages/**",
+    ],
   },
   build: {
     rollupOptions: {
