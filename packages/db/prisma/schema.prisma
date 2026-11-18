@@ -1,0 +1,393 @@
+// Living Pets save. Identity columns are assigned by the kernel or the host.
+// Range checks and the two partial indexes are SQL in the first migration.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CreatureStatus {
+  ALIVE
+  DEAD
+}
+
+enum Gender {
+  FEMALE
+  MALE
+}
+
+enum Diet {
+  HERBIVORE
+}
+
+enum Goal {
+  FIND_FOOD
+  DRINK_WATER
+  SEEK_SHELTER
+  SOCIALIZE
+  EXPLORE
+  FIND_MATE
+  PROTECT_OFFSPRING
+  IDLE
+}
+
+enum Action {
+  FORAGE
+  CONTEST
+  COOPERATE_FORAGE
+  DRINK
+  REST
+  RELOCATE
+  APPROACH
+  WANDER
+  COURT
+  GUARD
+  NURSE
+}
+
+enum ActionTargetKind {
+  NONE
+  CREATURE
+  TERRITORY
+}
+
+enum MemoryKind {
+  CONVERSATION
+  GIFT
+  RESCUE
+  PARENT_DEATH
+  FIRST_CHILD
+  THREAT
+  MATE
+  DISCOVERY
+  MIGRATION
+  CONFLICT
+  COOPERATION
+}
+
+enum EventKind {
+  BIRTH
+  DEATH
+  MATING
+  DISCOVERY
+  MIGRATION
+}
+
+enum DeathCause {
+  OLD_AGE
+  STARVATION
+  THIRST
+  ILLNESS
+  INJURY
+}
+
+enum InfluenceKind {
+  NAME_CREATURE
+  NAME_LINEAGE
+  FAVOR_BLOODLINE
+  ENRICH_TERRITORY
+  CALM_TERRITORY
+}
+
+enum ModifierKind {
+  FOOD
+  DANGER
+}
+
+model World {
+  id                 BigInt   @id
+  name               String
+  seed               BigInt
+  schemaVersion      Int      @map("schema_version")
+  rulesetVersion     Int      @map("ruleset_version")
+  ruleset            Json
+  createdAt          DateTime @map("created_at")
+  clockAt            DateTime @map("clock_at")
+  lastTick           BigInt   @map("last_tick")
+  nextCreatureId     BigInt   @map("next_creature_id")
+  nextMemoryId       BigInt   @map("next_memory_id")
+  nextRelationshipId BigInt   @map("next_relationship_id")
+  nextEventId        BigInt   @map("next_event_id")
+  nextLineageId      BigInt   @map("next_lineage_id")
+  nextModifierId     BigInt   @map("next_modifier_id")
+  nextTerritoryId    BigInt   @map("next_territory_id")
+  nextInfluenceId    BigInt   @map("next_influence_id")
+
+  species         Species[]
+  compatibilities SpeciesCompatibility[]
+  territories     Territory[]
+  links           TerritoryLink[]
+  modifiers       TerritoryModifier[]
+  lineages        Lineage[]
+  creatures       Creature[]
+  relationships   Relationship[]
+  memories        Memory[]
+  events          WorldEvent[]
+  influences      PlayerInfluence[]
+  catchups        CatchupReport[]
+
+  @@map("world")
+}
+
+model Species {
+  id               BigInt     @id
+  worldId          BigInt     @map("world_id")
+  slug             String
+  displayName      String     @map("display_name")
+  diet             Diet
+  maturityDays     Int        @map("maturity_days")
+  baseLifespanDays Int        @map("base_lifespan_days")
+  gestationDays    Int        @map("gestation_days")
+  juvenileDays     Int        @map("juvenile_days")
+  baseCuriosity    Int        @map("base_curiosity")
+  baseAggression   Int        @map("base_aggression")
+  baseLoyalty      Int        @map("base_loyalty")
+  baseSociability  Int        @map("base_sociability")
+  baseBravery      Int        @map("base_bravery")
+  baseRiskTaking   Int        @map("base_risk_taking")
+  colorHex         String     @map("color_hex")
+  world            World      @relation(fields: [worldId], references: [id])
+  creatures        Creature[]
+
+  @@unique([worldId, slug])
+  @@map("species")
+}
+
+model SpeciesCompatibility {
+  worldId       BigInt @map("world_id")
+  speciesLowId  BigInt @map("species_low_id")
+  speciesHighId BigInt @map("species_high_id")
+  fertility     Int
+  world         World  @relation(fields: [worldId], references: [id])
+
+  @@id([worldId, speciesLowId, speciesHighId])
+  @@map("species_compatibility")
+}
+
+model Territory {
+  id            BigInt              @id
+  worldId       BigInt              @map("world_id")
+  slug          String
+  name          String
+  foodAbundance Int                 @map("food_abundance")
+  danger        Int
+  capacity      Int
+  world         World               @relation(fields: [worldId], references: [id])
+  creatures     Creature[]
+  modifiers     TerritoryModifier[]
+
+  @@unique([worldId, slug])
+  @@index([worldId])
+  @@map("territory")
+}
+
+model TerritoryLink {
+  worldId     BigInt @map("world_id")
+  fromId      BigInt @map("from_id")
+  toId        BigInt @map("to_id")
+  travelTicks Int    @map("travel_ticks")
+  world       World  @relation(fields: [worldId], references: [id])
+
+  @@id([fromId, toId])
+  @@index([toId])
+  @@map("territory_link")
+}
+
+model TerritoryModifier {
+  id                BigInt       @id
+  worldId           BigInt       @map("world_id")
+  territoryId       BigInt       @map("territory_id")
+  kind              ModifierKind
+  amount            Int
+  startTick         BigInt       @map("start_tick")
+  endTick           BigInt       @map("end_tick")
+  sourceInfluenceId BigInt?      @map("source_influence_id")
+  world             World        @relation(fields: [worldId], references: [id])
+  territory         Territory    @relation(fields: [territoryId], references: [id])
+
+  @@index([worldId, territoryId, startTick, endTick])
+  @@map("territory_modifier")
+}
+
+model Lineage {
+  id                BigInt     @id
+  worldId           BigInt     @map("world_id")
+  founderCreatureId BigInt?    @map("founder_creature_id")
+  speciesId         BigInt     @map("species_id")
+  name              String
+  foundedTick       BigInt     @map("founded_tick")
+  playerFavor       Int        @default(0) @map("player_favor")
+  world             World      @relation(fields: [worldId], references: [id])
+  creatures         Creature[]
+
+  @@index([worldId, playerFavor])
+  @@map("lineage")
+}
+
+model Creature {
+  id                BigInt         @id
+  worldId           BigInt         @map("world_id")
+  name              String
+  nameGivenByPlayer Boolean        @default(false) @map("name_given_by_player")
+  speciesId         BigInt         @map("species_id")
+  gender            Gender
+  status            CreatureStatus
+  birthTick         BigInt         @map("birth_tick")
+  deathTick         BigInt?        @map("death_tick")
+  deathCause        DeathCause?    @map("death_cause")
+  territoryId       BigInt         @map("territory_id")
+  lineageId         BigInt         @map("lineage_id")
+  motherId          BigInt?        @map("mother_id")
+  fatherId          BigInt?        @map("father_id")
+  generation        Int
+
+  geneStrength     Int  @map("gene_strength")
+  geneSpeed        Int  @map("gene_speed")
+  geneIntelligence Int  @map("gene_intelligence")
+  geneCuriosity    Int  @map("gene_curiosity")
+  geneSociability  Int  @map("gene_sociability")
+  genesExtra       Json @default("{}") @map("genes_extra")
+
+  traitCuriosity   Int  @map("trait_curiosity")
+  traitAggression  Int  @map("trait_aggression")
+  traitLoyalty     Int  @map("trait_loyalty")
+  traitSociability Int  @map("trait_sociability")
+  traitBravery     Int  @map("trait_bravery")
+  traitRiskTaking  Int  @map("trait_risk_taking")
+  personalityExtra Json @default("{}") @map("personality_extra")
+
+  hunger     Int
+  thirst     Int
+  fatigue    Int
+  discomfort Int
+  unsafety   Int
+  loneliness Int
+  health     Int
+
+  currentGoal       Goal             @map("current_goal")
+  currentAction     Action?          @map("current_action")
+  actionTargetKind  ActionTargetKind @default(NONE) @map("action_target_kind")
+  actionTargetId    BigInt?          @map("action_target_id")
+  actionStartedTick BigInt?          @map("action_started_tick")
+  actionEndsTick    BigInt?          @map("action_ends_tick")
+
+  gestationSireId       BigInt? @map("gestation_sire_id")
+  gestationEndTick      BigInt? @map("gestation_end_tick")
+  mateCooldownUntilTick BigInt? @map("mate_cooldown_until_tick")
+
+  world            World          @relation(fields: [worldId], references: [id])
+  species          Species        @relation(fields: [speciesId], references: [id])
+  territory        Territory      @relation(fields: [territoryId], references: [id])
+  lineage          Lineage        @relation(fields: [lineageId], references: [id])
+  mother           Creature?      @relation("MotherChildren", fields: [motherId], references: [id])
+  father           Creature?      @relation("FatherChildren", fields: [fatherId], references: [id])
+  childrenAsMother Creature[]     @relation("MotherChildren")
+  childrenAsFather Creature[]     @relation("FatherChildren")
+  memories         Memory[]
+  relationshipsAsA Relationship[] @relation("RelA")
+  relationshipsAsB Relationship[] @relation("RelB")
+
+  @@index([worldId, status])
+  @@index([worldId, lineageId])
+  @@index([worldId, speciesId, status])
+  @@index([motherId])
+  @@index([fatherId])
+  @@index([lineageId, status])
+  @@map("creature")
+}
+
+model Relationship {
+  id                  BigInt   @id
+  worldId             BigInt   @map("world_id")
+  creatureAId         BigInt   @map("creature_a_id")
+  creatureBId         BigInt   @map("creature_b_id")
+  score               Int
+  friendship          Int
+  romance             Int
+  trust               Int
+  cooperation         Int
+  avoidance           Int
+  conflict            Int
+  metTick             BigInt   @map("met_tick")
+  lastInteractionTick BigInt   @map("last_interaction_tick")
+  interactionCount    Int      @map("interaction_count")
+  world               World    @relation(fields: [worldId], references: [id])
+  creatureA           Creature @relation("RelA", fields: [creatureAId], references: [id])
+  creatureB           Creature @relation("RelB", fields: [creatureBId], references: [id])
+
+  @@unique([creatureAId, creatureBId])
+  @@index([creatureBId])
+  @@index([worldId, score])
+  @@map("relationship")
+}
+
+model Memory {
+  id                BigInt     @id
+  worldId           BigInt     @map("world_id")
+  creatureId        BigInt     @map("creature_id")
+  tick              BigInt
+  kind              MemoryKind
+  importance        Int
+  emotionalValue    Int        @map("emotional_value")
+  initialStrength   Int        @map("initial_strength")
+  subjectCreatureId BigInt?    @map("subject_creature_id")
+  territoryId       BigInt?    @map("territory_id")
+  payload           Json
+  archived          Boolean    @default(false)
+  world             World      @relation(fields: [worldId], references: [id])
+  creature          Creature   @relation(fields: [creatureId], references: [id])
+
+  @@index([creatureId, archived])
+  @@index([worldId, kind])
+  @@map("memory")
+}
+
+model WorldEvent {
+  id          BigInt    @id
+  worldId     BigInt    @map("world_id")
+  tick        BigInt
+  kind        EventKind
+  actorId     BigInt?   @map("actor_id")
+  subjectId   BigInt?   @map("subject_id")
+  territoryId BigInt?   @map("territory_id")
+  lineageId   BigInt?   @map("lineage_id")
+  summary     String
+  payload     Json
+  world       World     @relation(fields: [worldId], references: [id])
+
+  @@index([worldId, tick, id])
+  @@index([lineageId, tick])
+  @@index([actorId, tick])
+  @@index([worldId, kind, tick])
+  @@map("world_event")
+}
+
+model PlayerInfluence {
+  id           BigInt        @id
+  worldId      BigInt        @map("world_id")
+  kind         InfluenceKind
+  issuedAtTick BigInt        @map("issued_at_tick")
+  payload      Json
+  applied      Boolean       @default(false)
+  world        World         @relation(fields: [worldId], references: [id])
+
+  @@index([worldId, applied, issuedAtTick, id])
+  @@map("player_influence")
+}
+
+model CatchupReport {
+  id        BigInt   @id
+  worldId   BigInt   @map("world_id")
+  fromTick  BigInt   @map("from_tick")
+  toTick    BigInt   @map("to_tick")
+  createdAt DateTime @map("created_at")
+  summary   Json
+  world     World    @relation(fields: [worldId], references: [id])
+
+  @@index([worldId, toTick])
+  @@map("catchup_report")
+}
