@@ -238,6 +238,25 @@ export default ts.config(
     },
   },
   {
+    files: ["packages/sim/test/**/*.ts"],
+    plugins: { "living-pets": livingPets },
+    rules: {
+      "living-pets/boundaries": [
+        "error",
+        {
+          packageDir: "packages/sim",
+          allowPackages: [
+            "@boing-pets/contract",
+            "node:test",
+            "node:assert",
+            "node:crypto",
+          ],
+          banNondeterminism: true,
+        },
+      ],
+    },
+  },
+  {
     files: ["packages/db/scripts/**/*.mjs"],
     languageOptions: {
       globals: {
