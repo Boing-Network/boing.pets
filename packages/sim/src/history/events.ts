@@ -1,4 +1,5 @@
 import {
+  DeathCause,
   EventKind,
   EventTemplate,
   type GeneticProfile,
@@ -58,6 +59,73 @@ export function founderBirthEvent(input: {
       genes: input.genes,
       mutations: [],
       territoryId: input.territoryId,
+    },
+  };
+}
+
+function deathCausePhrase(cause: DeathCause): string {
+  switch (cause) {
+    case DeathCause.OLD_AGE:
+      return "old age";
+    case DeathCause.STARVATION:
+      return "starvation";
+    case DeathCause.THIRST:
+      return "thirst";
+    case DeathCause.ILLNESS:
+      return "illness";
+    case DeathCause.INJURY:
+      return "injury";
+    default: {
+      const never: never = cause;
+      return never;
+    }
+  }
+}
+
+/** `{name} died of {cause} in {territory} at age {ageDays}.` */
+export function deathSummary(
+  name: string,
+  cause: DeathCause,
+  territoryName: string,
+  ageDays: number,
+): string {
+  return `${name} died of ${deathCausePhrase(cause)} in ${territoryName} at age ${ageDays}.`;
+}
+
+export function deathEvent(input: {
+  id: number;
+  worldId: number;
+  tick: number;
+  creatureId: number;
+  lineageId: number;
+  territoryId: number;
+  name: string;
+  cause: DeathCause;
+  territoryName: string;
+  ageDays: number;
+  gestationLost: boolean;
+}): WorldEvent {
+  return {
+    id: input.id,
+    worldId: input.worldId,
+    tick: input.tick,
+    kind: EventKind.DEATH,
+    actorId: input.creatureId,
+    subjectId: null,
+    territoryId: input.territoryId,
+    lineageId: input.lineageId,
+    summary: deathSummary(
+      input.name,
+      input.cause,
+      input.territoryName,
+      input.ageDays,
+    ),
+    payload: {
+      template: EventTemplate.DEATH,
+      cause: input.cause,
+      ageDays: input.ageDays,
+      territoryId: input.territoryId,
+      gestationLost: input.gestationLost,
     },
   };
 }
