@@ -8,19 +8,22 @@ import {
   type TerritoryView,
 } from "@boing-pets/contract";
 import { CreaturePresentation } from "./creatures/CreaturePresentation";
+import { worldScaleForSkin } from "./creatures/materials";
 import {
   drinkShore,
   explorePoint,
   foodPatch,
   nestSpot,
   regionHome,
+  roamDuration,
+  roamWaypoints,
   socialRing,
   trailPoint,
+  type Anchor,
 } from "./motion/anchors";
 import { behaviorFor, locomotionForSpecies } from "./motion/behavior";
 import { NEUTRAL_POSE, mixPose, type CreaturePose } from "./motion/pose";
 import { relocateProgress } from "./presentation";
-import { worldScaleForSkin } from "./creatures/materials";
 import { skinForSpecies } from "./species-skins";
 import { worldTime } from "./world/gfx";
 import { hash01 } from "./world/noise";
@@ -47,10 +50,23 @@ function ease(t: number): number {
   return t * t * (3 - 2 * t);
 }
 
+function yawToward(
+  yaw: number,
+  want: number,
+  dt: number,
+  rate: number,
+): number {
+  let diff = want - yaw;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  return yaw + diff * Math.min(1, dt * rate);
+}
+
 /**
  * Presentation placement and locomotion. Positions are derived from the
- * creature's current goal/action and the world model — never from the sim
- * kernel. Wall-clock animation keeps motion smooth between ticks.
+ * creature's current goal/action and the open world model — never from the
+ * sim kernel. Free-roam paths can cross Meadow / Thicket / Ridge; wall-clock
+ * easing keeps motion smooth between ticks.
  */
 export function CreatureToken({
   creature,
@@ -71,6 +87,8 @@ export function CreatureToken({
     z: 0,
     yaw: 0,
     behaviorKey: "",
+    path: [] as Point[],
+    pathIndex: 0,
     from: { x: 0, y: 0, z: 0 } as Point,
     to: { x: 0, y: 0, z: 0 } as Point,
     segmentStarted: 0,
@@ -92,10 +110,10 @@ export function CreatureToken({
     model.regionByTerritoryId.get(creature.territoryId) ?? model.regions[0]!;
 
   const anchors = useMemo(() => {
-    const food = [0, 1, 2, 3].map((i) =>
+    const food = [0, 1, 2, 3, 4, 5].map((i) =>
       foodPatch(model, region, worldSeed, creature.id, i),
     );
-    const explore = [0, 1, 2].map((i) =>
+    const explore = [0, 1, 2, 3, 4].map((i) =>
       explorePoint(model, region, worldSeed, creature.id, i),
     );
     return {
@@ -116,6 +134,8 @@ export function CreatureToken({
     s.z = start.z;
     s.from = start;
     s.to = start;
+    s.path = [];
+    s.pathIndex = 0;
     s.behaviorKey = "";
     s.ready = true;
   }, [anchors]);
@@ -127,7 +147,7 @@ export function CreatureToken({
     const dt = Math.min(0.05, delta);
 
     let target: Point = anchors.home;
-    let duration = 4;
+    let baseDuration = 4;
     let moving = true;
     let pose: CreaturePose = { ...NEUTRAL_POSE };
     const pulse = (rate: number) => (Math.sin(now * rate) + 1) * 0.5;
@@ -158,11 +178,13 @@ export function CreatureToken({
     } else {
       switch (behavior) {
         case "forage": {
-          const idx = Math.floor(now / 5.5) % anchors.food.length;
+          // Longer cycle so creatures finish cross-region walks before the next patch.
+          const cycle = 9.5;
+          const idx = Math.floor(now / cycle) % anchors.food.length;
           target = anchors.food[idx]!;
-          duration = 5.5;
-          const local = (now % 5.5) / 5.5;
-          if (local < 0.55) {
+          baseDuration = 6;
+          const local = (now % cycle) / cycle;
+          if (local < 0.62) {
             moving = true;
             pose = {
               ...NEUTRAL_POSE,
@@ -171,7 +193,7 @@ export function CreatureToken({
               headPitch: -0.25,
               bob: locomotion === "fly" ? 0.25 : pulse(7) * 0.03,
             };
-          } else if (local < 0.78) {
+          } else if (local < 0.82) {
             moving = false;
             pose = {
               ...NEUTRAL_POSE,
@@ -198,7 +220,7 @@ export function CreatureToken({
         }
         case "drink": {
           target = anchors.drink;
-          duration = 3.2;
+          baseDuration = 4;
           const dist = Math.hypot(s.x - target.x, s.z - target.z);
           if (dist > 0.55) {
             moving = true;
@@ -226,7 +248,7 @@ export function CreatureToken({
         case "rest":
         case "sleep": {
           target = anchors.nest;
-          duration = 6;
+          baseDuration = 6;
           const dist = Math.hypot(s.x - target.x, s.z - target.z);
           if (dist > 0.7) {
             moving = true;
@@ -258,7 +280,7 @@ export function CreatureToken({
           const ox = anchors.social.x + Math.cos(orbit + creature.id) * radius;
           const oz = anchors.social.z + Math.sin(orbit + creature.id) * radius;
           target = { x: ox, z: oz, y: model.heightAt(ox, oz) };
-          duration = 2.5;
+          baseDuration = 3.5;
           moving = true;
           pose = {
             ...NEUTRAL_POSE,
@@ -276,7 +298,7 @@ export function CreatureToken({
           const ox = anchors.nest.x + Math.cos(patrol) * 2.4;
           const oz = anchors.nest.z + Math.sin(patrol) * 2.4;
           target = { x: ox, z: oz, y: model.heightAt(ox, oz) };
-          duration = 3;
+          baseDuration = 3;
           moving = behavior === "guard";
           pose = {
             ...NEUTRAL_POSE,
@@ -290,9 +312,10 @@ export function CreatureToken({
         }
         case "wander":
         case "travel": {
-          const idx = Math.floor(now / 7) % anchors.explore.length;
+          const cycle = 14;
+          const idx = Math.floor(now / cycle) % anchors.explore.length;
           target = anchors.explore[idx]!;
-          duration = 7;
+          baseDuration = 8;
           moving = true;
           pose = {
             ...NEUTRAL_POSE,
@@ -307,13 +330,13 @@ export function CreatureToken({
         case "idle":
         default: {
           target = anchors.home;
-          duration = 8;
-          const local = (now % 8) / 8;
-          moving = local < 0.35 || local > 0.85;
+          baseDuration = 10;
+          const local = (now % 12) / 12;
+          moving = local < 0.45 || local > 0.82;
           if (moving) {
             const other =
               anchors.explore[creature.id % anchors.explore.length]!;
-            target = local < 0.35 ? other : anchors.home;
+            target = local < 0.45 ? other : anchors.home;
             pose = {
               ...NEUTRAL_POSE,
               gait: (now * 1.8) % 1,
@@ -336,45 +359,66 @@ export function CreatureToken({
       const key = `${behavior}:${target.x.toFixed(1)}:${target.z.toFixed(1)}`;
       if (key !== s.behaviorKey) {
         s.behaviorKey = key;
-        s.from = { x: s.x, y: s.y, z: s.z };
-        s.to = target;
+        const here: Anchor = { x: s.x, y: s.y, z: s.z };
+        const path = moving ? roamWaypoints(model, here, target) : [target];
+        s.path = path;
+        s.pathIndex = 0;
+        s.from = here;
+        s.to = path[0]!;
         s.segmentStarted = worldTime.value;
-        s.segmentDuration =
-          duration * (0.7 + hash01(worldSeed, creature.id, 5) * 0.5);
+        const total = roamDuration(path, here, baseDuration);
+        const per =
+          (total / Math.max(1, path.length)) *
+          (0.85 + hash01(worldSeed, creature.id, 5) * 0.3);
+        s.segmentDuration = Math.max(0.8, per);
       }
 
       if (moving) {
-        const u = ease(
+        let u = ease(
           Math.min(
             1,
             (worldTime.value - s.segmentStarted) /
               Math.max(0.2, s.segmentDuration),
           ),
         );
+        // Advance through open-world waypoints without popping.
+        while (u >= 1 && s.pathIndex < s.path.length - 1) {
+          s.pathIndex += 1;
+          s.from = { x: s.x, y: s.y, z: s.z };
+          s.to = s.path[s.pathIndex]!;
+          s.segmentStarted = worldTime.value;
+          u = 0;
+        }
         s.x = lerp(s.from.x, s.to.x, u);
         s.z = lerp(s.from.z, s.to.z, u);
         s.y = model.heightAt(s.x, s.z);
         const dx = s.to.x - s.from.x;
         const dz = s.to.z - s.from.z;
         if (Math.hypot(dx, dz) > 0.05) {
-          const want = Math.atan2(dx, dz);
-          let diff = want - s.yaw;
-          while (diff > Math.PI) diff -= Math.PI * 2;
-          while (diff < -Math.PI) diff += Math.PI * 2;
-          s.yaw += diff * Math.min(1, dt * 6);
+          s.yaw = yawToward(s.yaw, Math.atan2(dx, dz), dt, 5.5);
         }
       } else {
         s.x = lerp(s.x, target.x, Math.min(1, dt * 2.4));
         s.z = lerp(s.z, target.z, Math.min(1, dt * 2.4));
         s.y = model.heightAt(s.x, s.z);
         if (behavior === "drink") {
-          const body = model.bodies[region.index];
-          if (body) {
-            const want = Math.atan2(body.center.x - s.x, body.center.z - s.z);
-            let diff = want - s.yaw;
-            while (diff > Math.PI) diff -= Math.PI * 2;
-            while (diff < -Math.PI) diff += Math.PI * 2;
-            s.yaw += diff * Math.min(1, dt * 4);
+          // Face the nearest still water, not only the home-region pond.
+          let best = model.bodies[region.index] ?? null;
+          let bestDist = Infinity;
+          for (const body of model.bodies) {
+            const d = Math.hypot(body.center.x - s.x, body.center.z - s.z);
+            if (d < bestDist) {
+              bestDist = d;
+              best = body;
+            }
+          }
+          if (best) {
+            s.yaw = yawToward(
+              s.yaw,
+              Math.atan2(best.center.x - s.x, best.center.z - s.z),
+              dt,
+              4,
+            );
           }
         }
       }
