@@ -42,13 +42,21 @@ body {
 
 .app-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  flex-wrap: wrap;
   padding: 0.85rem 1.25rem;
   border-bottom: 1px solid var(--line);
   background: color-mix(in srgb, var(--bg-panel) 88%, transparent);
   backdrop-filter: blur(8px);
+}
+
+.app-header-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
 }
 
 .brand {

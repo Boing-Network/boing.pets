@@ -1,8 +1,11 @@
 import { CreatureStatus } from "@boing-pets/contract";
 import type { IpcClient } from "../api/ipc";
+import { ClockControls } from "../hud/ClockControls";
+import { InfluencePanel } from "../hud/InfluencePanel";
 import { InspectionPanel } from "../hud/InspectionPanel";
 import { useWorldViewStore } from "../state/worldViewStore";
 import { WorldCanvas } from "../view/WorldCanvas";
+import "../hud/controls.css";
 import "./shell.css";
 
 type Props = {
@@ -12,6 +15,7 @@ type Props = {
 
 export function App({ ipc }: Props) {
   const view = useWorldViewStore((s) => s.view);
+  const clock = useWorldViewStore((s) => s.clock);
 
   const livingCount =
     view?.creatures.filter((c) => c.status === CreatureStatus.ALIVE).length ??
@@ -21,15 +25,23 @@ export function App({ ipc }: Props) {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <h1 className="brand">Living Pets</h1>
-        <p className="meta">
-          {view
-            ? `${view.world.name} · tick ${view.world.lastTick} · ${livingCount} living`
-            : "Waiting for host snapshot…"}
-        </p>
+        <div className="app-header-brand">
+          <h1 className="brand">Living Pets</h1>
+          <p className="meta">
+            {view
+              ? `${view.world.name} · tick ${view.world.lastTick} · ${livingCount} living${
+                  clock
+                    ? ` · ${clock.paused ? "paused" : `${clock.scale}×`}`
+                    : ""
+                }`
+              : "Waiting for host snapshot…"}
+          </p>
+        </div>
+        <ClockControls ipc={ipc} />
       </header>
       <main className="map-stage">
         <WorldCanvas />
+        <InfluencePanel ipc={ipc} />
         <InspectionPanel ipc={ipc} />
         <div className="status-chip">
           {view
