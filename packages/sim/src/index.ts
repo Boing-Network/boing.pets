@@ -31,6 +31,7 @@ export {
   resolveCourt,
   resolveDrink,
   resolveForage,
+  resolveGuard,
 } from "./ai/actions";
 export {
   MEMORY_DECAY_LUT,
