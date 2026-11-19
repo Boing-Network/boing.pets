@@ -27,6 +27,7 @@ import {
   type InfluenceGate,
 } from "../influence";
 import { handleInspectionQuery } from "../ipc/queries";
+import { createDisabledMintEdge, type MintEdge } from "../boing";
 import type { WorldRepository } from "../persist/repository";
 import { bootSession, commitSession, type HostSession } from "../session";
 import { buildWorldView } from "../view/world-view";
@@ -44,11 +45,19 @@ export type HostRuntimeOptions = {
    * Tests and one-shot boots can drive `tickFrame` manually.
    */
   autoFrame?: boolean;
+  /**
+   * Boing NFT mint edge (M19). Default is disabled / offline-safe.
+   * M20 will call `mintEdge.queueCreatureMint` after BIRTH commits.
+   * Never passed into `step()`.
+   */
+  mintEdge?: MintEdge;
 };
 
 export type HostRuntime = {
   session: HostSession;
   clock: HostClock;
+  /** Host-edge Boing mint seam. Disabled by default. */
+  mintEdge: MintEdge;
   start(): Promise<void>;
   handleCommand(message: ClientToHost): Promise<void>;
   handleQuery(message: ClientToHost): Promise<QueryResult>;
@@ -62,6 +71,7 @@ const FRAME_MS = 250;
 export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
   const nowMs = options.nowMs ?? (() => Date.now());
   const seed = options.seed ?? DEFAULT_SEED;
+  const mintEdge = options.mintEdge ?? createDisabledMintEdge();
   let session: HostSession | null = null;
   let clock: HostClock | null = null;
   let gate: InfluenceGate | null = null;
@@ -116,6 +126,7 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
     get clock() {
       return requireClock();
     },
+    mintEdge,
     async start() {
       if (started) throw new Error("already started");
       started = true;

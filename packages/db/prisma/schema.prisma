@@ -98,6 +98,15 @@ enum ModifierKind {
   DANGER
 }
 
+/// Host-edge mint status for creature ↔ Boing NFT links (M19 schema-ready; M20 writes).
+/// Not read by step() or the hot snapshot.
+enum NftMintStatus {
+  PENDING
+  SUBMITTED
+  CONFIRMED
+  FAILED
+}
+
 model World {
   id                 BigInt   @id
   name               String
@@ -127,8 +136,9 @@ model World {
   relationships   Relationship[]
   memories        Memory[]
   events          WorldEvent[]
-  influences      PlayerInfluence[]
-  catchups        CatchupReport[]
+  influences       PlayerInfluence[]
+  catchups         CatchupReport[]
+  creatureNftLinks CreatureNftLink[]
 
   @@map("world")
 }
@@ -290,6 +300,7 @@ model Creature {
   memories         Memory[]
   relationshipsAsA Relationship[] @relation("RelA")
   relationshipsAsB Relationship[] @relation("RelB")
+  nftLink          CreatureNftLink?
 
   @@index([worldId, status])
   @@index([worldId, lineageId])
@@ -390,4 +401,34 @@ model CatchupReport {
 
   @@index([worldId, toTick])
   @@map("catchup_report")
+}
+
+/// creatureId ↔ Boing reference-NFT token link. Host edge only (M19+).
+/// Hot step() snapshot must never read this table.
+model CreatureNftLink {
+  id               BigInt        @id
+  worldId          BigInt        @map("world_id")
+  creatureId       BigInt        @unique @map("creature_id")
+  birthEventId     BigInt?       @map("birth_event_id")
+  /// Boing AccountId of the reference NFT collection contract (0x + 64 hex).
+  collectionHex    String        @map("collection_hex")
+  /// 32-byte token id word (reference NFT layout).
+  tokenIdHex       String        @map("token_id_hex")
+  /// Boing chain id decimal string (testnet = 6913).
+  chainId          String        @map("chain_id")
+  /// Canonical artifact id, e.g. boing.reference_nft_collection.v0.
+  templateArtifact String        @map("template_artifact")
+  templateVersion  String        @map("template_version")
+  mintTxHex        String?       @map("mint_tx_hex")
+  status           NftMintStatus
+  lastError        String?       @map("last_error")
+  createdAt        DateTime      @map("created_at")
+  updatedAt        DateTime      @map("updated_at")
+  world            World         @relation(fields: [worldId], references: [id])
+  creature         Creature      @relation(fields: [creatureId], references: [id])
+
+  @@unique([worldId, creatureId])
+  @@unique([collectionHex, tokenIdHex])
+  @@index([worldId, status])
+  @@map("creature_nft_link")
 }

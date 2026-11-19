@@ -9,6 +9,7 @@ import type { ClientToHost, HostToClient } from "@boing-pets/contract";
 import {
   createFileHostMetaStore,
   createHostRuntime,
+  createMintEdgeFromEnv,
   PrismaWorldRepository,
   type HostRuntime,
 } from "@boing-pets/sim-host";
@@ -63,10 +64,12 @@ async function bootHost(): Promise<void> {
     hostMeta: createFileHostMetaStore(paths.hostMetaPath),
   });
 
+  // Mint edge defaults off (LIVING_PETS_BOING_MINTING unset). M20 wires birth queue.
   runtime = createHostRuntime({
     repository,
     seed: WORLD_SEED,
     emit: emitToRenderer,
+    mintEdge: createMintEdgeFromEnv(),
   });
 
   ipcMain.on(IPC_TO_HOST, (_event, message: ClientToHost) => {
