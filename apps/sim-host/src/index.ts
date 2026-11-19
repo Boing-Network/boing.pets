@@ -80,6 +80,14 @@ export {
 } from "./persist/load";
 export { MemoryWorldRepository } from "./persist/memory-repository";
 export {
+  BROWSER_WORLD_STORAGE_KEY,
+  BrowserWorldRepository,
+  createIndexedDbStringStore,
+  createMemoryStringStore,
+  type BrowserStringStore,
+  type BrowserWorldRepositoryOptions,
+} from "./persist/browser-repository";
+export {
   PrismaWorldRepository,
   type PrismaWorldRepositoryOptions,
 } from "./persist/prisma-repository";
