@@ -2,6 +2,7 @@
  * In-memory durable store for tests and crash-redo.
  * Commits are atomic: a failed mid-write leaves the previous committed tables.
  */
+import type { CreatureNftLinkRow } from "../boing/nft-link";
 import type { CommitBatch, DurableTables, WorldRepository } from "./repository";
 
 function clone<T>(value: T): T {
@@ -52,6 +53,9 @@ export class MemoryWorldRepository implements WorldRepository {
     assertExplicitIds(tables.catchups, "catchup");
     if (!Array.isArray(tables.influenceAcceptedAtMs)) {
       throw new Error("influenceAcceptedAtMs");
+    }
+    if (!Array.isArray(tables.creatureNftLinks)) {
+      throw new Error("creatureNftLinks");
     }
     this.#tables = clone(tables);
   }
@@ -171,6 +175,28 @@ export class MemoryWorldRepository implements WorldRepository {
       next.catchups = [...catchups.values()].sort((a, b) => a.id - b.id);
     }
 
+    this.#tables = next;
+  }
+
+  async readCreatureNftLinks(): Promise<CreatureNftLinkRow[]> {
+    if (this.#tables == null) return [];
+    return clone(this.#tables.creatureNftLinks).sort(
+      (a, b) => a.creatureId - b.creatureId,
+    );
+  }
+
+  async upsertCreatureNftLink(row: CreatureNftLinkRow): Promise<void> {
+    if (this.#tables == null) throw new Error("no world");
+    const next = clone(this.#tables);
+    const idx = next.creatureNftLinks.findIndex(
+      (link) => link.creatureId === row.creatureId,
+    );
+    if (idx >= 0) {
+      next.creatureNftLinks[idx] = clone(row);
+    } else {
+      next.creatureNftLinks.push(clone(row));
+    }
+    next.creatureNftLinks.sort((a, b) => a.creatureId - b.creatureId);
     this.#tables = next;
   }
 }

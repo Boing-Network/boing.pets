@@ -17,6 +17,7 @@ import type {
   WorldEvent,
   WorldHeader,
 } from "@boing-pets/sim";
+import type { CreatureNftLinkRow } from "../boing/nft-link";
 
 export type DurableTables = {
   world: WorldHeader;
@@ -38,6 +39,11 @@ export type DurableTables = {
   influenceAcceptedAtMs: number[];
   events: WorldEvent[];
   catchups: CatchupReport[];
+  /**
+   * Host-edge creature ↔ Boing NFT links (M20). Not part of the hot snapshot;
+   * `tablesToSnapshot` must ignore this field.
+   */
+  creatureNftLinks: CreatureNftLinkRow[];
 };
 
 export type CommitBatch = {
@@ -67,4 +73,8 @@ export type WorldRepository = {
   insertWorld(tables: DurableTables): Promise<void>;
   /** One transaction of dirty writes. Failure must leave the store unchanged. */
   commit(batch: CommitBatch): Promise<void>;
+  /** M20: read creature NFT links (outside hot snapshot). */
+  readCreatureNftLinks(): Promise<CreatureNftLinkRow[]>;
+  /** M20: upsert by creatureId. */
+  upsertCreatureNftLink(row: CreatureNftLinkRow): Promise<void>;
 };

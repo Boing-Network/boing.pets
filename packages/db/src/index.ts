@@ -27,6 +27,7 @@ export { CURRENT_SCHEMA_VERSION } from "./schema-version";
 export {
   catchupReportToDb,
   compatibilityToDb,
+  creatureNftLinkToDb,
   creatureToDb,
   discoveriesFromEvents,
   influenceToDb,
@@ -34,6 +35,7 @@ export {
   mapCatchupReport,
   mapCompatibility,
   mapCreature,
+  mapCreatureNftLink,
   mapInfluence,
   mapLineage,
   mapMemory,
@@ -61,6 +63,7 @@ export {
   type MappedCatchupReport,
   type MappedCompatibility,
   type MappedCreature,
+  type MappedCreatureNftLink,
   type MappedDiscovery,
   type MappedInfluence,
   type MappedLineage,

@@ -81,7 +81,7 @@ test("disabled mint edge queue is a no-op", async () => {
   assert.throws(() => edge.client.planCollectionDeploy());
 });
 
-test("enabled mint edge records M20 hook jobs without submitting", async () => {
+test("enabled mint edge records jobs and persists a link row", async () => {
   const config = readBoingNftConfig({
     LIVING_PETS_BOING_MINTING: "1",
   });
@@ -96,6 +96,11 @@ test("enabled mint edge records M20 hook jobs without submitting", async () => {
   });
   assert.equal(edge.pendingJobs().length, 1);
   assert.equal(edge.pendingJobs()[0]?.creatureId, 7);
+  const links = await edge.listLinks();
+  assert.equal(links.length, 1);
+  assert.equal(links[0]?.creatureId, 7);
+  // Incomplete config → FAILED without network submit.
+  assert.equal(links[0]?.status, "FAILED");
 });
 
 test("sdk client plans collection deploy via reference NFT template", () => {
