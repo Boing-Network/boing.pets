@@ -1,5 +1,5 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type MutableRefObject } from "react";
 import {
   BackSide,
   Color,
@@ -11,6 +11,8 @@ import {
 import { MOON_DIRECTION, getNoiseTexture, worldTime } from "./gfx";
 
 export const FOG_COLOR = "#0d2638";
+
+export type SkyFocus = { x: number; y: number; z: number };
 
 const SKY_VERTEX = /* glsl */ `
 varying vec3 vDir;
@@ -79,12 +81,15 @@ void main() {
 type Props = {
   /** Half-width of the area that receives moon shadows around the focus. */
   shadowReach?: number;
-  /** Point the shadow area follows, usually the camera's focus on the ground. */
-  focus: { x: number; y: number; z: number };
+  /**
+   * Point the shadow area follows (usually the orbit target). Held in a ref so
+   * CameraRig can update it every frame without re-rendering the scene tree.
+   */
+  focusRef: MutableRefObject<SkyFocus>;
 };
 
 /** Night sky, fog and moonlight. */
-export function Sky({ focus, shadowReach = 90 }: Props) {
+export function Sky({ focusRef, shadowReach = 90 }: Props) {
   const scene = useThree((s) => s.scene);
   const dome = useRef<Mesh>(null);
   const moon = useRef<DirectionalLight>(null);
@@ -125,6 +130,7 @@ export function Sky({ focus, shadowReach = 90 }: Props) {
     dome.current?.position.copy(camera.position);
     const light = moon.current;
     if (light) {
+      const focus = focusRef.current;
       // Snap the shadow area to whole texels so shadows do not swim when the
       // camera pans.
       const texel = (shadowReach * 2) / light.shadow.mapSize.x;

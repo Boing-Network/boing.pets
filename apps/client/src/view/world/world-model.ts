@@ -394,3 +394,24 @@ export function worldModelKey(input: WorldInput): string {
     .sort();
   return `${input.seed}|${territories.join(",")}|${links.join(",")}`;
 }
+
+/** Cached model entry keyed by `worldModelKey`. */
+export type WorldModelCache = {
+  key: string;
+  model: WorldModel;
+};
+
+/**
+ * Reuse one WorldModel across host snapshots while the territory graph is
+ * unchanged. Live hosts replace territory/link array identity every tick;
+ * rebuilding would reset the camera and snap creature anchors home.
+ */
+export function resolveWorldModel(
+  cache: WorldModelCache | null,
+  input: WorldInput | null,
+): WorldModelCache | null {
+  if (input == null) return null;
+  const key = worldModelKey(input);
+  if (cache?.key === key) return cache;
+  return { key, model: buildWorldModel(input) };
+}

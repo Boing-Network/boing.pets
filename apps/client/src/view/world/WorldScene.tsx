@@ -1,5 +1,5 @@
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { CreatureStatus, type CreatureView } from "@boing-pets/contract";
 import { useUiStore } from "../../state/uiStore";
 import { useWorldViewStore } from "../../state/worldViewStore";
@@ -14,7 +14,7 @@ import { Terrain } from "./Terrain";
 import { TerritoryMarkers } from "./TerritoryMarkers";
 import { Water } from "./Water";
 import { worldTime } from "./gfx";
-import { buildWorldModel, worldModelKey } from "./world-model";
+import { resolveWorldModel, type WorldModelCache } from "./world-model";
 
 /**
  * One continuous night landscape: terrain, water, flora and the living
@@ -24,28 +24,31 @@ export function WorldScene() {
   const view = useWorldViewStore((s) => s.view);
   const selectedCreatureId = useUiStore((s) => s.selectedCreatureId);
   const selectCreature = useUiStore((s) => s.selectCreature);
-  const [shadowFocus, setShadowFocus] = useState({ x: 0, y: 1, z: 0 });
-  const [creatureFocus, setCreatureFocus] = useState<{
-    x: number;
-    y: number;
-    z: number;
-  } | null>(null);
+  const modelCache = useRef<WorldModelCache | null>(null);
+  const orbitTarget = useRef({ x: 0, y: 1, z: 0 });
+  const creatureFocus = useRef<{ x: number; y: number; z: number } | null>(
+    null,
+  );
 
-  const worldSeed = view?.world.seed ?? null;
-  const territories = view?.territories;
-  const links = view?.links;
-  const modelKey =
-    worldSeed != null && territories && links
-      ? worldModelKey({ seed: worldSeed, territories, links })
-      : null;
-
-  // Rebuild only when the graph itself changes, not every tick.
-  const model = useMemo(() => {
-    if (worldSeed == null || !territories || !links || !modelKey) return null;
-    return buildWorldModel({ seed: worldSeed, territories, links });
-  }, [worldSeed, territories, links, modelKey]);
+  const worldInput =
+    view == null
+      ? null
+      : {
+          seed: view.world.seed,
+          territories: view.territories,
+          links: view.links,
+        };
+  const resolved = resolveWorldModel(modelCache.current, worldInput);
+  modelCache.current = resolved;
+  const model = resolved?.model ?? null;
 
   const flora = useMemo(() => (model ? layoutFlora(model) : null), [model]);
+
+  useEffect(() => {
+    if (selectedCreatureId == null) {
+      creatureFocus.current = null;
+    }
+  }, [selectedCreatureId]);
 
   useFrame((_, delta) => {
     worldTime.value += Math.min(delta, 0.05);
@@ -54,7 +57,7 @@ export function WorldScene() {
       window as unknown as {
         __livingPetsFocus?: { x: number; y: number; z: number } | null;
       }
-    ).__livingPetsFocus = creatureFocus;
+    ).__livingPetsFocus = creatureFocus.current;
   });
 
   if (!view || !model || !flora) return null;
@@ -68,7 +71,7 @@ export function WorldScene() {
 
   return (
     <>
-      <Sky focus={shadowFocus} />
+      <Sky focusRef={orbitTarget} />
       <Terrain model={model} />
       <Water model={model} />
       <Flora layout={flora} />
@@ -87,15 +90,20 @@ export function WorldScene() {
           selected={selectedCreatureId === creature.id}
           onSelect={selectCreature}
           onFocus={
-            selectedCreatureId === creature.id ? setCreatureFocus : undefined
+            selectedCreatureId === creature.id
+              ? (point) => {
+                  creatureFocus.current = point;
+                }
+              : undefined
           }
         />
       ))}
 
       <CameraRig
         model={model}
-        focus={selectedCreatureId == null ? null : creatureFocus}
-        onTarget={setShadowFocus}
+        focusId={selectedCreatureId}
+        focusPoint={creatureFocus}
+        orbitTarget={orbitTarget}
       />
     </>
   );
