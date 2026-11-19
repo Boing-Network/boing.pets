@@ -8,6 +8,7 @@ import type {
   HostToClient,
   QueryResult,
 } from "@boing-pets/contract";
+import { createMintEdgeFromEnv } from "../boing";
 import {
   BrowserWorldRepository,
   createIndexedDbStringStore,
@@ -56,11 +57,13 @@ async function start(seed: number, scale: 1 | 4 | 16 | 64): Promise<void> {
     const repository = new BrowserWorldRepository({
       store: createIndexedDbStringStore(),
     });
+    // Browser demo stays offline-safe unless LIVING_PETS_BOING_MINTING is set.
     runtime = createHostRuntime({
       repository,
       seed,
       emit,
       autoFrame: true,
+      mintEdge: createMintEdgeFromEnv(),
     });
     await runtime.start();
     if (scale !== 1) {

@@ -1,7 +1,31 @@
 /**
  * Sim host: clock, persistence, influences, WorldView mapping, and inspection IPC.
  * Single writer. Electron packaging (M18) drives the live runtime.
+ * Boing NFT minting (M19+) attaches only at this host edge — never in step().
  */
+export {
+  BOING_TESTNET_CHAIN_ID,
+  createBoingNftClient,
+  createDisabledBoingNftConfig,
+  createDisabledMintEdge,
+  createMintEdge,
+  createMintEdgeFromEnv,
+  DEFAULT_BOING_RPC_URL,
+  DisabledBoingNftClient,
+  LIVING_PETS_COLLECTION_NAME,
+  LIVING_PETS_COLLECTION_SYMBOL,
+  readBoingNftConfig,
+  SdkBoingNftClient,
+  type BoingCollectionDeployPlan,
+  type BoingMintBatchPlan,
+  type BoingMintSubmitResult,
+  type BoingNftClient,
+  type BoingNftConfig,
+  type BoingNftProbeResult,
+  type CreatureMintJob,
+  type MintEdge,
+  type QueuedCreatureMint,
+} from "./boing";
 export {
   catchupOnLaunch,
   runCatchup,
