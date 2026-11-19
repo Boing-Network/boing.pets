@@ -1,0 +1,182 @@
+/**
+ * Browser-durable WorldRepository. Same commit semantics as MemoryWorldRepository,
+ * with a pluggable string store (IndexedDB in the browser worker, Map in tests).
+ *
+ * Electron / Postgres still use PrismaWorldRepository. This path exists so the
+ * static Vite client can keep a living world across refresh without inventing a
+ * second simulation.
+ */
+import type { CommitBatch, DurableTables, WorldRepository } from "./repository";
+import { MemoryWorldRepository } from "./memory-repository";
+
+export type BrowserStringStore = {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<void>;
+};
+
+export const BROWSER_WORLD_STORAGE_KEY = "boing-pets:durable-tables:v1";
+
+/** In-memory string store for unit tests. */
+export function createMemoryStringStore(
+  initial: Record<string, string> = {},
+): BrowserStringStore {
+  const map = new Map<string, string>(Object.entries(initial));
+  return {
+    async get(key) {
+      return map.has(key) ? (map.get(key) ?? null) : null;
+    },
+    async set(key, value) {
+      map.set(key, value);
+    },
+  };
+}
+
+type IdbRequest<T> = {
+  result: T;
+  error: Error | null;
+  onsuccess: ((this: IdbRequest<T>, ev: Event) => void) | null;
+  onerror: ((this: IdbRequest<T>, ev: Event) => void) | null;
+};
+
+type IdbTransaction = {
+  objectStore(name: string): {
+    get(key: string): IdbRequest<unknown>;
+    put(value: string, key: string): IdbRequest<unknown>;
+  };
+  oncomplete: ((this: IdbTransaction, ev: Event) => void) | null;
+  onerror: ((this: IdbTransaction, ev: Event) => void) | null;
+  onabort: ((this: IdbTransaction, ev: Event) => void) | null;
+  error: Error | null;
+};
+
+type IdbDatabase = {
+  objectStoreNames: { contains(name: string): boolean };
+  createObjectStore(name: string): unknown;
+  transaction(store: string, mode: "readonly" | "readwrite"): IdbTransaction;
+};
+
+type IdbOpenRequest = IdbRequest<IdbDatabase> & {
+  onupgradeneeded: ((this: IdbOpenRequest, ev: Event) => void) | null;
+};
+
+type IdbFactory = {
+  open(name: string, version?: number): IdbOpenRequest;
+};
+
+/**
+ * IndexedDB string store. Available in window and dedicated workers.
+ * One object store, string keys / string values.
+ */
+export function createIndexedDbStringStore(options?: {
+  dbName?: string;
+  storeName?: string;
+}): BrowserStringStore {
+  const dbName = options?.dbName ?? "boing-pets";
+  const storeName = options?.storeName ?? "kv";
+  let dbPromise: Promise<IdbDatabase> | null = null;
+
+  function factory(): IdbFactory {
+    const idb = (globalThis as { indexedDB?: IdbFactory }).indexedDB;
+    if (idb == null) {
+      throw new Error("indexedDB unavailable");
+    }
+    return idb;
+  }
+
+  function openDb(): Promise<IdbDatabase> {
+    if (dbPromise) return dbPromise;
+    dbPromise = new Promise((resolve, reject) => {
+      const request = factory().open(dbName, 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(storeName)) {
+          db.createObjectStore(storeName);
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error ?? new Error("indexedDB"));
+    });
+    return dbPromise;
+  }
+
+  return {
+    async get(key) {
+      const db = await openDb();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, "readonly");
+        const req = tx.objectStore(storeName).get(key);
+        req.onsuccess = () => {
+          const value = req.result;
+          resolve(typeof value === "string" ? value : null);
+        };
+        req.onerror = () => reject(req.error ?? new Error("indexedDB get"));
+      });
+    },
+    async set(key, value) {
+      const db = await openDb();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, "readwrite");
+        tx.objectStore(storeName).put(value, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error ?? new Error("indexedDB set"));
+        tx.onabort = () => reject(tx.error ?? new Error("indexedDB abort"));
+      });
+    },
+  };
+}
+
+export type BrowserWorldRepositoryOptions = {
+  store?: BrowserStringStore;
+  storageKey?: string;
+};
+
+/**
+ * Wraps MemoryWorldRepository and flushes the full DurableTables JSON after
+ * every successful insert/commit. Hydrate once before the first read.
+ */
+export class BrowserWorldRepository implements WorldRepository {
+  readonly #memory = new MemoryWorldRepository();
+  readonly #store: BrowserStringStore;
+  readonly #storageKey: string;
+  #ready: Promise<void>;
+  #hydrated = false;
+
+  constructor(options: BrowserWorldRepositoryOptions = {}) {
+    this.#store = options.store ?? createIndexedDbStringStore();
+    this.#storageKey = options.storageKey ?? BROWSER_WORLD_STORAGE_KEY;
+    this.#ready = this.#hydrate();
+  }
+
+  async #hydrate(): Promise<void> {
+    if (this.#hydrated) return;
+    const raw = await this.#store.get(this.#storageKey);
+    if (raw != null) {
+      const tables = JSON.parse(raw) as DurableTables;
+      await this.#memory.insertWorld(tables);
+    }
+    this.#hydrated = true;
+  }
+
+  async #persist(): Promise<void> {
+    const tables = await this.#memory.readTables();
+    if (tables == null) return;
+    await this.#store.set(this.#storageKey, JSON.stringify(tables));
+  }
+
+  async readTables(): Promise<DurableTables | null> {
+    await this.#ready;
+    return this.#memory.readTables();
+  }
+
+  async insertWorld(tables: DurableTables): Promise<void> {
+    await this.#ready;
+    await this.#memory.insertWorld(tables);
+    await this.#persist();
+  }
+
+  async commit(batch: CommitBatch): Promise<void> {
+    await this.#ready;
+    await this.#memory.commit(batch);
+    await this.#persist();
+  }
+}
