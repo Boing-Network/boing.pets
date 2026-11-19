@@ -45,6 +45,7 @@ export function worldgenTables(
     events: clone([...events]),
     catchups: [],
     creatureNftLinks: [],
+    assetMintLinks: [],
   };
 }
 

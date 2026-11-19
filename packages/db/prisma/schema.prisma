@@ -107,6 +107,13 @@ enum NftMintStatus {
   FAILED
 }
 
+/// M21 asset mint taxonomy classes (host edge). UNIQUE_CREATURE stays on
+/// creature_nft_link; this enum tags lineage artifacts and compressed items.
+enum AssetMintClass {
+  UNIQUE_LINEAGE_ARTIFACT
+  COMPRESSED_ITEM
+}
+
 model World {
   id                 BigInt   @id
   name               String
@@ -139,6 +146,7 @@ model World {
   influences       PlayerInfluence[]
   catchups         CatchupReport[]
   creatureNftLinks CreatureNftLink[]
+  assetMintLinks   AssetMintLink[]
 
   @@map("world")
 }
@@ -431,4 +439,37 @@ model CreatureNftLink {
   @@unique([collectionHex, tokenIdHex])
   @@index([worldId, status])
   @@map("creature_nft_link")
+}
+
+/// Host-edge mint links for UNIQUE_LINEAGE_ARTIFACT and COMPRESSED_ITEM (M21).
+/// Outside the hot step() snapshot. Inventory/crafting remain out of sim.
+model AssetMintLink {
+  id               BigInt         @id
+  worldId          BigInt         @map("world_id")
+  tokenClass       AssetMintClass @map("token_class")
+  /// Idempotency key within (worldId, tokenClass).
+  mintKey          String         @map("mint_key")
+  lineageId        BigInt?        @map("lineage_id")
+  artifactKind     String?        @map("artifact_kind")
+  /// Unique artifact token serial (null for COMPRESSED_ITEM).
+  tokenSerial      BigInt?        @map("token_serial")
+  itemKindId       BigInt?        @map("item_kind_id")
+  amount           BigInt?
+  itemSlug         String?        @map("item_slug")
+  collectionHex    String         @map("collection_hex")
+  tokenIdHex       String         @map("token_id_hex")
+  chainId          String         @map("chain_id")
+  templateArtifact String         @map("template_artifact")
+  templateVersion  String         @map("template_version")
+  mintTxHex        String?        @map("mint_tx_hex")
+  status           NftMintStatus
+  lastError        String?        @map("last_error")
+  createdAt        DateTime       @map("created_at")
+  updatedAt        DateTime       @map("updated_at")
+  world            World          @relation(fields: [worldId], references: [id])
+
+  @@unique([worldId, tokenClass, mintKey])
+  @@index([worldId, status])
+  @@index([tokenClass, status])
+  @@map("asset_mint_link")
 }

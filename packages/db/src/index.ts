@@ -25,6 +25,7 @@ export { createDbClient, type DbClient } from "./client";
 export { CURRENT_SCHEMA_VERSION } from "./schema-version";
 
 export {
+  assetMintLinkToDb,
   catchupReportToDb,
   compatibilityToDb,
   creatureNftLinkToDb,
@@ -32,6 +33,7 @@ export {
   discoveriesFromEvents,
   influenceToDb,
   lineageToDb,
+  mapAssetMintLink,
   mapCatchupReport,
   mapCompatibility,
   mapCreature,
@@ -60,6 +62,7 @@ export {
   worldEventToDb,
   worldHeaderToDb,
   worldHeaderUpdateToDb,
+  type MappedAssetMintLink,
   type MappedCatchupReport,
   type MappedCompatibility,
   type MappedCreature,

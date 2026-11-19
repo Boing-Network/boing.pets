@@ -3,6 +3,7 @@
  * Host rate-limit accept times live in a sidecar JSON file (not a sim table).
  */
 import {
+  assetMintLinkToDb,
   catchupReportToDb,
   compatibilityToDb,
   createDbClient,
@@ -10,6 +11,7 @@ import {
   creatureToDb,
   influenceToDb,
   lineageToDb,
+  mapAssetMintLink,
   mapCatchupReport,
   mapCompatibility,
   mapCreature,
@@ -37,6 +39,7 @@ import {
   worldHeaderUpdateToDb,
   type DbClient,
 } from "@boing-pets/db";
+import type { AssetMintLinkRow } from "../boing/asset-mint-link";
 import type { CreatureNftLinkRow } from "../boing/nft-link";
 import type { HostMetaStore } from "./host-meta";
 import type { CommitBatch, DurableTables, WorldRepository } from "./repository";
@@ -159,6 +162,7 @@ export class PrismaWorldRepository implements WorldRepository {
       events: events.map(mapWorldEvent),
       catchups: catchups.map(mapCatchupReport),
       creatureNftLinks: [],
+      assetMintLinks: [],
     };
   }
 
@@ -360,6 +364,44 @@ export class PrismaWorldRepository implements WorldRepository {
       create: data,
       update: {
         birthEventId: data.birthEventId,
+        collectionHex: data.collectionHex,
+        tokenIdHex: data.tokenIdHex,
+        chainId: data.chainId,
+        templateArtifact: data.templateArtifact,
+        templateVersion: data.templateVersion,
+        mintTxHex: data.mintTxHex,
+        status: data.status,
+        lastError: data.lastError,
+        updatedAt: data.updatedAt,
+      },
+    });
+  }
+
+  async readAssetMintLinks(): Promise<AssetMintLinkRow[]> {
+    const rows = await this.#client.assetMintLink.findMany({
+      orderBy: [{ worldId: "asc" }, { tokenClass: "asc" }, { mintKey: "asc" }],
+    });
+    return rows.map(mapAssetMintLink);
+  }
+
+  async upsertAssetMintLink(row: AssetMintLinkRow): Promise<void> {
+    const data = assetMintLinkToDb(row);
+    await this.#client.assetMintLink.upsert({
+      where: {
+        worldId_tokenClass_mintKey: {
+          worldId: data.worldId,
+          tokenClass: data.tokenClass,
+          mintKey: data.mintKey,
+        },
+      },
+      create: data,
+      update: {
+        lineageId: data.lineageId,
+        artifactKind: data.artifactKind,
+        tokenSerial: data.tokenSerial,
+        itemKindId: data.itemKindId,
+        amount: data.amount,
+        itemSlug: data.itemSlug,
         collectionHex: data.collectionHex,
         tokenIdHex: data.tokenIdHex,
         chainId: data.chainId,

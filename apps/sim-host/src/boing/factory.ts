@@ -2,6 +2,10 @@
  * Construct the host-edge Boing NFT client + mint edge from config/env.
  */
 import {
+  MemoryAssetMintLinkStore,
+  type AssetMintLinkStore,
+} from "./asset-mint-link";
+import {
   createDisabledBoingNftConfig,
   readBoingNftConfig,
   type BoingNftConfig,
@@ -26,15 +30,27 @@ export function createBoingNftClient(config: BoingNftConfig): BoingNftClient {
 export function createMintEdgeFromEnv(
   env: NodeJS.ProcessEnv = process.env,
   linkStore: CreatureNftLinkStore = new MemoryCreatureNftLinkStore(),
+  assetLinkStore: AssetMintLinkStore = new MemoryAssetMintLinkStore(),
 ): MintEdge {
   const config = readBoingNftConfig(env);
-  return createMintEdge(config, createBoingNftClient(config), linkStore);
+  return createMintEdge(
+    config,
+    createBoingNftClient(config),
+    linkStore,
+    assetLinkStore,
+  );
 }
 
 /** Explicit offline edge for tests and local play without reading env. */
 export function createDisabledMintEdge(
   linkStore: CreatureNftLinkStore = new MemoryCreatureNftLinkStore(),
+  assetLinkStore: AssetMintLinkStore = new MemoryAssetMintLinkStore(),
 ): MintEdge {
   const config = createDisabledBoingNftConfig();
-  return createMintEdge(config, createBoingNftClient(config), linkStore);
+  return createMintEdge(
+    config,
+    createBoingNftClient(config),
+    linkStore,
+    assetLinkStore,
+  );
 }

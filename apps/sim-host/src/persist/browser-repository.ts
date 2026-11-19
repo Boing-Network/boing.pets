@@ -6,6 +6,7 @@
  * static Vite client can keep a living world across refresh without inventing a
  * second simulation.
  */
+import type { AssetMintLinkRow } from "../boing/asset-mint-link";
 import type { CreatureNftLinkRow } from "../boing/nft-link";
 import type { CommitBatch, DurableTables, WorldRepository } from "./repository";
 import { MemoryWorldRepository } from "./memory-repository";
@@ -153,9 +154,12 @@ export class BrowserWorldRepository implements WorldRepository {
     const raw = await this.#store.get(this.#storageKey);
     if (raw != null) {
       const tables = JSON.parse(raw) as DurableTables;
-      // Older browser saves predate M20; default the sidecar.
+      // Older browser saves predate M20/M21; default the sidecars.
       if (!Array.isArray(tables.creatureNftLinks)) {
         tables.creatureNftLinks = [];
+      }
+      if (!Array.isArray(tables.assetMintLinks)) {
+        tables.assetMintLinks = [];
       }
       await this.#memory.insertWorld(tables);
     }
@@ -193,6 +197,17 @@ export class BrowserWorldRepository implements WorldRepository {
   async upsertCreatureNftLink(row: CreatureNftLinkRow) {
     await this.#ready;
     await this.#memory.upsertCreatureNftLink(row);
+    await this.#persist();
+  }
+
+  async readAssetMintLinks() {
+    await this.#ready;
+    return this.#memory.readAssetMintLinks();
+  }
+
+  async upsertAssetMintLink(row: AssetMintLinkRow) {
+    await this.#ready;
+    await this.#memory.upsertAssetMintLink(row);
     await this.#persist();
   }
 }

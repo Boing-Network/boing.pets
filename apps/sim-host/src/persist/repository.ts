@@ -17,6 +17,7 @@ import type {
   WorldEvent,
   WorldHeader,
 } from "@boing-pets/sim";
+import type { AssetMintLinkRow } from "../boing/asset-mint-link";
 import type { CreatureNftLinkRow } from "../boing/nft-link";
 
 export type DurableTables = {
@@ -44,6 +45,11 @@ export type DurableTables = {
    * `tablesToSnapshot` must ignore this field.
    */
   creatureNftLinks: CreatureNftLinkRow[];
+  /**
+   * Host-edge lineage artifact + compressed item mint links (M21).
+   * Not part of the hot snapshot.
+   */
+  assetMintLinks: AssetMintLinkRow[];
 };
 
 export type CommitBatch = {
@@ -77,4 +83,8 @@ export type WorldRepository = {
   readCreatureNftLinks(): Promise<CreatureNftLinkRow[]>;
   /** M20: upsert by creatureId. */
   upsertCreatureNftLink(row: CreatureNftLinkRow): Promise<void>;
+  /** M21: read asset mint links (artifacts + compressed items). */
+  readAssetMintLinks(): Promise<AssetMintLinkRow[]>;
+  /** M21: upsert by (worldId, tokenClass, mintKey). */
+  upsertAssetMintLink(row: AssetMintLinkRow): Promise<void>;
 };
