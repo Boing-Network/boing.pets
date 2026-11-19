@@ -1,17 +1,22 @@
 import { OrbitControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type MutableRefObject } from "react";
 import { MathUtils, Vector3, type PerspectiveCamera } from "three";
 import type { WorldModel } from "./world-model";
 
-type Focus = { x: number; y: number; z: number } | null;
+type FocusPoint = { x: number; y: number; z: number };
 
 type Props = {
   model: WorldModel;
-  /** World point to keep in view when a creature is selected. */
-  focus: Focus;
-  /** Called when the orbit target moves, so moon shadows can follow. */
-  onTarget: (target: { x: number; y: number; z: number }) => void;
+  /**
+   * Creature currently framed, or null. Changing this id restarts the ease;
+   * the live point is read from `focusPoint` each frame.
+   */
+  focusId: number | null;
+  /** Live focus point mutated by CreatureToken; null when nothing is selected. */
+  focusPoint: MutableRefObject<FocusPoint | null>;
+  /** Orbit target for moon shadows; mutated here each frame (no React state). */
+  orbitTarget: MutableRefObject<FocusPoint>;
 };
 
 type ControlsHandle = {
@@ -23,7 +28,7 @@ type ControlsHandle = {
  * Pan, zoom and orbit sized for the open landscape. Selecting a creature
  * eases the view toward it without fighting the user's own drag.
  */
-export function CameraRig({ model, focus, onTarget }: Props) {
+export function CameraRig({ model, focusId, focusPoint, orbitTarget }: Props) {
   const controls = useRef<ControlsHandle | null>(null);
   const { camera } = useThree();
   const desired = useMemo(() => new Vector3(), []);
@@ -49,6 +54,8 @@ export function CameraRig({ model, focus, onTarget }: Props) {
     return { x: cx, y: y + 1.2, z: cz };
   }, [model]);
 
+  // Home pose is derived from the stable world model. Re-apply only when the
+  // landscape itself changes — not on every host snapshot tick.
   useEffect(() => {
     const cam = camera as PerspectiveCamera;
     cam.near = 0.4;
@@ -65,15 +72,19 @@ export function CameraRig({ model, focus, onTarget }: Props) {
       ctrl.target.set(home.x, home.y, home.z);
       ctrl.update();
     }
-    onTarget(home);
-  }, [camera, home, onTarget, span]);
+    orbitTarget.current = { x: home.x, y: home.y, z: home.z };
+  }, [camera, home, orbitTarget, span]);
 
+  // Restart the ease when the selection changes, not when the creature moves.
   useEffect(() => {
-    if (!focus) return;
-    desired.set(focus.x, focus.y + 0.6, focus.z);
+    if (focusId == null) return;
+    const point = focusPoint.current;
+    if (point) {
+      desired.set(point.x, point.y + 0.6, point.z);
+    }
     driveUntil.current = performance.now() + 1400;
     userDriving.current = false;
-  }, [desired, focus]);
+  }, [desired, focusId, focusPoint]);
 
   useEffect(() => {
     // Demo / media helper: frame a world point from outside the canvas.
@@ -90,15 +101,11 @@ export function CameraRig({ model, focus, onTarget }: Props) {
         ctrl.update();
         userDriving.current = true;
         driveUntil.current = 0;
-        onTarget({ x, y, z });
+        orbitTarget.current = { x, y, z };
       },
       /** Frame the current selection focus (set by WorldScene). */
       frameFocus(distance = 14) {
-        const point = (
-          window as unknown as {
-            __livingPetsFocus?: { x: number; y: number; z: number };
-          }
-        ).__livingPetsFocus;
+        const point = focusPoint.current;
         if (!point) return false;
         api.lookAt(point.x, point.y + 0.35, point.z, distance);
         return true;
@@ -113,7 +120,21 @@ export function CameraRig({ model, focus, onTarget }: Props) {
           home.z + span * 0.55,
         );
         ctrl.update();
-        onTarget(home);
+        orbitTarget.current = { x: home.x, y: home.y, z: home.z };
+      },
+      /** Current camera + orbit target (demo / regression probes). */
+      getPose() {
+        const ctrl = controls.current;
+        return {
+          position: {
+            x: camera.position.x,
+            y: camera.position.y,
+            z: camera.position.z,
+          },
+          target: ctrl
+            ? { x: ctrl.target.x, y: ctrl.target.y, z: ctrl.target.z }
+            : null,
+        };
       },
       regions: model.regions.map((r) => ({
         name: r.name,
@@ -130,15 +151,20 @@ export function CameraRig({ model, focus, onTarget }: Props) {
       delete (window as unknown as { __livingPetsCamera?: typeof api })
         .__livingPetsCamera;
     };
-  }, [camera, home, model, onTarget, span]);
+  }, [camera, focusPoint, home, model, orbitTarget, span]);
 
   useFrame(() => {
     const ctrl = controls.current;
     if (!ctrl) return;
-    onTarget({ x: ctrl.target.x, y: ctrl.target.y, z: ctrl.target.z });
+    orbitTarget.current = {
+      x: ctrl.target.x,
+      y: ctrl.target.y,
+      z: ctrl.target.z,
+    };
     if (userDriving.current) return;
     if (performance.now() > driveUntil.current) return;
-    if (!focus) return;
+    const focus = focusPoint.current;
+    if (!focus || focusId == null) return;
     desired.set(focus.x, focus.y + 0.6, focus.z);
     ctrl.target.lerp(desired, 0.08);
     // Keep a readable distance while easing toward the creature.

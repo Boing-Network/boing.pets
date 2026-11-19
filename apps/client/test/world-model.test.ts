@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildWorldModel, worldModelKey } from "../src/view/world/world-model";
+import {
+  buildWorldModel,
+  resolveWorldModel,
+  worldModelKey,
+} from "../src/view/world/world-model";
 import { planWorld } from "../src/view/world/world-plan";
 
 const sample = {
@@ -72,4 +76,38 @@ test("buildWorldModel places creatures on dry ground near region centers", () =>
     );
   }
   assert.ok(model.nx * model.nz < 450_000);
+});
+
+test("resolveWorldModel keeps one instance across snapshot array churn", () => {
+  const first = resolveWorldModel(null, sample);
+  assert.ok(first);
+  // Live hosts replace territory/link array identity every tick even when the
+  // graph fingerprint is unchanged — rebuilding would reset the camera.
+  const churned = {
+    seed: sample.seed,
+    territories: sample.territories.map((t) => ({ ...t })),
+    links: sample.links.map((l) => ({ ...l })),
+  };
+  const second = resolveWorldModel(first, churned);
+  assert.equal(second, first);
+  assert.equal(second?.model, first.model);
+
+  const grown = {
+    ...sample,
+    territories: [
+      ...sample.territories,
+      {
+        id: 4,
+        slug: "wilds",
+        name: "Wilds",
+        foodAbundance: 100,
+        danger: 100,
+        capacity: 10,
+      },
+    ],
+  };
+  const third = resolveWorldModel(first, grown);
+  assert.notEqual(third, first);
+  assert.notEqual(third?.model, first.model);
+  assert.equal(third?.key, worldModelKey(grown));
 });
