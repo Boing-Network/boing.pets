@@ -23,6 +23,8 @@ import {
   applyCourtAcceptDelta,
   applyCourtRejectDelta,
   applyGiftDelta,
+  applyGuardOffspringDelta,
+  applyRescueDelta,
   applySnubDelta,
   applySocializeDelta,
   ensureRelationship,
@@ -170,6 +172,8 @@ function knowsTerritory(
 
 const DISCOVERY_IMPORTANCE = 10;
 const DISCOVERY_EMOTION = 300;
+const MIGRATION_IMPORTANCE = 4;
+const MIGRATION_EMOTION = 50;
 
 function rememberDiscovery(
   snapshot: WorldSnapshot,
@@ -208,9 +212,49 @@ function rememberDiscovery(
     archived: false,
   });
 }
+
+/** Importance 4, emotional +50. Throttled to one per owner per 144 ticks. */
+function rememberMigration(
+  snapshot: WorldSnapshot,
+  creature: CreatureRow,
+  tick: number,
+  territoryId: number,
+): void {
+  if (
+    isMemoryThrottled(snapshot, {
+      creatureId: creature.id,
+      kind: MemoryKind.MIGRATION,
+      tick,
+      territoryId,
+    })
+  ) {
+    return;
+  }
+  snapshot.memories.push({
+    id: take(snapshot, "nextMemoryId"),
+    worldId: snapshot.world.id,
+    creatureId: creature.id,
+    tick,
+    kind: MemoryKind.MIGRATION,
+    importance: MIGRATION_IMPORTANCE,
+    emotionalValue: MIGRATION_EMOTION,
+    initialStrength: initialMemoryStrength(
+      MIGRATION_IMPORTANCE,
+      snapshot.ruleset,
+    ),
+    subjectCreatureId: null,
+    territoryId,
+    payload: {
+      tags: [MemoryTag.MIGRATION],
+      template: EventTemplate.MIGRATION,
+    },
+    archived: false,
+  });
+}
+
 /**
- * Arrive, write MIGRATION, and write DISCOVERY the first time this lineage
- * enters the destination. Death before this call writes neither.
+ * Arrive, write MIGRATION (event + memory), and write DISCOVERY the first time
+ * this lineage enters the destination. Death before this call writes neither.
  */
 export function resolveRelocate(
   snapshot: WorldSnapshot,
@@ -255,6 +299,7 @@ export function resolveRelocate(
       reason,
     }),
   ];
+  rememberMigration(snapshot, creature, tick, destinationId);
 
   if (!knowsTerritory(snapshot, creature.lineageId, destinationId)) {
     snapshot.discoveries.push({
@@ -1180,9 +1225,93 @@ export function resolveCourt(
   ];
 }
 
+const RESCUE_IMPORTANCE = 25;
+const RESCUE_EMOTION = 800;
+const RESCUE_HEALTH_BELOW = 300;
+const RESCUE_HEALTH_RELIEF = 40;
+const RESCUE_UNSAFETY_RELIEF = 100;
+const GUARD_OFFSPRING_UNSAFETY = 30;
+const GUARD_RESCUE_FATIGUE = 20;
+const GUARD_IDLE_FATIGUE = 2;
+
+/**
+ * Guard: every living offspring here loses unsafety and gains parent trust.
+ * A co-located creature with health < 300 may be rescued (lowest health;
+ * offspring wins ties, then lowest id).
+ */
+export function resolveGuard(
+  snapshot: WorldSnapshot,
+  actor: CreatureRow,
+  tick: number,
+): void {
+  clearAction(actor);
+
+  const offspringHere = protectedOffspring(snapshot, actor, tick).filter(
+    (child) => child.territoryId === actor.territoryId,
+  );
+  for (const child of offspringHere) {
+    child.unsafety = clamp(child.unsafety - GUARD_OFFSPRING_UNSAFETY, 0, 1000);
+    const pair = ensureRelationship(snapshot, actor.id, child.id, tick);
+    applyGuardOffspringDelta(pair, tick);
+  }
+
+  let rescue: CreatureRow | null = null;
+  const offspringIds = new Set(offspringHere.map((child) => child.id));
+  for (const other of snapshot.creatures) {
+    if (other.status !== CreatureStatus.ALIVE) continue;
+    if (other.id === actor.id) continue;
+    if (other.territoryId !== actor.territoryId) continue;
+    if (other.health >= RESCUE_HEALTH_BELOW) continue;
+    if (!rescue) {
+      rescue = other;
+      continue;
+    }
+    if (other.health < rescue.health) {
+      rescue = other;
+      continue;
+    }
+    if (other.health > rescue.health) continue;
+    const otherIsOffspring = offspringIds.has(other.id);
+    const rescueIsOffspring = offspringIds.has(rescue.id);
+    if (otherIsOffspring && !rescueIsOffspring) {
+      rescue = other;
+      continue;
+    }
+    if (otherIsOffspring === rescueIsOffspring && other.id < rescue.id) {
+      rescue = other;
+    }
+  }
+
+  if (rescue) {
+    rescue.health = clamp(rescue.health + RESCUE_HEALTH_RELIEF, 0, 1000);
+    rescue.unsafety = clamp(rescue.unsafety - RESCUE_UNSAFETY_RELIEF, 0, 1000);
+    const pair = ensureRelationship(snapshot, actor.id, rescue.id, tick);
+    applyRescueDelta(pair, tick);
+    for (const creature of [actor, rescue]) {
+      const other = creature.id === actor.id ? rescue : actor;
+      rememberFor(
+        snapshot,
+        creature,
+        tick,
+        MemoryKind.RESCUE,
+        RESCUE_IMPORTANCE,
+        RESCUE_EMOTION,
+        other.id,
+        null,
+        [],
+        "rescue.v1",
+      );
+    }
+    actor.fatigue = clamp(actor.fatigue + GUARD_RESCUE_FATIGUE, 0, 1000);
+    return;
+  }
+
+  actor.fatigue = clamp(actor.fatigue + GUARD_IDLE_FATIGUE, 0, 1000);
+}
+
 /**
  * Resolve a finished non-relocate action. Contest, approach, cooperate, court,
- * forage, and drink apply their effects. Other actions clear the slot.
+ * forage, drink, and guard apply their effects. Other actions clear the slot.
  */
 export function resolveFinishedAction(
   snapshot: WorldSnapshot,
@@ -1207,13 +1336,16 @@ export function resolveFinishedAction(
     case Action.DRINK:
       resolveDrink(snapshot, creature);
       return [];
+    case Action.GUARD:
+      resolveGuard(snapshot, creature, tick);
+      return [];
     default:
       clearAction(creature);
       return [];
   }
 }
 
-/** End an action whose effects are not implemented yet. */
+/** Clear a finished action slot without resolution side effects. */
 export function clearFinishedAction(creature: CreatureRow): void {
   clearAction(creature);
 }

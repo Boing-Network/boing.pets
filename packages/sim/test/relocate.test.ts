@@ -179,19 +179,34 @@ test("a flee from ridge arrives in thicket and a second visit is not a discovery
     lineageId: hare.lineageId,
   });
   assert.equal(snapshot.world.nextEventId, 27);
-  assert.equal(snapshot.memories.length, 1);
-  const memory = snapshot.memories[0];
-  assert.ok(memory);
-  assert.equal(memory.kind, "DISCOVERY");
-  assert.equal(memory.creatureId, hare.id);
-  assert.equal(memory.territoryId, thicket.id);
-  assert.equal(memory.importance, 10);
-  assert.equal(memory.emotionalValue, 300);
+  assert.equal(snapshot.memories.length, 2);
+  const migrationMemory = snapshot.memories[0];
+  const discoveryMemory = snapshot.memories[1];
+  assert.ok(migrationMemory);
+  assert.ok(discoveryMemory);
+  assert.equal(migrationMemory.kind, "MIGRATION");
+  assert.equal(migrationMemory.creatureId, hare.id);
+  assert.equal(migrationMemory.territoryId, thicket.id);
+  assert.equal(migrationMemory.importance, 4);
+  assert.equal(migrationMemory.emotionalValue, 50);
   assert.equal(
-    memory.initialStrength,
+    migrationMemory.initialStrength,
+    4 * snapshot.ruleset.memoryStrengthPerImportance,
+  );
+  assert.deepEqual(migrationMemory.payload, {
+    tags: ["migration"],
+    template: "migration.v1",
+  });
+  assert.equal(discoveryMemory.kind, "DISCOVERY");
+  assert.equal(discoveryMemory.creatureId, hare.id);
+  assert.equal(discoveryMemory.territoryId, thicket.id);
+  assert.equal(discoveryMemory.importance, 10);
+  assert.equal(discoveryMemory.emotionalValue, 300);
+  assert.equal(
+    discoveryMemory.initialStrength,
     10 * snapshot.ruleset.memoryStrengthPerImportance,
   );
-  assert.deepEqual(memory.payload, {
+  assert.deepEqual(discoveryMemory.payload, {
     tags: ["discovery"],
     template: "discovery.v1",
   });
@@ -225,7 +240,8 @@ test("a flee from ridge arrives in thicket and a second visit is not a discovery
   assert.equal(returned[0].payload.reason, "SETTLE");
   assert.equal(returned[0].payload.fromTerritoryId, thicket.id);
   assert.equal(returned[0].payload.toTerritoryId, ridge.id);
-  assert.equal(snapshot.memories.length, 0);
+  assert.equal(snapshot.memories.length, 1);
+  assert.equal(snapshot.memories[0]?.kind, "MIGRATION");
   pinOthers(snapshot, hare.id);
 
   const again = beginFlee(
@@ -246,8 +262,9 @@ test("a flee from ridge arrives in thicket and a second visit is not a discovery
   if (revisit[0]?.payload.template !== "migration.v1") throw new Error("move");
   assert.equal(revisit[0].payload.reason, "FLEE");
   assert.equal(revisit[0].payload.toTerritoryId, thicket.id);
-  assert.equal(snapshot.memories.length, 0);
-  assert.equal(snapshot.world.nextMemoryId, 2);
+  // Return-trip MIGRATION memory is still hot, so the revisit is throttled.
+  assert.equal(snapshot.memories.length, 1);
+  assert.equal(snapshot.world.nextMemoryId, 4);
   assert.equal(snapshot.world.nextEventId, 29);
   assert.equal(
     snapshot.discoveries.filter(
@@ -485,7 +502,11 @@ test("two arrivals in one tick write one discovery for the lineage", () => {
   );
   assert.deepEqual(
     snapshot.memories.map((memory) => [memory.creatureId, memory.kind]),
-    [[9, "DISCOVERY"]],
+    [
+      [9, "MIGRATION"],
+      [9, "DISCOVERY"],
+      [10, "MIGRATION"],
+    ],
   );
   assert.equal(
     snapshot.discoveries.filter(
