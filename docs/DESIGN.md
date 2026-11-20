@@ -439,13 +439,55 @@ territories 1–3 so its timings stay comparable.
   (forage, drink, rest, social, court, and so on) and to waypoints from
   deterministic anchors. Creatures free-roam visually across regions, while
   their sim location stays the territory id.
-- `view/creatures/*`: procedural meshes and materials for the seven skins.
-  Each mesh animates in `useFrame` from the shared `CreaturePose` (gait,
-  gait weight, head/body pitch) plus an idle loop (breathing, ear twitches,
-  sniffing, chewing). The four newer meshes use no per-creature lights. The
-  repo has no model or texture assets.
+- `view/creatures/*`: procedural creatures for all 21 species (see
+  [Creature rendering](#creature-rendering)). The repo has no model or
+  texture assets.
 - HUD: `InspectionPanel` (creature, family, top memories), `InfluencePanel`
   (all five verbs), and `ClockControls`.
+
+### Creature rendering
+
+The goal is creatures that belong in the night landscape: natural
+proportions, muted coats, the same moonlight and fog as the terrain, and
+motion with weight. Everything is generated in code.
+
+- **Anatomy** (`view/creatures/anatomy/`). `species.ts` gives each species
+  an `Anatomy`: a coat (back, belly, dark), an optional pattern function,
+  rig info (gait, stride, breath rate, height, look range) and a build
+  function. `plans.ts` holds the body plans that build functions call:
+  `quadruped` (lofted torso with waist, neck, head with eyeshine, ears, jointed
+  legs with paws or hooves, tails), `bird` (wading or flying), `bat`, `moth`,
+  `tortoise` and `newt`. `builder.ts` (`CreatureBuilder`) turns ellipsoids,
+  tubes, cones, swept lofts and wing membranes into one merged geometry per
+  animated part (body, head, legs, tail, wings). It paints each vertex with
+  countershading, coat noise, underside and ground occlusion (not for fliers),
+  pattern colour and glow.
+- **Shading** (`anatomy/material.ts`). Every creature shares two
+  `MeshStandardMaterial`s: `creatureSkin` (front faces) and
+  `creatureMembrane` (double-sided wings with a little moonlit
+  translucency). A shader patch adds fur, feather or scale grain (fading
+  with distance), glossier eyes and noses, a faint cool rim, and a slow pulse
+  on bioluminescent spots. Creatures are lit only by the world's moon,
+  hemisphere light and `FogExp2`. There are no per-creature lights.
+- **Ground contact** (`GroundContact.tsx`). One shared soft decal under each
+  creature, plus the moon's shadow. A flier's decal stays on the ground under
+  it.
+- **Animation** (`ProceduralCreature.tsx`, `useFrame`). Breathing, weight
+  shift, and per-gait leg cycles (walk, trot, bound, hop, waddle, scurry,
+  crawl, wade, fly) with a planted stance phase and a lifted swing. Also body
+  bob/roll/pitch, a newt's body wave, head look-around (or toward the camera
+  when selected), tail sway, wing beats with hind-wing lag, and a crouch for
+  rest. Gait weight and pitch come from the shared `CreaturePose`.
+- **Cost and LOD** (`anatomy/rig.ts`, `crowd.ts`, `CreatureCrowd.tsx`). Rigs
+  are built once per species and cached. A close creature costs 6–7 draw
+  calls plus its shadow, with 2k–10k triangles. Past 60 units (and when not
+  selected), a creature hides its parts and joins its species'
+  `InstancedMesh` of a merged, roughly half-detail far body, so a whole
+  species far away is one draw call. `test/anatomy.test.ts` checks that every
+  species has a distinct body and stays within the triangle budgets.
+- **Bestiary** (`dev/Bestiary.tsx`, lazy). `?bestiary` lays out all species
+  under the world lighting; `?bestiary=<slug>` frames one close up;
+  `&pose=` picks a pose.
 
 ## Multiplayer (shared world)
 
