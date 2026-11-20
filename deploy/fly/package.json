@@ -1,0 +1,15 @@
+{
+  "name": "boing-living-pets-server",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Runtime dependencies of the bundled shared-world server image (see Dockerfile).",
+  "type": "module",
+  "dependencies": {
+    "@prisma/client": "6.19.3",
+    "prisma": "6.19.3",
+    "ws": "8.23.0"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}

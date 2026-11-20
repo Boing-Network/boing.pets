@@ -1,0 +1,23 @@
+# Never send local secrets, leftovers or installs to the image build.
+.dev.vars
+.env
+.env.*
+playtest-artifacts
+scripts
+node_modules
+**/node_modules
+**/dist
+.git
+.github
+.living-pets-mp
+.postgres-data
+apps/desktop/user-data
+apps/client/*
+!apps/client/package.json
+apps/desktop/*
+!apps/desktop/package.json
+coverage
+*.log
+**/.dev.vars
+**/*.key
+.boing
