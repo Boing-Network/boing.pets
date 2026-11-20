@@ -3,7 +3,11 @@ import { test } from "node:test";
 import type { WsServerToClient } from "@boing-pets/contract";
 import { createWsHostIpc, tokenStorageKey } from "../src/api/ws-host-ipc";
 import { otherPlayers } from "../src/state/sharedWorldStore";
-import { easeToward, playerColor } from "../src/view/world/PlayerMarkers";
+import {
+  easeToward,
+  markerScale,
+  playerColor,
+} from "../src/view/world/PlayerMarkers";
 import {
   signInWithBoing,
   walletErrorText,
@@ -263,6 +267,9 @@ test("marker helpers: other players only, colours, easing", () => {
   assert.equal(playerColor({ role: "player", wallet: true }), "#ffd27a");
   assert.equal(playerColor(players[0]!), "#9fd8ff");
   const eased = easeToward(0, 10, 0.1);
-  assert.ok(eased > 0 && eased < 10);
-  assert.ok(Math.abs(easeToward(0, 10, 10) - 10) < 1e-6);
+  assert.ok(eased > 0 && eased < 10, "eases part of the way");
+  assert.ok(Math.abs(easeToward(0, 10, 10) - 10) < 1e-6, "settles");
+  assert.equal(markerScale(5), 1);
+  assert.equal(markerScale(28), 2);
+  assert.equal(markerScale(1000), 6);
 });

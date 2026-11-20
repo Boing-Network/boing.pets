@@ -20,6 +20,14 @@ export function playerColor(player: Pick<PlayerPresence, "role" | "wallet">) {
   return player.wallet ? "#ffd27a" : "#9fd8ff";
 }
 
+/**
+ * Markers keep a readable on-screen size: 1x up close, growing with camera
+ * distance (clamped) so a player across the map is still a visible pin.
+ */
+export function markerScale(cameraDistance: number) {
+  return Math.min(6, Math.max(1, cameraDistance / 14));
+}
+
 /** Frame-rate independent ease toward the latest server position. */
 export function easeToward(current: number, target: number, dt: number) {
   const k = 1 - Math.exp(-dt * 8);
@@ -58,7 +66,9 @@ function PlayerMarker({
     const dt = Math.min(delta, 0.1);
     g.position.x = easeToward(g.position.x, target.current.x, dt);
     g.position.z = easeToward(g.position.z, target.current.z, dt);
-    g.position.y = model.heightAt(g.position.x, g.position.z) + 1.1;
+    const scale = markerScale(state.camera.position.distanceTo(g.position));
+    g.scale.setScalar(scale);
+    g.position.y = model.heightAt(g.position.x, g.position.z) + 1.1 * scale;
     g.children[0]!.position.y = Math.sin(state.clock.elapsedTime * 2) * 0.08;
   });
   return (
