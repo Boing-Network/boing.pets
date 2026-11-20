@@ -63,18 +63,15 @@ async function start(seed: number, scale: 1 | 4 | 16 | 64): Promise<void> {
       seed,
       emit,
       autoFrame: true,
+      // Demo default speed applies only until the player picks a scale;
+      // a saved scale survives reload.
+      initialScale: scale,
       mintEdge: createMintEdgeFromEnv(
         typeof process !== "undefined" ? process.env : {},
         createRepositoryNftLinkStore(repository),
       ),
     });
     await runtime.start();
-    if (scale !== 1) {
-      await runtime.handleCommand({
-        message: "clock.setScale",
-        body: { scale },
-      });
-    }
     post({ type: "ready" });
   } catch (error) {
     const text = error instanceof Error ? error.message : String(error);

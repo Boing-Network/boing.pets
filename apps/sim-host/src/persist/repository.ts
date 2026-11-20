@@ -2,7 +2,7 @@
  * Durability boundary. Postgres is the production store; tests use memory.
  * Every insert carries an explicit kernel-assigned id — no database sequences.
  */
-import type { CatchupReport, Ruleset } from "@boing-pets/contract";
+import type { CatchupReport, Ruleset, TimeScale } from "@boing-pets/contract";
 import type {
   CompatibilityRow,
   CreatureRow,
@@ -19,6 +19,15 @@ import type {
 } from "@boing-pets/sim";
 import type { AssetMintLinkRow } from "../boing/asset-mint-link";
 import type { CreatureNftLinkRow } from "../boing/nft-link";
+
+/**
+ * Host clock preferences that survive a restart. Only the time scale is kept:
+ * closing the game is not a pause (time after exit is owed on next launch),
+ * so `paused` is deliberately not persisted.
+ */
+export type PersistedHostClock = {
+  scale: TimeScale;
+};
 
 export type DurableTables = {
   world: WorldHeader;
@@ -55,6 +64,8 @@ export type DurableTables = {
    * Not part of the hot snapshot.
    */
   assetMintLinks: AssetMintLinkRow[];
+  /** Host-edge clock preference (scale). Absent on older saves. */
+  hostClock?: PersistedHostClock | null;
 };
 
 export type CommitBatch = {
@@ -94,4 +105,8 @@ export type WorldRepository = {
   readAssetMintLinks(): Promise<AssetMintLinkRow[]>;
   /** M21: upsert by (worldId, tokenClass, mintKey). */
   upsertAssetMintLink(row: AssetMintLinkRow): Promise<void>;
+  /** Saved clock preference, or null when never set. Optional for test doubles. */
+  readHostClock?(): Promise<PersistedHostClock | null>;
+  /** Persist the clock preference (outside the tick commit). */
+  writeHostClock?(clock: PersistedHostClock): Promise<void>;
 };

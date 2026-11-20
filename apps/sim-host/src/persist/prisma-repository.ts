@@ -42,7 +42,12 @@ import {
 import type { AssetMintLinkRow } from "../boing/asset-mint-link";
 import type { CreatureNftLinkRow } from "../boing/nft-link";
 import type { HostMetaStore } from "./host-meta";
-import type { CommitBatch, DurableTables, WorldRepository } from "./repository";
+import type {
+  CommitBatch,
+  DurableTables,
+  PersistedHostClock,
+  WorldRepository,
+} from "./repository";
 
 export type PrismaWorldRepositoryOptions = {
   client?: DbClient;
@@ -160,6 +165,7 @@ export class PrismaWorldRepository implements WorldRepository {
       influences: influences.map(mapInfluence),
       influenceAcceptedAtMs: [...hostMeta.influenceAcceptedAtMs],
       influenceAcceptedByAccount: { ...hostMeta.influenceAcceptedByAccount },
+      hostClock: hostMeta.hostClock ?? null,
       events: events.map(mapWorldEvent),
       catchups: catchups.map(mapCatchupReport),
       creatureNftLinks: [],
@@ -238,6 +244,7 @@ export class PrismaWorldRepository implements WorldRepository {
     });
 
     await this.#hostMeta.write({
+      hostClock: tables.hostClock ?? null,
       influenceAcceptedAtMs: [...tables.influenceAcceptedAtMs],
       influenceAcceptedByAccount: {
         ...(tables.influenceAcceptedByAccount ?? {
@@ -366,10 +373,23 @@ export class PrismaWorldRepository implements WorldRepository {
       }
       const local = byAccount.local ?? batch.influenceAcceptedAtMs ?? [];
       await this.#hostMeta.write({
+        ...current,
         influenceAcceptedAtMs: [...local],
         influenceAcceptedByAccount: byAccount,
       });
     }
+  }
+
+  async readHostClock(): Promise<PersistedHostClock | null> {
+    return (await this.#hostMeta.read()).hostClock ?? null;
+  }
+
+  async writeHostClock(clock: PersistedHostClock): Promise<void> {
+    const current = await this.#hostMeta.read();
+    await this.#hostMeta.write({
+      ...current,
+      hostClock: { scale: clock.scale },
+    });
   }
 
   async readCreatureNftLinks(): Promise<CreatureNftLinkRow[]> {

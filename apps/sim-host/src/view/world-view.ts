@@ -148,6 +148,10 @@ export function toCreatureView(
     actionTargetId: creature.actionTargetId,
     actionStartedTick: creature.actionStartedTick,
     actionEndsTick: creature.actionEndsTick,
+    spotX: creature.spotX,
+    spotZ: creature.spotZ,
+    fromSpotX: creature.fromSpotX,
+    fromSpotZ: creature.fromSpotZ,
   };
 }
 

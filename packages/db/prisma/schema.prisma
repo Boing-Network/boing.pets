@@ -297,6 +297,13 @@ model Creature {
   gestationEndTick      BigInt? @map("gestation_end_tick")
   mateCooldownUntilTick BigInt? @map("mate_cooldown_until_tick")
 
+  /// Schema 2 positions (territory-local permille). Pre-2 rows default to 0
+  /// and are re-placed deterministically on load.
+  spotX     Int @default(0) @map("spot_x")
+  spotZ     Int @default(0) @map("spot_z")
+  fromSpotX Int @default(0) @map("from_spot_x")
+  fromSpotZ Int @default(0) @map("from_spot_z")
+
   world            World          @relation(fields: [worldId], references: [id])
   species          Species        @relation(fields: [speciesId], references: [id])
   territory        Territory      @relation(fields: [territoryId], references: [id])

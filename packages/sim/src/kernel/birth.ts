@@ -10,6 +10,7 @@ import {
   Goal,
   MemoryKind,
 } from "@boing-pets/contract";
+import { clampToLand, placeAt } from "../ai/movement";
 import { generationForChild, lineageIdForChild } from "../family/lineage";
 import {
   generateName,
@@ -160,7 +161,21 @@ function deliverChild(
     gestationSireId: null,
     gestationEndTick: null,
     mateCooldownUntilTick: null,
+    spotX: 0,
+    spotZ: 0,
+    fromSpotX: 0,
+    fromSpotZ: 0,
   };
+  // Newborns appear at the mother's side (where she stands, not where a
+  // journey she is on would end).
+  const relocating = mother.currentAction === Action.RELOCATE;
+  placeAt(
+    child,
+    clampToLand(
+      relocating ? mother.fromSpotX : mother.spotX,
+      relocating ? mother.fromSpotZ : mother.spotZ,
+    ),
+  );
 
   snapshot.creatures.push(child);
   createParentChildRelationship(snapshot, mother.id, childId, tick);

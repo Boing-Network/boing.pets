@@ -92,3 +92,13 @@ export type {
   WorldHeader,
   WorldSnapshot,
 } from "./types";
+export {
+  POSITIONS_SCHEMA_VERSION,
+  clampToLand,
+  nestSpot,
+  placeAt,
+  planMove,
+  settleSpot,
+  upgradeSnapshotPositions,
+  type Spot,
+} from "./ai/movement";

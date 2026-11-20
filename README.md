@@ -84,65 +84,92 @@ is configured.
 
 ### Sim host
 
-`@boing-pets/sim-host` is a library, not a standalone server. It is embedded by
-the desktop main process (`createHostRuntime`) and the browser worker. There is
-no `npm` script that starts a headless host.
+`@boing-pets/sim-host` is a library embedded by the desktop main process
+(`createHostRuntime`), the browser worker, and the shared-world server below.
 
-### Multiplayer (host seam only)
+### Multiplayer (shared world)
 
-`apps/sim-host/src/multiplayer/` exports `createSharedWorldHost` and
-`listenSharedWorldWs`: one `HostRuntime` shared by many clients over
-WebSocket (`ws`). Nothing in the repo calls them outside
-`apps/sim-host/test/multiplayer-host-seam.test.ts`, and the client has no
-WebSocket transport yet. Use it from code:
+`npm run mp:serve` starts one authoritative world behind a WebSocket server.
+Every client sees the same creatures, positions and clock.
 
-```ts
-import {
-  createSharedWorldHost,
-  listenSharedWorldWs,
-} from "@boing-pets/sim-host";
+```bash
+# terminal 1: the shared world (binds 127.0.0.1:8787, saves to .living-pets-mp/)
+npm run mp:serve
+# terminal 2: the client
+npm run dev -w @boing-pets/client
 ```
+
+The server prints two links:
+
+- **player:** `http://127.0.0.1:5173/?mp=ws://127.0.0.1:8787`. Open it in as
+  many tabs, browsers or machines as you like. Add `&name=Ada` to set a
+  display name.
+- **owner:** the same link plus `&owner=<key>`. Only the owner can pause or
+  change the time scale; players see the buttons disabled. The client removes
+  the key from the address bar after it joins.
+
+Each browser keeps a signed session token in `localStorage`, so a reload or a
+dropped connection rejoins as the same account (and the same role). The chip
+next to the clock shows `Shared · Owner|Player · name`, or `reconnecting…`.
+
+Useful flags (or env vars): `--host`/`LIVING_PETS_MP_HOST`,
+`--port`/`LIVING_PETS_MP_PORT`, `--data`/`LIVING_PETS_MP_DATA`,
+`--seed`/`LIVING_PETS_MP_SEED`, `--scale`/`LIVING_PETS_MP_SCALE` (new worlds,
+default 64×). Set `DATABASE_URL` to store the world in Postgres (run
+`prisma migrate deploy` first) instead of the JSON file. To play across a LAN,
+bind `--host 0.0.0.0` and open `?mp=ws://<your-ip>:8787` on the other machine;
+the server warns, because traffic is unencrypted `ws://`. A built client can
+default to a server with `VITE_LIVING_PETS_MP_URL`.
+
+Vercel hosts only the static client, so a Vercel preview cannot run the
+shared-world server. Point a preview at your own server with
+`?mp=wss://…` (browsers block `ws://` from an `https://` page).
 
 ## Environment variables
 
 Names only. Never commit values.
 
-| Variable                                                         | Read by                                      | Purpose                                                                                                    |
-| ---------------------------------------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `LIVING_PETS_BOING_MINTING`                                      | `apps/sim-host/src/boing/config.ts`          | `1`/`true`/`yes`/`on` enables the Boing mint edge. **Off by default.**                                     |
-| `BOING_RPC_URL`                                                  | same                                         | RPC endpoint. Defaults to `https://testnet-rpc.boing.network/`. Chain id is fixed to testnet.              |
-| `BOING_SECRET_HEX`                                               | same                                         | 32-byte Ed25519 seed (0x-hex) that signs mint transactions. Needed only when minting.                      |
-| `LIVING_PETS_BOING_NFT_COLLECTION_HEX`                           | same                                         | Pre-deployed creature NFT collection AccountId.                                                            |
-| `LIVING_PETS_BOING_ARTIFACT_COLLECTION_HEX`                      | same                                         | Lineage-artifact NFT collection (falls back to the creature collection).                                   |
-| `LIVING_PETS_BOING_ITEM_COLLECTION_HEX`                          | same                                         | Multi-token collection for compressed items.                                                               |
-| `LIVING_PETS_BOING_NFT_RECIPIENT_HEX`                            | same                                         | Mint recipient. If unset, mints go to the address derived from `BOING_SECRET_HEX`.                         |
-| `LIVING_PETS_BOING_{NFT,ARTIFACT,ITEM}_COLLECTION_{NAME,SYMBOL}` | same                                         | Collection labels. Defaults: `Living Pets Creatures`/`LPET`, `…Lineage Artifacts`/`LPAR`, `…Items`/`LPIT`. |
-| `LIVING_PETS_PG_PORT`                                            | `apps/desktop/src/main.ts`, smoke scripts    | Embedded Postgres port. Default `55432` (app), `55433` (cold-boot smoke).                                  |
-| `LIVING_PETS_SEED`                                               | `apps/desktop/src/main.ts`                   | World seed for a new desktop world. Default `1`.                                                           |
-| `LIVING_PETS_DEV_URL`                                            | `apps/desktop/src/main.ts`                   | Load this URL in the Electron window instead of the built client.                                          |
-| `DATABASE_URL`                                                   | Prisma, `packages/db/scripts/check-sql.mjs`  | Set by the desktop main and smoke scripts after Postgres starts.                                           |
-| `SCALE_REHEARSAL`                                                | `apps/sim-host/test/scale-rehearsal.test.ts` | `1` runs the 5,000-creature rehearsal test (skipped otherwise).                                            |
+| Variable                                                         | Read by                                      | Purpose                                                                                                        |
+| ---------------------------------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `LIVING_PETS_BOING_MINTING`                                      | `apps/sim-host/src/boing/config.ts`          | `1`/`true`/`yes`/`on` enables the Boing mint edge. **Off by default.**                                         |
+| `BOING_RPC_URL`                                                  | same                                         | RPC endpoint. Defaults to `https://testnet-rpc.boing.network/`. Chain id is fixed to testnet.                  |
+| `BOING_SECRET_HEX`                                               | same                                         | 32-byte Ed25519 seed (0x-hex) that signs mint transactions. Needed only when minting.                          |
+| `LIVING_PETS_BOING_NFT_COLLECTION_HEX`                           | same                                         | Pre-deployed creature NFT collection AccountId.                                                                |
+| `LIVING_PETS_BOING_ARTIFACT_COLLECTION_HEX`                      | same                                         | Lineage-artifact NFT collection (falls back to the creature collection).                                       |
+| `LIVING_PETS_BOING_ITEM_COLLECTION_HEX`                          | same                                         | Multi-token collection for compressed items.                                                                   |
+| `LIVING_PETS_BOING_NFT_RECIPIENT_HEX`                            | same                                         | Mint recipient. If unset, mints go to the address derived from `BOING_SECRET_HEX`.                             |
+| `LIVING_PETS_BOING_{NFT,ARTIFACT,ITEM}_COLLECTION_{NAME,SYMBOL}` | same                                         | Collection labels. Defaults: `Living Pets Creatures`/`LPET`, `…Lineage Artifacts`/`LPAR`, `…Items`/`LPIT`.     |
+| `LIVING_PETS_PG_PORT`                                            | `apps/desktop/src/main.ts`, smoke scripts    | Embedded Postgres port. Default `55432` (app), `55433` (cold-boot smoke).                                      |
+| `LIVING_PETS_SMOKE_DATABASE_URL`                                 | `apps/desktop/scripts/smoke-cold-boot.mjs`   | Run the cold-boot smoke against this empty database instead of embedded Postgres (used by the Windows CI job). |
+| `LIVING_PETS_SEED`                                               | `apps/desktop/src/main.ts`                   | World seed for a new desktop world. Default `1`.                                                               |
+| `LIVING_PETS_DEV_URL`                                            | `apps/desktop/src/main.ts`                   | Load this URL in the Electron window instead of the built client.                                              |
+| `DATABASE_URL`                                                   | Prisma, `packages/db/scripts/check-sql.mjs`  | Set by the desktop main and smoke scripts after Postgres starts.                                               |
+| `LIVING_PETS_MP_HOST`, `_PORT`, `_DATA`, `_SEED`, `_SCALE`       | `apps/sim-host/src/multiplayer/serve.ts`     | Shared-world server bind address (default `127.0.0.1`), port (`8787`), data dir, new-world seed and scale.     |
+| `LIVING_PETS_MP_OWNER_KEY`                                       | same                                         | Owner key (pause/rescale). Generated and printed when unset.                                                   |
+| `LIVING_PETS_MP_SECRET`                                          | same                                         | HMAC key for session tokens. When unset, a random key is saved to `<data>/session-secret` (mode 0600).         |
+| `VITE_LIVING_PETS_MP_URL`                                        | `apps/client/src/main.tsx` (build time)      | Default shared-world URL for a built client. `?mp=` overrides it.                                              |
+| `SCALE_REHEARSAL`                                                | `apps/sim-host/test/scale-rehearsal.test.ts` | `1` runs the 5,000-creature rehearsal test (skipped otherwise).                                                |
 
 The browser worker reads mint config from `process.env` only if it exists, so
 minting is always off in the web build.
 
 ## Testing and verification
 
-| Command                       | What it does                                                                                         |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `npm run verify`              | Everything CI runs, in order (below).                                                                |
-| `npm run format:check`        | Prettier.                                                                                            |
-| `npm run lint`                | ESLint across all workspaces, `--max-warnings 0`.                                                    |
-| `npm run db:generate`         | Prisma client.                                                                                       |
-| `npm run typecheck`           | `tsc --noEmit` for every package and test tsconfig.                                                  |
-| `npm test`                    | `node --test` (via `tsx`) over `packages/sim`, `packages/db`, `apps/sim-host`, `apps/client` tests.  |
-| `npm run client:build`        | Vite build to `apps/client/dist`.                                                                    |
-| `npm run client:check-bundle` | Fails if `DATABASE_URL`/`@prisma/client` appear in the dist, or sim/db code leaks into the renderer. |
-| `npm run desktop:build`       | esbuild of the Electron main and preload.                                                            |
-| `npm run desktop:smoke`       | Headless cold boot: Postgres → migrate → boot → reload persisted world. No window.                   |
-| `npm run db:validate`         | `prisma validate`.                                                                                   |
-| `npm run db:check`            | Applies migrations to `DATABASE_URL` and runs SQL checks.                                            |
-| `npm run scale-rehearsal`     | Runs the M17 rehearsal and writes `apps/sim-host/test/fixtures/scale-rehearsal-results.json`.        |
+| Command                       | What it does                                                                                                        |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `npm run verify`              | Everything CI runs, in order (below).                                                                               |
+| `npm run format:check`        | Prettier.                                                                                                           |
+| `npm run lint`                | ESLint across all workspaces, `--max-warnings 0`.                                                                   |
+| `npm run db:generate`         | Prisma client.                                                                                                      |
+| `npm run typecheck`           | `tsc --noEmit` for every package and test tsconfig.                                                                 |
+| `npm test`                    | `node --test` (via `tsx`) over `packages/sim`, `packages/db`, `apps/sim-host`, `apps/client`, `apps/desktop` tests. |
+| `npm run client:build`        | Vite build to `apps/client/dist`.                                                                                   |
+| `npm run client:check-bundle` | Fails if `DATABASE_URL`/`@prisma/client` appear in the dist, or sim/db code leaks into the renderer.                |
+| `npm run desktop:build`       | esbuild of the Electron main and preload.                                                                           |
+| `npm run desktop:smoke`       | Headless cold boot: Postgres → migrate → boot → reload persisted world. No window.                                  |
+| `npm run db:validate`         | `prisma validate`.                                                                                                  |
+| `npm run db:check`            | Applies migrations to `DATABASE_URL` and runs SQL checks.                                                           |
+| `npm run scale-rehearsal`     | Runs the M17 rehearsal and writes `apps/sim-host/test/fixtures/scale-rehearsal-results.json`.                       |
 
 ## Deployment
 
@@ -152,24 +179,24 @@ minting is always off in the web build.
 - **Desktop:** run from source (`npm run desktop:start`). There is no
   installer or auto-update.
 - **CI:** `.github/workflows/ci.yml` runs `npm ci` and `npm run verify` on
-  `ubuntu-24.04` for pushes to `main` and for PRs.
+  `ubuntu-24.04`, plus typecheck, tests, the desktop build and the cold-boot
+  smoke on `windows-latest`, for pushes to `main` and for PRs.
+- **Shared world:** `npm run mp:serve` on any Node 24 machine. Put it behind a
+  TLS proxy (`wss://`) before exposing it beyond your machine or LAN.
 
 ## Known issues
 
-- **Windows desktop migrate fails.** `apps/desktop/src/migrate.ts` calls
-  `spawnSync("npx", …)` without `shell: true`. On Windows `npx` is `npx.cmd`,
-  so the spawn fails (`status` is `null`) and both `npm run desktop:smoke` and
-  `npm run desktop:start` stop with `prisma migrate deploy exited null`.
-- **CI is Ubuntu-only**, so the Windows failure above is not caught.
 - **Prisma 6 audit findings.** `npm audit` reports high-severity advisories
   through `prisma@6.19.3` → `@prisma/config` (`effect`, `deepmerge-ts`). The
   fix needs Prisma 7 (a major upgrade). There are also moderate
   `typescript-eslint`/`minimatch` advisories.
-- **Multiplayer auth is a placeholder.** `apps/sim-host/src/multiplayer/account.ts`
-  accepts any id matching `^[a-zA-Z0-9_.:@-]{1,64}$`, and rate limits are per
-  account id. `listenSharedWorldWs` binds to `127.0.0.1` by default and sets no
-  WebSocket `maxPayload`. Any joined client can send clock commands (pause,
-  time scale) for the shared world.
+- **Shared-world identity is a signed guest token, not a login.** Anyone who
+  can reach the server can join as a new guest; per-account influence limits
+  follow the token, so clearing storage gets a fresh allowance. The owner key
+  is a shared secret in a URL. Wallet-signature login is a follow-up.
+- **Shared-world bandwidth.** Needs drift every tick, so each live patch
+  carries every creature row (tens of KB per tick, ~1 tick/s at 64×). A client
+  that falls more than 4 MB behind is skipped and then sent a fresh snapshot.
 - **Embedded Postgres is a beta build** (`embedded-postgres` `18.6.0-beta.19`).
   The Electron window uses `sandbox: false` (with `contextIsolation: true` and
   `nodeIntegration: false`).

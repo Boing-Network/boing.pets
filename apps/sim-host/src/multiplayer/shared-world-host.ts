@@ -9,6 +9,8 @@ import type {
   ClientToHost,
   HostToClient,
   QueryResult,
+  SessionRole,
+  TimeScale,
 } from "@boing-pets/contract";
 import type { MintEdge } from "../boing";
 import { clockView } from "../clock";
@@ -16,6 +18,7 @@ import type { WorldRepository } from "../persist/repository";
 import {
   createHostRuntime,
   type CommandContext,
+  type CommandOutcome,
   type HostRuntime,
 } from "../runtime/host-runtime";
 import { buildWorldView } from "../view/world-view";
@@ -38,6 +41,8 @@ export type SharedWorldHostOptions = {
    * Optional outer emit (logging / metrics). Fan-out to clients is separate.
    */
   onBroadcast?: (message: HostToClient) => void;
+  /** Scale for a world with no saved clock preference. */
+  initialScale?: TimeScale;
 };
 
 export type SharedWorldHost = {
@@ -52,10 +57,23 @@ export type SharedWorldHost = {
     accountId: string;
     emit: ClientEmit;
     sessionId?: string;
+    /** Default "player". Owners may pause / rescale. */
+    role?: SessionRole;
+    displayName?: string;
   }): Promise<ClientConnection | null>;
   leave(sessionId: string): void;
-  /** Route a command from a joined session to the single writer. */
-  handleCommand(sessionId: string, message: ClientToHost): Promise<void>;
+  /** Re-send a base snapshot + clock to one session (after a seq gap). */
+  resync(sessionId: string): void;
+  /** Current broadcast sequence number. */
+  readonly seq: number;
+  /**
+   * Route a command from a joined session to the single writer. Clock
+   * commands from non-owners are refused (`not_owner`).
+   */
+  handleCommand(
+    sessionId: string,
+    message: ClientToHost,
+  ): Promise<CommandOutcome>;
   handleQuery(sessionId: string, message: ClientToHost): Promise<QueryResult>;
   quit(): Promise<void>;
 };
@@ -65,6 +83,7 @@ export function createSharedWorldHost(
 ): SharedWorldHost {
   const clients = createClientRegistry();
   const nowMs = options.nowMs ?? (() => Date.now());
+  let seq = 0;
 
   const runtime = createHostRuntime({
     repository: options.repository,
@@ -73,17 +92,39 @@ export function createSharedWorldHost(
     autoFrame: options.autoFrame,
     mintEdge: options.mintEdge,
     preferPatches: true,
+    initialScale: options.initialScale,
     emit(message) {
-      clients.broadcast(message);
+      seq += 1;
+      clients.broadcast(message, { seq });
       options.onBroadcast?.(message);
     },
   });
+
+  function sendBase(connection: ClientConnection): void {
+    connection.emit(
+      {
+        message: "world.snapshot",
+        body: buildWorldView(runtime.session.snapshot),
+      },
+      { seq, base: true },
+    );
+    connection.emit(
+      {
+        message: "world.clock",
+        body: clockView(runtime.clock, runtime.session),
+      },
+      { seq, base: true },
+    );
+  }
 
   let started = false;
 
   const host: SharedWorldHost = {
     runtime,
     clients,
+    get seq() {
+      return seq;
+    },
 
     async start() {
       if (started) throw new Error("shared host already started");
@@ -91,7 +132,13 @@ export function createSharedWorldHost(
       started = true;
     },
 
-    async join({ accountId, emit, sessionId: requestedId }) {
+    async join({
+      accountId,
+      emit,
+      sessionId: requestedId,
+      role = "player",
+      displayName,
+    }) {
       if (!started) {
         emit({
           message: "session.rejected",
@@ -121,26 +168,26 @@ export function createSharedWorldHost(
         accountId,
         emit,
         joinedAtMs: nowMs(),
+        role,
+        displayName: displayName ?? accountId,
       };
       clients.register(connection);
 
-      emit({
-        message: "session.welcome",
-        body: {
-          sessionId,
-          accountId,
-          worldId: runtime.session.snapshot.world.id,
-          tick: runtime.session.snapshot.world.lastTick,
+      emit(
+        {
+          message: "session.welcome",
+          body: {
+            sessionId,
+            accountId,
+            worldId: runtime.session.snapshot.world.id,
+            tick: runtime.session.snapshot.world.lastTick,
+            role,
+            displayName: connection.displayName,
+          },
         },
-      });
-      emit({
-        message: "world.snapshot",
-        body: buildWorldView(runtime.session.snapshot),
-      });
-      emit({
-        message: "world.clock",
-        body: clockView(runtime.clock, runtime.session),
-      });
+        { seq, base: true },
+      );
+      sendBase(connection);
 
       return connection;
     },
@@ -149,17 +196,31 @@ export function createSharedWorldHost(
       clients.unregister(sessionId);
     },
 
+    resync(sessionId) {
+      const client = clients.get(sessionId);
+      if (client != null) sendBase(client);
+    },
+
     async handleCommand(sessionId, message) {
       if (
         message.message === "session.join" ||
         message.message === "session.leave"
       ) {
-        return;
+        return { ok: true };
       }
       const client = clients.get(sessionId);
-      if (client == null) return;
+      if (client == null) {
+        return { ok: false, code: "influence_rejected", detail: "not joined" };
+      }
+      if (message.message.startsWith("clock.") && client.role !== "owner") {
+        return {
+          ok: false,
+          code: "not_owner",
+          detail: "only the world owner can pause or change speed",
+        };
+      }
       const context: CommandContext = { accountId: client.accountId };
-      await runtime.handleCommand(message, context);
+      return runtime.handleCommand(message, context);
     },
 
     async handleQuery(sessionId, message) {

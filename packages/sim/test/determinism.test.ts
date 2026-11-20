@@ -117,10 +117,11 @@ test("seed 1 twice produces the same founders", () => {
   assert.equal(canonicalHash(first.snapshot), canonicalHash(second.snapshot));
   assert.equal(
     canonicalHash(second.snapshot),
-    // Changed intentionally with the species/map pass: species 1–3 were
-    // renamed to their presentation names and four species, four territories,
-    // ten links, and sixteen founders were added. Founders 1–12 are unchanged.
-    "4a81cc1c8a89d1ee9c6eb297660a54349a35d766b9ec0753c9d08b0a6fa9050d",
+    // Changed intentionally with the movement pass: world schema 2 adds
+    // creature positions (spotX/Z, fromSpotX/Z) and founders get a settle
+    // spot from the stateless "move" RNG domain. No other field changed
+    // (before: 4a81cc1c…, species/map pass).
+    "c7ad0ed0c41fca7875cc2539f36624773708fca1cd75203dc9664cf12e30560b",
   );
   assert.notEqual(
     canonicalHash(first.snapshot),
@@ -130,7 +131,7 @@ test("seed 1 twice produces the same founders", () => {
   const { snapshot, events } = first;
   assert.equal(snapshot.world.seed, 1);
   assert.equal(snapshot.world.lastTick, 0);
-  assert.equal(snapshot.world.schemaVersion, 1);
+  assert.equal(snapshot.world.schemaVersion, 2);
   assert.equal(snapshot.world.rulesetVersion, 1);
   assert.equal(snapshot.world.nextCreatureId, 29);
   assert.equal(snapshot.world.nextLineageId, 29);

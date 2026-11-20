@@ -13,12 +13,76 @@ import {
 } from "./world-view";
 
 /**
+ * What the last emitted view already told every listener. The dirty window
+ * spans a whole commit (several ticks), so without a baseline each live patch
+ * would repeat every row and event since the last save; over a socket that
+ * grows to tens of KB per tick. With one, a patch carries only rows whose
+ * view actually changed since the previous patch/snapshot and only new events.
+ */
+export type PatchBaseline = {
+  creatures: Map<number, string>;
+  relationships: Map<number, string>;
+  territories: Map<number, string>;
+  /** Highest event id already emitted. */
+  lastEventId: number;
+};
+
+export function createPatchBaseline(): PatchBaseline {
+  return {
+    creatures: new Map(),
+    relationships: new Map(),
+    territories: new Map(),
+    lastEventId: 0,
+  };
+}
+
+/** Reset the baseline to a full view that was just emitted. */
+export function resetPatchBaseline(
+  baseline: PatchBaseline,
+  view: {
+    creatures: Array<{ id: number }>;
+    relationships: Array<{ id: number }>;
+    territories: Array<{ id: number }>;
+    events: Array<{ id: number }>;
+  },
+): void {
+  baseline.creatures.clear();
+  baseline.relationships.clear();
+  baseline.territories.clear();
+  for (const row of view.creatures)
+    baseline.creatures.set(row.id, JSON.stringify(row));
+  for (const row of view.relationships) {
+    baseline.relationships.set(row.id, JSON.stringify(row));
+  }
+  for (const row of view.territories) {
+    baseline.territories.set(row.id, JSON.stringify(row));
+  }
+  for (const event of view.events) {
+    if (event.id > baseline.lastEventId) baseline.lastEventId = event.id;
+  }
+}
+
+function changedRows<T extends { id: number }>(
+  rows: T[],
+  seen: Map<number, string>,
+): T[] {
+  return rows.filter((row) => {
+    const json = JSON.stringify(row);
+    if (seen.get(row.id) === json) return false;
+    seen.set(row.id, json);
+    return true;
+  });
+}
+
+/**
  * Changed rows only. Falls back to an empty patch when nothing is dirty.
  * Territories are always re-derived so effective food/danger stay honest.
+ * Pass a `baseline` to drop rows and events the previous emit already sent.
  */
 export function buildWorldPatch(
   snapshot: WorldSnapshot,
   dirty: DirtySet,
+  baseline?: PatchBaseline,
 ): WorldPatch {
   const full = buildWorldView(snapshot);
   const tick = snapshot.world.lastTick;
@@ -84,11 +148,24 @@ export function buildWorldPatch(
       payload: event.payload,
     }));
 
+  if (baseline == null) {
+    return {
+      tick,
+      creatures,
+      relationships: relationshipViews,
+      events,
+      territories: full.territories,
+    };
+  }
+  const freshEvents = events.filter((event) => event.id > baseline.lastEventId);
+  for (const event of freshEvents) {
+    if (event.id > baseline.lastEventId) baseline.lastEventId = event.id;
+  }
   return {
     tick,
-    creatures,
-    relationships: relationshipViews,
-    events,
-    territories: full.territories,
+    creatures: changedRows(creatures, baseline.creatures),
+    relationships: changedRows(relationshipViews, baseline.relationships),
+    events: freshEvents,
+    territories: changedRows(full.territories, baseline.territories),
   };
 }

@@ -142,13 +142,18 @@ export {
 } from "./persist/host-meta";
 export {
   loadSnapshot,
+  loadWorld,
   SchemaTooNewError,
+  type LoadedWorld,
   tablesToSnapshot,
 } from "./persist/load";
 export { MemoryWorldRepository } from "./persist/memory-repository";
 export {
+  BROWSER_IDB_VERSION,
   BROWSER_WORLD_STORAGE_KEY,
   BrowserWorldRepository,
+  LEGACY_BROWSER_WORLD_STORAGE_KEYS,
+  normalizeBrowserTables,
   createIndexedDbStringStore,
   createMemoryStringStore,
   type BrowserStringStore,
@@ -161,6 +166,7 @@ export {
 export type {
   CommitBatch,
   DurableTables,
+  PersistedHostClock,
   WorldRepository,
 } from "./persist/repository";
 export {
@@ -186,10 +192,18 @@ export {
   parseWsClientMessage,
   resolveAccountId,
   serializeInfluenceBook,
+  signSessionToken,
+  slowClientDecision,
+  validateCommand,
+  validateQuery,
+  verifySessionToken,
+  createFloodGate,
   type ClientConnection,
   type ClientEmit,
   type ClientRegistry,
+  type EmitMeta,
   type InfluenceGateBook,
+  type SessionClaims,
   type SharedWorldHost,
   type SharedWorldHostOptions,
   type SharedWorldWsServer,
@@ -197,9 +211,11 @@ export {
   type WsClientToServer,
   type WsServerToClient,
 } from "./multiplayer";
+export { createFileStringStore } from "./persist/file-string-store";
 export {
   createHostRuntime,
   type CommandContext,
+  type CommandOutcome,
   type HostRuntime,
   type HostRuntimeEmit,
   type HostRuntimeOptions,
@@ -212,7 +228,12 @@ export {
   stepSession,
   type HostSession,
 } from "./session";
-export { buildWorldPatch } from "./view/world-patch";
+export {
+  buildWorldPatch,
+  createPatchBaseline,
+  resetPatchBaseline,
+  type PatchBaseline,
+} from "./view/world-patch";
 export { buildWorldView } from "./view/world-view";
 export {
   formatScaleRehearsalTiming,

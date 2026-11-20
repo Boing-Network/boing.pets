@@ -15,6 +15,8 @@ export type WorldClock = {
   paused: boolean;
   scale: TimeScale;
   clockAt: number;
+  /** Sim ms per tick (ruleset). With `scale`, clients derive tick progress. */
+  msPerTick: number;
 };
 
 export type QueryFamily = { creatureId: number };
@@ -35,15 +37,28 @@ export type SessionJoin = {
   accountId: string;
 };
 
+/** Owner may pause / rescale the shared world; players may only influence. */
+export type SessionRole = "owner" | "player";
+
 export type SessionWelcome = {
   sessionId: string;
   accountId: string;
   worldId: number;
   tick: number;
+  /** Shared-world role. Local single-player hosts are always the owner. */
+  role?: SessionRole;
+  displayName?: string;
 };
 
 export type SessionRejected = {
-  reason: "invalid_account" | "already_joined" | "host_not_ready";
+  reason:
+    "invalid_account" | "already_joined" | "host_not_ready" | "invalid_token";
+};
+
+/** Non-fatal per-client notice (multiplayer): the command did not apply. */
+export type SessionNotice = {
+  code: "not_owner" | "rate_limited" | "influence_rejected" | "invalid_message";
+  detail: string;
 };
 
 /** Renderer to host. Queries are request/response; clock and influence are commands. */
@@ -69,6 +84,7 @@ export type QueryResult =
 export type HostToClient =
   | { message: "session.welcome"; body: SessionWelcome }
   | { message: "session.rejected"; body: SessionRejected }
+  | { message: "session.notice"; body: SessionNotice }
   | { message: "world.snapshot"; body: WorldView }
   | { message: "world.patch"; body: WorldPatch }
   | { message: "world.catchup"; body: CatchupReport }

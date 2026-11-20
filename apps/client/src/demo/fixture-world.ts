@@ -76,6 +76,10 @@ function founder(params: {
     actionTargetId: null,
     actionStartedTick: null,
     actionEndsTick: null,
+    spotX: ((params.id * 263) % 1000) - 500,
+    spotZ: ((params.id * 457) % 1000) - 500,
+    fromSpotX: ((params.id * 263) % 1000) - 500,
+    fromSpotZ: ((params.id * 457) % 1000) - 500,
   };
 }
 
@@ -220,6 +224,10 @@ const inspectableChild: CreatureView = {
   actionTargetId: null,
   actionStartedTick: 76,
   actionEndsTick: 88,
+  spotX: 240,
+  spotZ: -180,
+  fromSpotX: -60,
+  fromSpotZ: -320,
 };
 
 /** Seed-shaped fixture: meadow / thicket / ridge with founders plus Quill. */

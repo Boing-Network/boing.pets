@@ -2,15 +2,21 @@
  * Connected client sessions for a shared-world host.
  * Clients are view + influence only; they never own the writer role.
  */
-import type { HostToClient } from "@boing-pets/contract";
+import type { HostToClient, SessionRole } from "@boing-pets/contract";
 
-export type ClientEmit = (message: HostToClient) => void;
+/** Ordering info for transports: broadcast sequence, or a base (resync) point. */
+export type EmitMeta = { seq: number; base?: boolean };
+
+export type ClientEmit = (message: HostToClient, meta?: EmitMeta) => void;
 
 export type ClientConnection = {
   sessionId: string;
   accountId: string;
   emit: ClientEmit;
   joinedAtMs: number;
+  /** Shared-world role; only owners may pause or rescale. */
+  role: SessionRole;
+  displayName: string;
 };
 
 export type ClientRegistry = {
@@ -20,8 +26,8 @@ export type ClientRegistry = {
   findByAccount(accountId: string): ClientConnection[];
   register(connection: ClientConnection): void;
   unregister(sessionId: string): ClientConnection | undefined;
-  broadcast(message: HostToClient): void;
-  send(sessionId: string, message: HostToClient): void;
+  broadcast(message: HostToClient, meta?: EmitMeta): void;
+  send(sessionId: string, message: HostToClient, meta?: EmitMeta): void;
   clear(): void;
 };
 
@@ -57,15 +63,15 @@ export function createClientRegistry(): ClientRegistry {
       bySession.delete(sessionId);
       return existing;
     },
-    broadcast(message) {
+    broadcast(message, meta) {
       for (const client of bySession.values()) {
-        client.emit(message);
+        client.emit(message, meta);
       }
     },
-    send(sessionId, message) {
+    send(sessionId, message, meta) {
       const client = bySession.get(sessionId);
       if (client == null) return;
-      client.emit(message);
+      client.emit(message, meta);
     },
     clear() {
       bySession.clear();

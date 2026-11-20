@@ -6,6 +6,8 @@ import { create } from "zustand";
 import type {
   CatchupReport,
   CreatureView,
+  SessionNotice,
+  SessionRole,
   WorldClock,
   WorldPatch,
   WorldView,
@@ -24,10 +26,33 @@ function replaceById<T extends { id: number }>(
   return [...map.values()].sort((a, b) => a.id - b.id);
 }
 
+function monotonicNowMs(): number {
+  return typeof performance !== "undefined" ? performance.now() : Date.now();
+}
+
+/** How this client reaches its host. `local` = worker / Electron. */
+export type ConnectionStatus =
+  "local" | "connecting" | "live" | "reconnecting" | "offline";
+
+export type SessionInfo = {
+  accountId: string;
+  displayName: string;
+  role: SessionRole;
+};
+
 type WorldViewState = {
   view: WorldView | null;
   clock: WorldClock | null;
+  /**
+   * Local monotonic ms when the current tick's clock arrived. Motion derives
+   * the fractional sim tick from it (see `estimateSimTick`).
+   */
+  clockReceivedAtMs: number;
   lastCatchup: CatchupReport | null;
+  connection: ConnectionStatus;
+  /** Shared-world session; null for local play (where you own the world). */
+  session: SessionInfo | null;
+  lastNotice: (SessionNotice & { atMs: number }) | null;
   applyHostMessage: (message: HostToClient) => void;
   setSnapshot: (view: WorldView) => void;
   applyPatch: (patch: WorldPatch) => void;
@@ -37,7 +62,11 @@ type WorldViewState = {
 export const useWorldViewStore = create<WorldViewState>((set, get) => ({
   view: null,
   clock: null,
+  clockReceivedAtMs: 0,
   lastCatchup: null,
+  connection: "local",
+  session: null,
+  lastNotice: null,
 
   setSnapshot(view) {
     set({ view });
@@ -76,12 +105,38 @@ export const useWorldViewStore = create<WorldViewState>((set, get) => ({
       case "world.catchup":
         set({ lastCatchup: message.body });
         break;
-      case "world.clock":
-        set({ clock: message.body });
+      case "world.clock": {
+        const previous = get().clock;
+        const next = message.body;
+        // A repeat of the same tick (e.g. after an influence) must not restart
+        // the in-between-ticks fraction, or motion would stutter backwards.
+        const sameTick =
+          previous != null &&
+          previous.tick === next.tick &&
+          previous.paused === next.paused &&
+          previous.scale === next.scale;
+        set({
+          clock: next,
+          clockReceivedAtMs: sameTick
+            ? get().clockReceivedAtMs
+            : monotonicNowMs(),
+        });
         break;
+      }
       case "session.welcome":
+        set({
+          session: {
+            accountId: message.body.accountId,
+            displayName: message.body.displayName ?? message.body.accountId,
+            role: message.body.role ?? "owner",
+          },
+        });
+        break;
+      case "session.notice":
+        set({ lastNotice: { ...message.body, atMs: Date.now() } });
+        break;
       case "session.rejected":
-        // Multiplayer session framing is handled by the transport, not the view cache.
+        // Rejections are handled by the transport (it reconnects or stops).
         break;
       default: {
         const never: never = message;
