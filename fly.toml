@@ -1,0 +1,49 @@
+# Fly.io app for the shared-world server (one always-on machine).
+# Deploy: npm run fly:deploy  (see README "Hosting on Fly.io").
+app = "boing-living-pets"
+primary_region = "iad"
+# serve.ts saves the world on SIGTERM; give it time before a hard kill.
+kill_signal = "SIGTERM"
+kill_timeout = "30s"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[deploy]
+  # Applies Prisma migrations against DATABASE_URL before new code starts.
+  release_command = "npx prisma migrate deploy --schema prisma/schema.prisma"
+  # One machine, updated in place: never two writers on the same world.
+  strategy = "rolling"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+  LIVING_PETS_MP_HOST = "0.0.0.0"
+  # Speed for a brand-new world only; the owner can change it later.
+  LIVING_PETS_MP_SCALE = "1"
+  # Browser origins allowed to open the WebSocket. `*` = letters/digits/dashes.
+  LIVING_PETS_MP_ALLOWED_ORIGINS = "https://boing-pets-*-nico-builds.vercel.app,https://boing-pets.vercel.app,http://localhost:*,http://127.0.0.1:*"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # The world keeps ticking with nobody connected.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "connections"
+    soft_limit = 200
+    hard_limit = 250
+
+  [[http_service.checks]]
+    grace_period = "30s"
+    interval = "15s"
+    timeout = "5s"
+    method = "GET"
+    path = "/healthz"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

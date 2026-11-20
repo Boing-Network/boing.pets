@@ -125,30 +125,111 @@ Vercel hosts only the static client, so a Vercel preview cannot run the
 shared-world server. Point a preview at your own server with
 `?mp=wss://…` (browsers block `ws://` from an `https://` page).
 
+## Hosting on Fly.io
+
+The shared-world server runs as one always-on Fly.io machine
+(`fly.toml`, app `boing-living-pets`, region `iad`) with a small
+self-managed Fly Postgres for the world. Vercel keeps hosting the client.
+
+**What runs where**
+
+| Piece                 | Fly resource                                                                  | Size                                 | Est. cost |
+| --------------------- | ----------------------------------------------------------------------------- | ------------------------------------ | --------- |
+| Server (`Dockerfile`) | Machine, always on (`auto_stop_machines = "off"`, `min_machines_running = 1`) | `shared-cpu-1x`, 512 MB              | ~$3.70/mo |
+| World database        | Fly Postgres (unmanaged), single node, development config                     | `shared-cpu-1x`, 256 MB, 1 GB volume | ~$2/mo    |
+
+About $6/month, plus outbound bandwidth beyond the free allowance. Exactly one
+server machine must run: two would both write the same world. Deploy with
+`--ha=false` (the npm script does) and keep `strategy = "rolling"`.
+
+**First-time setup** (once; needs `fly auth login`):
+
+```bash
+fly apps create boing-living-pets
+fly postgres create --name boing-living-pets-db --region iad \
+  --initial-cluster-size 1 --vm-size shared-cpu-1x --vm-memory 256 --volume-size 1
+fly postgres attach boing-living-pets-db -a boing-living-pets   # sets DATABASE_URL
+```
+
+Then generate and set the two secrets without printing them. The script
+saves the owner key to `%USERPROFILE%\.boing\living-pets-owner.key` (outside
+the repo, readable only by you) and pipes both values into
+`fly secrets import`:
+
+```powershell
+pwsh deploy/fly/set-secrets.ps1 -Stage   # -Stage: applied on the next deploy
+```
+
+Secrets the server requires in production (it exits at boot if any is
+missing):
+
+- `LIVING_PETS_MP_OWNER_KEY`: owner key (≥24 chars). Keep a copy outside the
+  repo; the owner link is `…?mp=wss://boing-living-pets.fly.dev&owner=<key>`.
+- `LIVING_PETS_MP_SECRET`: HMAC key for session tokens (≥32 chars). Rotating
+  it signs everyone out (they rejoin as new guests).
+- `DATABASE_URL`: set by `fly postgres attach`.
+
+**Deploy, status, logs**
+
+```bash
+npm run fly:deploy    # fly deploy --ha=false; the release_command runs prisma migrate deploy
+npm run fly:status
+npm run fly:logs
+curl https://boing-living-pets.fly.dev/healthz
+```
+
+`SIGTERM` (deploys, restarts) closes sockets with code 1012 so clients
+reconnect, then saves the world before exit (`kill_timeout = 30s`).
+
+**Connecting a Vercel preview**
+
+Open any preview of this project with
+`?mp=wss://boing-living-pets.fly.dev` (add `&owner=<key>` for the owner
+controls). The server accepts WebSocket upgrades only from origins in
+`LIVING_PETS_MP_ALLOWED_ORIGINS` (`fly.toml`): this project's previews
+(`https://boing-pets-*-nico-builds.vercel.app`), `https://boing-pets.vercel.app`
+and localhost. Clients without an `Origin` header (scripts) are allowed; tokens
+and rate limits still apply. To make a build connect without the query
+parameter, set `VITE_LIVING_PETS_MP_URL=wss://boing-living-pets.fly.dev` in the
+Vercel project's environment (not set by default, so previews stay
+single-player unless asked).
+
+**Run the production image locally**
+
+```bash
+docker build -t boing-living-pets .
+docker run --rm -p 8080:8080 -e LIVING_PETS_MP_HOST=0.0.0.0 \
+  -e DATABASE_URL=... -e LIVING_PETS_MP_OWNER_KEY=... -e LIVING_PETS_MP_SECRET=... \
+  -e LIVING_PETS_MP_ALLOWED_ORIGINS=http://localhost:* boing-living-pets
+```
+
 ## Environment variables
 
 Names only. Never commit values.
 
-| Variable                                                         | Read by                                      | Purpose                                                                                                        |
-| ---------------------------------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `LIVING_PETS_BOING_MINTING`                                      | `apps/sim-host/src/boing/config.ts`          | `1`/`true`/`yes`/`on` enables the Boing mint edge. **Off by default.**                                         |
-| `BOING_RPC_URL`                                                  | same                                         | RPC endpoint. Defaults to `https://testnet-rpc.boing.network/`. Chain id is fixed to testnet.                  |
-| `BOING_SECRET_HEX`                                               | same                                         | 32-byte Ed25519 seed (0x-hex) that signs mint transactions. Needed only when minting.                          |
-| `LIVING_PETS_BOING_NFT_COLLECTION_HEX`                           | same                                         | Pre-deployed creature NFT collection AccountId.                                                                |
-| `LIVING_PETS_BOING_ARTIFACT_COLLECTION_HEX`                      | same                                         | Lineage-artifact NFT collection (falls back to the creature collection).                                       |
-| `LIVING_PETS_BOING_ITEM_COLLECTION_HEX`                          | same                                         | Multi-token collection for compressed items.                                                                   |
-| `LIVING_PETS_BOING_NFT_RECIPIENT_HEX`                            | same                                         | Mint recipient. If unset, mints go to the address derived from `BOING_SECRET_HEX`.                             |
-| `LIVING_PETS_BOING_{NFT,ARTIFACT,ITEM}_COLLECTION_{NAME,SYMBOL}` | same                                         | Collection labels. Defaults: `Living Pets Creatures`/`LPET`, `…Lineage Artifacts`/`LPAR`, `…Items`/`LPIT`.     |
-| `LIVING_PETS_PG_PORT`                                            | `apps/desktop/src/main.ts`, smoke scripts    | Embedded Postgres port. Default `55432` (app), `55433` (cold-boot smoke).                                      |
-| `LIVING_PETS_SMOKE_DATABASE_URL`                                 | `apps/desktop/scripts/smoke-cold-boot.mjs`   | Run the cold-boot smoke against this empty database instead of embedded Postgres (used by the Windows CI job). |
-| `LIVING_PETS_SEED`                                               | `apps/desktop/src/main.ts`                   | World seed for a new desktop world. Default `1`.                                                               |
-| `LIVING_PETS_DEV_URL`                                            | `apps/desktop/src/main.ts`                   | Load this URL in the Electron window instead of the built client.                                              |
-| `DATABASE_URL`                                                   | Prisma, `packages/db/scripts/check-sql.mjs`  | Set by the desktop main and smoke scripts after Postgres starts.                                               |
-| `LIVING_PETS_MP_HOST`, `_PORT`, `_DATA`, `_SEED`, `_SCALE`       | `apps/sim-host/src/multiplayer/serve.ts`     | Shared-world server bind address (default `127.0.0.1`), port (`8787`), data dir, new-world seed and scale.     |
-| `LIVING_PETS_MP_OWNER_KEY`                                       | same                                         | Owner key (pause/rescale). Generated and printed when unset.                                                   |
-| `LIVING_PETS_MP_SECRET`                                          | same                                         | HMAC key for session tokens. When unset, a random key is saved to `<data>/session-secret` (mode 0600).         |
-| `VITE_LIVING_PETS_MP_URL`                                        | `apps/client/src/main.tsx` (build time)      | Default shared-world URL for a built client. `?mp=` overrides it.                                              |
-| `SCALE_REHEARSAL`                                                | `apps/sim-host/test/scale-rehearsal.test.ts` | `1` runs the 5,000-creature rehearsal test (skipped otherwise).                                                |
+| Variable                                                         | Read by                                      | Purpose                                                                                                                                                   |
+| ---------------------------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LIVING_PETS_BOING_MINTING`                                      | `apps/sim-host/src/boing/config.ts`          | `1`/`true`/`yes`/`on` enables the Boing mint edge. **Off by default.**                                                                                    |
+| `BOING_RPC_URL`                                                  | same                                         | RPC endpoint. Defaults to `https://testnet-rpc.boing.network/`. Chain id is fixed to testnet.                                                             |
+| `BOING_SECRET_HEX`                                               | same                                         | 32-byte Ed25519 seed (0x-hex) that signs mint transactions. Needed only when minting.                                                                     |
+| `LIVING_PETS_BOING_NFT_COLLECTION_HEX`                           | same                                         | Pre-deployed creature NFT collection AccountId.                                                                                                           |
+| `LIVING_PETS_BOING_ARTIFACT_COLLECTION_HEX`                      | same                                         | Lineage-artifact NFT collection (falls back to the creature collection).                                                                                  |
+| `LIVING_PETS_BOING_ITEM_COLLECTION_HEX`                          | same                                         | Multi-token collection for compressed items.                                                                                                              |
+| `LIVING_PETS_BOING_NFT_RECIPIENT_HEX`                            | same                                         | Mint recipient. If unset, mints go to the address derived from `BOING_SECRET_HEX`.                                                                        |
+| `LIVING_PETS_BOING_{NFT,ARTIFACT,ITEM}_COLLECTION_{NAME,SYMBOL}` | same                                         | Collection labels. Defaults: `Living Pets Creatures`/`LPET`, `…Lineage Artifacts`/`LPAR`, `…Items`/`LPIT`.                                                |
+| `LIVING_PETS_PG_PORT`                                            | `apps/desktop/src/main.ts`, smoke scripts    | Embedded Postgres port. Default `55432` (app), `55433` (cold-boot smoke).                                                                                 |
+| `LIVING_PETS_SMOKE_DATABASE_URL`                                 | `apps/desktop/scripts/smoke-cold-boot.mjs`   | Run the cold-boot smoke against this empty database instead of embedded Postgres (used by the Windows CI job).                                            |
+| `LIVING_PETS_SEED`                                               | `apps/desktop/src/main.ts`                   | World seed for a new desktop world. Default `1`.                                                                                                          |
+| `LIVING_PETS_DEV_URL`                                            | `apps/desktop/src/main.ts`                   | Load this URL in the Electron window instead of the built client.                                                                                         |
+| `DATABASE_URL`                                                   | Prisma, `packages/db/scripts/check-sql.mjs`  | Set by the desktop main and smoke scripts after Postgres starts.                                                                                          |
+| `LIVING_PETS_MP_HOST`, `_PORT`, `_DATA`, `_SEED`, `_SCALE`       | `apps/sim-host/src/multiplayer/serve.ts`     | Shared-world server bind address (default `127.0.0.1`), port (`8787`), data dir, new-world seed and scale.                                                |
+| `LIVING_PETS_MP_OWNER_KEY`                                       | same                                         | Owner key (pause/rescale). Generated and printed when unset.                                                                                              |
+| `LIVING_PETS_MP_SECRET`                                          | same                                         | HMAC key for session tokens. When unset, a random key is saved to `<data>/session-secret` (mode 0600).                                                    |
+| `PORT`                                                           | same                                         | Port when `--port`/`LIVING_PETS_MP_PORT` are unset (Fly sets `8080` in `fly.toml`).                                                                       |
+| `LIVING_PETS_MP_ALLOWED_ORIGINS`                                 | same                                         | Comma-separated browser origins allowed to open the WebSocket (`*` = one run of letters, digits, dashes). Localhost is always allowed outside production. |
+| `NODE_ENV`                                                       | same                                         | `production` requires the owner key, session secret, `DATABASE_URL` and an origin list from the environment.                                              |
+| `VITE_LIVING_PETS_MP_URL`                                        | `apps/client/src/main.tsx` (build time)      | Default shared-world URL for a built client. `?mp=` overrides it.                                                                                         |
+| `SCALE_REHEARSAL`                                                | `apps/sim-host/test/scale-rehearsal.test.ts` | `1` runs the 5,000-creature rehearsal test (skipped otherwise).                                                                                           |
 
 The browser worker reads mint config from `process.env` only if it exists, so
 minting is always off in the web build.

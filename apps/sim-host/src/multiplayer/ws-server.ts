@@ -62,6 +62,13 @@ export type SharedWorldWsServerOptions = {
   heartbeatMisses?: number;
   /** Connection log (joins, leaves, close codes). Never logs tokens. */
   log?: (line: string) => void;
+  /**
+   * WebSocket upgrade origin check. Return false to refuse with 403.
+   * Default: accept every origin (tests, local tools).
+   */
+  allowOrigin?: (origin: string | undefined) => boolean;
+  /** Extra fields for `GET /healthz` (e.g. world tick). */
+  health?: () => Record<string, unknown>;
 };
 
 export type SharedWorldWsServer = {
@@ -128,7 +135,33 @@ export async function listenSharedWorldWs(
   const heartbeatMisses = Math.max(1, options.heartbeatMisses ?? 4);
   const log = options.log ?? (() => {});
 
-  const httpServer: HttpServer = createServer((_req, res) => {
+  const allowOrigin = options.allowOrigin ?? (() => true);
+  const startedAtMs = Date.now();
+  let closing = false;
+
+  const httpServer: HttpServer = createServer((req, res) => {
+    const pathname = (req.url ?? "/").split("?")[0];
+    if (pathname === "/healthz") {
+      // 503 while shutting down so the proxy stops routing new players here.
+      let extra: Record<string, unknown> = {};
+      try {
+        extra = options.health?.() ?? {};
+      } catch {
+        extra = { healthError: true };
+      }
+      const body = {
+        ok: !closing,
+        clients: states.size,
+        uptimeS: Math.round((Date.now() - startedAtMs) / 1000),
+        ...extra,
+      };
+      res.writeHead(closing ? 503 : 200, {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+      });
+      res.end(`${JSON.stringify(body)}\n`);
+      return;
+    }
     res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
     res.end("boing.pets shared-world host\n");
   });
@@ -136,6 +169,19 @@ export async function listenSharedWorldWs(
   const wss = new WebSocketServer({
     server: httpServer,
     maxPayload: MP_MAX_CLIENT_MESSAGE_BYTES,
+    verifyClient: (info, done) => {
+      if (closing) {
+        done(false, 503, "shutting down");
+        return;
+      }
+      const origin = info.origin === "" ? undefined : info.origin;
+      if (!allowOrigin(origin)) {
+        log(`refused origin ${JSON.stringify(origin ?? "")}`);
+        done(false, 403, "origin not allowed");
+        return;
+      }
+      done(true);
+    },
   });
   const states = new Map<WebSocket, SocketState>();
 
@@ -471,7 +517,15 @@ export async function listenSharedWorldWs(
     port: address.port,
     url: `ws://${hostname}:${address.port}`,
     async close() {
+      closing = true;
       if (heartbeat != null) clearInterval(heartbeat);
+      // 1012 "service restart": clients reconnect with their token.
+      for (const socket of states.keys())
+        socket.close(1012, "server restarting");
+      const deadline = Date.now() + 1_000;
+      while (states.size > 0 && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
       for (const socket of states.keys()) socket.terminate();
       await new Promise<void>((resolve, reject) => {
         wss.close((error) => {

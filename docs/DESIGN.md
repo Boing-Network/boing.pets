@@ -391,6 +391,14 @@ territories 1–3 so its timings stay comparable.
   with backoff (0.5 s doubling to 8 s), and reports `connecting/live/
 reconnecting` to the HUD.
 
+- **Hosting:** production runs the bundled server (`apps/sim-host/dist/server.mjs`,
+  `Dockerfile`) on one always-on Fly.io machine with Fly Postgres. With
+  `NODE_ENV=production` it refuses to start without the owner key, session
+  secret, `DATABASE_URL` and an origin allow-list; WebSocket upgrades from
+  other origins get 403; `GET /healthz` backs the Fly health check; the
+  host-meta sidecar lives in the `host_meta` table because the machine disk is
+  replaced on deploy. See README "Hosting on Fly.io".
+
 ## On-chain integration (Boing testnet, `apps/sim-host/src/boing/`)
 
 - **Off by default.** It runs only when `LIVING_PETS_BOING_MINTING` is truthy.

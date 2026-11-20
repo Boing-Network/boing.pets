@@ -480,3 +480,13 @@ model AssetMintLink {
   @@index([tokenClass, status])
   @@map("asset_mint_link")
 }
+
+/// Host-only sidecar (influence accept log, saved clock scale) for servers
+/// whose local disk is not durable. One row, id 1. Not read by the sim.
+model HostMeta {
+  id        Int      @id
+  data      Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("host_meta")
+}
