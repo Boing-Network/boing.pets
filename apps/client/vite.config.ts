@@ -35,6 +35,11 @@ export default defineConfig({
     // three alone is ~720 kB minified; it is lazy-loaded with the 3D view.
     chunkSizeWarningLimit: 800,
     rollupOptions: {
+      // The game at `/`, and the static marketing page at `/welcome/`.
+      input: {
+        main: path.resolve(root, "index.html"),
+        welcome: path.resolve(root, "welcome/index.html"),
+      },
       output: {
         // Long-lived vendor chunks: app changes do not bust the 3D stack.
         manualChunks(id) {

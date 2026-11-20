@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Living Pets: a moonlit world that lives on its own</title>
+    <meta
+      name="description"
+      content="Living Pets is a shared, always-running world of 21 species that forage, court, raise families and remember. Watch, name and nudge them, then play."
+    />
+    <meta property="og:title" content="Living Pets" />
+    <meta
+      property="og:description"
+      content="A moonlit world of 21 species that lives on its own."
+    />
+    <meta property="og:image" content="/media/world/overview.webp" />
+    <link rel="preload" as="image" href="/media/world/overview.webp" />
+  </head>
+  <body>
+    <header class="top">
+      <a class="brand" href="/welcome/">Living Pets</a>
+      <nav>
+        <a href="#world">The world</a>
+        <a href="#species">Species</a>
+        <a href="#how">How it works</a>
+        <a class="cta small" href="/" data-play>Play now</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <img
+          class="hero-img"
+          src="/media/world/overview.webp"
+          alt="The Living Pets world at night: forests, rivers, a violet ridge and glowing meadows"
+        />
+        <div class="hero-copy">
+          <h1>A moonlit world that lives on its own.</h1>
+          <p>
+            Twenty-one species forage, court, raise families and remember each
+            other, whether or not anyone is watching. Join the shared world,
+            follow a bloodline, and leave your mark.
+          </p>
+          <div class="hero-actions">
+            <a class="cta" href="/" data-play>Play now</a>
+            <a class="ghost" href="#species">Meet the species</a>
+          </div>
+        </div>
+      </section>
+
+      <section id="world" class="band">
+        <h2>The world</h2>
+        <p class="lede">
+          Seven territories joined into one night landscape, from riverside
+          meadow to glowing fen and high crags. Every creature you see is
+          simulated: where it goes, what it eats, and who it trusts.
+        </p>
+        <div class="world-grid">
+          <figure>
+            <img
+              src="/media/world/meadow-river.webp"
+              alt="A river winding through the Meadow"
+              loading="lazy"
+            />
+            <figcaption>Meadow: rivers, wildflowers, fire foxes.</figcaption>
+          </figure>
+          <figure>
+            <img
+              src="/media/world/moonlit-glade.webp"
+              alt="The Moonlit Glade"
+              loading="lazy"
+            />
+            <figcaption>Moonlit Glade: home of the moon hares.</figcaption>
+          </figure>
+          <figure>
+            <img
+              src="/media/world/ridge.webp"
+              alt="The violet Ridge with crystals"
+              loading="lazy"
+            />
+            <figcaption>Ridge: stone, crystal and cold streams.</figcaption>
+          </figure>
+          <figure>
+            <img
+              src="/media/world/foxes.webp"
+              alt="Two fire foxes roaming the Meadow"
+              loading="lazy"
+            />
+            <figcaption>Two fire foxes, out on their own business.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="species" class="band">
+        <h2>The species</h2>
+        <p class="lede">
+          Every species is built procedurally and rendered under the same
+          moonlight as the world. These are real in-game renders.
+        </p>
+        <div
+          class="filters"
+          id="territory-filters"
+          role="toolbar"
+          aria-label="Filter by territory"
+        ></div>
+        <ul class="gallery" id="gallery"></ul>
+      </section>
+
+      <section id="how" class="band">
+        <h2>How it works</h2>
+        <ol class="steps">
+          <li>
+            <h3>The world runs without you</h3>
+            <p>
+              One shared world ticks on a server. Each creature has needs
+              (hunger, thirst, rest, company) and picks its own goals: forage,
+              drink, explore, socialize, court.
+            </p>
+          </li>
+          <li>
+            <h3>Creatures remember</h3>
+            <p>
+              They keep memories of places and each other, build relationships,
+              and pass traits to their young. Families grow into lineages you
+              can follow over generations.
+            </p>
+          </li>
+          <li>
+            <h3>You nudge, you don't control</h3>
+            <p>
+              Name a creature or a lineage, favor a bloodline, or enrich and
+              calm a territory. Influence is limited each day, so choices
+              matter.
+            </p>
+          </li>
+          <li>
+            <h3>Everyone sees the same world</h3>
+            <p>
+              Every player watches the same creatures, positions and clock. Pick
+              a creature to inspect its family, memories and story.
+            </p>
+          </li>
+        </ol>
+        <div class="closing">
+          <a class="cta" href="/" data-play>Play now</a>
+          <p>Runs in your browser. No download needed.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>Living Pets, part of Boing Network.</span>
+      <a href="/" data-play>Enter the world</a>
+    </footer>
+    <script type="module" src="../src/welcome/main.ts"></script>
+  </body>
+</html>

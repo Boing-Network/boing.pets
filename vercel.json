@@ -3,5 +3,12 @@
   "framework": "vite",
   "installCommand": "npm install",
   "buildCommand": "npm run client:build",
-  "outputDirectory": "apps/client/dist"
+  "outputDirectory": "apps/client/dist",
+  "redirects": [
+    {
+      "source": "/welcome",
+      "destination": "/welcome/",
+      "permanent": false
+    }
+  ]
 }

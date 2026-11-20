@@ -72,6 +72,15 @@ Web Worker (`apps/client/host-worker.ts` →
 scale `64×` and persists to IndexedDB (`BrowserWorldRepository`), so the world
 survives refresh.
 
+### Marketing page
+
+`/welcome/` is a static page (no 3D) with the world, a species gallery built
+from `SPECIES_CATALOG`, how the game works, and Play now links to `/`. Its
+source is `apps/client/welcome/index.html` and `apps/client/src/welcome/`; the
+renders live in `apps/client/public/media/` (WebP, about 400 kB in total). A
+new species needs a render at `public/media/species/<slug>.webp`, for example
+cropped from the dev bestiary (`/?bestiary=<slug>`).
+
 ### Desktop (Electron + local Postgres)
 
 ```sh
