@@ -334,26 +334,6 @@ const QUAD_SPECIES = {
     },
     ears: { kind: "tufted", len: 0.055, w: 0.024, tilt: 0.25 },
     tail: { kind: "short", len: 0.08, r: 0.02, lift: -0.3, tip: "#24211d" },
-    extras: (b, at) => {
-      b.part("head", at.headPivot);
-      for (const side of [1, -1]) {
-        b.cone(
-          add(at.headPivot, [
-            side * 0.035,
-            at.cranium[1] - 0.02,
-            at.cranium[2],
-          ]),
-          add(at.headPivot, [
-            side * 0.075,
-            at.cranium[1] - 0.05,
-            at.cranium[2] - 0.02,
-          ]),
-          0.022,
-          "belly",
-          0.5,
-        );
-      }
-    },
     pattern: (p, n, part) =>
       part === "body" &&
       n.y > -0.2 &&
@@ -585,12 +565,12 @@ export const ANATOMY: Record<SpeciesSlug, Anatomy> = {
   }),
   "glow-tortoise": tortoise({
     coat: { back: "#56594a", belly: "#a89c7c", dark: "#2a2620" },
-    shell: "#434a36",
-    seam: "#2a2f22",
+    shell: "#5c5f49",
+    seam: "#30352a",
     glow: "#7fe0b0",
   }),
   "field-nightjar": bird({
-    coat: { back: "#6b5b48", belly: "#9a8870", dark: "#2e261e" },
+    coat: { back: "#7a6a54", belly: "#a8967c", dark: "#2e261e" },
     gait: "fly",
     body: [0.06, 0.05, 0.11],
     bodyY: 0.2,
@@ -603,7 +583,7 @@ export const ANATOMY: Record<SpeciesSlug, Anatomy> = {
       eyeshine: "#e8d49a",
     },
     legs: { len: 0.04, r: 0.005, color: "#4a3e33" },
-    wings: { span: 0.3, chord: 0.09, color: "#5f5040" },
+    wings: { span: 0.3, chord: 0.09, color: "#7e6c54" },
     tail: { len: 0.11, w: 0.04 },
     pattern: (p, n, part) => {
       if (
@@ -624,8 +604,8 @@ export const ANATOMY: Record<SpeciesSlug, Anatomy> = {
     },
   }),
   "gloam-bat": bat({
-    coat: { back: "#4a4038", belly: "#6e6357", dark: "#1a1715" },
-    membrane: "#3a322d",
+    coat: { back: "#5a4e44", belly: "#7a6e62", dark: "#1a1715" },
+    membrane: "#51463e",
     glow: "#8fb8e8",
     body: [0.045, 0.04, 0.07],
     span: 0.3,

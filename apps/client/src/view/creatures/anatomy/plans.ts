@@ -703,6 +703,7 @@ export function bird(spec: BirdSpec): Anatomy {
           b.membrane(shoulder, outline, [side, 0, 0], [0, 0, 1], {
             color: spec.wings.color,
             grain: GRAIN.feather,
+            pattern: true,
           });
           b.tube(
             shoulder,
@@ -916,7 +917,7 @@ export function moth(spec: MothSpec): Anatomy {
           ],
           [side, 0, 0],
           [0, 0, 1],
-          { color: spec.wing, grain: GRAIN.feather },
+          { color: spec.wing, grain: GRAIN.feather, pattern: true },
         );
       }
       for (const [name, side] of [
@@ -956,17 +957,19 @@ export function tortoise(spec: TortoiseSpec): Anatomy {
   const shellY = 0.12;
   const pattern: PatternFn = (p, n, part) => {
     if (part !== "body" || p.y < shellY - 0.02) return null;
-    // Scutes: a cell field over the dome; the seams glow faintly.
-    const u = Math.atan2(p.x, p.z) * 3.2;
-    const row = Math.round(u);
-    const v = p.y * 34 + (Math.abs(row) % 2) * 0.5;
-    const edge = Math.max(Math.abs(u - row), Math.abs(v - Math.round(v)));
-    if (edge > 0.44 && n.y > 0.15) {
+    // Scutes: a staggered cell grid seen from above; seams glow faintly.
+    const row = Math.round(p.z * 16);
+    const col = p.x * 14 + (Math.abs(row) % 2) * 0.5;
+    const edge = Math.max(
+      Math.abs(p.z * 16 - row),
+      Math.abs(col - Math.round(col)),
+    );
+    if (edge > 0.43 && n.y > 0.2) {
       return {
         color: spec.seam,
-        mix: 0.75,
+        mix: 0.8,
         glow: spec.glow,
-        glowStrength: 0.1,
+        glowStrength: 0.09,
       };
     }
     return { color: spec.shell, mix: 0.85 };

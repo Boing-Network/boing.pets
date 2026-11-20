@@ -40,7 +40,14 @@ export type Paint =
   | "coat"
   | "dark"
   | "belly"
-  | { color: string; grain?: number; glow?: string; glowStrength?: number };
+  | {
+      color: string;
+      grain?: number;
+      glow?: string;
+      glowStrength?: number;
+      /** Let the species pattern paint over this flat colour (wings). */
+      pattern?: boolean;
+    };
 
 /** Surface grain the shader adds on top (fur, feathers, scale, smooth). */
 export const GRAIN = { fur: 1, feather: 0.7, scale: 0.55, smooth: 0.15 };
@@ -404,7 +411,9 @@ export class CreatureBuilder {
         gg = glowColor.g * glowStrength;
         gb = glowColor.b * glowStrength;
       }
-      const pat = flat ? null : (this.pattern?.(p, n, this.#part) ?? null);
+      const patterned =
+        !flat || (typeof paint === "object" && paint.pattern === true);
+      const pat = patterned ? (this.pattern?.(p, n, this.#part) ?? null) : null;
       if (pat?.color) {
         tmpColor2.set(pat.color);
         tmpColor.lerp(tmpColor2, pat.mix ?? 1);

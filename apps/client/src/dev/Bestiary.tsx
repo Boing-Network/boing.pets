@@ -191,11 +191,11 @@ export function Bestiary() {
     : 1;
   const camera = single
     ? {
-        position: [size * 0.75, size * 0.9, size * 2.9] as [
-          number,
-          number,
-          number,
-        ],
+        position: [
+          size * 0.75,
+          size * 0.9 + (FLIERS.has(single.slug) ? 2.4 : 0),
+          size * 2.9,
+        ] as [number, number, number],
         fov: 34,
       }
     : {
