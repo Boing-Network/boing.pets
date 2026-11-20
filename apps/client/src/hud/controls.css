@@ -163,3 +163,14 @@
 .mp-chip--offline {
   border-color: rgba(240, 120, 120, 0.6);
 }
+
+.wallet-btn--primary {
+  border-color: rgba(255, 214, 120, 0.55);
+  color: #ffe3a3;
+}
+
+.wallet-error {
+  max-width: 18rem;
+  font-size: 0.75rem;
+  color: #ffb4a8;
+}
