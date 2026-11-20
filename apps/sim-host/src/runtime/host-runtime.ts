@@ -88,6 +88,11 @@ export type HostRuntimeOptions = {
    */
   preferPatches?: boolean;
   /**
+   * With `preferPatches`, every Nth live view is a full `world.snapshot`
+   * keyframe instead of a patch. Default 60 (one hour of sim at 1x).
+   */
+  keyframeEvery?: number;
+  /**
    * Time scale for a world with no saved clock preference (e.g. a fresh
    * browser world). A saved scale always wins so reload keeps the speed.
    */
@@ -176,8 +181,14 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
 
   // What listeners already hold; live patches only carry the difference.
   const baseline = createPatchBaseline();
+  // Every Nth live view is a full snapshot (a keyframe): it heals any
+  // listener whose merged view drifted, and older clients that ignore
+  // creature deltas, at the cost of one snapshot per N ticks.
+  const keyframeEvery = Math.max(1, options.keyframeEvery ?? 60);
+  let patchesSinceKeyframe = 0;
 
   function pushSnapshot(): void {
+    patchesSinceKeyframe = 0;
     const view = buildWorldView(requireSession().snapshot);
     resetPatchBaseline(baseline, view);
     options.emit({ message: "world.snapshot", body: view });
@@ -185,7 +196,12 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
 
   function pushLiveView(): void {
     const active = requireSession();
-    if (preferPatches && active.dirty.creatureIds.size > 0) {
+    if (
+      preferPatches &&
+      active.dirty.creatureIds.size > 0 &&
+      patchesSinceKeyframe < keyframeEvery - 1
+    ) {
+      patchesSinceKeyframe += 1;
       options.emit({
         message: "world.patch",
         body: buildWorldPatch(active.snapshot, active.dirty, baseline),

@@ -4,16 +4,17 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { HostToClient, WorldPatch, WorldView } from "@boing-pets/contract";
+import {
+  applyWorldPatch,
+  type CreatureView,
+  type HostToClient,
+  type WorldPatch,
+  type WorldView,
+} from "@boing-pets/contract";
 import { MemoryWorldRepository } from "../src/persist/memory-repository";
 import { createHostRuntime } from "../src/runtime/host-runtime";
 import { buildWorldView } from "../src/view/world-view";
-
-function merge<T extends { id: number }>(current: T[], incoming: T[]): T[] {
-  const map = new Map(current.map((row) => [row.id, row]));
-  for (const row of incoming) map.set(row.id, row);
-  return [...map.values()].sort((a, b) => a.id - b.id);
-}
+import { diffCreatures } from "../src/view/world-patch";
 
 test("live patches are deltas that rebuild the full view", async () => {
   const messages: HostToClient[] = [];
@@ -40,13 +41,9 @@ test("live patches are deltas that rebuild the full view", async () => {
     if (message.message === "world.snapshot") view = message.body;
     if (message.message !== "world.patch") continue;
     patches.push(message.body);
-    view = {
-      ...view,
-      creatures: merge(view.creatures, message.body.creatures),
-      relationships: merge(view.relationships, message.body.relationships),
-      events: merge(view.events, message.body.events),
-      territories: merge(view.territories, message.body.territories),
-    };
+    const merged = applyWorldPatch(view, message.body);
+    assert.equal(merged.skipped, 0, "every delta lands on a held row");
+    view = merged.view;
   }
   assert.ok(patches.length >= 30, `patched ${patches.length} ticks`);
 
@@ -61,7 +58,8 @@ test("live patches are deltas that rebuild the full view", async () => {
     const bytes = JSON.stringify(patch).length;
     const eventBytes = JSON.stringify(patch.events).length;
     assert.ok(eventBytes < 4_000, `patch ${index} events ${eventBytes}B`);
-    assert.ok(bytes < 80_000, `patch ${index} ${bytes}B`);
+    // Field-level creature deltas: ~6 KB per tick for 28 pets (was ~45 KB).
+    assert.ok(bytes < 20_000, `patch ${index} ${bytes}B`);
   }
   assert.ok(
     patches.some((p) => p.territories.length === 0),
@@ -80,5 +78,61 @@ test("live patches are deltas that rebuild the full view", async () => {
     assert.equal(mergedRel.get(id), json, `relationship ${id} matches`);
   }
   assert.deepEqual(view.territories, truth.territories);
+  await runtime.quit();
+});
+
+test("creature deltas carry only changed fields; new rows go out whole", () => {
+  const seen = new Map<number, Map<string, string>>();
+  const base = {
+    id: 1,
+    name: "Ash",
+    needs: { hunger: 1, thirst: 2 },
+    spotX: 3,
+  } as unknown as CreatureView;
+  const first = diffCreatures([base], seen);
+  assert.equal(first.full.length, 1, "first sight is a full row");
+  assert.equal(first.deltas.length, 0);
+  const same = diffCreatures([base], seen);
+  assert.equal(same.full.length + same.deltas.length, 0, "unchanged: nothing");
+  const moved = { ...base, needs: { hunger: 5, thirst: 2 } } as CreatureView;
+  const next = diffCreatures([moved], seen);
+  assert.deepEqual(next.deltas, [{ id: 1, needs: { hunger: 5, thirst: 2 } }]);
+});
+
+test("every Nth live view is a full snapshot keyframe", async () => {
+  const messages: HostToClient[] = [];
+  let now = 2_000_000;
+  const runtime = createHostRuntime({
+    repository: new MemoryWorldRepository(),
+    seed: 3,
+    nowMs: () => now,
+    autoFrame: false,
+    preferPatches: true,
+    keyframeEvery: 5,
+    emit: (message) => messages.push(message),
+  });
+  await runtime.start();
+  messages.length = 0;
+  for (let i = 0; i < 20; i += 1) {
+    now += 60_000;
+    await runtime.tickFrame(60_000);
+  }
+  const kinds = messages
+    .map((m) => m.message)
+    .filter((m) => m === "world.patch" || m === "world.snapshot");
+  const snapshots = kinds.filter((m) => m === "world.snapshot").length;
+  assert.equal(snapshots, 4, `keyframes in ${kinds.join(",")}`);
+  assert.equal(kinds[4], "world.snapshot", "the 5th live view is a keyframe");
+
+  // Keyframes are whole views, so a client that ignores deltas (an older
+  // build) or drifted is reset by the next one.
+  const keyframe = [...messages]
+    .reverse()
+    .find((m) => m.message === "world.snapshot");
+  assert.ok(keyframe?.message === "world.snapshot", "has a keyframe");
+  assert.equal(
+    keyframe.body.creatures.length,
+    buildWorldView(runtime.session.snapshot).creatures.length,
+  );
   await runtime.quit();
 });

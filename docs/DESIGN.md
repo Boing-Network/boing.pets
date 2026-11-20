@@ -385,7 +385,14 @@ territories 1–3 so its timings stay comparable.
   queued is skipped and rebased once the backlog halves; a heartbeat drops a
   socket after four silent 15 s intervals (any inbound frame counts).
 - **Bandwidth:** live `world.patch` frames carry only rows and events that
-  changed since the previous emit (`PatchBaseline`).
+  changed since the previous emit (`PatchBaseline`). Creatures go per field:
+  a creature the listeners already hold travels as a `creatureDeltas` entry
+  with just its changed top-level fields (nested objects such as `needs` are
+  replaced whole); a new creature goes out as a full row. Every 60th live
+  view is a full `world.snapshot` keyframe, which heals any drifted listener
+  and older clients that ignore deltas. Both sides merge with the contract's
+  `applyWorldPatch`. With 28 creatures this took the live stream from ~53 KB
+  to ~7 KB per tick (keyframes included). Seq gaps still trigger `resync`.
 - **Client** (`api/ws-host-ipc.ts`): `?mp=ws://…` or `VITE_LIVING_PETS_MP_URL`
   selects it (the Vercel deployments default to Fly; `?mp=off` opts out). It keeps the token per server URL in `localStorage`, reconnects
   with backoff (0.5 s doubling to 8 s), and reports `connecting/live/

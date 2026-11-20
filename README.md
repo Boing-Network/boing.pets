@@ -278,8 +278,10 @@ minting is always off in the web build.
   follow the token, so clearing storage gets a fresh allowance. The owner key
   is a shared secret in a URL. Wallet-signature login is a follow-up.
 - **Shared-world bandwidth.** Needs drift every tick, so each live patch
-  carries every creature row (tens of KB per tick, ~1 tick/s at 64×). A client
-  that falls more than 4 MB behind is skipped and then sent a fresh snapshot.
+  still touches every creature, but only its changed fields (about 6 KB per
+  tick for 28 creatures, plus a full snapshot keyframe every 60 ticks). A
+  client that falls more than 4 MB behind is skipped and then sent a fresh
+  snapshot.
 - **Embedded Postgres is a beta build** (`embedded-postgres` `18.6.0-beta.19`).
   The Electron window uses `sandbox: false` (with `contextIsolation: true` and
   `nodeIntegration: false`).
