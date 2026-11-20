@@ -94,7 +94,12 @@ export {
 export {
   MP_DEFAULT_PORT,
   MP_MAX_CLIENT_MESSAGE_BYTES,
+  MP_MAX_LISTED_PLAYERS,
+  MP_PRESENCE_MAX_HZ,
   MP_PROTOCOL_VERSION,
+  MP_WALLET_CHAIN_ID,
+  type PlayerPresence,
+  type WalletProof,
   type WsClientToServer,
   type WsServerToClient,
 } from "./ws";

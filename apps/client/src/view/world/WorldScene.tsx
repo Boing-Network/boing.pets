@@ -9,6 +9,7 @@ import { CameraRig } from "./CameraRig";
 import { Flora } from "./Flora";
 import { layoutFlora } from "./flora-placement";
 import { GlowPoints } from "./GlowPoints";
+import { PlayerMarkers } from "./PlayerMarkers";
 import { Sky } from "./Sky";
 import { Terrain } from "./Terrain";
 import { TerritoryMarkers } from "./TerritoryMarkers";
@@ -98,6 +99,8 @@ export function WorldScene() {
           }
         />
       ))}
+
+      <PlayerMarkers model={model} focus={orbitTarget} />
 
       <CameraRig
         model={model}

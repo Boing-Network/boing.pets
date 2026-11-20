@@ -33,6 +33,7 @@ import {
 } from "./server-config";
 import { createSharedWorldHost } from "./shared-world-host";
 import { generateOwnerKey, loadOrCreateSecret } from "./tokens";
+import { createWalletChallenges } from "./wallet-auth";
 import { listenSharedWorldWs } from "./ws-server";
 
 const { values } = parseArgs({
@@ -120,6 +121,8 @@ const server = await listenSharedWorldWs({
   port: config.port,
   tokenSecret,
   ownerKey,
+  ownerWallets: config.ownerWallets,
+  walletChallenges: createWalletChallenges({ chainId: config.chainId }),
   log,
   allowOrigin: compileOriginMatcher(config.allowedOrigins),
   health: () => {

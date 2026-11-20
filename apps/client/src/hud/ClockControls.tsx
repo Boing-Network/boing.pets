@@ -2,6 +2,7 @@ import { TIME_SCALES, type TimeScale } from "@boing-pets/contract";
 import type { IpcClient } from "../api/ipc";
 import { useUiStore } from "../state/uiStore";
 import { useWorldViewStore } from "../state/worldViewStore";
+import { WalletButton } from "./WalletButton";
 
 type Props = {
   ipc: IpcClient;
@@ -44,6 +45,7 @@ export function ClockControls({ ipc }: Props) {
           {showNotice ? ` — ${lastNotice.detail}` : null}
         </span>
       ) : null}
+      <WalletButton />
       <button
         type="button"
         className="clock-btn"

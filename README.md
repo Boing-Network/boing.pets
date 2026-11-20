@@ -112,6 +112,16 @@ Each browser keeps a signed session token in `localStorage`, so a reload or a
 dropped connection rejoins as the same account (and the same role). The chip
 next to the clock shows `Shared · Owner|Player · name`, or `reconnecting…`.
 
+**Sign in with Boing.** Next to the chip, _Sign in with Boing_ connects Boing
+Express (the extension, or the boing.express web wallet when the extension is
+missing), asks it to sign a one-time sign-in message (no transaction, no fee),
+and rejoins as that wallet; _Sign out_ goes back to a new guest. Guests can
+keep playing without a wallet. Wallets in `LIVING_PETS_MP_OWNER_WALLETS` join
+as owner; the owner key keeps working as a fallback.
+
+**Other players** appear in the world as a floating marker with their name at
+the point their camera is looking at (violet owner, gold wallet, blue guest).
+
 Useful flags (or env vars): `--host`/`LIVING_PETS_MP_HOST`,
 `--port`/`LIVING_PETS_MP_PORT`, `--data`/`LIVING_PETS_MP_DATA`,
 `--seed`/`LIVING_PETS_MP_SEED`, `--scale`/`LIVING_PETS_MP_SCALE` (new worlds,
@@ -227,6 +237,8 @@ Names only. Never commit values.
 | `LIVING_PETS_MP_HOST`, `_PORT`, `_DATA`, `_SEED`, `_SCALE`       | `apps/sim-host/src/multiplayer/serve.ts`     | Shared-world server bind address (default `127.0.0.1`), port (`8787`), data dir, new-world seed and scale.                                                |
 | `LIVING_PETS_MP_OWNER_KEY`                                       | same                                         | Owner key (pause/rescale). Generated and printed when unset.                                                                                              |
 | `LIVING_PETS_MP_SECRET`                                          | same                                         | HMAC key for session tokens. When unset, a random key is saved to `<data>/session-secret` (mode 0600).                                                    |
+| `LIVING_PETS_MP_OWNER_WALLETS`                                   | same                                         | Comma-separated Boing account ids (`0x` + 64 hex) that join as owner after wallet sign-in. Not secret.                                                    |
+| `LIVING_PETS_MP_CHAIN_ID`                                        | same                                         | Chain id bound into sign-in messages. Default `6913` (Boing testnet).                                                                                     |
 | `PORT`                                                           | same                                         | Port when `--port`/`LIVING_PETS_MP_PORT` are unset (Fly sets `8080` in `fly.toml`).                                                                       |
 | `LIVING_PETS_MP_ALLOWED_ORIGINS`                                 | same                                         | Comma-separated browser origins allowed to open the WebSocket (`*` = one run of letters, digits, dashes). Localhost is always allowed outside production. |
 | `NODE_ENV`                                                       | same                                         | `production` requires the owner key, session secret, `DATABASE_URL` and an origin list from the environment.                                              |

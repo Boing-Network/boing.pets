@@ -377,6 +377,30 @@ territories 1–3 so its timings stay comparable.
   (`LIVING_PETS_MP_SECRET` or `<data>/session-secret`). A bad or expired token
   is refused (`invalid_token`) and the socket joins as a fresh guest. A
   `hello` with the owner key (constant-time compare) gets the `owner` role.
+- **Wallet sign-in:** a socket may send `auth-challenge {address}` (before
+  or after `hello`, at most 8 per socket). The server answers with a
+  one-time message bound to the page origin, chain id (6913, Boing testnet),
+  address, nonce, issue and expiry times (5 min):
+  `Boing Pets sign-in v1\nOrigin: …\nChain: 6913\nAddress: 0x…\nNonce: …\nIssued: …\nExpires: …`.
+  Boing Express signs it with `boing_signMessage` (no transaction); the
+  client reconnects with `hello {wallet: {address, nonce, signature}}` and the
+  server checks Ed25519(signature, BLAKE3(UTF-8 message), address), the same
+  scheme as the old pasture app. The nonce is consumed whatever the outcome.
+  Success joins as account `w:<64 hex>` (display name `0x1a2b3c…9f0e` unless
+  `name` is given) and the session token carries `wallet`, so reloads stay
+  signed in without a new signature. A bad, replayed or expired proof gets
+  `wallet_rejected` and joins as a guest; guests keep playing as before.
+- **Owner role:** wallets listed in `LIVING_PETS_MP_OWNER_WALLETS` get `owner`
+  on every join (a wallet's role is recomputed from that list, never taken
+  from its token). The owner key still works as a fallback.
+- **Presence:** clients send `presence {x, z}` (their camera focus) at most
+  5 times a second and only when it moves; the server rounds to 0.01, ignores
+  faster frames, and every 250 ms, when anything changed, sends everyone one
+  `players` frame (session id, name, role, wallet flag, x, z; at most 64).
+  Presence is cosmetic: it is not part of `seq`, never queued behind a slow
+  socket, and leaves the sim untouched. The client draws each other player as
+  a cone, ring and name label (owner violet, wallet gold, guest blue), eased
+  toward the latest position each frame and placed on the terrain height.
 - **Authority:** only the owner may pause, resume or rescale
   (`not_owner` notice otherwise). Influences keep their per-account budgets.
 - **Limits:** 64 KiB `maxPayload`; every command and query is rebuilt by a
@@ -387,7 +411,8 @@ territories 1–3 so its timings stay comparable.
 - **Bandwidth:** live `world.patch` frames carry only rows and events that
   changed since the previous emit (`PatchBaseline`).
 - **Client** (`api/ws-host-ipc.ts`): `?mp=ws://…` or `VITE_LIVING_PETS_MP_URL`
-  selects it (the Vercel deployments default to Fly; `?mp=off` opts out). It keeps the token per server URL in `localStorage`, reconnects
+  selects it (the Vercel deployments default to Fly; `?mp=off` opts out). It
+  keeps the token per server URL in `localStorage`, reconnects
   with backoff (0.5 s doubling to 8 s), and reports `connecting/live/
 reconnecting` to the HUD.
 
