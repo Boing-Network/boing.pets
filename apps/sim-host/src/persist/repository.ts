@@ -88,6 +88,13 @@ export type CommitBatch = {
   influenceAcceptedByAccount: Record<string, number[]> | null;
   /** Set when this commit closes an offline catch-up gap. */
   insertCatchup: CatchupReport | null;
+  /**
+   * Introduce-species migration only: new species rows (insert) and catalog
+   * diet refreshes (update). Written before creatures. Absent otherwise.
+   */
+  upsertSpecies?: SpeciesRow[];
+  /** Introduce-species migration only: compatibility rows for new species. */
+  insertCompatibility?: CompatibilityRow[];
 };
 
 export type WorldRepository = {

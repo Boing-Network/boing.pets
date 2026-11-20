@@ -11,6 +11,7 @@ import { die, driftDeathCause, lifespanTicks } from "./death";
 import { applyInfluences, decayLineageFavor } from "./influences";
 import { applyHealthDrift, applyNeedDrift, type TerritoryTick } from "./needs";
 import { aggregateTerritories } from "./territories";
+import { biologyFor } from "./biology";
 
 function indexById<T extends { id: number }>(
   rows: readonly T[],
@@ -50,7 +51,13 @@ function stepCreatures(
       continue;
     }
 
-    applyNeedDrift(creature, creaturesById, rules, territory);
+    applyNeedDrift(
+      creature,
+      creaturesById,
+      rules,
+      territory,
+      biologyFor(creature.speciesId),
+    );
     applyHealthDrift(creature, rules);
     const cause = driftDeathCause(creature);
     if (cause) {

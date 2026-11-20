@@ -29,6 +29,8 @@ export function discoverySummary(
 export function founderBirthEvent(input: {
   id: number;
   worldId: number;
+  /** Worldgen founders are born on tick 0; introduced species use lastTick. */
+  tick?: number;
   creatureId: number;
   lineageId: number;
   speciesId: number;
@@ -41,7 +43,7 @@ export function founderBirthEvent(input: {
   return {
     id: input.id,
     worldId: input.worldId,
-    tick: 0,
+    tick: input.tick ?? 0,
     kind: EventKind.BIRTH,
     actorId: input.creatureId,
     subjectId: null,

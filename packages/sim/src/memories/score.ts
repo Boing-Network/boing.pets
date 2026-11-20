@@ -8,6 +8,7 @@ import {
   MemoryTag,
 } from "@boing-pets/contract";
 import type { CreatureRow, MemoryRow, WorldSnapshot } from "../types";
+import { derivedForOwner } from "./index-by-owner";
 import { memoryStrength } from "./strength";
 
 type RankedMemory = {
@@ -15,27 +16,32 @@ type RankedMemory = {
   strength: number;
 };
 
-/** Owner's non-archived memories, strongest first, id ascending, capped. */
+/**
+ * Owner's non-archived memories, strongest first, id ascending, capped.
+ * Memoized per owner per tick (utility scoring asks once per goal); the
+ * returned array is shared and must not be mutated.
+ */
 export function hotMemories(
   snapshot: WorldSnapshot,
   creatureId: number,
   tick: number,
-): RankedMemory[] {
+): readonly RankedMemory[] {
   const rules = snapshot.ruleset;
-  const ranked: RankedMemory[] = [];
-  for (const memory of snapshot.memories) {
-    if (memory.creatureId !== creatureId) continue;
-    if (memory.archived) continue;
-    ranked.push({
-      memory,
-      strength: memoryStrength(memory, tick, rules),
+  return derivedForOwner(snapshot.memories, creatureId, tick, (rows) => {
+    const ranked: RankedMemory[] = [];
+    for (const memory of rows) {
+      if (memory.archived) continue;
+      ranked.push({
+        memory,
+        strength: memoryStrength(memory, tick, rules),
+      });
+    }
+    ranked.sort((a, b) => {
+      if (a.strength !== b.strength) return b.strength - a.strength;
+      return a.memory.id - b.memory.id;
     });
-  }
-  ranked.sort((a, b) => {
-    if (a.strength !== b.strength) return b.strength - a.strength;
-    return a.memory.id - b.memory.id;
+    return ranked.slice(0, rules.memoryHotScoreCap);
   });
-  return ranked.slice(0, rules.memoryHotScoreCap);
 }
 
 function hasTag(memory: MemoryRow, tag: MemoryTag): boolean {

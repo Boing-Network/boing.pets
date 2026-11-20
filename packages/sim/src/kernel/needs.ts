@@ -1,10 +1,17 @@
 import { Action, CreatureStatus, type Ruleset } from "@boing-pets/contract";
 import { assertInteger, clamp } from "../math";
 import type { CreatureRow } from "../types";
+import {
+  NEUTRAL_PROFILE,
+  perceivedDanger,
+  type BiologyProfile,
+} from "./biology";
 
 /** Effective territory stats for one tick. Population includes creatures in transit. */
 export type TerritoryTick = {
   name: string;
+  /** Territory slug, for habitat checks. */
+  slug: string;
   food: number;
   danger: number;
   population: number;
@@ -28,12 +35,20 @@ function motherBeside(
   );
 }
 
-/** One tick of need drift. Action resolution is a later milestone. */
+/**
+ * Milk: a nursing newborn beside its living mother is fed and watered, so
+ * these are subtracted from the nursing drift (net relief per tick).
+ */
+export const MILK_HUNGER_RELIEF = 4;
+export const MILK_THIRST_RELIEF = 5;
+
+/** One tick of need drift, with the species' biology offsets. */
 export function applyNeedDrift(
   creature: CreatureRow,
   byId: ReadonlyMap<number, CreatureRow>,
   rules: Ruleset,
   territory: TerritoryTick,
+  biology: BiologyProfile = NEUTRAL_PROFILE,
 ): void {
   const action = creature.currentAction;
   const resting = action === Action.REST;
@@ -46,23 +61,34 @@ export function applyNeedDrift(
   let unsafety = creature.unsafety;
   let loneliness = creature.loneliness;
 
-  hunger += nursing ? rules.nurseHungerPerTick : rules.hungerPerTick;
-  thirst += nursing ? rules.nurseThirstPerTick : rules.thirstPerTick;
+  const suckling = nursing && motherBeside(creature, byId);
+  if (nursing) {
+    hunger += rules.nurseHungerPerTick;
+    thirst += rules.nurseThirstPerTick;
+    if (suckling) {
+      hunger -= MILK_HUNGER_RELIEF;
+      thirst -= MILK_THIRST_RELIEF;
+    }
+  } else {
+    hunger += Math.max(0, rules.hungerPerTick + biology.needs.hunger);
+    thirst += Math.max(0, rules.thirstPerTick + biology.needs.thirst);
+  }
   if (resting) fatigue -= rules.fatigueRestPerTick;
   else if (nursing) fatigue += rules.fatigueNursePerTick;
-  else fatigue += rules.fatigueAwakePerTick;
+  else {
+    fatigue += Math.max(0, rules.fatigueAwakePerTick + biology.needs.fatigue);
+  }
 
   const crowded = Math.max(0, territory.population - territory.capacity);
   discomfort +=
     rules.discomfortBasePerTick + crowded * rules.discomfortOvercrowdPerHead;
-  if (territory.danger > rules.discomfortDangerThreshold) {
+  const danger = perceivedDanger(biology, territory);
+  if (danger > rules.discomfortDangerThreshold) {
     discomfort += rules.discomfortDangerPerTick;
   }
   if (resting) discomfort -= rules.discomfortRestPerTick;
 
-  const targetDanger = resting
-    ? Math.floor(territory.danger / 2)
-    : territory.danger;
+  const targetDanger = resting ? Math.floor(danger / 2) : danger;
   if (unsafety < targetDanger) unsafety += rules.unsafetyApproachPerTick;
   else {
     unsafety -= resting
@@ -70,7 +96,7 @@ export function applyNeedDrift(
       : rules.unsafetyRetreatPerTick;
   }
 
-  if (nursing && motherBeside(creature, byId)) {
+  if (suckling) {
     loneliness -= rules.lonelinessNurseNearMother;
   } else if (action !== Action.APPROACH) {
     loneliness += rules.lonelinessPerTick;

@@ -59,8 +59,9 @@ try {
   if (view.territories.length !== 7) {
     throw new Error(`expected 7 territories, got ${view.territories.length}`);
   }
-  if (view.creatures.length !== 28) {
-    throw new Error(`expected 28 founders, got ${view.creatures.length}`);
+  // 21 species × 2 founders (born mature, so their birth ticks are negative).
+  if (view.creatures.length !== 42) {
+    throw new Error(`expected 42 founders, got ${view.creatures.length}`);
   }
 
   // Second boot must load the persisted world, not create another.
@@ -73,6 +74,10 @@ try {
     throw new Error(
       `expected persisted seed 1, got ${again.snapshot.world.seed}`,
     );
+  }
+  // A world created by this build is up to date: no species to introduce.
+  if (again.introduced != null) {
+    throw new Error("fresh world should not need introduce-species");
   }
 
   console.log(

@@ -96,6 +96,12 @@ export function buildCommitBatch(
     influenceAcceptedAtMs: null,
     influenceAcceptedByAccount: null,
     insertCatchup: catchup == null ? null : clone(catchup),
+    ...(dirty.species.length > 0
+      ? { upsertSpecies: clone(dirty.species) }
+      : {}),
+    ...(dirty.compatibility.length > 0
+      ? { insertCompatibility: clone(dirty.compatibility) }
+      : {}),
   };
 }
 

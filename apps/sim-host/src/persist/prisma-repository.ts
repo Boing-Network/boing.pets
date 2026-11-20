@@ -263,6 +263,38 @@ export class PrismaWorldRepository implements WorldRepository {
         data: worldHeaderUpdateToDb(batch.world, batch.ruleset),
       });
 
+      // Introduce-species migration: species, compatibility, and the new
+      // founders' lineages must exist before the creatures that reference
+      // them (creature → species / lineage foreign keys).
+      for (const row of batch.upsertSpecies ?? []) {
+        const data = speciesToDb(row);
+        await tx.species.upsert({
+          where: { id: toBigInt(row.id) },
+          create: data,
+          update: { diet: data.diet },
+        });
+      }
+      if (batch.insertCompatibility && batch.insertCompatibility.length > 0) {
+        await tx.speciesCompatibility.createMany({
+          data: batch.insertCompatibility.map(compatibilityToDb),
+        });
+      }
+      const newLineageIds = new Set(
+        batch.insertCreatures.map((row) => row.lineageId),
+      );
+      for (const row of batch.upsertLineages) {
+        if (!newLineageIds.has(row.id)) continue;
+        await tx.lineage.upsert({
+          where: { id: toBigInt(row.id) },
+          create: lineageToDb(row),
+          update: {
+            name: row.name,
+            playerFavor: row.playerFavor,
+            founderCreatureId: lineageToDb(row).founderCreatureId,
+          },
+        });
+      }
+
       if (batch.insertCreatures.length > 0) {
         await tx.creature.createMany({
           data: batch.insertCreatures.map(creatureToDb),

@@ -44,6 +44,7 @@ export function aggregateTerritories(
   for (const territory of snapshot.territories) {
     stats.set(territory.id, {
       name: territory.name,
+      slug: territory.slug,
       food: assertInteger(
         clamp(
           territory.foodAbundance + (foodBonus.get(territory.id) ?? 0),

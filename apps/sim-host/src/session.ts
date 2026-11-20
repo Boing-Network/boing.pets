@@ -3,7 +3,13 @@
  * Offline catch-up and live clock both commit through this dirty path.
  */
 import { EventKind, type CatchupReport } from "@boing-pets/contract";
-import { createWorld, step, type WorldSnapshot } from "@boing-pets/sim";
+import {
+  createWorld,
+  introduceSpecies,
+  step,
+  type IntroduceSpeciesResult,
+  type WorldSnapshot,
+} from "@boing-pets/sim";
 import {
   createDisabledMintEdge,
   enqueueBirthMintsAfterCommit,
@@ -32,7 +38,37 @@ export type HostSession = {
   catchingUp: boolean;
   /** Host-edge Boing mint seam. Never passed into step(). */
   mintEdge: MintEdge;
+  /**
+   * What the introduce-species migration did on this boot (already
+   * committed), or null when the world was up to date / freshly created.
+   */
+  introduced: IntroducedSpecies | null;
 };
+
+export type IntroducedSpecies = {
+  atTick: number;
+  species: string[];
+  dietUpdates: string[];
+  founders: number;
+};
+
+/**
+ * Mark an introduce-species result dirty so the next commit writes it:
+ * species + compatibility rows, the founders, their lineages and events.
+ */
+export function markIntroduced(
+  dirty: DirtySet,
+  result: IntroduceSpeciesResult,
+): void {
+  dirty.species.push(...result.addedSpecies, ...result.updatedSpecies);
+  dirty.compatibility.push(...result.addedCompatibility);
+  for (const creature of result.creatures) {
+    dirty.creatureIds.add(creature.id);
+    dirty.newCreatureIds.add(creature.id);
+  }
+  for (const lineage of result.lineages) dirty.lineageIds.add(lineage.id);
+  dirty.events.push(...result.events);
+}
 
 /** Boot from the store, or createWorld(seed) when empty and persist it. */
 export async function bootSession(
@@ -51,13 +87,31 @@ export async function bootSession(
         dirty.creatureIds.add(creature.id);
       }
     }
-    return {
+    const session: HostSession = {
       snapshot: loaded.snapshot,
       dirty,
       repository,
       catchingUp: false,
       mintEdge,
+      introduced: null,
     };
+    // Introduce-species migration: a world saved by an older build gains the
+    // species this build's catalog adds (two founders each, at lastTick).
+    // Deterministic and idempotent, and committed at once (before any tick or
+    // catch-up) so a crash before this commit simply re-derives the same rows
+    // on the next boot. Existing creatures and history are never touched.
+    const result = introduceSpecies(loaded.snapshot);
+    if (result.addedSpecies.length > 0 || result.updatedSpecies.length > 0) {
+      markIntroduced(dirty, result);
+      await commitSession(session);
+      session.introduced = {
+        atTick: loaded.snapshot.world.lastTick,
+        species: result.addedSpecies.map((row) => row.slug),
+        dietUpdates: result.updatedSpecies.map((row) => row.slug),
+        founders: result.creatures.length,
+      };
+    }
+    return session;
   }
   const { snapshot, events } = createWorld(seed);
   // createWorld leaves clockAtMs at 0; the host stamps wall time on insert
@@ -77,6 +131,7 @@ export async function bootSession(
     repository,
     catchingUp: false,
     mintEdge,
+    introduced: null,
   };
 }
 

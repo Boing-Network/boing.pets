@@ -77,3 +77,14 @@ test("lore emissives stay atmospheric (below first-pass neon levels)", () => {
     assert.ok(skinForSpecies(id).emissiveIntensity < 1);
   }
 });
+
+test("locomotion follows the catalog gait (fliers fly, hoppers trot)", () => {
+  for (const row of SPECIES_CATALOG) {
+    const loco = skinForSpecies(row.id).locomotion;
+    if (row.gait === "fly") assert.equal(loco, "fly", row.slug);
+    else assert.notEqual(loco, "fly", row.slug);
+    if (["hop", "bound", "scurry", "trot"].includes(row.gait)) {
+      assert.equal(loco, "trot", row.slug);
+    }
+  }
+});

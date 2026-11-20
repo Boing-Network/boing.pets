@@ -5,7 +5,6 @@
 import {
   ActionTargetKind,
   CreatureStatus,
-  Diet,
   Gender,
   Goal,
   type GeneticProfile,
@@ -187,7 +186,7 @@ export function createScaleWorld(
     worldId: WORLD_ID,
     slug: row.slug,
     displayName: row.displayName,
-    diet: Diet.HERBIVORE,
+    diet: row.diet,
     maturityDays: row.maturityDays,
     baseLifespanDays: row.baseLifespanDays,
     gestationDays: row.gestationDays,

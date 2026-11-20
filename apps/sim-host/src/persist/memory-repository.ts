@@ -96,6 +96,31 @@ export class MemoryWorldRepository implements WorldRepository {
     next.world = clone(batch.world);
     next.ruleset = clone(batch.ruleset);
 
+    // Introduce-species migration: catalog rows before the creatures that
+    // reference them.
+    if (batch.upsertSpecies && batch.upsertSpecies.length > 0) {
+      assertExplicitIds(batch.upsertSpecies, "species");
+      const species = indexById(next.species);
+      for (const row of batch.upsertSpecies) species.set(row.id, clone(row));
+      next.species = [...species.values()].sort((a, b) => a.id - b.id);
+    }
+    if (batch.insertCompatibility && batch.insertCompatibility.length > 0) {
+      const key = (row: { speciesLowId: number; speciesHighId: number }) =>
+        `${row.speciesLowId}:${row.speciesHighId}`;
+      const pairs = new Map(next.compatibility.map((row) => [key(row), row]));
+      for (const row of batch.insertCompatibility) {
+        if (pairs.has(key(row))) {
+          throw new Error(`compatibility ${key(row)} already exists`);
+        }
+        pairs.set(key(row), clone(row));
+      }
+      next.compatibility = [...pairs.values()].sort((a, b) =>
+        a.speciesLowId !== b.speciesLowId
+          ? a.speciesLowId - b.speciesLowId
+          : a.speciesHighId - b.speciesHighId,
+      );
+    }
+
     assertExplicitIds(batch.insertCreatures, "creature");
     assertExplicitIds(batch.insertRelationships, "relationship");
     assertExplicitIds(batch.insertMemories, "memory");

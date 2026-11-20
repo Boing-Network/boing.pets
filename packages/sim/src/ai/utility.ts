@@ -13,6 +13,7 @@ import {
 import { ageDays } from "../kernel/death";
 import { assertInteger, clamp, divRound } from "../math";
 import { memoryTermForGoal } from "../memories/score";
+import { lookupPair } from "../relationships/pair-index";
 import type {
   CompatibilityRow,
   CreatureRow,
@@ -55,11 +56,7 @@ export function pairOf(
 ): RelationshipRow | null {
   const low = Math.min(creatureAId, creatureBId);
   const high = Math.max(creatureAId, creatureBId);
-  return (
-    relationships.find(
-      (row) => row.creatureAId === low && row.creatureBId === high,
-    ) ?? null
-  );
+  return lookupPair(relationships, low, high);
 }
 
 function pairField(
@@ -128,7 +125,34 @@ function speciesOf(snapshot: WorldSnapshot, creature: CreatureRow): SpeciesRow {
   return species;
 }
 
-/** Alive, other gender, fertile, mature, free, healthy, conflict under the gate. */
+/**
+ * Density-dependent breeding: no courting once the territory is at capacity,
+ * or once this species alone fills half of it. Keeps any one species from
+ * crowding out the other two that share its home.
+ */
+export function territoryTooFullToBreed(
+  snapshot: WorldSnapshot,
+  creature: CreatureRow,
+): boolean {
+  const territory = snapshot.territories.find(
+    (row) => row.id === creature.territoryId,
+  );
+  if (!territory) return false;
+  let total = 0;
+  let kin = 0;
+  for (const other of snapshot.creatures) {
+    if (other.status !== CreatureStatus.ALIVE) continue;
+    if (other.territoryId !== creature.territoryId) continue;
+    total += 1;
+    if (other.speciesId === creature.speciesId) kin += 1;
+  }
+  return total >= territory.capacity || kin * 2 > territory.capacity;
+}
+
+/**
+ * Alive, other gender, fertile, mature, free, healthy, conflict under the
+ * gate, and room in the territory to raise young.
+ */
 export function legalPartners(
   snapshot: WorldSnapshot,
   creature: CreatureRow,
@@ -140,7 +164,8 @@ export function legalPartners(
     !isMature(creature, actorSpecies, tick, rules.ticksPerDay) ||
     !mateBodyOk(creature, rules) ||
     isGestating(creature, tick) ||
-    !cooldownClear(creature, tick)
+    !cooldownClear(creature, tick) ||
+    territoryTooFullToBreed(snapshot, creature)
   ) {
     return [];
   }
@@ -233,9 +258,9 @@ function needTerm(
 ): number {
   switch (goal) {
     case Goal.FIND_FOOD:
-      return creature.hunger;
+      return survivalUrgency(creature.hunger);
     case Goal.DRINK_WATER:
-      return creature.thirst;
+      return survivalUrgency(creature.thirst);
     case Goal.SEEK_SHELTER:
       return Math.max(creature.fatigue, creature.discomfort, creature.unsafety);
     case Goal.SOCIALIZE:
@@ -256,7 +281,7 @@ function needTerm(
       return isEligible(snapshot, creature, tick, Goal.FIND_MATE) ? 700 : 0;
     case Goal.PROTECT_OFFSPRING:
       return isEligible(snapshot, creature, tick, Goal.PROTECT_OFFSPRING)
-        ? clamp(700 + Math.floor(creature.unsafety / 5), 0, 1000)
+        ? protectNeed(creature)
         : 0;
     case Goal.IDLE:
       return 0;
@@ -265,6 +290,33 @@ function needTerm(
       throw new Error(`goal ${String(never)}`);
     }
   }
+}
+
+/** Hunger / thirst above this grow urgent: each point counts three times. */
+export const SURVIVAL_URGENCY_FROM = 600;
+
+/**
+ * Need term for eating and drinking. Linear up to `SURVIVAL_URGENCY_FROM`,
+ * then steeper, so a parched creature drinks even when crowding or fatigue
+ * maxes out the shelter need (it used to rest until it died of thirst).
+ */
+export function survivalUrgency(value: number): number {
+  return value + Math.max(0, value - SURVIVAL_URGENCY_FROM) * 2;
+}
+
+/** Own hunger / thirst above this start eating into the urge to guard. */
+export const PROTECT_SELF_CARE_FLOOR = 300;
+
+/**
+ * Urge to guard young: 700 plus unsafety/5, minus how far the parent's own
+ * hunger or thirst sits above `PROTECT_SELF_CARE_FLOOR` (doubled). A parent
+ * that is parched or starving goes to drink or forage instead of guarding
+ * itself to death, which left the newborn orphaned.
+ */
+export function protectNeed(creature: CreatureRow): number {
+  const own = Math.max(creature.hunger, creature.thirst);
+  const selfCare = Math.max(0, own - PROTECT_SELF_CARE_FLOOR) * 2;
+  return clamp(700 + Math.floor(creature.unsafety / 5) - selfCare, 0, 1000);
 }
 
 function personalityTerm(creature: CreatureRow, goal: Goal): number {

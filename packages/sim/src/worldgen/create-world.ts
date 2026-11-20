@@ -1,20 +1,8 @@
-import {
-  ActionTargetKind,
-  CreatureStatus,
-  Diet,
-  Gender,
-  Goal,
-  type GeneticProfile,
-  type Ruleset,
-} from "@boing-pets/contract";
-import { createFounderLineage } from "../family/lineage";
-import { generateName } from "../genetics/inherit";
-import { discoveryEvent, founderBirthEvent } from "../history/events";
-import { assertInteger, clamp } from "../math";
-import { rngInt } from "../rng";
-import { POSITIONS_SCHEMA_VERSION, placeAt, settleSpot } from "../ai/movement";
+import type { Ruleset } from "@boing-pets/contract";
+import { POSITIONS_SCHEMA_VERSION } from "../ai/movement";
 import { RULESET_V1 } from "../ruleset";
 import { LINK_CATALOG, SPECIES, TERRITORY_CATALOG } from "./catalog";
+import { spawnFounders } from "./founders";
 import type {
   CompatibilityRow,
   CreatureRow,
@@ -31,10 +19,6 @@ const WORLD_ID = 1;
 const WORLD_NAME = "Living World";
 const SCHEMA_VERSION = POSITIONS_SCHEMA_VERSION;
 const RULESET_VERSION = 1;
-
-const GENE_SALTS = [0, 1, 2, 3, 4] as const;
-/** Trait index order: curiosity, aggression, loyalty, sociability, bravery, risk taking. */
-const TRAIT_SALT_BASE = 5;
 
 export type CreateWorldResult = {
   snapshot: WorldSnapshot;
@@ -58,17 +42,6 @@ function copyRuleset(rules: Ruleset): Ruleset {
     extraGenes: [...rules.extraGenes],
     extraTraits: [...rules.extraTraits],
     timeScales: [...rules.timeScales],
-  };
-}
-
-function geneticProfile(creature: CreatureRow): GeneticProfile {
-  return {
-    strength: creature.geneStrength,
-    speed: creature.geneSpeed,
-    intelligence: creature.geneIntelligence,
-    curiosity: creature.geneCuriosity,
-    sociability: creature.geneSociability,
-    extra: { ...creature.genesExtra },
   };
 }
 
@@ -123,7 +96,7 @@ export function createWorld(seed: number): CreateWorldResult {
     worldId: WORLD_ID,
     slug: row.slug,
     displayName: row.displayName,
-    diet: Diet.HERBIVORE,
+    diet: row.diet,
     maturityDays: row.maturityDays,
     baseLifespanDays: row.baseLifespanDays,
     gestationDays: row.gestationDays,
@@ -155,133 +128,28 @@ export function createWorld(seed: number): CreateWorldResult {
   const discoveries: DiscoveryRow[] = [];
   const events: WorldEvent[] = [];
   const usedNames = new Set<string>();
-  // Ascending species id. Ids 1–3 were in slug order under their old names
-  // (fernfox, mossback, pebblehare), so the original 12 founders keep their ids.
+  // Ascending species id, `founderCountPerSpecies` (2: one female, one male)
+  // founders each, placed in the species' home territory.
   const founderSpecies = [...SPECIES].sort((a, b) => a.id - b.id);
 
   for (const catalog of founderSpecies) {
     const home = territoryBySlug.get(catalog.home);
     if (!home) throw new Error("founder home");
-    for (let index = 0; index < ruleset.founderCountPerSpecies; index += 1) {
-      const creatureId = take("creature");
-      const lineageId = take("lineage");
-      const spread = ruleset.worldgenGeneSpread;
-      const jitter = ruleset.worldgenTraitJitter;
-      const gene = (salt: number) =>
-        assertInteger(
-          clamp(
-            500 +
-              rngInt(seed, 0, "worldgen", creatureId, salt, -spread, spread),
-            0,
-            1000,
-          ),
-          "gene",
-        );
-      const trait = (salt: number, base: number) =>
-        assertInteger(
-          clamp(
-            base +
-              rngInt(seed, 0, "worldgen", creatureId, salt, -jitter, jitter),
-            0,
-            1000,
-          ),
-          "trait",
-        );
-      const name = generateName(seed, 0, creatureId, usedNames);
-      usedNames.add(name);
-      const gender = index % 2 === 0 ? Gender.FEMALE : Gender.MALE;
-      const creature: CreatureRow = {
-        id: creatureId,
-        worldId: WORLD_ID,
-        name,
-        nameGivenByPlayer: false,
-        speciesId: catalog.id,
-        gender,
-        status: CreatureStatus.ALIVE,
-        birthTick: 0,
-        deathTick: null,
-        deathCause: null,
-        territoryId: home.id,
-        lineageId,
-        motherId: null,
-        fatherId: null,
-        generation: 0,
-        geneStrength: gene(GENE_SALTS[0]),
-        geneSpeed: gene(GENE_SALTS[1]),
-        geneIntelligence: gene(GENE_SALTS[2]),
-        geneCuriosity: gene(GENE_SALTS[3]),
-        geneSociability: gene(GENE_SALTS[4]),
-        genesExtra: {},
-        traitCuriosity: trait(TRAIT_SALT_BASE + 0, catalog.baseCuriosity),
-        traitAggression: trait(TRAIT_SALT_BASE + 1, catalog.baseAggression),
-        traitLoyalty: trait(TRAIT_SALT_BASE + 2, catalog.baseLoyalty),
-        traitSociability: trait(TRAIT_SALT_BASE + 3, catalog.baseSociability),
-        traitBravery: trait(TRAIT_SALT_BASE + 4, catalog.baseBravery),
-        traitRiskTaking: trait(TRAIT_SALT_BASE + 5, catalog.baseRiskTaking),
-        personalityExtra: {},
-        hunger: assertInteger(clamp(300, 0, 1000), "hunger"),
-        thirst: assertInteger(clamp(300, 0, 1000), "thirst"),
-        fatigue: assertInteger(clamp(200, 0, 1000), "fatigue"),
-        discomfort: assertInteger(clamp(100, 0, 1000), "discomfort"),
-        unsafety: assertInteger(
-          clamp(Math.floor(home.danger / 5), 0, 1000),
-          "unsafety",
-        ),
-        loneliness: assertInteger(clamp(200, 0, 1000), "loneliness"),
-        health: assertInteger(clamp(850, 0, 1000), "health"),
-        currentGoal: Goal.IDLE,
-        currentAction: null,
-        actionTargetKind: ActionTargetKind.NONE,
-        actionTargetId: null,
-        actionStartedTick: null,
-        actionEndsTick: null,
-        gestationSireId: null,
-        gestationEndTick: null,
-        mateCooldownUntilTick: null,
-        spotX: 0,
-        spotZ: 0,
-        fromSpotX: 0,
-        fromSpotZ: 0,
-      };
-      placeAt(creature, settleSpot(seed, 0, creatureId));
-      const lineage = createFounderLineage({
-        id: lineageId,
-        worldId: WORLD_ID,
-        founderCreatureId: creatureId,
-        speciesId: catalog.id,
-        founderName: name,
-        foundedTick: 0,
-      });
-      const genes = geneticProfile(creature);
-      events.push(
-        founderBirthEvent({
-          id: take("event"),
-          worldId: WORLD_ID,
-          creatureId,
-          lineageId,
-          speciesId: catalog.id,
-          territoryId: home.id,
-          name,
-          lineageStem: name,
-          territoryName: home.name,
-          genes,
-        }),
-        discoveryEvent({
-          id: take("event"),
-          worldId: WORLD_ID,
-          tick: 0,
-          creatureId,
-          lineageId,
-          territoryId: home.id,
-          name,
-          lineageName: lineage.name,
-          territoryName: home.name,
-        }),
-      );
-      creatures.push(creature);
-      lineages.push(lineage);
-      discoveries.push({ lineageId, territoryId: home.id });
-    }
+    const spawned = spawnFounders({
+      seed,
+      tick: 0,
+      worldId: WORLD_ID,
+      catalog,
+      home,
+      count: ruleset.founderCountPerSpecies,
+      rules: ruleset,
+      usedNames,
+      take,
+    });
+    creatures.push(...spawned.creatures);
+    lineages.push(...spawned.lineages);
+    events.push(...spawned.events);
+    discoveries.push(...spawned.discoveries);
   }
 
   const snapshot: WorldSnapshot = {

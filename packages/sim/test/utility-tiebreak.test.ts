@@ -33,7 +33,8 @@ function byId(snapshot: WorldSnapshot, id: number): CreatureRow {
  * and low competing needs. Utility must select FIND_FOOD and start FORAGE.
  *
  * Terms at choice time (tick 0, no drift yet):
- * - FIND_FOOD Need = hunger 900; Personality = 400 + floor(800/5) = 560
+ * - FIND_FOOD Need = survivalUrgency(900) = 900 + (900 - 600) * 2 = 1500;
+ *   Personality = 400 + floor(800/5) = 560
  * - DRINK_WATER Need = thirst 100; Personality = 400
  * - SEEK_SHELTER Need = max(100,50,40) = 100
  * - Memory term is 0 when the fixture has no matching memories
@@ -90,14 +91,14 @@ test("a hungry aggressive creature selects FIND_FOOD and starts FORAGE", () => {
   const drink = scored.find((row) => row.goal === Goal.DRINK_WATER);
   assert.ok(food);
   assert.ok(drink);
-  assert.equal(food.need, 900);
+  assert.equal(food.need, 1500);
   assert.equal(food.personality, 560);
   assert.equal(food.relationship, 400);
   assert.equal(food.memory, 0);
   assert.equal(
     food.score,
     divRound(
-      snapshot.ruleset.weightNeed * 900 +
+      snapshot.ruleset.weightNeed * 1500 +
         snapshot.ruleset.weightPersonality * 560 +
         snapshot.ruleset.weightRelationship * 400 +
         snapshot.ruleset.weightMemory * 0,
@@ -165,6 +166,8 @@ test("equal scores pick the lower goal ordinal", () => {
   creature.traitCuriosity = 0;
   creature.traitSociability = 0;
   creature.traitLoyalty = 0;
+  // Founders start mature; a mate cooldown keeps FIND_MATE out of this tie.
+  creature.mateCooldownUntilTick = 1000;
 
   const foodTerms = scoreGoal(snapshot, creature, 0, Goal.FIND_FOOD);
   const drinkTerms = scoreGoal(snapshot, creature, 0, Goal.DRINK_WATER);

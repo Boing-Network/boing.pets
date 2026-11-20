@@ -1,4 +1,5 @@
 import type { RefObject } from "react";
+import { SPECIES_CATALOG, type SpeciesBodyPlan } from "@boing-pets/contract";
 import { skinForSpecies, type CreatureSkinId } from "../species-skins";
 import type { CreaturePose } from "../motion/pose";
 import { CragRamMesh } from "./CragRamMesh";
@@ -14,6 +15,37 @@ type Props = {
   selected: boolean;
   pose: RefObject<CreaturePose>;
 };
+
+/** Hand-built mesh for each body plan until every species has its own. */
+const MESH_FOR_BODY_PLAN: Record<SpeciesBodyPlan, CreatureSkinId> = {
+  canid: "fire-fox",
+  felid: "fire-fox",
+  cervid: "moss-stag",
+  heron: "moss-stag",
+  bovid: "crag-ram",
+  lagomorph: "moon-hare",
+  rodent: "moon-hare",
+  mustelid: "thistle-hog",
+  suid: "thistle-hog",
+  chelonian: "glow-tortoise",
+  urodele: "glow-tortoise",
+  moth: "lantern-moth",
+  bat: "lantern-moth",
+  owl: "lantern-moth",
+  nightjar: "lantern-moth",
+};
+
+const BODY_PLAN_BY_ID: ReadonlyMap<number, SpeciesBodyPlan> = new Map(
+  SPECIES_CATALOG.map((row) => [row.id, row.bodyPlan]),
+);
+
+/** Which hand-built mesh draws a species (its own, or its body plan's). */
+export function meshSkinForSpecies(speciesId: number): CreatureSkinId {
+  const own = skinForSpecies(speciesId).id;
+  const plan = BODY_PLAN_BY_ID.get(speciesId);
+  if (plan == null) return own;
+  return MESH_FOR_BODY_PLAN[plan];
+}
 
 function meshForSkin(
   skinId: CreatureSkinId,
@@ -43,11 +75,12 @@ function meshForSkin(
       return (
         <ThistleHogMesh palette={palette} selected={selected} pose={pose} />
       );
+    default:
+      return null;
   }
 }
 
 /** Picks the readable creature mesh for a kernel species id. */
 export function CreaturePresentation({ speciesId, selected, pose }: Props) {
-  const palette = skinForSpecies(speciesId);
-  return meshForSkin(palette.id, speciesId, selected, pose);
+  return meshForSkin(meshSkinForSpecies(speciesId), speciesId, selected, pose);
 }

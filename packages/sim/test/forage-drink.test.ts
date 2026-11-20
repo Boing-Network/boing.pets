@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { biologyFor, dietFoodBase } from "../src/kernel/biology";
 import { test } from "node:test";
 import {
   Action,
@@ -277,8 +278,10 @@ test("FAVOR_BLOODLINE: a favored lineage forages with a bonus that fades daily",
   const rules = snapshot.ruleset;
   const territories = aggregateTerritories(snapshot, 1);
   const territory = territories.get(actor.territoryId)!;
+  const diet = snapshot.species.find((row) => row.id === actor.speciesId)!.diet;
   const base = clamp(
-    territory.food -
+    dietFoodBase(diet, territory.food) +
+      biologyFor(actor.speciesId).forageSkill -
       territory.population * rules.foragePopPressure +
       Math.floor(actor.geneIntelligence / 5),
     rules.forageChanceMin,

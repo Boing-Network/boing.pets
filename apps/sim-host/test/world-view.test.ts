@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { CreatureStatus } from "@boing-pets/contract";
-import { createWorld } from "@boing-pets/sim";
+import { createWorld, speciesCatalogRow } from "@boing-pets/sim";
 import { buildWorldView } from "../src/view/world-view";
 
 test("buildWorldView exposes seven territories and living founders", () => {
@@ -23,8 +23,11 @@ test("buildWorldView exposes seven territories and living founders", () => {
   const living = view.creatures.filter(
     (c) => c.status === CreatureStatus.ALIVE,
   );
-  assert.equal(living.length, 28);
-  assert.ok(living.every((c) => c.ageDays === 0));
+  assert.equal(living.length, 42);
+  // Founders arrive just mature: their age is their species' maturity.
+  for (const c of living) {
+    assert.equal(c.ageDays, speciesCatalogRow(c.speciesId)?.maturityDays);
+  }
   assert.ok(living.every((c) => Number.isInteger(c.territoryId)));
 
   for (const territory of view.territories) {
@@ -34,7 +37,7 @@ test("buildWorldView exposes seven territories and living founders", () => {
   }
 
   assert.equal(view.world.seed, 1);
-  assert.equal(view.lineages.length, 28);
+  assert.equal(view.lineages.length, 42);
   assert.ok(view.lineages.every((l) => l.extinct === false));
 });
 

@@ -1,3 +1,4 @@
+import { lookupPair } from "./pair-index";
 import type { Ruleset } from "@boing-pets/contract";
 import { clamp } from "../math";
 import type { RelationshipRow, WorldSnapshot } from "../types";
@@ -31,11 +32,7 @@ export function findRelationship(
   creatureBId: number,
 ): RelationshipRow | null {
   const [low, high] = orderedPairIds(creatureAId, creatureBId);
-  return (
-    relationships.find(
-      (row) => row.creatureAId === low && row.creatureBId === high,
-    ) ?? null
-  );
+  return lookupPair(relationships, low, high);
 }
 
 function takeRelationshipId(snapshot: WorldSnapshot): number {
@@ -201,13 +198,20 @@ export function applyCourtAcceptDelta(
   clampRelationship(row);
 }
 
+/**
+ * A refused courtship still builds familiarity: romance +5, score +4. The
+ * avoidance bump is +1 so a patient suitor is not driven off before the pair
+ * reaches `mateScoreMin` (previously +5 / +0, which let lone founder pairs
+ * court forever without ever bonding).
+ */
 export function applyCourtRejectDelta(
   row: RelationshipRow,
   tick: number,
 ): void {
   touchInteraction(row, tick);
   row.romance += 5;
-  row.avoidance += 5;
+  row.score += 4;
+  row.avoidance += 1;
   clampRelationship(row);
 }
 

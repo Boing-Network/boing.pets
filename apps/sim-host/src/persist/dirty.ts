@@ -9,16 +9,22 @@ import {
   type NameLineagePayload,
 } from "@boing-pets/contract";
 import type {
+  CompatibilityRow,
   CreatureRow,
   LineageRow,
   MemoryRow,
   RelationshipRow,
+  SpeciesRow,
   TerritoryModifierRow,
   WorldEvent,
   WorldSnapshot,
 } from "@boing-pets/sim";
 
 export type DirtySet = {
+  /** Introduce-species migration: species rows to insert or update. */
+  species: SpeciesRow[];
+  /** Introduce-species migration: new compatibility rows. */
+  compatibility: CompatibilityRow[];
   creatureIds: Set<number>;
   newCreatureIds: Set<number>;
   relationshipIds: Set<number>;
@@ -43,6 +49,8 @@ export type IdCursors = {
 
 export function createDirtySet(): DirtySet {
   return {
+    species: [],
+    compatibility: [],
     creatureIds: new Set(),
     newCreatureIds: new Set(),
     relationshipIds: new Set(),
@@ -57,6 +65,8 @@ export function createDirtySet(): DirtySet {
 }
 
 export function clearDirty(dirty: DirtySet): void {
+  dirty.species.length = 0;
+  dirty.compatibility.length = 0;
   dirty.creatureIds.clear();
   dirty.newCreatureIds.clear();
   dirty.relationshipIds.clear();

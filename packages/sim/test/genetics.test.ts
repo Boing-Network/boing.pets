@@ -331,7 +331,7 @@ test("one MATING, one BIRTH, litter size 1, child genes match blend", () => {
   );
 });
 
-test("court reject bumps romance and avoidance without MATING", () => {
+test("court reject bumps romance, familiarity and a little avoidance without MATING", () => {
   const snapshot = world();
   const { mother, father } = matingPair(snapshot);
   const courtTick = 10;
@@ -354,5 +354,7 @@ test("court reject bumps romance and avoidance without MATING", () => {
   );
   assert.equal(mother.gestationEndTick, null);
   assert.equal(pair.romance, 105);
-  assert.equal(pair.avoidance, 5);
+  // A refusal still builds familiarity (+4 score) and barely any avoidance.
+  assert.equal(pair.score, 504);
+  assert.equal(pair.avoidance, 1);
 });

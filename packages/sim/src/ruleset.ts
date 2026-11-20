@@ -88,7 +88,7 @@ export const RULESET_V1: Ruleset = {
   traitGeneDivisorMinor: 20,
   worldgenGeneSpread: 200,
   worldgenTraitJitter: 80,
-  founderCountPerSpecies: 4,
+  founderCountPerSpecies: 2,
   relationshipDecayIntervalTicks: 144,
   friendshipDecay: 5,
   romanceDecay: 8,
