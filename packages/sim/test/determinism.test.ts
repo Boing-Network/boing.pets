@@ -117,11 +117,10 @@ test("seed 1 twice produces the same founders", () => {
   assert.equal(canonicalHash(first.snapshot), canonicalHash(second.snapshot));
   assert.equal(
     canonicalHash(second.snapshot),
-    // Changed intentionally with the movement pass: world schema 2 adds
-    // creature positions (spotX/Z, fromSpotX/Z) and founders get a settle
-    // spot from the stateless "move" RNG domain. No other field changed
-    // (before: 4a81cc1c…, species/map pass).
-    "c7ad0ed0c41fca7875cc2539f36624773708fca1cd75203dc9664cf12e30560b",
+    // Changed intentionally with the favor pass: the ruleset gains
+    // favorForageDivisor and favorDecayPerDay. No world field changed
+    // (before: c7ad0ed0…, movement pass; 4a81cc1c…, species/map pass).
+    "d928f32abdca2d53a19ff15a87e671d394108bfa64ee3f4751ab196e659b25bc",
   );
   assert.notEqual(
     canonicalHash(first.snapshot),

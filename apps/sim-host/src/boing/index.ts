@@ -16,6 +16,13 @@ export {
   type AssetMintLinkStore,
 } from "./asset-mint-link";
 export {
+  artifactSerial,
+  enqueueInfluenceRewardMints,
+  influenceRewardJobs,
+  walletFromAccountId,
+  type InfluenceRewardJobs,
+} from "./influence-rewards";
+export {
   birthMintJobsFromEvents,
   enqueueBirthMintsAfterCommit,
 } from "./birth-mints";

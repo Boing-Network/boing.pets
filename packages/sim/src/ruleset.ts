@@ -37,6 +37,8 @@ export const RULESET_V1: Ruleset = {
   forageHungerFail: 80,
   forageChanceMin: 50,
   forageChanceMax: 950,
+  favorForageDivisor: 4,
+  favorDecayPerDay: 10,
   foragePopPressure: 10,
   drinkDuration: 2,
   drinkThirstRelief: 600,

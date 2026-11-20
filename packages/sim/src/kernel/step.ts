@@ -8,7 +8,7 @@ import { decayQuietRelationships } from "../relationships/decay";
 import type { StepResult, WorldEvent, WorldSnapshot } from "../types";
 import { resolveBirths } from "./birth";
 import { die, driftDeathCause, lifespanTicks } from "./death";
-import { applyInfluences } from "./influences";
+import { applyInfluences, decayLineageFavor } from "./influences";
 import { applyHealthDrift, applyNeedDrift, type TerritoryTick } from "./needs";
 import { aggregateTerritories } from "./territories";
 
@@ -86,6 +86,7 @@ export function step(snapshot: WorldSnapshot): StepResult {
   stepCreatures(snapshot, tick, territories, events);
   resolveBirths(snapshot, tick, events);
   decayQuietRelationships(snapshot, tick);
+  decayLineageFavor(snapshot, tick);
   snapshot.world.lastTick = tick;
   return { snapshot, events };
 }
