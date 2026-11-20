@@ -35,6 +35,10 @@ export type ServerConfig = {
   sessionSecret: string | null;
   databaseUrl: string | null;
   allowedOrigins: string[];
+  /** Wallets that join as owner after signing in (lowercase `0x` + 64 hex). */
+  ownerWallets: string[];
+  /** Chain id bound into wallet sign-in messages. */
+  chainId: number;
 };
 
 /** Origins every local run accepts: the Vite dev server and previews. */
@@ -98,6 +102,23 @@ export function compileOriginMatcher(
   };
 }
 
+/** `LIVING_PETS_MP_OWNER_WALLETS`: comma/space separated Boing account ids. */
+export function parseOwnerWallets(raw: string | undefined): string[] {
+  const out: string[] = [];
+  for (const part of (raw ?? "").split(/[\s,]+/)) {
+    if (part === "") continue;
+    const lower = part.toLowerCase();
+    const address = lower.startsWith("0x") ? lower : `0x${lower}`;
+    if (!/^0x[0-9a-f]{64}$/.test(address)) {
+      throw new ServerConfigError(
+        `LIVING_PETS_MP_OWNER_WALLETS: "${part.slice(0, 20)}…" is not 0x + 64 hex`,
+      );
+    }
+    if (!out.includes(address)) out.push(address);
+  }
+  return out;
+}
+
 export function resolveServerConfig(
   flags: ServerFlags,
   env: Record<string, string | undefined>,
@@ -139,6 +160,11 @@ export function resolveServerConfig(
   const allowedOrigins = production
     ? extraOrigins
     : [...LOCAL_ORIGINS, ...extraOrigins];
+  const ownerWallets = parseOwnerWallets(env.LIVING_PETS_MP_OWNER_WALLETS);
+  const chainId = Number(nonEmpty(env.LIVING_PETS_MP_CHAIN_ID) ?? 6913);
+  if (!Number.isSafeInteger(chainId) || chainId <= 0) {
+    throw new ServerConfigError("invalid LIVING_PETS_MP_CHAIN_ID");
+  }
 
   if (production) {
     const missing: string[] = [];
@@ -176,5 +202,7 @@ export function resolveServerConfig(
     sessionSecret,
     databaseUrl,
     allowedOrigins,
+    ownerWallets,
+    chainId,
   };
 }

@@ -299,6 +299,9 @@ export default ts.config(
             // Never imported by the browser worker.
             "node:crypto",
             "node:util",
+            // Wallet sign-in: Ed25519 over BLAKE3, as Boing Express signs.
+            "@noble/ed25519",
+            "@noble/hashes/blake3",
           ],
         },
       ],
@@ -325,6 +328,8 @@ export default ts.config(
             "node:os",
             "node:crypto",
             "ws",
+            "@noble/ed25519",
+            "@noble/hashes/blake3",
           ],
         },
       ],
@@ -347,6 +352,8 @@ export default ts.config(
             "@react-three/fiber",
             "@react-three/drei",
             "zustand",
+            // Boing web-wallet fallback, loaded lazily on sign-in only.
+            "@boing-network/boing-sdk",
           ],
         },
       ],

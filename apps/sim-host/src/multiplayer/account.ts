@@ -6,7 +6,7 @@
 /** Single-player / Electron / browser-worker default account. */
 export const LOCAL_ACCOUNT_ID = "local";
 
-const ACCOUNT_ID_PATTERN = /^[a-zA-Z0-9_.:@-]{1,64}$/;
+const ACCOUNT_ID_PATTERN = /^[a-zA-Z0-9_.:@-]{1,80}$/;
 
 /** True when `accountId` is a usable auth-stub identity. */
 export function isValidAccountId(accountId: string): boolean {

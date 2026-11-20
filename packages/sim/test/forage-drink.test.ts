@@ -8,7 +8,12 @@ import {
   MemoryKind,
   MemoryTag,
 } from "@boing-pets/contract";
-import { resolveDrink, resolveForage } from "../src/ai/actions";
+import {
+  favorForageBonus,
+  resolveDrink,
+  resolveForage,
+} from "../src/ai/actions";
+import { decayLineageFavor } from "../src/kernel/influences";
 import { aggregateTerritories } from "../src/kernel/territories";
 import { clamp } from "../src/math";
 import { rngInt } from "../src/rng";
@@ -253,4 +258,75 @@ test("step applies DRINK relief when the action ends", () => {
   step(snapshot);
   // Drift +7 then drink −600 → 107.
   assert.equal(founder.thirst, 700 + 7 - snapshot.ruleset.drinkThirstRelief);
+});
+
+test("FAVOR_BLOODLINE: a favored lineage forages with a bonus that fades daily", () => {
+  const snapshot = world();
+  const actor = snapshot.creatures.find(
+    (c) => c.status === CreatureStatus.ALIVE,
+  )!;
+  const lineage = snapshot.lineages.find((l) => l.id === actor.lineageId)!;
+  lineage.playerFavor = 0;
+  assert.equal(favorForageBonus(snapshot, actor), 0);
+  lineage.playerFavor = 100;
+  assert.equal(favorForageBonus(snapshot, actor), 25, "100 favor = +2.5%");
+  lineage.playerFavor = 1000;
+  assert.equal(favorForageBonus(snapshot, actor), 250);
+
+  // Find a tick where the unfavored roll fails but the favored one succeeds.
+  const rules = snapshot.ruleset;
+  const territories = aggregateTerritories(snapshot, 1);
+  const territory = territories.get(actor.territoryId)!;
+  const base = clamp(
+    territory.food -
+      territory.population * rules.foragePopPressure +
+      Math.floor(actor.geneIntelligence / 5),
+    rules.forageChanceMin,
+    rules.forageChanceMax,
+  );
+  let tick = 1;
+  for (; tick < 5000; tick += 1) {
+    const roll = rngInt(
+      snapshot.world.seed,
+      tick,
+      "forage",
+      actor.id,
+      0,
+      0,
+      999,
+    );
+    if (roll >= base && roll < Math.min(base + 250, rules.forageChanceMax)) {
+      break;
+    }
+  }
+  assert.ok(tick < 5000, "found a tick the favor bonus decides");
+  const plain = clone(snapshot);
+  plain.lineages.find((l) => l.id === actor.lineageId)!.playerFavor = 0;
+  const favored = clone(snapshot);
+  for (const s of [plain, favored]) {
+    const a = byId(s, actor.id);
+    a.hunger = 600;
+    resolveForage(s, a, tick, aggregateTerritories(s, tick));
+  }
+  assert.equal(
+    byId(plain, actor.id).hunger,
+    600 - rules.forageHungerFail,
+    "unfavored roll fails",
+  );
+  assert.equal(
+    byId(favored, actor.id).hunger,
+    600 - rules.forageHungerSuccess,
+    "favored roll succeeds",
+  );
+
+  // Daily decay: only at day boundaries, never below 0.
+  const decay = clone(snapshot);
+  const fav = decay.lineages.find((l) => l.id === actor.lineageId)!;
+  fav.playerFavor = 15;
+  assert.deepEqual(decayLineageFavor(decay, rules.ticksPerDay - 1), []);
+  assert.equal(fav.playerFavor, 15);
+  assert.deepEqual(decayLineageFavor(decay, rules.ticksPerDay), [fav.id]);
+  assert.equal(fav.playerFavor, 5);
+  decayLineageFavor(decay, rules.ticksPerDay * 2);
+  assert.equal(fav.playerFavor, 0);
 });

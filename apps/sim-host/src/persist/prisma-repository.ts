@@ -444,6 +444,7 @@ export class PrismaWorldRepository implements WorldRepository {
         itemKindId: data.itemKindId,
         amount: data.amount,
         itemSlug: data.itemSlug,
+        recipientHex: data.recipientHex,
         collectionHex: data.collectionHex,
         tokenIdHex: data.tokenIdHex,
         chainId: data.chainId,

@@ -8,6 +8,7 @@ import {
   isElectronBridgeAvailable,
 } from "./api/electron-ipc";
 import { createWsHostIpc, sharedWorldFromLocation } from "./api/ws-host-ipc";
+import { useSharedWorldStore } from "./state/sharedWorldStore";
 import { useWorldViewStore } from "./state/worldViewStore";
 
 const rootElement = document.getElementById("root");
@@ -30,7 +31,18 @@ function bootSharedWorldIpc(shared: {
   const client = createWsHostIpc({
     ...shared,
     onStatus: (connection) => useWorldViewStore.setState({ connection }),
-    onWelcome: () => {
+    onPlayers: (players) => useSharedWorldStore.setState({ players }),
+    onError: (code, message) => {
+      if (code === "wallet_rejected") {
+        useSharedWorldStore.getState().setSigningIn(false, message);
+      }
+    },
+    onWelcome: (welcome) => {
+      useSharedWorldStore.setState({
+        sessionId: welcome.sessionId,
+        wallet: welcome.wallet ?? null,
+        signingIn: false,
+      });
       // The owner key is now inside the signed session token; keep it out of
       // the address bar, history, and screenshots.
       const url = new URL(window.location.href);
@@ -41,6 +53,7 @@ function bootSharedWorldIpc(shared: {
     },
   });
   bindIpcToStores(client);
+  useSharedWorldStore.setState({ controls: client });
   return client;
 }
 

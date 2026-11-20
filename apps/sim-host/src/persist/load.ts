@@ -4,7 +4,11 @@
  */
 import { CreatureStatus, EventKind } from "@boing-pets/contract";
 import { CURRENT_SCHEMA_VERSION, discoveriesFromEvents } from "@boing-pets/db";
-import { upgradeSnapshotPositions, type WorldSnapshot } from "@boing-pets/sim";
+import {
+  RULESET_V1,
+  upgradeSnapshotPositions,
+  type WorldSnapshot,
+} from "@boing-pets/sim";
 import type { DurableTables, WorldRepository } from "./repository";
 
 export class SchemaTooNewError extends Error {
@@ -50,7 +54,8 @@ export function tablesToSnapshot(tables: DurableTables): WorldSnapshot {
 
   const snapshot: WorldSnapshot = {
     world: { ...tables.world },
-    ruleset: tables.ruleset,
+    // Knobs added after a world was saved take their current defaults.
+    ruleset: { ...RULESET_V1, ...tables.ruleset },
     species: [...tables.species].sort((a, b) => a.id - b.id),
     compatibility: [...tables.compatibility].sort((a, b) => {
       if (a.speciesLowId !== b.speciesLowId) {

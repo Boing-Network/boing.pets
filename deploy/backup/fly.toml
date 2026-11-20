@@ -1,0 +1,14 @@
+# Fly.io app for nightly Postgres backups. No services: one scheduled machine
+# runs backup.sh once a day and stops. See README "Backups".
+#   Build:  fly deploy deploy/backup --build-only --push --image-label <label>
+#   Run:    fly machine run registry.fly.io/boing-living-pets-backup:<label> --schedule daily ...
+app = "boing-living-pets-backup"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  BACKUP_PREFIX = "pg/boing_living_pets"
+  BACKUP_RETENTION_DAYS = "14"
+  BACKUP_KEEP_MIN = "3"

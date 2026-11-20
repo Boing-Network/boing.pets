@@ -7,6 +7,7 @@
  * emit sink (local) or a broadcast sink (shared world).
  */
 import type {
+  CatchupReport,
   ClientToHost,
   HostToClient,
   QueryResult,
@@ -37,6 +38,7 @@ import {
 } from "../multiplayer/influence-book";
 import {
   createDisabledMintEdge,
+  enqueueInfluenceRewardMints,
   createRepositoryNftLinkStore,
   type MintEdge,
 } from "../boing";
@@ -116,6 +118,11 @@ export type HostRuntime = {
   quit(): Promise<void>;
   /** Push a full snapshot + clock to the emit sink (join handshake). */
   pushViewToEmit(): void;
+  /**
+   * The catch-up report from this launch (time the world spent offline), or
+   * null. Shared hosts replay it to players who join later.
+   */
+  readonly lastCatchup: CatchupReport | null;
 };
 
 const DEFAULT_SEED = 1;
@@ -136,6 +143,7 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
   let frameTimer: ReturnType<typeof setInterval> | null = null;
   let lastFrameMs = 0;
   let started = false;
+  let lastCatchup: CatchupReport | null = null;
 
   /**
    * Single-writer lock. Contended commands wait (multiplayer safe).
@@ -213,6 +221,9 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
   }
 
   const runtime: HostRuntime = {
+    get lastCatchup() {
+      return lastCatchup;
+    },
     get session() {
       return requireSession();
     },
@@ -246,6 +257,7 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
       });
 
       const report = await catchupOnLaunch(session, nowMs());
+      lastCatchup = report;
       pushSnapshot();
       if (report != null) {
         options.emit({ message: "world.catchup", body: report });
@@ -324,6 +336,16 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
                     detail: "the world is catching up; try again",
                   };
             }
+            // Wallet players earn a token for a landed influence (minting
+            // is off by default; see boing/influence-rewards.ts).
+            void enqueueInfluenceRewardMints(
+              mintEdge,
+              active.snapshot.world.id,
+              result.id,
+              message.body,
+              context.accountId,
+              nowMs(),
+            );
             pushSnapshot();
             pushClock();
             return { ok: true };

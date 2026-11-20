@@ -25,6 +25,8 @@ export type LineageArtifactMintJob = {
   lineageId: number | null;
   artifactKind: string;
   metadataHashHex: string | null;
+  /** Player wallet to receive it; omitted/null mints to the operator. */
+  recipientHex?: string | null;
 };
 
 /** M21: compressed / fungible-like item mint job (reference multi-token). */
@@ -36,6 +38,8 @@ export type CompressedItemMintJob = {
   amount: number;
   itemSlug: string;
   metadataHashHex: string | null;
+  /** Player wallet to receive it; omitted/null mints to the operator. */
+  recipientHex?: string | null;
 };
 
 export type BoingNftProbeResult = {
