@@ -40,6 +40,11 @@ import {
   type DbClient,
 } from "@boing-pets/db";
 import type { AssetMintLinkRow } from "../boing/asset-mint-link";
+import type {
+  InfluenceAccountRow,
+  InventoryLotRow,
+  ItemChange,
+} from "../items/types";
 import type { CreatureNftLinkRow } from "../boing/nft-link";
 import type { HostMetaStore } from "./host-meta";
 import type {
@@ -488,6 +493,92 @@ export class PrismaWorldRepository implements WorldRepository {
         lastError: data.lastError,
         updatedAt: data.updatedAt,
       },
+    });
+  }
+
+  async readInventoryLots(worldId: number): Promise<InventoryLotRow[]> {
+    const rows = await this.#client.inventoryLot.findMany({
+      where: { worldId: BigInt(worldId) },
+      orderBy: { id: "asc" },
+    });
+    return rows.map((row) => ({
+      id: Number(row.id),
+      worldId: Number(row.worldId),
+      accountId: row.accountId,
+      sourceKey: row.sourceKey,
+      itemSlug: row.itemSlug,
+      amount: row.amount,
+      remaining: row.remaining,
+      gainedTick: Number(row.gainedTick),
+      spoilsAtTick: row.spoilsAtTick == null ? null : Number(row.spoilsAtTick),
+      createdAtMs: row.createdAt.getTime(),
+      updatedAtMs: row.updatedAt.getTime(),
+    }));
+  }
+
+  async readInfluenceAccounts(worldId: number): Promise<InfluenceAccountRow[]> {
+    const rows = await this.#client.influenceAccount.findMany({
+      where: { worldId: BigInt(worldId) },
+      orderBy: { influenceId: "asc" },
+    });
+    return rows.map((row) => ({
+      influenceId: Number(row.influenceId),
+      worldId: Number(row.worldId),
+      accountId: row.accountId,
+      kind: row.kind,
+      lineageId: row.lineageId == null ? null : Number(row.lineageId),
+      territoryId: row.territoryId == null ? null : Number(row.territoryId),
+      itemSlug: row.itemSlug,
+      acceptedAtMs: row.acceptedAt.getTime(),
+    }));
+  }
+
+  async commitItems(change: ItemChange): Promise<void> {
+    await this.#client.$transaction(async (tx) => {
+      for (const row of change.upsertLots) {
+        await tx.inventoryLot.upsert({
+          where: {
+            worldId_sourceKey: {
+              worldId: BigInt(row.worldId),
+              sourceKey: row.sourceKey,
+            },
+          },
+          create: {
+            id: BigInt(row.id),
+            worldId: BigInt(row.worldId),
+            accountId: row.accountId,
+            sourceKey: row.sourceKey,
+            itemSlug: row.itemSlug,
+            amount: row.amount,
+            remaining: row.remaining,
+            gainedTick: BigInt(row.gainedTick),
+            spoilsAtTick:
+              row.spoilsAtTick == null ? null : BigInt(row.spoilsAtTick),
+            createdAt: new Date(row.createdAtMs),
+            updatedAt: new Date(row.updatedAtMs),
+          },
+          update: {
+            remaining: row.remaining,
+            updatedAt: new Date(row.updatedAtMs),
+          },
+        });
+      }
+      if (change.insertInfluenceAccounts.length > 0) {
+        await tx.influenceAccount.createMany({
+          data: change.insertInfluenceAccounts.map((row) => ({
+            influenceId: BigInt(row.influenceId),
+            worldId: BigInt(row.worldId),
+            accountId: row.accountId,
+            kind: row.kind,
+            lineageId: row.lineageId == null ? null : BigInt(row.lineageId),
+            territoryId:
+              row.territoryId == null ? null : BigInt(row.territoryId),
+            itemSlug: row.itemSlug,
+            acceptedAt: new Date(row.acceptedAtMs),
+          })),
+          skipDuplicates: true,
+        });
+      }
     });
   }
 }

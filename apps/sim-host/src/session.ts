@@ -23,6 +23,7 @@ import {
   snapshotCursors,
   type DirtySet,
 } from "./persist/dirty";
+import { enqueueRelicMintsAfterCommit, type RelicChain } from "./items/relics";
 import { loadWorld } from "./persist/load";
 import type { WorldRepository } from "./persist/repository";
 import { saveDirty, saveWorldgen } from "./persist/save";
@@ -38,6 +39,8 @@ export type HostSession = {
   catchingUp: boolean;
   /** Host-edge Boing mint seam. Never passed into step(). */
   mintEdge: MintEdge;
+  /** M22: on-chain owner reads for relic recipients (null: no chain). */
+  relicChain?: RelicChain | null;
   /**
    * What the introduce-species migration did on this boot (already
    * committed), or null when the world was up to date / freshly created.
@@ -150,6 +153,9 @@ export async function commitSession(
   const birthEvents = session.dirty.events.filter(
     (event) => event.kind === EventKind.BIRTH,
   );
+  const relicEvents = session.dirty.events.filter(
+    (event) => event.kind === EventKind.BIRTH || event.kind === EventKind.DEATH,
+  );
   await saveDirty(
     session.repository,
     session.snapshot,
@@ -163,6 +169,22 @@ export async function commitSession(
     birthEvents,
     session.snapshot.world.clockAtMs,
   );
+  // M22 relics: first child / first loss per lineage, after the same commit.
+  if (relicEvents.length > 0 && session.mintEdge.enabled) {
+    const repository = session.repository;
+    await enqueueRelicMintsAfterCommit({
+      mintEdge: session.mintEdge,
+      worldId: session.snapshot.world.id,
+      events: relicEvents,
+      creatureLinks: () => repository.readCreatureNftLinks(),
+      accounts: async () =>
+        repository.readInfluenceAccounts
+          ? repository.readInfluenceAccounts(session.snapshot.world.id)
+          : [],
+      chain: session.relicChain ?? null,
+      nowMs: session.snapshot.world.clockAtMs,
+    });
+  }
   pruneHotSnapshot(session.snapshot);
   clearDirty(session.dirty);
 }

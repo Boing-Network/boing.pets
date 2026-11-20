@@ -18,6 +18,11 @@ import type {
   WorldHeader,
 } from "@boing-pets/sim";
 import type { AssetMintLinkRow } from "../boing/asset-mint-link";
+import type {
+  InfluenceAccountRow,
+  InventoryLotRow,
+  ItemChange,
+} from "../items/types";
 import type { CreatureNftLinkRow } from "../boing/nft-link";
 
 /**
@@ -112,6 +117,12 @@ export type WorldRepository = {
   readAssetMintLinks(): Promise<AssetMintLinkRow[]>;
   /** M21: upsert by (worldId, tokenClass, mintKey). */
   upsertAssetMintLink(row: AssetMintLinkRow): Promise<void>;
+  /** M22: off-chain inventory lots for a world. Optional for test doubles. */
+  readInventoryLots?(worldId: number): Promise<InventoryLotRow[]>;
+  /** M22: account behind each accepted influence. */
+  readInfluenceAccounts?(worldId: number): Promise<InfluenceAccountRow[]>;
+  /** M22: one transaction of lot upserts and influence-account inserts. */
+  commitItems?(change: ItemChange): Promise<void>;
   /** Saved clock preference, or null when never set. Optional for test doubles. */
   readHostClock?(): Promise<PersistedHostClock | null>;
   /** Persist the clock preference (outside the tick commit). */

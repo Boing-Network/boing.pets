@@ -268,3 +268,42 @@ export type UseItemPayload = {
   territoryId?: number;
   lineageId?: number;
 };
+
+/** One stack of an off-chain item in a player's inventory. */
+export type InventoryEntry = {
+  slug: ItemSlug;
+  count: number;
+  /** Earliest tick at which part of this stack spoils; null never spoils. */
+  nextSpoilTick: number | null;
+};
+
+/** A lineage relic (LPAR unique NFT) this account holds. */
+export type RelicHolding = {
+  slug: ItemSlug;
+  lineageId: number;
+  tokenSerial: number;
+  /** Mint status of the on-chain token (PENDING, MINTED, FAILED, ...). */
+  mintStatus: string;
+  /** Wall ms when it can be honored again; null means now. */
+  usableAtMs: number | null;
+};
+
+export type InventoryView = {
+  accountId: string;
+  tick: number;
+  /** True for wallet and local accounts; guests cannot hold items. */
+  canHoldItems: boolean;
+  items: InventoryEntry[];
+  relics: RelicHolding[];
+  /** Recipes whose inputs are all on hand. */
+  craftable: ItemSlug[];
+  /** Free gather stock per resource territory. */
+  stocks: {
+    territoryId: number;
+    resource: ItemSlug;
+    free: number;
+    cap: number;
+  }[];
+};
+
+export type ItemCraft = { output: ItemSlug };

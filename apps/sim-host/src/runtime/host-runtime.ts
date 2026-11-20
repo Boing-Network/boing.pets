@@ -28,6 +28,8 @@ import {
   type HostClock,
 } from "../clock";
 import { submitInfluence, type InfluenceGate } from "../influence";
+import type { RelicChain } from "../items/relics";
+import { createItemService } from "../items/service";
 import { handleInspectionQuery } from "../ipc/queries";
 import { LOCAL_ACCOUNT_ID, resolveAccountId } from "../multiplayer/account";
 import {
@@ -58,7 +60,8 @@ export type CommandOutcome =
   | { ok: true }
   | {
       ok: false;
-      code: "rate_limited" | "influence_rejected" | "not_owner";
+      code:
+        "rate_limited" | "influence_rejected" | "not_owner" | "item_rejected";
       detail: string;
     };
 
@@ -69,6 +72,8 @@ export type CommandContext = {
 
 export type HostRuntimeOptions = {
   repository: WorldRepository;
+  /** M22: on-chain owner reads for relics (null/omitted trusts mint rows). */
+  relicChain?: RelicChain | null;
   /** World seed used only when the database is empty. */
   seed?: number;
   nowMs?: () => number;
@@ -113,7 +118,10 @@ export type HostRuntime = {
     message: ClientToHost,
     context?: CommandContext,
   ): Promise<CommandOutcome>;
-  handleQuery(message: ClientToHost): Promise<QueryResult>;
+  handleQuery(
+    message: ClientToHost,
+    context?: CommandContext,
+  ): Promise<QueryResult>;
   tickFrame(frameDeltaMs: number): Promise<void>;
   quit(): Promise<void>;
   /** Push a full snapshot + clock to the emit sink (join handshake). */
@@ -144,6 +152,11 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
   let lastFrameMs = 0;
   let started = false;
   let lastCatchup: CatchupReport | null = null;
+  const items = createItemService({
+    repository: options.repository,
+    assetLinks: () => options.repository.readAssetMintLinks(),
+    chain: options.relicChain ?? null,
+  });
 
   /**
    * Single-writer lock. Contended commands wait (multiplayer safe).
@@ -246,6 +259,21 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
         nowMs: nowMs(),
         mintEdge,
       });
+      session.relicChain = options.relicChain ?? null;
+      // M22: mirror LPIT reward rows into inventory, and retry any FAILED
+      // mint rows (e.g. item rewards from before the LPIT collection existed).
+      await items
+        .syncRewardLots(
+          session.snapshot.world.id,
+          session.snapshot.world.lastTick,
+          nowMs(),
+        )
+        .catch(() => 0);
+      if (mintEdge.enabled) {
+        void mintEdge.drain(nowMs()).catch(() => {
+          // Recorded on link rows.
+        });
+      }
       const savedClock = (await options.repository.readHostClock?.()) ?? null;
       clock = createHostClock({
         scale: savedClock?.scale ?? options.initialScale ?? 1,
@@ -309,10 +337,24 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
               requireBook(),
               accountId,
             );
+            const prepared = await items.prepare(
+              active,
+              accountId,
+              message.body,
+              nowMs(),
+            );
+            if (!prepared.ok) {
+              return {
+                ok: false,
+                code: "item_rejected",
+                detail: prepared.detail,
+              };
+            }
+            const submit = prepared.submit;
             const result = await submitInfluence(
               active,
               gate,
-              message.body,
+              submit,
               nowMs(),
               {
                 influenceAcceptedByAccount: serializeInfluenceBook(
@@ -338,17 +380,56 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
             }
             // Wallet players earn a token for a landed influence (minting
             // is off by default; see boing/influence-rewards.ts).
+            await items
+              .afterAccept(
+                active,
+                accountId,
+                submit,
+                result.id,
+                result.issuedAtTick,
+                nowMs(),
+              )
+              .catch(() => {
+                // The influence is durable; inventory bookkeeping is best effort.
+              });
+            const worldId = active.snapshot.world.id;
             void enqueueInfluenceRewardMints(
               mintEdge,
-              active.snapshot.world.id,
+              worldId,
               result.id,
-              message.body,
+              submit,
               context.accountId,
               nowMs(),
-            );
+            )
+              .then(async (jobs) => {
+                if (jobs != null && jobs.items.length > 0) {
+                  await items.syncRewardLots(
+                    worldId,
+                    result.issuedAtTick,
+                    nowMs(),
+                  );
+                }
+              })
+              .catch(() => {
+                // Minting and mirroring never fail the command.
+              });
             pushSnapshot();
             pushClock();
             return { ok: true };
+          }
+          case "item.craft": {
+            const accountId = resolveAccountId(
+              context.accountId ?? LOCAL_ACCOUNT_ID,
+            );
+            const crafted = await items.craft(
+              active,
+              accountId,
+              message.body.output,
+              nowMs(),
+            );
+            return crafted.ok
+              ? { ok: true }
+              : { ok: false, code: "item_rejected", detail: crafted.detail };
           }
           default:
             throw new Error(`not a command: ${message.message}`);
@@ -356,8 +437,17 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
       });
     },
 
-    async handleQuery(message) {
+    async handleQuery(message, context = {}) {
       return withExclusive(async () => {
+        if (message.message === "query.inventory") {
+          const accountId = resolveAccountId(
+            context.accountId ?? LOCAL_ACCOUNT_ID,
+          );
+          return {
+            message: "query.inventory",
+            body: await items.inventory(requireSession(), accountId, nowMs()),
+          };
+        }
         const tables = await options.repository.readTables();
         if (tables == null) throw new Error("no world");
         return handleInspectionQuery(tables, message);

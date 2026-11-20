@@ -4,6 +4,8 @@
  */
 import {
   InfluenceKind,
+  ItemSlug,
+  isItemSlug,
   TIME_SCALES,
   type ClientToHost,
   type InfluenceSubmit,
@@ -70,6 +72,31 @@ function influence(body: unknown): InfluenceSubmit | null {
       const territoryId = id(p.territoryId);
       return territoryId ? { kind: body.kind, payload: { territoryId } } : null;
     }
+    case InfluenceKind.GATHER_RESOURCE: {
+      // The host grants resource and units; anything the client sends is ignored.
+      const territoryId = id(p.territoryId);
+      return territoryId
+        ? {
+            kind: body.kind,
+            payload: { territoryId, resource: ItemSlug.CLOVER, units: 1 },
+          }
+        : null;
+    }
+    case InfluenceKind.USE_ITEM: {
+      if (typeof p.item !== "string" || !isItemSlug(p.item)) return null;
+      const territoryId = p.territoryId == null ? undefined : id(p.territoryId);
+      const lineageId = p.lineageId == null ? undefined : id(p.lineageId);
+      if (territoryId === null || lineageId === null) return null;
+      if (territoryId == null && lineageId == null) return null;
+      return {
+        kind: body.kind,
+        payload: {
+          item: p.item,
+          ...(territoryId != null ? { territoryId } : {}),
+          ...(lineageId != null ? { lineageId } : {}),
+        },
+      };
+    }
     default:
       return null;
   }
@@ -97,6 +124,12 @@ export function validateCommand(raw: unknown): Validated<ClientToHost> {
           body: { scale: scale as (typeof TIME_SCALES)[number] },
         },
       };
+    }
+    case "item.craft": {
+      const output = isRecord(body) ? body.output : undefined;
+      return typeof output === "string" && isItemSlug(output)
+        ? { ok: true, value: { message: "item.craft", body: { output } } }
+        : { ok: false, reason: "invalid recipe" };
     }
     case "influence.submit": {
       const clean = influence(body);
@@ -130,6 +163,8 @@ export function validateQuery(raw: unknown): Validated<ClientToHost> {
         ? { ok: true, value: { message: raw.message, body: { creatureId } } }
         : { ok: false, reason: "invalid creatureId" };
     }
+    case "query.inventory":
+      return { ok: true, value: { message: "query.inventory", body: {} } };
     case "query.lineage": {
       const lineageId = id(b.lineageId);
       return lineageId

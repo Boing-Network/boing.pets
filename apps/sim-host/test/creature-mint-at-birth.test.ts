@@ -229,7 +229,14 @@ test("live BIRTH after dirty commit queues a mint (phase-4 path)", async () => {
   assert.equal(links[0]!.creatureId, childId);
   assert.equal(links[0]!.birthEventId, birthEventId);
   assert.equal(links[0]!.status, NftMintStatus.CONFIRMED);
-  assert.equal(client.submits.length, 1);
+  // M22: lineage 1's first non-founder birth also queues its First Child
+  // relic (one artifact submit), so two submits: the creature and the relic.
+  assert.equal(client.submits.length, 2);
+  const relics = await edge.listAssetLinks();
+  assert.deepEqual(
+    relics.map((row) => [row.mintKey, row.artifactKind]),
+    [["relic:first-child:1", "FIRST_CHILD_COMMEMORATIVE"]],
+  );
 });
 
 test("queue is idempotent by creatureId — no double mint", async () => {

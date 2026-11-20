@@ -9,6 +9,7 @@ import type {
   WorldView,
 } from "./dto";
 import type { TimeScale } from "./enums";
+import type { InventoryView, ItemCraft } from "./items";
 
 export type WorldClock = {
   tick: number;
@@ -57,7 +58,12 @@ export type SessionRejected = {
 
 /** Non-fatal per-client notice (multiplayer): the command did not apply. */
 export type SessionNotice = {
-  code: "not_owner" | "rate_limited" | "influence_rejected" | "invalid_message";
+  code:
+    | "not_owner"
+    | "rate_limited"
+    | "influence_rejected"
+    | "invalid_message"
+    | "item_rejected";
   detail: string;
 };
 
@@ -69,6 +75,8 @@ export type ClientToHost =
   | { message: "clock.resume"; body: Record<string, never> }
   | { message: "clock.setScale"; body: { scale: TimeScale } }
   | { message: "influence.submit"; body: InfluenceSubmit }
+  | { message: "item.craft"; body: ItemCraft }
+  | { message: "query.inventory"; body: Record<string, never> }
   | { message: "query.family"; body: QueryFamily }
   | { message: "query.creature"; body: QueryCreature }
   | { message: "query.lineage"; body: QueryLineage }
@@ -78,7 +86,8 @@ export type QueryResult =
   | { message: "query.family"; body: FamilyQueryResult }
   | { message: "query.creature"; body: CreatureQueryResult }
   | { message: "query.lineage"; body: LineageQueryResult }
-  | { message: "query.events"; body: EventsQueryResult };
+  | { message: "query.events"; body: EventsQueryResult }
+  | { message: "query.inventory"; body: InventoryView };
 
 /** Host to renderer. */
 export type HostToClient =
