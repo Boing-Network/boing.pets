@@ -119,11 +119,13 @@ default 64×). Set `DATABASE_URL` to store the world in Postgres (run
 `prisma migrate deploy` first) instead of the JSON file. To play across a LAN,
 bind `--host 0.0.0.0` and open `?mp=ws://<your-ip>:8787` on the other machine;
 the server warns, because traffic is unencrypted `ws://`. A built client can
-default to a server with `VITE_LIVING_PETS_MP_URL`.
+default to a server with `VITE_LIVING_PETS_MP_URL`; `?mp=off` (or `local`,
+`none`, `0`, `false`) then forces the single-player world for that visit.
 
-Vercel hosts only the static client, so a Vercel preview cannot run the
-shared-world server. Point a preview at your own server with
-`?mp=wss://…` (browsers block `ws://` from an `https://` page).
+Vercel hosts only the static client, so a Vercel deployment cannot run the
+shared-world server. Production and previews default to the Fly.io server
+below; point one at your own server with `?mp=wss://…` (browsers block
+`ws://` from an `https://` page).
 
 ## Hosting on Fly.io
 
@@ -164,7 +166,7 @@ Secrets the server requires in production (it exits at boot if any is
 missing):
 
 - `LIVING_PETS_MP_OWNER_KEY`: owner key (≥24 chars). Keep a copy outside the
-  repo; the owner link is `…?mp=wss://boing-living-pets.fly.dev&owner=<key>`.
+  repo; the owner link is `https://boing-pets.vercel.app/?owner=<key>`.
 - `LIVING_PETS_MP_SECRET`: HMAC key for session tokens (≥32 chars). Rotating
   it signs everyone out (they rejoin as new guests).
 - `DATABASE_URL`: set by `fly postgres attach`.
@@ -181,18 +183,18 @@ curl https://boing-living-pets.fly.dev/healthz
 `SIGTERM` (deploys, restarts) closes sockets with code 1012 so clients
 reconnect, then saves the world before exit (`kill_timeout = 30s`).
 
-**Connecting a Vercel preview**
+**Connecting the Vercel site**
 
-Open any preview of this project with
-`?mp=wss://boing-living-pets.fly.dev` (add `&owner=<key>` for the owner
-controls). The server accepts WebSocket upgrades only from origins in
+The Vercel project sets `VITE_LIVING_PETS_MP_URL=wss://boing-living-pets.fly.dev`
+for Production and Preview, so https://boing-pets.vercel.app and every preview
+join the shared world with no query parameter. Add `?owner=<key>` for the
+owner controls, `?mp=off` for the single-player world, or `?mp=wss://…` for
+another server. The variable is read at build time: after changing it,
+redeploy. The server accepts WebSocket upgrades only from origins in
 `LIVING_PETS_MP_ALLOWED_ORIGINS` (`fly.toml`): this project's previews
 (`https://boing-pets-*-nico-builds.vercel.app`), `https://boing-pets.vercel.app`
 and localhost. Clients without an `Origin` header (scripts) are allowed; tokens
-and rate limits still apply. To make a build connect without the query
-parameter, set `VITE_LIVING_PETS_MP_URL=wss://boing-living-pets.fly.dev` in the
-Vercel project's environment (not set by default, so previews stay
-single-player unless asked).
+and rate limits still apply.
 
 **Run the production image locally**
 
@@ -228,7 +230,7 @@ Names only. Never commit values.
 | `PORT`                                                           | same                                         | Port when `--port`/`LIVING_PETS_MP_PORT` are unset (Fly sets `8080` in `fly.toml`).                                                                       |
 | `LIVING_PETS_MP_ALLOWED_ORIGINS`                                 | same                                         | Comma-separated browser origins allowed to open the WebSocket (`*` = one run of letters, digits, dashes). Localhost is always allowed outside production. |
 | `NODE_ENV`                                                       | same                                         | `production` requires the owner key, session secret, `DATABASE_URL` and an origin list from the environment.                                              |
-| `VITE_LIVING_PETS_MP_URL`                                        | `apps/client/src/main.tsx` (build time)      | Default shared-world URL for a built client. `?mp=` overrides it.                                                                                         |
+| `VITE_LIVING_PETS_MP_URL`                                        | `apps/client/src/main.tsx` (build time)      | Default shared-world URL for a built client. `?mp=wss://…` overrides it; `?mp=off` forces single-player.                                                  |
 | `SCALE_REHEARSAL`                                                | `apps/sim-host/test/scale-rehearsal.test.ts` | `1` runs the 5,000-creature rehearsal test (skipped otherwise).                                                                                           |
 
 The browser worker reads mint config from `process.env` only if it exists, so

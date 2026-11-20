@@ -188,3 +188,23 @@ test("backoff doubles to an 8 s cap; ?mp= parsing accepts only ws urls", () => {
     url: "wss://pets.example/ws",
   });
 });
+
+test("a build default can be overridden or switched off per visit", () => {
+  const prod = "wss://boing-living-pets.fly.dev";
+  assert.deepEqual(sharedWorldFromLocation("", prod), { url: prod });
+  assert.deepEqual(sharedWorldFromLocation("?name=Ada", prod), {
+    url: prod,
+    name: "Ada",
+  });
+  // An explicit server wins over the default.
+  assert.deepEqual(sharedWorldFromLocation("?mp=ws://127.0.0.1:8787", prod), {
+    url: "ws://127.0.0.1:8787",
+  });
+  // Single-player opt-outs.
+  for (const off of ["off", "OFF", "local", "none", "0", "false"]) {
+    assert.equal(sharedWorldFromLocation(`?mp=${off}`, prod), null, off);
+  }
+  // An empty ?mp= falls back to the default; junk never connects anywhere.
+  assert.deepEqual(sharedWorldFromLocation("?mp=", prod), { url: prod });
+  assert.equal(sharedWorldFromLocation("?mp=javascript:alert(1)", prod), null);
+});
