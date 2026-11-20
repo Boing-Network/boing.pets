@@ -16,3 +16,20 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify
+  windows:
+    # Desktop packaging runs on Windows players' machines: prove Prisma
+    # migrations, embedded Postgres and the test suite work there too.
+    # Formatting is checked on Linux only (Windows checkouts use CRLF).
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run desktop:build
+      - run: npm run desktop:smoke
