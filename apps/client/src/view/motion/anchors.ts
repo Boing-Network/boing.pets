@@ -12,6 +12,11 @@ import type { Region } from "../world/world-plan";
 
 export type Anchor = { x: number; z: number; y: number };
 
+/** Nearest dry, on-island point to (x, z): steps away from water and the sea. */
+export function toDryLand(model: WorldModel, x: number, z: number): Anchor {
+  return dryLand(model, x, z);
+}
+
 function dryLand(model: WorldModel, x: number, z: number): Anchor {
   let px = x;
   let pz = z;
@@ -242,6 +247,24 @@ export function explorePoint(
     );
   }
   return sampleOpenWorld(model, seed, creatureId, 320 + index * 17);
+}
+
+/** Trail polyline from `fromId` toward `toId` (heights filled), or null. */
+export function trailPath(
+  model: WorldModel,
+  fromId: number,
+  toId: number,
+): Anchor[] | null {
+  const trail =
+    model.trails.find(
+      (row) =>
+        (row.fromId === fromId && row.toId === toId) ||
+        (row.fromId === toId && row.toId === fromId),
+    ) ?? null;
+  if (!trail || trail.points.length < 2) return null;
+  const points =
+    trail.fromId === fromId ? trail.points : [...trail.points].reverse();
+  return points.map((p) => ({ x: p.x, z: p.z, y: model.heightAt(p.x, p.z) }));
 }
 
 /** Point along the trail between two territories. */
