@@ -1,0 +1,19 @@
+[package]
+name = "living-pets-escrow"
+version = "0.1.0"
+edition = "2021"
+description = "Living Pets marketplace escrow contract (Boing VM bytecode builder and tests)"
+publish = false
+
+[dependencies]
+boing-execution = { git = "https://github.com/Boing-Network/boing.network", rev = "f55e6029f8671b2a09c9e4814b1da7fb542a63ff" }
+boing-primitives = { git = "https://github.com/Boing-Network/boing.network", rev = "f55e6029f8671b2a09c9e4814b1da7fb542a63ff" }
+hex = "0.4"
+
+[dev-dependencies]
+boing-state = { git = "https://github.com/Boing-Network/boing.network", rev = "f55e6029f8671b2a09c9e4814b1da7fb542a63ff" }
+boing-qa = { git = "https://github.com/Boing-Network/boing.network", rev = "f55e6029f8671b2a09c9e4814b1da7fb542a63ff" }
+
+[[bin]]
+name = "dump-escrow"
+path = "src/bin/dump.rs"
