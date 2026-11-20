@@ -79,7 +79,11 @@ export function WorldScene() {
       <Water model={model} />
       <Flora layout={flora} />
       <GlowPoints layout={flora} />
-      <TerritoryMarkers model={model} />
+      <TerritoryMarkers
+        model={model}
+        territories={territoriesById}
+        tick={view.world.lastTick}
+      />
       <Backdrop model={model} />
 
       {living.map((creature) => (

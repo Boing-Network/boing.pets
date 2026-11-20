@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { CreatureStatus } from "@boing-pets/contract";
+import { CreatureStatus, ModifierKind } from "@boing-pets/contract";
 import { createWorld, speciesCatalogRow } from "@boing-pets/sim";
 import { buildWorldView } from "../src/view/world-view";
 
@@ -50,4 +50,61 @@ test("buildWorldView does not invent client-side rules", () => {
     (c) => c.territoryId === foxHome.id,
   );
   assert.equal(meadowCreatures.length, foxHome.population);
+});
+
+test("M22: territory views carry active effects and gather stock", () => {
+  const { snapshot } = createWorld(1);
+  const tick = snapshot.world.lastTick;
+  const meadow = snapshot.territories.find((t) => t.slug === "meadow")!;
+  const grove = snapshot.territories.find((t) => t.slug === "grove")!;
+  const base = { worldId: snapshot.world.id, sourceInfluenceId: null };
+  snapshot.modifiers.push(
+    {
+      ...base,
+      id: 9001,
+      territoryId: meadow.id,
+      kind: ModifierKind.HARVEST,
+      amount: -20,
+      startTick: tick,
+      endTick: tick + 288,
+    },
+    {
+      ...base,
+      id: 9002,
+      territoryId: grove.id,
+      kind: ModifierKind.FOOD,
+      amount: 100,
+      startTick: tick,
+      endTick: tick + 1008,
+    },
+    {
+      ...base,
+      id: 9003,
+      territoryId: grove.id,
+      kind: ModifierKind.DANGER,
+      amount: -50,
+      startTick: tick - 500,
+      endTick: tick - 1,
+    },
+  );
+  const view = buildWorldView(snapshot);
+  const meadowView = view.territories.find((t) => t.id === meadow.id)!;
+  const groveView = view.territories.find((t) => t.id === grove.id)!;
+
+  assert.deepEqual(meadowView.resource, {
+    slug: "resource.clover",
+    free: 10,
+    cap: 12,
+  });
+  assert.deepEqual(
+    meadowView.effects?.map((e) => e.kind),
+    [ModifierKind.HARVEST],
+  );
+  assert.equal(groveView.resource, undefined);
+  // Expired modifiers do not show; active ones carry their end tick.
+  assert.deepEqual(groveView.effects, [
+    { kind: ModifierKind.FOOD, amount: 100, endTick: tick + 1008 },
+  ]);
+  // Same snapshot, same view (pure).
+  assert.deepEqual(buildWorldView(snapshot), view);
 });

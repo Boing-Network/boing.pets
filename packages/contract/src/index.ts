@@ -111,6 +111,7 @@ export type {
   Needs,
   PersonalityProfile,
   RelationshipView,
+  TerritoryEffectView,
   TerritoryLinkView,
   TerritoryView,
   WorldEventView,

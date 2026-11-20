@@ -3,6 +3,7 @@ import { InfluenceKind } from "@boing-pets/contract";
 import type { IpcClient } from "../api/ipc";
 import { useUiStore } from "../state/uiStore";
 import { useWorldViewStore } from "../state/worldViewStore";
+import { ItemsSection } from "./ItemsSection";
 
 type Props = {
   ipc: IpcClient;
@@ -29,8 +30,8 @@ export function InfluencePanel({ ipc }: Props) {
     <aside className="influence-panel" aria-label="Player influences">
       <h2 className="influence-title">Influences</h2>
       <p className="influence-hint">
-        Host rate limit: 3 per wall day. Selected creature and territory set the
-        targets.
+        3 influences per day (gathering and using items count). Selected
+        creature and territory set the targets.
       </p>
 
       <div className="influence-row">
@@ -178,6 +179,14 @@ export function InfluencePanel({ ipc }: Props) {
           Calm
         </button>
       </div>
+
+      <ItemsSection
+        ipc={ipc}
+        territory={
+          territories.find((row) => row.id === effectiveTerritoryId) ?? null
+        }
+        lineageId={creature?.family.lineageId ?? null}
+      />
     </aside>
   );
 }
