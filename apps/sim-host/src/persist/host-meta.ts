@@ -33,7 +33,7 @@ export function createFileHostMetaStore(filePath: string): HostMetaStore {
       try {
         const text = await readFile(filePath, "utf8");
         const parsed = JSON.parse(text) as unknown;
-        return normalize(parsed);
+        return normalizeHostMeta(parsed);
       } catch (error) {
         if (
           error != null &&
@@ -51,7 +51,7 @@ export function createFileHostMetaStore(filePath: string): HostMetaStore {
     },
     async write(meta) {
       await mkdir(path.dirname(filePath), { recursive: true });
-      const normalized = normalize(meta);
+      const normalized = normalizeHostMeta(meta);
       await writeFile(
         filePath,
         `${JSON.stringify(normalized, null, 2)}\n`,
@@ -75,7 +75,8 @@ function readNumberArray(raw: unknown, label: string): number[] {
   return out;
 }
 
-function normalize(value: unknown): HostMeta {
+/** Validate and fill defaults for a stored host-meta value. */
+export function normalizeHostMeta(value: unknown): HostMeta {
   if (value == null || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("host meta");
   }

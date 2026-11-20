@@ -141,6 +141,10 @@ export {
   type HostMetaStore,
 } from "./persist/host-meta";
 export {
+  createPrismaHostMetaStore,
+  type HostMetaTableClient,
+} from "./persist/prisma-host-meta";
+export {
   loadSnapshot,
   loadWorld,
   SchemaTooNewError,
