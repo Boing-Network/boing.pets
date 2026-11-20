@@ -27,8 +27,29 @@ export type QueryEvents = {
   limit: number;
 };
 
+/**
+ * Multiplayer session join (M22). Auth stub: a non-empty accountId is enough.
+ * Local single-player / Electron / browser-worker paths do not require this.
+ */
+export type SessionJoin = {
+  accountId: string;
+};
+
+export type SessionWelcome = {
+  sessionId: string;
+  accountId: string;
+  worldId: number;
+  tick: number;
+};
+
+export type SessionRejected = {
+  reason: "invalid_account" | "already_joined" | "host_not_ready";
+};
+
 /** Renderer to host. Queries are request/response; clock and influence are commands. */
 export type ClientToHost =
+  | { message: "session.join"; body: SessionJoin }
+  | { message: "session.leave"; body: Record<string, never> }
   | { message: "clock.pause"; body: Record<string, never> }
   | { message: "clock.resume"; body: Record<string, never> }
   | { message: "clock.setScale"; body: { scale: TimeScale } }
@@ -46,6 +67,8 @@ export type QueryResult =
 
 /** Host to renderer. */
 export type HostToClient =
+  | { message: "session.welcome"; body: SessionWelcome }
+  | { message: "session.rejected"; body: SessionRejected }
   | { message: "world.snapshot"; body: WorldView }
   | { message: "world.patch"; body: WorldPatch }
   | { message: "world.catchup"; body: CatchupReport }

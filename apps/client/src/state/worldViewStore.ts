@@ -79,6 +79,10 @@ export const useWorldViewStore = create<WorldViewState>((set, get) => ({
       case "world.clock":
         set({ clock: message.body });
         break;
+      case "session.welcome":
+      case "session.rejected":
+        // Multiplayer session framing is handled by the transport, not the view cache.
+        break;
       default: {
         const never: never = message;
         void never;

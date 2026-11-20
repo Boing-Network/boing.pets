@@ -55,6 +55,15 @@ export class MemoryWorldRepository implements WorldRepository {
     if (!Array.isArray(tables.influenceAcceptedAtMs)) {
       throw new Error("influenceAcceptedAtMs");
     }
+    if (
+      tables.influenceAcceptedByAccount == null ||
+      typeof tables.influenceAcceptedByAccount !== "object" ||
+      Array.isArray(tables.influenceAcceptedByAccount)
+    ) {
+      tables.influenceAcceptedByAccount = {
+        local: [...tables.influenceAcceptedAtMs],
+      };
+    }
     if (!Array.isArray(tables.creatureNftLinks)) {
       throw new Error("creatureNftLinks");
     }
@@ -167,6 +176,19 @@ export class MemoryWorldRepository implements WorldRepository {
 
     if (batch.influenceAcceptedAtMs != null) {
       next.influenceAcceptedAtMs = clone(batch.influenceAcceptedAtMs);
+    }
+    if (batch.influenceAcceptedByAccount != null) {
+      next.influenceAcceptedByAccount = clone(batch.influenceAcceptedByAccount);
+      if (next.influenceAcceptedByAccount.local != null) {
+        next.influenceAcceptedAtMs = clone(
+          next.influenceAcceptedByAccount.local,
+        );
+      }
+    } else if (batch.influenceAcceptedAtMs != null) {
+      next.influenceAcceptedByAccount = {
+        ...next.influenceAcceptedByAccount,
+        local: clone(batch.influenceAcceptedAtMs),
+      };
     }
 
     if (batch.insertCatchup != null) {
