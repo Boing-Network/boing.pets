@@ -40,6 +40,8 @@ import {
 } from "./server-config";
 import { createSharedWorldHost } from "./shared-world-host";
 import { generateOwnerKey, loadOrCreateSecret } from "./tokens";
+import { readMarketConfig } from "../market/config";
+import { createCatalogCache } from "../market/cache";
 import { createWalletChallenges } from "./wallet-auth";
 import { listenSharedWorldWs } from "./ws-server";
 
@@ -117,11 +119,12 @@ const ownerKeyFromEnv =
 const ownerKey = ownerKeyFromEnv ?? generateOwnerKey();
 
 // Off unless LIVING_PETS_BOING_MINTING is set (see apps/sim-host/src/boing).
-const mintEdge = createMintEdgeFromEnv(
-  process.env,
-  createRepositoryNftLinkStore(repository),
-  createRepositoryAssetMintLinkStore(repository),
-);
+const creatureLinks = createRepositoryNftLinkStore(repository);
+const assetLinks = createRepositoryAssetMintLinkStore(repository);
+const mintEdge = createMintEdgeFromEnv(process.env, creatureLinks, assetLinks);
+// Marketplace: read-only catalog; trading stays off until the operator and
+// escrow accounts are configured (see apps/sim-host/src/market).
+const marketConfig = readMarketConfig(process.env);
 const host = createSharedWorldHost({
   repository,
   seed: config.seed,
@@ -139,6 +142,12 @@ const server = await listenSharedWorldWs({
   walletChallenges: createWalletChallenges({ chainId: config.chainId }),
   log,
   allowOrigin: compileOriginMatcher(config.allowedOrigins),
+  marketCatalog: createCatalogCache({
+    snapshot: () => host.runtime.session.snapshot,
+    creatureLinks,
+    assetLinks,
+    config: marketConfig,
+  }),
   health: () => {
     const snapshot = host.runtime.session.snapshot;
     const clock = host.runtime.clock;

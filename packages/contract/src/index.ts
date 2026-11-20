@@ -23,6 +23,20 @@ export {
 export type { Ruleset } from "./ruleset";
 
 export {
+  MARKET_API_VERSION,
+  MARKET_CATALOG_PATH,
+  type MarketAsset,
+  type MarketAssetKind,
+  type MarketCatalog,
+  type MarketEscrowInfo,
+  type MarketEscrowMode,
+  type MarketListing,
+  type MarketLiveStatus,
+  type MarketMintState,
+  type MarketOwnership,
+} from "./market";
+
+export {
   LEGACY_SPECIES_SLUGS,
   SPECIES_CATALOG,
   speciesKeyForId,
