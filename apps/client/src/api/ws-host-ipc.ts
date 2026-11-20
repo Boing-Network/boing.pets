@@ -118,6 +118,9 @@ export function createWsHostIpc(options: WsHostIpcOptions): WsHostIpc {
   const presenceGapMs = 1000 / MP_PRESENCE_MAX_HZ;
   let presenceSentAt = Number.NEGATIVE_INFINITY;
   let presenceSent: { x: number; z: number } | null = null;
+  // Older servers answer presence with invalid_message. A server that
+  // supports it sends a players frame right after every join, so wait for one.
+  let presenceSupported = false;
 
   function status(next: ConnectionStatus): void {
     options.onStatus?.(next);
@@ -211,6 +214,7 @@ export function createWsHostIpc(options: WsHostIpcOptions): WsHostIpc {
           ownerKey = undefined;
           walletProof = undefined;
           presenceSent = null;
+          presenceSupported = false;
           live = true;
           everLive = true;
           attempt = 0;
@@ -245,6 +249,7 @@ export function createWsHostIpc(options: WsHostIpcOptions): WsHostIpc {
           return;
         }
         case "players":
+          presenceSupported = true;
           options.onPlayers?.(frame.players);
           return;
         case "fatal":
@@ -309,7 +314,8 @@ export function createWsHostIpc(options: WsHostIpcOptions): WsHostIpc {
       rejoin();
     },
     sendPresence(x, z) {
-      if (!live || !Number.isFinite(x) || !Number.isFinite(z)) return;
+      if (!live || !presenceSupported) return;
+      if (!Number.isFinite(x) || !Number.isFinite(z)) return;
       const now = nowMs();
       if (now - presenceSentAt < presenceGapMs) return;
       if (

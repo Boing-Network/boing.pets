@@ -160,6 +160,9 @@ test("presence is throttled, skips tiny moves, and players frames reach the stor
   h.welcome();
   const presence = () =>
     h.sockets[0]!.sent.filter((f) => f.type === "presence");
+  h.ipc.sendPresence(1, 1); // no players frame yet: an older server
+  assert.equal(presence().length, 0, "waits for the server to list players");
+  h.sockets[0]!.push({ type: "players", players: [] });
   h.ipc.sendPresence(1, 2);
   h.ipc.sendPresence(3, 4); // inside the 200 ms gap
   h.tick(250);
@@ -179,7 +182,7 @@ test("presence is throttled, skips tiny moves, and players frames reach the stor
       { id: "s2", name: "Bo", role: "player", wallet: true, x: 1, z: 2 },
     ],
   });
-  assert.equal(h.players.length, 1);
+  assert.equal(h.players.length, 2, "both players frames reach the store");
   h.sockets[0]!.push({ type: "error", code: "wallet_rejected", error: "no" });
   assert.deepEqual(h.errors, ["wallet_rejected"]);
 });
