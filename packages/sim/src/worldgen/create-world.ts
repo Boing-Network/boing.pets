@@ -12,6 +12,7 @@ import { generateName } from "../genetics/inherit";
 import { discoveryEvent, founderBirthEvent } from "../history/events";
 import { assertInteger, clamp } from "../math";
 import { rngInt } from "../rng";
+import { POSITIONS_SCHEMA_VERSION, placeAt, settleSpot } from "../ai/movement";
 import { RULESET_V1 } from "../ruleset";
 import { LINK_CATALOG, SPECIES, TERRITORY_CATALOG } from "./catalog";
 import type {
@@ -28,7 +29,7 @@ import type {
 
 const WORLD_ID = 1;
 const WORLD_NAME = "Living World";
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = POSITIONS_SCHEMA_VERSION;
 const RULESET_VERSION = 1;
 
 const GENE_SALTS = [0, 1, 2, 3, 4] as const;
@@ -237,7 +238,12 @@ export function createWorld(seed: number): CreateWorldResult {
         gestationSireId: null,
         gestationEndTick: null,
         mateCooldownUntilTick: null,
+        spotX: 0,
+        spotZ: 0,
+        fromSpotX: 0,
+        fromSpotZ: 0,
       };
+      placeAt(creature, settleSpot(seed, 0, creatureId));
       const lineage = createFounderLineage({
         id: lineageId,
         worldId: WORLD_ID,

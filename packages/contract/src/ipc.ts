@@ -15,6 +15,8 @@ export type WorldClock = {
   paused: boolean;
   scale: TimeScale;
   clockAt: number;
+  /** Sim ms per tick (ruleset). With `scale`, clients derive tick progress. */
+  msPerTick: number;
 };
 
 export type QueryFamily = { creatureId: number };

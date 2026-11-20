@@ -142,13 +142,18 @@ export {
 } from "./persist/host-meta";
 export {
   loadSnapshot,
+  loadWorld,
   SchemaTooNewError,
+  type LoadedWorld,
   tablesToSnapshot,
 } from "./persist/load";
 export { MemoryWorldRepository } from "./persist/memory-repository";
 export {
+  BROWSER_IDB_VERSION,
   BROWSER_WORLD_STORAGE_KEY,
   BrowserWorldRepository,
+  LEGACY_BROWSER_WORLD_STORAGE_KEYS,
+  normalizeBrowserTables,
   createIndexedDbStringStore,
   createMemoryStringStore,
   type BrowserStringStore,
@@ -161,6 +166,7 @@ export {
 export type {
   CommitBatch,
   DurableTables,
+  PersistedHostClock,
   WorldRepository,
 } from "./persist/repository";
 export {

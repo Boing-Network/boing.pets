@@ -82,3 +82,10 @@ export type {
   SessionWelcome,
   WorldClock,
 } from "./ipc";
+export {
+  LAND_SPOT_RADIUS,
+  SHORE_SPOT_RADIUS,
+  SHORE_SPOT_THRESHOLD,
+  SPOT_SCALE,
+  isShoreSpot,
+} from "./positions";

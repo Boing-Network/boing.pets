@@ -4,7 +4,12 @@
  */
 import type { AssetMintLinkRow } from "../boing/asset-mint-link";
 import type { CreatureNftLinkRow } from "../boing/nft-link";
-import type { CommitBatch, DurableTables, WorldRepository } from "./repository";
+import type {
+  CommitBatch,
+  DurableTables,
+  PersistedHostClock,
+  WorldRepository,
+} from "./repository";
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -37,6 +42,16 @@ export class MemoryWorldRepository implements WorldRepository {
 
   async readTables(): Promise<DurableTables | null> {
     return this.#tables == null ? null : clone(this.#tables);
+  }
+
+  async readHostClock(): Promise<PersistedHostClock | null> {
+    const saved = this.#tables?.hostClock;
+    return saved == null ? null : { ...saved };
+  }
+
+  async writeHostClock(clock: PersistedHostClock): Promise<void> {
+    if (this.#tables == null) throw new Error("no world");
+    this.#tables.hostClock = { scale: clock.scale };
   }
 
   async insertWorld(tables: DurableTables): Promise<void> {

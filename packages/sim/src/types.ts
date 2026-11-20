@@ -148,6 +148,17 @@ export type CreatureRow = {
   gestationSireId: number | null;
   gestationEndTick: number | null;
   mateCooldownUntilTick: number | null;
+  /**
+   * Where the current movement leg ends, in territory-local permille of the
+   * region radius (see `ai/movement.ts`). For RELOCATE this is in the
+   * destination territory; otherwise in `territoryId`. A spot with length
+   * over 1000 is a shoreline spot addressed by angle.
+   */
+  spotX: number;
+  spotZ: number;
+  /** Where the current leg started, in `territoryId` coordinates. */
+  fromSpotX: number;
+  fromSpotZ: number;
 };
 
 export type RelationshipRow = {

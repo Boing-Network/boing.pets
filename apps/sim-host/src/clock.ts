@@ -70,6 +70,7 @@ export function clockView(clock: HostClock, session: HostSession): WorldClock {
     paused: clock.paused,
     scale: clock.scale,
     clockAt: session.snapshot.world.clockAtMs,
+    msPerTick: session.snapshot.ruleset.msPerTick,
   };
 }
 

@@ -191,6 +191,10 @@ export type MappedCreature = {
   gestationSireId: number | null;
   gestationEndTick: number | null;
   mateCooldownUntilTick: number | null;
+  spotX: number;
+  spotZ: number;
+  fromSpotX: number;
+  fromSpotZ: number;
 };
 
 export type MappedRelationship = {
@@ -444,6 +448,10 @@ export function mapCreature(row: Creature): MappedCreature {
     gestationSireId: toNumberOrNull(row.gestationSireId),
     gestationEndTick: toNumberOrNull(row.gestationEndTick),
     mateCooldownUntilTick: toNumberOrNull(row.mateCooldownUntilTick),
+    spotX: row.spotX,
+    spotZ: row.spotZ,
+    fromSpotX: row.fromSpotX,
+    fromSpotZ: row.fromSpotZ,
   };
 }
 
@@ -707,6 +715,10 @@ export function creatureToDb(row: MappedCreature) {
     gestationSireId: toBigIntOrNull(row.gestationSireId),
     gestationEndTick: toBigIntOrNull(row.gestationEndTick),
     mateCooldownUntilTick: toBigIntOrNull(row.mateCooldownUntilTick),
+    spotX: row.spotX,
+    spotZ: row.spotZ,
+    fromSpotX: row.fromSpotX,
+    fromSpotZ: row.fromSpotZ,
   };
 }
 

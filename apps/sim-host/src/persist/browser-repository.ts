@@ -8,7 +8,12 @@
  */
 import type { AssetMintLinkRow } from "../boing/asset-mint-link";
 import type { CreatureNftLinkRow } from "../boing/nft-link";
-import type { CommitBatch, DurableTables, WorldRepository } from "./repository";
+import type {
+  CommitBatch,
+  DurableTables,
+  PersistedHostClock,
+  WorldRepository,
+} from "./repository";
 import { MemoryWorldRepository } from "./memory-repository";
 
 export type BrowserStringStore = {
@@ -16,7 +21,17 @@ export type BrowserStringStore = {
   set(key: string, value: string): Promise<void>;
 };
 
-export const BROWSER_WORLD_STORAGE_KEY = "boing-pets:durable-tables:v1";
+/**
+ * v2 = world schema 2 (creature positions + saved clock scale). v1 saves are
+ * read once, upgraded in RAM, and written under v2; the v1 value is left in
+ * place as a rollback backup.
+ */
+export const BROWSER_WORLD_STORAGE_KEY = "boing-pets:durable-tables:v2";
+export const LEGACY_BROWSER_WORLD_STORAGE_KEYS = [
+  "boing-pets:durable-tables:v1",
+] as const;
+/** IndexedDB database version. v2 marks the schema-2 storage key. */
+export const BROWSER_IDB_VERSION = 2;
 
 /** In-memory string store for unit tests. */
 export function createMemoryStringStore(
@@ -88,7 +103,7 @@ export function createIndexedDbStringStore(options?: {
   function openDb(): Promise<IdbDatabase> {
     if (dbPromise) return dbPromise;
     dbPromise = new Promise((resolve, reject) => {
-      const request = factory().open(dbName, 1);
+      const request = factory().open(dbName, BROWSER_IDB_VERSION);
       request.onupgradeneeded = () => {
         const db = request.result;
         if (!db.objectStoreNames.contains(storeName)) {
@@ -130,7 +145,42 @@ export function createIndexedDbStringStore(options?: {
 export type BrowserWorldRepositoryOptions = {
   store?: BrowserStringStore;
   storageKey?: string;
+  /** Keys to fall back to (oldest last) when `storageKey` is empty. */
+  legacyStorageKeys?: readonly string[];
 };
+
+/**
+ * Fill fields that older JSON saves predate. Creature positions default to 0
+ * and the world keeps its stored schemaVersion, so load re-places them.
+ */
+export function normalizeBrowserTables(tables: DurableTables): DurableTables {
+  if (!Array.isArray(tables.creatureNftLinks)) tables.creatureNftLinks = [];
+  if (!Array.isArray(tables.assetMintLinks)) tables.assetMintLinks = [];
+  if (
+    tables.influenceAcceptedByAccount == null ||
+    typeof tables.influenceAcceptedByAccount !== "object" ||
+    Array.isArray(tables.influenceAcceptedByAccount)
+  ) {
+    tables.influenceAcceptedByAccount = {
+      local: Array.isArray(tables.influenceAcceptedAtMs)
+        ? [...tables.influenceAcceptedAtMs]
+        : [],
+    };
+  }
+  if (!Array.isArray(tables.influenceAcceptedAtMs)) {
+    tables.influenceAcceptedAtMs = [
+      ...(tables.influenceAcceptedByAccount.local ?? []),
+    ];
+  }
+  for (const creature of tables.creatures) {
+    creature.spotX ??= 0;
+    creature.spotZ ??= 0;
+    creature.fromSpotX ??= 0;
+    creature.fromSpotZ ??= 0;
+  }
+  tables.hostClock ??= null;
+  return tables;
+}
 
 /**
  * Wraps MemoryWorldRepository and flushes the full DurableTables JSON after
@@ -140,44 +190,37 @@ export class BrowserWorldRepository implements WorldRepository {
   readonly #memory = new MemoryWorldRepository();
   readonly #store: BrowserStringStore;
   readonly #storageKey: string;
+  readonly #legacyKeys: readonly string[];
   #ready: Promise<void>;
   #hydrated = false;
 
   constructor(options: BrowserWorldRepositoryOptions = {}) {
     this.#store = options.store ?? createIndexedDbStringStore();
     this.#storageKey = options.storageKey ?? BROWSER_WORLD_STORAGE_KEY;
+    this.#legacyKeys =
+      options.legacyStorageKeys ??
+      (options.storageKey == null ? LEGACY_BROWSER_WORLD_STORAGE_KEYS : []);
     this.#ready = this.#hydrate();
   }
 
   async #hydrate(): Promise<void> {
     if (this.#hydrated) return;
-    const raw = await this.#store.get(this.#storageKey);
+    let raw = await this.#store.get(this.#storageKey);
+    let migrated = false;
+    if (raw == null) {
+      for (const key of this.#legacyKeys) {
+        raw = await this.#store.get(key);
+        if (raw != null) {
+          migrated = true;
+          break;
+        }
+      }
+    }
     if (raw != null) {
-      const tables = JSON.parse(raw) as DurableTables;
-      // Older browser saves predate M20/M21/M22; default the sidecars.
-      if (!Array.isArray(tables.creatureNftLinks)) {
-        tables.creatureNftLinks = [];
-      }
-      if (!Array.isArray(tables.assetMintLinks)) {
-        tables.assetMintLinks = [];
-      }
-      if (
-        tables.influenceAcceptedByAccount == null ||
-        typeof tables.influenceAcceptedByAccount !== "object" ||
-        Array.isArray(tables.influenceAcceptedByAccount)
-      ) {
-        tables.influenceAcceptedByAccount = {
-          local: Array.isArray(tables.influenceAcceptedAtMs)
-            ? [...tables.influenceAcceptedAtMs]
-            : [],
-        };
-      }
-      if (!Array.isArray(tables.influenceAcceptedAtMs)) {
-        tables.influenceAcceptedAtMs = [
-          ...(tables.influenceAcceptedByAccount.local ?? []),
-        ];
-      }
+      const tables = normalizeBrowserTables(JSON.parse(raw) as DurableTables);
       await this.#memory.insertWorld(tables);
+      // Write the current key now; the legacy value stays as a backup.
+      if (migrated) await this.#persist();
     }
     this.#hydrated = true;
   }
@@ -202,6 +245,17 @@ export class BrowserWorldRepository implements WorldRepository {
   async commit(batch: CommitBatch): Promise<void> {
     await this.#ready;
     await this.#memory.commit(batch);
+    await this.#persist();
+  }
+
+  async readHostClock(): Promise<PersistedHostClock | null> {
+    await this.#ready;
+    return this.#memory.readHostClock();
+  }
+
+  async writeHostClock(clock: PersistedHostClock): Promise<void> {
+    await this.#ready;
+    await this.#memory.writeHostClock(clock);
     await this.#persist();
   }
 

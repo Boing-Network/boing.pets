@@ -10,6 +10,7 @@ import type {
   ClientToHost,
   HostToClient,
   QueryResult,
+  TimeScale,
 } from "@boing-pets/contract";
 import { catchupOnLaunch } from "../catchup";
 import {
@@ -73,6 +74,11 @@ export type HostRuntimeOptions = {
    * Shared-world hosts enable this; local single-player keeps full snapshots.
    */
   preferPatches?: boolean;
+  /**
+   * Time scale for a world with no saved clock preference (e.g. a fresh
+   * browser world). A saved scale always wins so reload keeps the speed.
+   */
+  initialScale?: TimeScale;
 };
 
 export type HostRuntime = {
@@ -195,7 +201,10 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
         nowMs: nowMs(),
         mintEdge,
       });
-      clock = createHostClock();
+      const savedClock = (await options.repository.readHostClock?.()) ?? null;
+      clock = createHostClock({
+        scale: savedClock?.scale ?? options.initialScale ?? 1,
+      });
       const tables = await options.repository.readTables();
       book = hydrateInfluenceBook({
         influenceAcceptedAtMs: tables?.influenceAcceptedAtMs,
@@ -241,6 +250,9 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
             return;
           case "clock.setScale":
             setClockScale(activeClock, message.body.scale);
+            await options.repository.writeHostClock?.({
+              scale: activeClock.scale,
+            });
             pushClock();
             return;
           case "influence.submit": {

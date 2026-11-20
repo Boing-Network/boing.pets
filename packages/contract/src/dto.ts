@@ -107,6 +107,15 @@ export type CreatureView = {
   actionTargetId: number | null;
   actionStartedTick: number | null;
   actionEndsTick: number | null;
+  /**
+   * Authoritative position (see `positions.ts`): the current movement leg
+   * runs from `fromSpot` (in `territoryId`) to `spot` over the action window.
+   * For RELOCATE, `spot` is in the destination territory.
+   */
+  spotX: number;
+  spotZ: number;
+  fromSpotX: number;
+  fromSpotZ: number;
 };
 
 export type GeneMutation = {

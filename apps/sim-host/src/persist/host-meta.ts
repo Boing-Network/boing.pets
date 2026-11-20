@@ -7,11 +7,14 @@
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { TIME_SCALES, type TimeScale } from "@boing-pets/contract";
 import { LOCAL_ACCOUNT_ID } from "../multiplayer/account";
 
 export type HostMeta = {
   influenceAcceptedAtMs: number[];
   influenceAcceptedByAccount: Record<string, number[]>;
+  /** Saved live-clock scale (schema 2). Absent on older sidecars. */
+  hostClock?: { scale: TimeScale } | null;
 };
 
 const EMPTY: HostMeta = {
@@ -79,6 +82,7 @@ function normalize(value: unknown): HostMeta {
   const record = value as {
     influenceAcceptedAtMs?: unknown;
     influenceAcceptedByAccount?: unknown;
+    hostClock?: unknown;
   };
   const influenceAcceptedAtMs = readNumberArray(
     record.influenceAcceptedAtMs,
@@ -109,7 +113,17 @@ function normalize(value: unknown): HostMeta {
   return {
     influenceAcceptedAtMs: [...byAccount[LOCAL_ACCOUNT_ID]],
     influenceAcceptedByAccount: byAccount,
+    hostClock: readHostClock(record.hostClock),
   };
+}
+
+function readHostClock(raw: unknown): { scale: TimeScale } | null {
+  if (raw == null || typeof raw !== "object") return null;
+  const scale = (raw as { scale?: unknown }).scale;
+  return typeof scale === "number" &&
+    (TIME_SCALES as readonly number[]).includes(scale)
+    ? { scale: scale as TimeScale }
+    : null;
 }
 
 export { EMPTY as EMPTY_HOST_META };

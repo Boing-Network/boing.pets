@@ -35,7 +35,7 @@ test("clock controls send pause, resume, and setScale", () => {
   host.emit({ message: "world.snapshot", body: FIXTURE_WORLD_VIEW });
   host.emit({
     message: "world.clock",
-    body: { tick: 80, paused: false, scale: 1, clockAt: 0 },
+    body: { tick: 80, paused: false, scale: 1, clockAt: 0, msPerTick: 60000 },
   });
 
   client.send({ message: "clock.pause", body: {} });

@@ -14,7 +14,7 @@ test("memory IPC delivers host snapshot into the world view store", () => {
   host.emit({ message: "world.snapshot", body: FIXTURE_WORLD_VIEW });
   host.emit({
     message: "world.clock",
-    body: { tick: 0, paused: true, scale: 4, clockAt: 0 },
+    body: { tick: 0, paused: true, scale: 4, clockAt: 0, msPerTick: 60000 },
   });
 
   assert.equal(useWorldViewStore.getState().view?.territories.length, 3);

@@ -4,7 +4,7 @@
  */
 import { CreatureStatus, EventKind } from "@boing-pets/contract";
 import { CURRENT_SCHEMA_VERSION, discoveriesFromEvents } from "@boing-pets/db";
-import type { WorldSnapshot } from "@boing-pets/sim";
+import { upgradeSnapshotPositions, type WorldSnapshot } from "@boing-pets/sim";
 import type { DurableTables, WorldRepository } from "./repository";
 
 export class SchemaTooNewError extends Error {
@@ -48,7 +48,7 @@ export function tablesToSnapshot(tables: DurableTables): WorldSnapshot {
     tables.events.filter((event) => event.kind === EventKind.DISCOVERY),
   );
 
-  return {
+  const snapshot: WorldSnapshot = {
     world: { ...tables.world },
     ruleset: tables.ruleset,
     species: [...tables.species].sort((a, b) => a.id - b.id),
@@ -71,13 +71,36 @@ export function tablesToSnapshot(tables: DurableTables): WorldSnapshot {
     memories: memories.sort((a, b) => a.id - b.id),
     pendingInfluences: pendingInfluences.sort((a, b) => a.id - b.id),
   };
+  // Schema 1 → 2: give legacy creatures deterministic positions. Pure
+  // function of (seed, lastTick, id), so a crash before the first commit
+  // re-derives the same spots on the next load.
+  upgradeSnapshotPositions(snapshot);
+  return snapshot;
+}
+
+export type LoadedWorld = {
+  snapshot: WorldSnapshot;
+  /** Stored schema version when load upgraded it in RAM, else null. */
+  upgradedFromSchema: number | null;
+};
+
+/** Read the single world plus upgrade info, or null when the store is empty. */
+export async function loadWorld(
+  repository: WorldRepository,
+): Promise<LoadedWorld | null> {
+  const tables = await repository.readTables();
+  if (tables == null) return null;
+  const stored = tables.world.schemaVersion;
+  const snapshot = tablesToSnapshot(tables);
+  return {
+    snapshot,
+    upgradedFromSchema: snapshot.world.schemaVersion !== stored ? stored : null,
+  };
 }
 
 /** Read the single world, or null when the store is empty. */
 export async function loadSnapshot(
   repository: WorldRepository,
 ): Promise<WorldSnapshot | null> {
-  const tables = await repository.readTables();
-  if (tables == null) return null;
-  return tablesToSnapshot(tables);
+  return (await loadWorld(repository))?.snapshot ?? null;
 }

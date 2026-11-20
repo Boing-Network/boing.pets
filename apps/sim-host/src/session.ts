@@ -17,7 +17,7 @@ import {
   snapshotCursors,
   type DirtySet,
 } from "./persist/dirty";
-import { loadSnapshot } from "./persist/load";
+import { loadWorld } from "./persist/load";
 import type { WorldRepository } from "./persist/repository";
 import { saveDirty, saveWorldgen } from "./persist/save";
 
@@ -41,11 +41,19 @@ export async function bootSession(
   options: { nowMs?: number; mintEdge?: MintEdge } = {},
 ): Promise<HostSession> {
   const mintEdge = options.mintEdge ?? createDisabledMintEdge();
-  const loaded = await loadSnapshot(repository);
+  const loaded = await loadWorld(repository);
   if (loaded != null) {
+    const dirty = createDirtySet();
+    if (loaded.upgradedFromSchema != null) {
+      // Rewrite every upgraded row on the first commit, even a zero-tick one,
+      // so the stored header never claims v2 over v1 (zeroed) positions.
+      for (const creature of loaded.snapshot.creatures) {
+        dirty.creatureIds.add(creature.id);
+      }
+    }
     return {
-      snapshot: loaded,
-      dirty: createDirtySet(),
+      snapshot: loaded.snapshot,
+      dirty,
       repository,
       catchingUp: false,
       mintEdge,

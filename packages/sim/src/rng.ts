@@ -12,6 +12,7 @@ export const RNG_DOMAINS = [
   "personality",
   "forage",
   "contest",
+  "move",
 ] as const;
 
 export type RngDomain = (typeof RNG_DOMAINS)[number];

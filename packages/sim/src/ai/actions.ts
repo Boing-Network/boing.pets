@@ -31,6 +31,7 @@ import {
   findRelationship,
 } from "../relationships/delta";
 import { rngInt } from "../rng";
+import { planMove } from "./movement";
 import type {
   CompatibilityRow,
   CreatureRow,
@@ -118,6 +119,7 @@ export function beginRelocate(
   creature.actionTargetId = destinationId;
   creature.actionStartedTick = tick;
   creature.actionEndsTick = tick + duration;
+  planMove(snapshot, creature, tick);
   return duration;
 }
 
@@ -325,6 +327,7 @@ export function resolveRelocate(
 }
 
 function startAction(
+  snapshot: WorldSnapshot,
   creature: CreatureRow,
   tick: number,
   goal: Goal,
@@ -340,6 +343,7 @@ function startAction(
   creature.actionTargetId = targetId;
   creature.actionStartedTick = tick;
   creature.actionEndsTick = tick + duration;
+  planMove(snapshot, creature, tick);
 }
 
 function forageDuration(geneSpeed: number, forageBaseDuration: number): number {
@@ -478,6 +482,7 @@ export function startActionForGoal(
       const rival = contestTarget(snapshot, creature);
       if (rival && contestGateOpen(snapshot, creature, territory.food, rival)) {
         startAction(
+          snapshot,
           creature,
           tick,
           goal,
@@ -491,6 +496,7 @@ export function startActionForGoal(
       const partner = cooperateTarget(snapshot, creature, rules);
       if (partner && territory.food >= rules.coopFoodAtLeast) {
         startAction(
+          snapshot,
           creature,
           tick,
           goal,
@@ -502,6 +508,7 @@ export function startActionForGoal(
         return;
       }
       startAction(
+        snapshot,
         creature,
         tick,
         goal,
@@ -511,7 +518,14 @@ export function startActionForGoal(
       return;
     }
     case Goal.DRINK_WATER:
-      startAction(creature, tick, goal, Action.DRINK, rules.drinkDuration);
+      startAction(
+        snapshot,
+        creature,
+        tick,
+        goal,
+        Action.DRINK,
+        rules.drinkDuration,
+      );
       return;
     case Goal.SEEK_SHELTER: {
       const flee =
@@ -523,6 +537,7 @@ export function startActionForGoal(
         return;
       }
       startAction(
+        snapshot,
         creature,
         tick,
         goal,
@@ -535,6 +550,7 @@ export function startActionForGoal(
       const target = bestSocialTarget(snapshot, creature);
       if (!target) {
         startAction(
+          snapshot,
           creature,
           tick,
           Goal.SEEK_SHELTER,
@@ -544,6 +560,7 @@ export function startActionForGoal(
         return;
       }
       startAction(
+        snapshot,
         creature,
         tick,
         goal,
@@ -560,13 +577,21 @@ export function startActionForGoal(
         beginRelocate(snapshot, creature, tick, destination.territoryId, goal);
         return;
       }
-      startAction(creature, tick, goal, Action.WANDER, rules.wanderDuration);
+      startAction(
+        snapshot,
+        creature,
+        tick,
+        goal,
+        Action.WANDER,
+        rules.wanderDuration,
+      );
       return;
     }
     case Goal.FIND_MATE: {
       const partner = bestMateTarget(snapshot, creature, tick);
       if (!partner) {
         startAction(
+          snapshot,
           creature,
           tick,
           Goal.SEEK_SHELTER,
@@ -576,6 +601,7 @@ export function startActionForGoal(
         return;
       }
       startAction(
+        snapshot,
         creature,
         tick,
         goal,
@@ -603,6 +629,7 @@ export function startActionForGoal(
           return;
         }
         startAction(
+          snapshot,
           creature,
           tick,
           Goal.SEEK_SHELTER,
@@ -622,6 +649,7 @@ export function startActionForGoal(
         }
       }
       startAction(
+        snapshot,
         creature,
         tick,
         goal,
@@ -634,6 +662,7 @@ export function startActionForGoal(
     }
     case Goal.IDLE:
       startAction(
+        snapshot,
         creature,
         tick,
         Goal.SEEK_SHELTER,
@@ -659,7 +688,7 @@ export function chooseAndStartAction(
   territories: ReadonlyMap<number, TerritoryTick>,
 ): void {
   if (shouldNurse(snapshot, creature, tick)) {
-    startAction(creature, tick, Goal.IDLE, Action.NURSE, 1);
+    startAction(snapshot, creature, tick, Goal.IDLE, Action.NURSE, 1);
     return;
   }
   const goal = chooseGoal(snapshot, creature, tick);
