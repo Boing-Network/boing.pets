@@ -7,3 +7,13 @@ coverage/
 apps/desktop/user-data/
 *.asar
 .living-pets-mp/
+apps/client/sourcemaps/
+
+# Local secrets and scratch (never committed)
+.dev.vars
+.env
+.env.*
+!.env.example
+playtest-artifacts/
+# Root-level local scripts only; apps/*/scripts stay tracked.
+/scripts/

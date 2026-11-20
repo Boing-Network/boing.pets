@@ -269,10 +269,6 @@ minting is always off in the web build.
 
 ## Known issues
 
-- **Prisma 6 audit findings.** `npm audit` reports high-severity advisories
-  through `prisma@6.19.3` → `@prisma/config` (`effect`, `deepmerge-ts`). The
-  fix needs Prisma 7 (a major upgrade). There are also moderate
-  `typescript-eslint`/`minimatch` advisories.
 - **Shared-world identity is a signed guest token, not a login.** Anyone who
   can reach the server can join as a new guest; per-account influence limits
   follow the token, so clearing storage gets a fresh allowance. The owner key
@@ -283,8 +279,14 @@ minting is always off in the web build.
 - **Embedded Postgres is a beta build** (`embedded-postgres` `18.6.0-beta.19`).
   The Electron window uses `sandbox: false` (with `contextIsolation: true` and
   `nodeIntegration: false`).
-- The client build emits a ~1.38 MB main chunk and ships source maps
-  (`apps/client/vite.config.ts` `sourcemap: true`).
+- **Prisma 7 uses a root `effect` override.** `prisma@7.10.1` pins
+  `effect@3.20.0` (GHSA-7589-6fvf-x4pw); the root and `deploy/fly`
+  `package.json` override it to `^3.22.1`. Drop the override once Prisma ships
+  a fixed pin.
+- The client build splits `react`, `r3f`, `three` and the lazy `WorldCanvas`
+  into separate chunks; only `index` + `react` (~246 kB, ~78 kB gzip) load
+  before the HUD paints. Source maps are built `hidden` and moved to
+  `apps/client/sourcemaps/` (git-ignored), so they are not served.
 
 ## Design
 

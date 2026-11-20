@@ -317,7 +317,9 @@ territories 1–3 so its timings stay comparable.
 - Only dirty rows are written (`persist/dirty.ts`). Every living creature is
   dirty each tick, because its needs drift.
 - **Desktop:** `PrismaWorldRepository` writes to embedded Postgres, one
-  transaction per commit. The schema is in `packages/db/prisma/schema.prisma`,
+  transaction per commit (Prisma 7 with the `@prisma/adapter-pg` driver
+  adapter; `createDbClient` takes the URL, and the CLI reads it from the root
+  `prisma.config.ts`). The schema is in `packages/db/prisma/schema.prisma`,
   with 4 migrations, and `CURRENT_SCHEMA_VERSION = 2`
   (`20261120120000_creature_positions` adds the four spot columns, default 0).
   Load refuses newer schemas (`SchemaTooNewError`).
@@ -486,7 +488,9 @@ From the Nov 20, 2026 local audit:
 
 1. ~~Fix `apps/desktop/src/migrate.ts` on Windows and add a Windows CI
    job.~~ Done: the Prisma CLI entry runs with the current binary.
-2. Upgrade Prisma 6 → 7 to clear the high-severity `npm audit` findings.
+2. ~~Upgrade Prisma 6 → 7 to clear the high-severity `npm audit` findings.~~
+   Done: Prisma 7.10.1 with `@prisma/adapter-pg`; the URL lives in
+   `prisma.config.ts`.
 3. Multiplayer: ~~`maxPayload`, a client transport, who may pause~~ done
    (owner-only clock). Still open: wallet-signature login, per-field creature
    deltas to cut bandwidth, presence/cursors for other players, and a hosted
@@ -502,6 +506,8 @@ From the Nov 20, 2026 local audit:
 8. Desktop packaging: the main process assumes a repo checkout (`REPO_ROOT`,
    `npx prisma`), uses a beta embedded Postgres, and runs with
    `sandbox: false`.
-9. Split the ~1.38 MB client chunk, and decide whether to ship source maps.
-10. Clean leftovers from the old game in local checkouts (`playtest-artifacts/`,
-    `scripts/`, `.dev.vars` are no longer in `.gitignore`).
+9. ~~Split the ~1.38 MB client chunk, and decide whether to ship source
+   maps.~~ Done: three/r3f load with the lazy 3D view; maps are hidden.
+10. Clean leftovers from the old game in local checkouts. `.gitignore` covers
+    `playtest-artifacts/`, root `/scripts/`, `.dev.vars` and `.env*` again;
+    deleting the local copies is still a manual step.

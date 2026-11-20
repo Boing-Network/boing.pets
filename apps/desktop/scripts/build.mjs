@@ -17,7 +17,9 @@ const shared = {
     "embedded-postgres",
     "@embedded-postgres/*",
     "@prisma/client",
+    "@prisma/adapter-pg",
     ".prisma/*",
+    "pg",
   ],
 };
 

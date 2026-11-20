@@ -29,7 +29,39 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
-    sourcemap: true,
+    // Maps are written without a sourceMappingURL comment and then moved out
+    // of dist/ (scripts/stash-sourcemaps.mjs), so the site never serves them.
+    sourcemap: "hidden",
+    // three alone is ~720 kB minified; it is lazy-loaded with the 3D view.
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        // Long-lived vendor chunks: app changes do not bust the 3D stack.
+        manualChunks(id) {
+          // Shared by the HUD and the 3D chunk: keep it with the eager code
+          // so the first paint does not pull three/r3f.
+          if (id.includes("vite/preload-helper")) return "react";
+          if (!id.includes("node_modules")) return undefined;
+          if (
+            /node_modules[\\/](zustand|use-sync-external-store)[\\/]/.test(id)
+          ) {
+            return "react";
+          }
+          if (/node_modules[\\/]three[\\/]/.test(id)) return "three";
+          if (
+            /node_modules[\\/](@react-three|three-stdlib|troika-|camera-controls|maath|@monogrid|stats-gl|suspend-react|its-fine)/.test(
+              id,
+            )
+          ) {
+            return "r3f";
+          }
+          if (/node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) {
+            return "react";
+          }
+          return undefined;
+        },
+      },
+    },
   },
   server: {
     port: 5173,
