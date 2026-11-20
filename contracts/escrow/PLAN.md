@@ -1,7 +1,11 @@
 # Living Pets escrow contract: plan
 
-Status: design only. Nothing here is deployed. `LIVING_PETS_ESCROW_HEX` stays
-unset until the contract below is deployed, tested on testnet and signed off.
+Status: implemented and tested on the local interpreter (see README.md);
+**not deployed**. `LIVING_PETS_ESCROW_HEX` stays unset until Nico signs off.
+The sections below are the original design; where the implementation
+differs, README.md is authoritative (`prepare` step, admin baked in at build
+time instead of lazy admin, storage tags instead of BLAKE3 keys, fee 250 bps
+capped at 1000).
 
 ## What Boing gives us (testnet 6913, SDK 0.5.41)
 
@@ -93,10 +97,13 @@ token moves operator, then escrow, then player, all on chain.
    `set_collection` for the two collections, `set_fee`; then set
    `LIVING_PETS_ESCROW_HEX` on Fly and enable list/buy/claim in the market UI.
 
-## Open questions
+## Open questions (resolved)
 
-- Purpose category the Quality Gate expects for an escrow (`dapp` vs `nft`).
-- Whether the reference NFT `transfer_nft` faults or silently stops when the
-  caller is not the owner (the escrow should check `owner_of` after the
-  nested call either way).
-- Fee recipient (operator or a treasury account) and the fee rate.
+- **Purpose category**: `dapp`. `boing_qaCheck` on testnet returns `allow`
+  for the 17,161-byte escrow bytecode under `dapp`.
+- **`transfer_nft` by a non-owner**: it does **not** fault; the reference
+  collection silently stops (`reference_nft.rs`, and a testnet simulation of
+  a stranger moving token 1 returned success with 5,545 gas and no effect).
+  So the escrow checks `owner_of` after every transfer it makes, and `list`
+  requires the escrow to hold the token.
+- **Fee**: 2.5% (250 bps) to the operator wallet `0xc8b3…f6f8`, capped at 10%.

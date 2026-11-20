@@ -8,6 +8,8 @@
  */
 export const MARKET_API_VERSION = 1;
 export const MARKET_CATALOG_PATH = "/market/v1/catalog";
+/** Open escrow listings read from the escrow contract's state. */
+export const MARKET_LISTINGS_PATH = "/market/v1/listings";
 
 export type MarketAssetKind = "CREATURE" | "LINEAGE" | "ITEM";
 
@@ -43,7 +45,8 @@ export type MarketListing = {
   /** Asking price in base units (1 BOING = 10^18), as a decimal string. */
   priceWei: string;
   sellerHex: string;
-  listedAtMs: number;
+  /** Reserved buyer (adoptions, private sales), or null for anyone. */
+  buyerHex: string | null;
 };
 
 export type MarketAsset = {
@@ -74,18 +77,35 @@ export type MarketEscrowMode =
   /** No escrow account configured: browse only. */
   | "DISABLED"
   /**
-   * An operator-run escrow account holds NFTs and payments and settles
-   * trades. Testnet only; see the README's marketplace section.
+   * The escrow contract (`contracts/escrow`) holds listed NFTs and settles
+   * list, buy, adopt and cancel on chain, one wallet transaction each.
    */
-  | "CUSTODIAL";
+  | "CONTRACT";
 
 export type MarketEscrowInfo = {
   mode: MarketEscrowMode;
   escrowHex: string | null;
   operatorHex: string | null;
   chainId: number;
+  /** Market fee in basis points (250 = 2.5%), read from the contract. */
+  feeBps: number | null;
+  /** Account the market fee is paid to (the operator). */
+  feeToHex: string | null;
+  /** When the listing index last read the contract. */
+  listingsAtMs: number | null;
   /** Why trading is off, or a note about how it settles. */
   note: string;
+};
+
+export type MarketListingsResponse = {
+  v: typeof MARKET_API_VERSION;
+  escrowHex: string;
+  feeBps: number | null;
+  feeToHex: string | null;
+  refreshedAtMs: number | null;
+  /** Last read error, if the index is serving a stale view. */
+  error: string | null;
+  listings: (MarketListing & { collectionHex: string; tokenIdHex: string })[];
 };
 
 export type MarketCatalog = {

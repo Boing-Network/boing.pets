@@ -1,12 +1,22 @@
 /**
  * Marketplace page (`/market/`): browse every creature, lineage and item NFT
- * with its live in-world status, and see how adopting, listing and buying go
- * through escrow. Static page, no 3D.
+ * with its live in-world status. With the escrow contract configured, Adopt,
+ * List, Buy and Cancel build the transaction and Boing Express signs it.
+ * Static page, no 3D.
  */
-import type {
-  MarketAsset,
-  MarketCatalog,
-  MarketOwnership,
+import {
+  boingToWei,
+  buildEscrowBuyTx,
+  buildEscrowCancelTx,
+  buildEscrowClaimTx,
+  buildEscrowListTx,
+  escrowSplit,
+  weiToBoing,
+  type EscrowTarget,
+  type EscrowWalletTx,
+  type MarketAsset,
+  type MarketCatalog,
+  type MarketOwnership,
 } from "@boing-pets/contract";
 import {
   prepareBoingWallet,
@@ -160,15 +170,116 @@ function card(a: MarketAsset): HTMLLIElement {
   return li;
 }
 
-type Action = { label: string; steps: string[] };
+type Action = {
+  label: string;
+  steps: string[];
+  /** Shows the sign button (trading actions). */
+  trade: boolean;
+  /** Ask for a price (listing). */
+  needsPrice?: boolean;
+  /** Why the sign button is off even with a wallet connected. */
+  blocked?: string;
+  /** Builds the wallet transaction (escrow contract configured only). */
+  build?: (wallet: string, priceText: string) => EscrowWalletTx;
+};
+
+const boing = (wei: bigint | string) => `${weiToBoing(wei)} BOING`;
+const OBSERVER = "https://boing.observer/tx/";
+
+function escrowTarget(a: MarketAsset): EscrowTarget | null {
+  const escrow = state.catalog?.escrow;
+  if (escrow?.mode !== "CONTRACT" || escrow.escrowHex == null) return null;
+  if (a.collectionHex == null || a.tokenIdHex == null) return null;
+  return {
+    escrowHex: escrow.escrowHex,
+    collectionHex: a.collectionHex,
+    tokenId: a.tokenIdHex,
+  };
+}
 
 function actionFor(a: MarketAsset): Action {
   const escrow = state.catalog?.escrow;
   const esc = short(escrow?.escrowHex ?? null);
+  const feeBps = escrow?.feeBps ?? 250;
+  const fee = `${feeBps / 100}%`;
+  const target = escrowTarget(a);
+  const wallet = state.wallet;
+  const l = a.listing;
+  if (l != null) {
+    const price = BigInt(l.priceWei);
+    if (wallet != null && l.sellerHex === wallet) {
+      return {
+        label: "Cancel",
+        trade: true,
+        steps: [
+          `Your listing: ${boing(price)}${l.buyerHex ? `, reserved for ${short(l.buyerHex)}` : ""}.`,
+          "Cancel returns the NFT from escrow to your wallet in one transaction.",
+        ],
+        build:
+          target == null
+            ? undefined
+            : (w) =>
+                buildEscrowCancelTx({
+                  ...target,
+                  senderHex: w,
+                  sellerHex: l.sellerHex,
+                }),
+      };
+    }
+    if (l.buyerHex != null && l.buyerHex !== wallet) {
+      return {
+        label: "Reserved",
+        trade: false,
+        steps: [
+          `Reserved in escrow for ${short(l.buyerHex)}${wallet == null ? " (connect your wallet if that is you)" : ""}.`,
+        ],
+      };
+    }
+    if (price === 0n && l.buyerHex != null) {
+      return {
+        label: "Adopt",
+        trade: true,
+        steps: [
+          "Reserved for your wallet, at no cost.",
+          `Adopt claims it: escrow (${esc}) sends the NFT to your wallet in one transaction.`,
+        ],
+        build:
+          target == null
+            ? undefined
+            : (w) => buildEscrowClaimTx({ ...target, playerHex: w }),
+      };
+    }
+    const split = escrowSplit(price, feeBps);
+    const feeTo = escrow?.feeToHex ?? escrow?.operatorHex ?? null;
+    return {
+      label: "Buy",
+      trade: true,
+      steps: [
+        `Listed for ${boing(price)} by ${short(l.sellerHex)}.`,
+        `You pay exactly that to the escrow contract (${esc}); it sends you the NFT in the same transaction.`,
+        `The seller receives ${boing(split.sellerWei)}; the ${fee} market fee (${boing(split.feeWei)}) goes to the operator.`,
+      ],
+      ...(feeTo == null
+        ? { blocked: "The escrow fee account is not known yet." }
+        : {}),
+      build:
+        target == null || feeTo == null
+          ? undefined
+          : (w) =>
+              buildEscrowBuyTx({
+                ...target,
+                buyerHex: w,
+                sellerHex: l.sellerHex,
+                feeToHex: feeTo,
+                priceWei: price,
+              }),
+    };
+  }
   switch (a.ownership) {
     case "UNMINTED":
       return {
         label: "View",
+        trade: false,
         steps: [
           `Not minted yet. When minted it goes to the operator (${short(escrow?.operatorHex ?? null)}).`,
           "Once minted it can be adopted through escrow.",
@@ -177,40 +288,72 @@ function actionFor(a: MarketAsset): Action {
     case "OPERATOR":
       return {
         label: "Adopt",
+        trade: true,
+        blocked:
+          "Not reserved yet: the operator reserves it for your wallet in escrow first.",
         steps: [
-          `You pay the adoption price in BOING into escrow (${esc}).`,
-          `The operator deposits the NFT with escrow.`,
-          "Escrow releases the NFT to your wallet and the BOING to the operator.",
+          `Held by the operator. To adopt it, the operator reserves it for your wallet in the escrow contract (${esc}).`,
+          "Then Adopt here claims it: one transaction, no price, the NFT moves from escrow to you.",
         ],
       };
     case "IN_ESCROW":
       return {
-        label: a.listing ? "Buy" : "In escrow",
-        steps: [
-          a.listing
-            ? `Listed for ${Number(BigInt(a.listing.priceWei) / 10n ** 14n) / 1e4} BOING by ${short(a.listing.sellerHex)}.`
-            : "Held by escrow for a pending hand-over.",
-          `You pay the price into escrow (${esc}).`,
-          "Escrow releases the NFT to you and the BOING to the seller.",
-        ],
+        label: "In escrow",
+        trade: false,
+        steps: ["Held by escrow without an open listing."],
       };
     case "PLAYER":
-      return state.wallet != null && a.ownerHex === state.wallet
+      return wallet != null && a.ownerHex === wallet
         ? {
             label: "List",
+            trade: true,
+            needsPrice: true,
             steps: [
               "Set a price in BOING.",
-              `You deposit the NFT with escrow (${esc}).`,
-              "When a buyer pays into escrow, escrow sends you the BOING and them the NFT. Cancel to get the NFT back.",
+              `One atomic transaction moves the NFT into the escrow contract (${esc}) and opens the listing.`,
+              `When it sells you receive the price minus the ${fee} market fee. Cancel any time to take it back.`,
             ],
+            build:
+              target == null
+                ? undefined
+                : (w, priceText) => {
+                    const priceWei = boingToWei(priceText);
+                    if (priceWei == null || priceWei === 0n) {
+                      throw new Error("Enter a price in BOING, like 1.5");
+                    }
+                    return buildEscrowListTx({
+                      ...target,
+                      sellerHex: w,
+                      priceWei,
+                    });
+                  },
           }
         : {
             label: "View",
+            trade: false,
             steps: [
               `Owned by ${short(a.ownerHex)}. It can be bought once its owner lists it.`,
             ],
           };
   }
+}
+
+function txIdOf(result: unknown): string | null {
+  if (typeof result === "string") return result;
+  if (result != null && typeof result === "object") {
+    const r = result as { tx_id?: unknown; tx_hash?: unknown };
+    const id = r.tx_id ?? r.tx_hash;
+    if (typeof id === "string" && id !== "ok") return id;
+  }
+  return null;
+}
+
+function tradeError(error: unknown): string {
+  const text = error instanceof Error ? error.message : String(error);
+  if (/reject|denied|declin|cancel|closed/i.test(text)) {
+    return "Cancelled in Boing Express. Nothing was sent.";
+  }
+  return walletErrorText(error);
 }
 
 function openTrade(a: MarketAsset, action: Action): void {
@@ -221,17 +364,58 @@ function openTrade(a: MarketAsset, action: Action): void {
   );
   const escrow = state.catalog?.escrow;
   const sign = $<HTMLButtonElement>("trade-sign");
-  const tradable =
-    action.label === "Adopt" ||
-    action.label === "Buy" ||
-    action.label === "List";
-  sign.hidden = !tradable;
-  sign.disabled = true;
-  $("trade-note").textContent = !tradable
+  const priceRow = $("trade-price-row");
+  const priceInput = $<HTMLInputElement>("trade-price");
+  const status = $("trade-status");
+  status.replaceChildren();
+  priceRow.hidden = !action.needsPrice;
+  priceInput.value = "";
+  sign.hidden = !action.trade;
+  sign.disabled =
+    action.build == null || state.wallet == null || action.blocked != null;
+  $("trade-note").textContent = !action.trade
     ? ""
-    : escrow?.mode !== "CUSTODIAL"
+    : escrow?.mode !== "CONTRACT"
       ? (escrow?.note ?? "Trading is not available on this server yet.")
-      : "Escrow settlement isn't live on this server yet, so nothing is signed from this page.";
+      : action.blocked != null
+        ? action.blocked
+        : state.wallet == null
+          ? "Connect your wallet to sign."
+          : "Boing Express shows the full transaction before you approve it.";
+  sign.onclick = async () => {
+    const wallet = state.wallet;
+    if (action.build == null || wallet == null) return;
+    sign.disabled = true;
+    try {
+      const { summary, ...request } = action.build(wallet, priceInput.value);
+      status.textContent = `${summary}: waiting for Boing Express…`;
+      await prepareBoingWallet();
+      const provider = resolveBoingProvider();
+      if (provider == null) throw new Error("Boing Express is not available");
+      const result = await provider.request({
+        method: "boing_sendTransaction",
+        params: [request],
+      });
+      const id = txIdOf(result);
+      status.replaceChildren(
+        "Submitted. ",
+        ...(id != null
+          ? [
+              el(
+                "a",
+                { href: `${OBSERVER}${id}`, target: "_blank", rel: "noopener" },
+                [`View tx ${short(id)} on boing.observer`],
+              ),
+            ]
+          : []),
+        " The listing updates within about 30 seconds.",
+      );
+      window.setTimeout(() => void load(), 5_000);
+    } catch (error) {
+      status.textContent = tradeError(error);
+      sign.disabled = false;
+    }
+  };
   dialog.showModal();
 }
 
@@ -318,8 +502,8 @@ function renderStats(c: MarketCatalog): void {
   const notice = $("notice");
   notice.hidden = false;
   notice.textContent =
-    c.escrow.mode === "CUSTODIAL"
-      ? `${c.escrow.note} Escrow ${short(c.escrow.escrowHex)}, operator ${short(c.escrow.operatorHex)}, chain ${c.escrow.chainId}.`
+    c.escrow.mode === "CONTRACT"
+      ? `${c.escrow.note} Escrow ${short(c.escrow.escrowHex)}, ${(c.escrow.feeBps ?? 250) / 100}% market fee to the operator ${short(c.escrow.feeToHex ?? c.escrow.operatorHex)}, chain ${c.escrow.chainId}.`
       : c.escrow.note;
 }
 

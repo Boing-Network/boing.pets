@@ -721,3 +721,49 @@ pub fn account_from_hex(hex_str: &str) -> AccountId {
 
 /// The operator wallet that deploys and administers the escrow.
 pub const OPERATOR_HEX: &str = "0xc8b386c732a9f00c7ccd28aa4a8c377634057d6b5604099f4809a8fee58af6f8";
+
+/// Golden calldata vectors for the TS encoders (`abi-vectors.json`):
+/// collection `0xc0...`, escrow `0xe5...`, buyer `0xb0...`, token 7, 1.5 BOING.
+pub fn abi_vectors_json() -> String {
+    let coll = AccountId([0xc0; 32]);
+    let escrow = AccountId([0xe5; 32]);
+    let buyer = AccountId([0xb0; 32]);
+    let price: u128 = 1_500_000_000_000_000_000;
+    let (fee, seller) = split_price(price, DEFAULT_FEE_BPS);
+    let rows: Vec<(&str, String)> = vec![
+        ("collection", format!("0x{}", hex::encode(coll.0))),
+        ("escrow", format!("0x{}", hex::encode(escrow.0))),
+        ("buyer", format!("0x{}", hex::encode(buyer.0))),
+        ("token", "7".into()),
+        ("price", price.to_string()),
+        ("fee", fee.to_string()),
+        ("seller_amount", seller.to_string()),
+        ("prepare", hex::encode(encode_prepare(&coll, 7))),
+        ("list", hex::encode(encode_list(&coll, 7, price, None))),
+        (
+            "list_reserved",
+            hex::encode(encode_list(&coll, 7, 0, Some(&buyer))),
+        ),
+        ("cancel", hex::encode(encode_cancel(&coll, 7))),
+        ("buy", hex::encode(encode_buy(&coll, 7))),
+        ("claim", hex::encode(encode_claim(&coll, 7))),
+        ("listing", hex::encode(encode_listing(&coll, 7))),
+        (
+            "set_fee",
+            hex::encode(encode_set_fee(DEFAULT_FEE_BPS, &escrow)),
+        ),
+        ("rescue", hex::encode(encode_rescue(&coll, 7, &buyer))),
+        (
+            "set_collection",
+            hex::encode(encode_set_collection(&coll, true)),
+        ),
+        ("config", hex::encode(encode_config())),
+        ("set_admin", hex::encode(encode_set_admin(&buyer))),
+        ("collection_lookup", hex::encode(encode_collection(&coll))),
+    ];
+    let body: Vec<String> = rows
+        .iter()
+        .map(|(k, v)| format!("  \"{k}\": \"{v}\""))
+        .collect();
+    format!("{{\n{}\n}}\n", body.join(",\n"))
+}

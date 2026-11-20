@@ -772,3 +772,12 @@ fn gas_report() {
     );
     assert!(buy < 200_000 && list < 200_000);
 }
+
+#[test]
+fn committed_abi_vectors_match_the_encoders() {
+    assert_eq!(
+        include_str!("../abi-vectors.json").replace("\r\n", "\n"),
+        abi_vectors_json(),
+        "run: cargo run --bin dump-escrow vectors > abi-vectors.json"
+    );
+}

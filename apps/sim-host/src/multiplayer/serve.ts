@@ -40,7 +40,14 @@ import {
 } from "./server-config";
 import { createSharedWorldHost } from "./shared-world-host";
 import { generateOwnerKey, loadOrCreateSecret } from "./tokens";
+import { createClient } from "@boing-network/boing-sdk";
+import { DEFAULT_BOING_RPC_URL } from "../boing/config";
 import { readMarketConfig } from "../market/config";
+import {
+  createListingIndex,
+  mintedTokens,
+  rpcReadBatch,
+} from "../market/listings";
 import { createSdkGenesisChain, runGenesisMint } from "../boing/genesis-mint";
 import { createCatalogCache } from "../market/cache";
 import { createWalletChallenges } from "./wallet-auth";
@@ -126,6 +133,29 @@ const mintEdge = createMintEdgeFromEnv(process.env, creatureLinks, assetLinks);
 // Marketplace: read-only catalog; trading stays off until the operator and
 // escrow accounts are configured (see apps/sim-host/src/market).
 const marketConfig = readMarketConfig(process.env);
+// With an escrow contract configured, read its listings (and on-chain owners)
+// with read-only simulated calls every 30 s. No key is involved.
+const listingIndex =
+  marketConfig.escrowHex == null
+    ? null
+    : createListingIndex({
+        escrowHex: marketConfig.escrowHex,
+        read: rpcReadBatch(
+          createClient({
+            baseUrl: process.env.BOING_RPC_URL?.trim() || DEFAULT_BOING_RPC_URL,
+            maxRetries: 2,
+          }),
+        ),
+        tokens: async () => {
+          const [c, a] = await Promise.all([
+            creatureLinks.list(),
+            assetLinks.list(),
+          ]);
+          return mintedTokens([...c, ...a]);
+        },
+        log,
+      });
+listingIndex?.start();
 const host = createSharedWorldHost({
   repository,
   seed: config.seed,
@@ -148,7 +178,11 @@ const server = await listenSharedWorldWs({
     creatureLinks,
     assetLinks,
     config: marketConfig,
+    index: listingIndex,
   }),
+  ...(listingIndex != null
+    ? { marketListings: async () => listingIndex.response() }
+    : {}),
   health: () => {
     const snapshot = host.runtime.session.snapshot;
     const clock = host.runtime.clock;
