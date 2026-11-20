@@ -315,7 +315,11 @@ export function createMintEdge(
 
       let toHex: string;
       try {
-        const resolved = await resolveRecipientHex(config);
+        // Player-earned assets go to the player's wallet, not the operator.
+        const resolved =
+          link.recipientHex != null
+            ? ensure0xHex(link.recipientHex)
+            : await resolveRecipientHex(config);
         if (resolved == null) {
           throw new Error("mint recipient unresolved");
         }
@@ -430,6 +434,7 @@ export function createMintEdge(
           itemKindId: null,
           amount: null,
           itemSlug: null,
+          recipientHex: job.recipientHex ?? null,
           collectionHex,
           tokenIdHex: tokenIdHexForArtifactSerial(job.tokenSerial),
           chainId: String(config.chainIdDecimal),
@@ -479,6 +484,7 @@ export function createMintEdge(
           itemKindId: job.itemKindId,
           amount: job.amount,
           itemSlug: job.itemSlug,
+          recipientHex: job.recipientHex ?? null,
           collectionHex,
           tokenIdHex: tokenIdHexForCompressedItem(job.itemKindId),
           chainId: String(config.chainIdDecimal),

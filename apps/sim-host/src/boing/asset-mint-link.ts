@@ -35,6 +35,8 @@ export type AssetMintLinkRow = {
   itemKindId: number | null;
   amount: number | null;
   itemSlug: string | null;
+  /** Player wallet that earned it (0x + 64 hex); null mints to the operator. */
+  recipientHex: string | null;
   collectionHex: string;
   /** Unique NFT token word, or multi-token item id word for COMPRESSED_ITEM. */
   tokenIdHex: string;

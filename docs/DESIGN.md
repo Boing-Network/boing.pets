@@ -193,8 +193,11 @@ Newborns start with `NURSE`. A losing `CONTEST` can kill with cause `INJURY`.
 - A `CatchupReport` ranks notable events (rare-mutation births, deaths in
   favored lineages, and so on) via `catchupEventRank`.
 - Influence submits are rejected with `catching_up` while catch-up runs.
-- The client stores `world.catchup` in `worldViewStore.lastCatchup`, but no
-  HUD component displays it yet.
+- The client stores `world.catchup` in `worldViewStore.lastCatchup`, and
+  `hud/CatchupPanel.tsx` shows it once as "While you were away": world time
+  passed, the tallies, and up to five ranked highlights, dismissed with
+  Continue (seen reports are remembered per world in `localStorage`). A
+  shared host replays its launch report to players who join later.
 
 ### Determinism
 
@@ -268,14 +271,24 @@ territories 1–3 so its timings stay comparable.
 
 `packages/contract` `InfluenceKind`, applied in `kernel/influences.ts`:
 
-| Verb               | Effect                                                                                  |
-| ------------------ | --------------------------------------------------------------------------------------- |
-| `NAME_CREATURE`    | Sets the name and `nameGivenByPlayer = true`.                                           |
-| `NAME_LINEAGE`     | Renames the lineage.                                                                    |
-| `FAVOR_BLOODLINE`  | `lineage.playerFavor += 100` (max 1000). Today it only affects catch-up report ranking. |
-| `ENRICH_TERRITORY` | `FOOD` modifier +150 for 5 days (720 ticks).                                            |
-| `CALM_TERRITORY`   | `DANGER` modifier −100 for 5 days.                                                      |
+| Verb               | Effect                                                                |
+| ------------------ | --------------------------------------------------------------------- |
+| `NAME_CREATURE`    | Sets the name and `nameGivenByPlayer = true`.                         |
+| `NAME_LINEAGE`     | Renames the lineage.                                                  |
+| `FAVOR_BLOODLINE`  | `lineage.playerFavor += 100` (max 1000). See "Bloodline favor" below. |
+| `ENRICH_TERRITORY` | `FOOD` modifier +150 for 5 days (720 ticks).                          |
+| `CALM_TERRITORY`   | `DANGER` modifier −100 for 5 days.                                    |
 
+- **Bloodline favor.** A favored lineage forages better: every forage roll
+  of its members gains ⌊playerFavor / `favorForageDivisor`⌋ per mille
+  (divisor 4, so one favor of 100 is +2.5 %, the cap of 1000 is +25 %, still
+  clamped to `forageChanceMax`). Better food means fewer hunger deaths and
+  more healthy parents, so the bloodline tends to grow. Favor fades by
+  `favorDecayPerDay` (10) at every day boundary, floor 0, so one favor lasts
+  about ten world days unless renewed. Integer math and no new RNG draws keep
+  the kernel deterministic; health, genes and needs are never written
+  directly. Favor still also ranks catch-up highlights. Worlds saved before
+  these knobs existed pick up the defaults on load (`persist/load.ts`).
 - **Rate limit** (`apps/sim-host/src/influence.ts`): 3 accepted per rolling
   24 h of wall time (`INFLUENCE_RATE_LIMIT`, `INFLUENCE_RATE_WINDOW_MS`), per
   gate. Single-player uses one `"local"` gate, multiplayer one gate per account
@@ -442,9 +455,19 @@ CONFIRMED`, or `FAILED`, which can be retried. Links persist in
 - **M21, asset taxonomy** (`taxonomy.ts`): `UNIQUE_LINEAGE_ARTIFACT` (unique
   NFT) and `COMPRESSED_ITEM` (multi-token, fungible-like), persisted in
   `AssetMintLink`. The mint edge exposes `queueLineageArtifactMint` and
-  `queueCompressedItemMint`, but no game system calls them yet. Items and
-  artifacts are **planned** (the comments mention keepsakes, potions, and gear).
-- **Recipient:** `LIVING_PETS_BOING_NFT_RECIPIENT_HEX`, or else the address
+  `queueCompressedItemMint`.
+- **Player rewards** (`influence-rewards.ts`): when a wallet player's
+  influence lands, the host queues a reward minted **to that player's
+  wallet** (stored as `AssetMintLink.recipientHex`): Enrich → Rations Pack,
+  Calm → Calm Potion, Favor → Vitality Potion (one compressed item each), and
+  Name lineage → that lineage's Keepsake (unique artifact; the first wallet to
+  name a lineage keeps it). Naming a creature earns nothing (creatures mint at
+  birth). Guests and owner-key sessions earn nothing, so a reward never falls
+  back to the operator. Mint keys come from the influence or lineage id, so
+  retries never double-mint. The shared server (`multiplayer/serve.ts`) now
+  builds its mint edge from the environment, still off by default.
+- **Recipient:** player rewards go to the player's wallet. Creature mints at
+  birth go to `LIVING_PETS_BOING_NFT_RECIPIENT_HEX`, or else the address
   derived from `BOING_SECRET_HEX`, which means the operator.
 
 ## Trust and security model
@@ -516,11 +539,12 @@ From the Nov 20, 2026 local audit:
    (owner-only clock). Still open: wallet-signature login, per-field creature
    deltas to cut bandwidth, presence/cursors for other players, and a hosted
    `wss://` deployment.
-4. Minting: decide whether players get their own recipient addresses, separate
-   the signing key per collection, and choose a collection-deploy workflow.
-5. Give `FAVOR_BLOODLINE` a sim effect, or document it as cosmetic/ranking
-   only.
-6. Show `CatchupReport` in the HUD (it is already stored in `worldViewStore`).
+4. Minting: ~~player recipient addresses~~ done for item/artifact rewards.
+   Still open: separate the signing key per collection, a collection-deploy
+   workflow, and whether creatures should belong to a player.
+5. ~~Give `FAVOR_BLOODLINE` a sim effect~~ done (forage bonus that fades).
+6. ~~Show `CatchupReport` in the HUD~~ done (`CatchupPanel`). A per-player
+   "since your last visit" report for the shared world is a follow-up.
 7. ~~Decide canonical species names.~~ Done: presentation names are canonical
    (see "Species naming"). Old saves keep their stored legacy slugs until
    regenerated; a migration could rewrite them.

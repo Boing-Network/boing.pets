@@ -40,6 +40,13 @@ export type Ruleset = {
   forageHungerFail: number;
   forageChanceMin: number;
   forageChanceMax: number;
+  /**
+   * FAVOR_BLOODLINE: a favored lineage forages better. Forage success gains
+   * floor(playerFavor / favorForageDivisor) per mille (favor 100 -> +2.5%).
+   */
+  favorForageDivisor: number;
+  /** playerFavor lost by every lineage at each day boundary (floor 0). */
+  favorDecayPerDay: number;
   foragePopPressure: number;
   drinkDuration: number;
   drinkThirstRelief: number;

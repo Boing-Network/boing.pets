@@ -897,6 +897,7 @@ export type MappedAssetMintLink = {
   itemKindId: number | null;
   amount: number | null;
   itemSlug: string | null;
+  recipientHex: string | null;
   collectionHex: string;
   tokenIdHex: string;
   chainId: string;
@@ -921,6 +922,7 @@ export function mapAssetMintLink(row: AssetMintLink): MappedAssetMintLink {
     itemKindId: toNumberOrNull(row.itemKindId),
     amount: toNumberOrNull(row.amount),
     itemSlug: row.itemSlug,
+    recipientHex: row.recipientHex,
     collectionHex: row.collectionHex,
     tokenIdHex: row.tokenIdHex,
     chainId: row.chainId,
@@ -946,6 +948,7 @@ export function assetMintLinkToDb(row: MappedAssetMintLink) {
     itemKindId: toBigIntOrNull(row.itemKindId),
     amount: toBigIntOrNull(row.amount),
     itemSlug: row.itemSlug,
+    recipientHex: row.recipientHex,
     collectionHex: row.collectionHex,
     tokenIdHex: row.tokenIdHex,
     chainId: row.chainId,
