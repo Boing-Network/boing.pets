@@ -114,10 +114,7 @@ function card(a: MarketAsset): HTMLLIElement {
           ],
         )
       : el("div", { className: "health empty" });
-  const sub = [
-    a.speciesName,
-    a.kind === "CREATURE" ? a.lineageName && `${a.lineageName} line` : null,
-  ]
+  const sub = [a.speciesName, a.kind === "CREATURE" ? a.lineageName : null]
     .filter(Boolean)
     .join(" · ");
   const meta = el("dl", {}, [

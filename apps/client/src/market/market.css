@@ -194,6 +194,7 @@ main {
 .card .noimg {
   display: block;
   width: 100%;
+  height: auto;
   aspect-ratio: 480 / 327;
   object-fit: cover;
   background: #0b1420;

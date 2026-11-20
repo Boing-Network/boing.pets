@@ -161,6 +161,33 @@ npm run dev -w @boing-pets/client
 See [Creature rendering in the design doc](docs/DESIGN.md#creature-rendering)
 for details.
 
+## Marketplace
+
+`/market/` lists every creature, lineage and item NFT with its live status
+in the world (activity, territory, health, living lineage members), mint
+state, owner and any listing. It reads the shared-world server's read-only
+`GET /market/v1/catalog`, which sends CORS headers only to origins in
+`LIVING_PETS_MP_ALLOWED_ORIGINS` (requests without an `Origin` are served,
+other browser origins get 403). Use `?server=http://127.0.0.1:8787` to point
+the page at a local `npm run mp:serve`.
+
+**Ownership rule.** Every NFT is minted to the operator wallet, which holds
+it until a player adopts or claims it. Every hand-over (operator to player,
+player to player) goes through escrow: the NFT and the BOING payment are
+deposited with the escrow account, which then releases the NFT to the buyer
+and the BOING to the seller.
+
+| Variable                   | Where                                | Meaning                                                             |
+| -------------------------- | ------------------------------------ | ------------------------------------------------------------------- |
+| `LIVING_PETS_OPERATOR_HEX` | `apps/sim-host/src/market/config.ts` | Operator wallet (`0x` + 64 hex). Unset: the catalog is browse-only. |
+| `LIVING_PETS_ESCROW_HEX`   | same                                 | Escrow account. Trading turns on only when both are set.            |
+
+No signing key is read by the marketplace code. Testnet has no NFT escrow
+contract yet (the reference NFT collection has `transfer_nft` but no
+approve/transfer-from), so escrow is an operator-run account and settlement
+is a separate step; until that exists the page shows each trade's escrow
+steps but signs nothing.
+
 ## Hosting on Fly.io
 
 The shared-world server runs as one always-on Fly.io machine
