@@ -2,7 +2,12 @@
  * Build a `world.patch` from the dirty window + current snapshot.
  * Clients replace these rows in their Zustand cache; they never invent rules.
  */
-import type { WorldEventView, WorldPatch } from "@boing-pets/contract";
+import type {
+  CreatureDelta,
+  CreatureView,
+  WorldEventView,
+  WorldPatch,
+} from "@boing-pets/contract";
 import type { WorldSnapshot } from "@boing-pets/sim";
 import type { DirtySet } from "../persist/dirty";
 import {
@@ -18,9 +23,12 @@ import {
  * would repeat every row and event since the last save; over a socket that
  * grows to tens of KB per tick. With one, a patch carries only rows whose
  * view actually changed since the previous patch/snapshot and only new events.
+ * Creatures are tracked per field: needs drift every tick, so re-sending whole
+ * rows (genes, memories, relationships...) cost ~45 KB per tick for 28 pets.
  */
 export type PatchBaseline = {
-  creatures: Map<number, string>;
+  /** Creature id -> top-level field -> JSON last emitted. */
+  creatures: Map<number, Map<string, string>>;
   relationships: Map<number, string>;
   territories: Map<number, string>;
   /** Highest event id already emitted. */
@@ -40,7 +48,7 @@ export function createPatchBaseline(): PatchBaseline {
 export function resetPatchBaseline(
   baseline: PatchBaseline,
   view: {
-    creatures: Array<{ id: number }>;
+    creatures: CreatureView[];
     relationships: Array<{ id: number }>;
     territories: Array<{ id: number }>;
     events: Array<{ id: number }>;
@@ -49,8 +57,9 @@ export function resetPatchBaseline(
   baseline.creatures.clear();
   baseline.relationships.clear();
   baseline.territories.clear();
-  for (const row of view.creatures)
-    baseline.creatures.set(row.id, JSON.stringify(row));
+  for (const row of view.creatures) {
+    baseline.creatures.set(row.id, creatureFields(row));
+  }
   for (const row of view.relationships) {
     baseline.relationships.set(row.id, JSON.stringify(row));
   }
@@ -60,6 +69,44 @@ export function resetPatchBaseline(
   for (const event of view.events) {
     if (event.id > baseline.lastEventId) baseline.lastEventId = event.id;
   }
+}
+
+function creatureFields(row: CreatureView): Map<string, string> {
+  const fields = new Map<string, string>();
+  for (const [key, value] of Object.entries(row)) {
+    if (key !== "id") fields.set(key, JSON.stringify(value));
+  }
+  return fields;
+}
+
+/**
+ * Split creature rows into full rows (not seen before) and per-field deltas
+ * (seen before; only fields whose JSON changed). Unchanged rows are dropped.
+ */
+export function diffCreatures(
+  rows: CreatureView[],
+  seen: Map<number, Map<string, string>>,
+): { full: CreatureView[]; deltas: CreatureDelta[] } {
+  const full: CreatureView[] = [];
+  const deltas: CreatureDelta[] = [];
+  for (const row of rows) {
+    const next = creatureFields(row);
+    const previous = seen.get(row.id);
+    seen.set(row.id, next);
+    if (previous == null) {
+      full.push(row);
+      continue;
+    }
+    const delta: Record<string, unknown> = { id: row.id };
+    let changed = false;
+    for (const [key, json] of next) {
+      if (previous.get(key) === json) continue;
+      delta[key] = row[key as keyof CreatureView];
+      changed = true;
+    }
+    if (changed) deltas.push(delta as CreatureDelta);
+  }
+  return { full, deltas };
 }
 
 function changedRows<T extends { id: number }>(
@@ -161,9 +208,11 @@ export function buildWorldPatch(
   for (const event of freshEvents) {
     if (event.id > baseline.lastEventId) baseline.lastEventId = event.id;
   }
+  const diff = diffCreatures(creatures, baseline.creatures);
   return {
     tick,
-    creatures: changedRows(creatures, baseline.creatures),
+    creatures: diff.full,
+    creatureDeltas: diff.deltas,
     relationships: changedRows(relationshipViews, baseline.relationships),
     events: freshEvents,
     territories: changedRows(full.territories, baseline.territories),

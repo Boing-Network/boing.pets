@@ -66,7 +66,9 @@ export type {
   WorldEventView,
   WorldPatch,
   WorldView,
+  CreatureDelta,
 } from "./dto";
+export { applyWorldPatch } from "./dto";
 
 export type {
   ClientToHost,

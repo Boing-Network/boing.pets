@@ -234,13 +234,65 @@ export type WorldView = {
 };
 
 /** Changed rows only. The client replaces these rows in its cache. */
+/**
+ * Only the top-level fields of a creature that changed since the previous
+ * emit. Nested objects (needs, memories, ...) are replaced whole.
+ */
+export type CreatureDelta = { id: number } & Partial<Omit<CreatureView, "id">>;
+
 export type WorldPatch = {
   tick: number;
+  /** Full rows: creatures the listeners have not seen yet. */
   creatures: CreatureView[];
+  /** Changed fields of creatures the listeners already hold. */
+  creatureDeltas?: CreatureDelta[];
   relationships: RelationshipView[];
   events: WorldEventView[];
   territories: TerritoryView[];
 };
+
+function replaceById<T extends { id: number }>(
+  current: T[],
+  incoming: readonly T[],
+): T[] {
+  if (incoming.length === 0) return current;
+  const map = new Map(current.map((row) => [row.id, row] as const));
+  for (const row of incoming) map.set(row.id, row);
+  return [...map.values()].sort((a, b) => a.id - b.id);
+}
+
+/**
+ * Merge a live patch into a view: full rows replace by id, deltas overlay the
+ * row already held. A delta for an unknown creature is skipped (the next
+ * keyframe snapshot or a resync heals it) and counted in `skipped`.
+ */
+export function applyWorldPatch(
+  view: WorldView,
+  patch: WorldPatch,
+): { view: WorldView; skipped: number } {
+  const creatures = new Map(view.creatures.map((c) => [c.id, c] as const));
+  for (const creature of patch.creatures) creatures.set(creature.id, creature);
+  let skipped = 0;
+  for (const delta of patch.creatureDeltas ?? []) {
+    const current = creatures.get(delta.id);
+    if (current == null) {
+      skipped += 1;
+      continue;
+    }
+    creatures.set(delta.id, { ...current, ...delta });
+  }
+  return {
+    skipped,
+    view: {
+      ...view,
+      world: { ...view.world, lastTick: patch.tick },
+      creatures: [...creatures.values()].sort((a, b) => a.id - b.id),
+      relationships: replaceById(view.relationships, patch.relationships),
+      events: replaceById(view.events, patch.events),
+      territories: replaceById(view.territories, patch.territories),
+    },
+  };
+}
 
 export type CatchupNotable = {
   eventId: number;

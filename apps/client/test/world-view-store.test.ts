@@ -69,3 +69,32 @@ test("world.patch replaces rows without inventing needs", () => {
   );
   assert.equal(view.territories.find((t) => t.id === 1)?.food, 850);
 });
+
+test("world.patch creature deltas overlay only the changed fields", () => {
+  resetStore();
+  useWorldViewStore.getState().setSnapshot(FIXTURE_WORLD_VIEW);
+  const first = FIXTURE_WORLD_VIEW.creatures[0]!;
+  useWorldViewStore.getState().applyPatch({
+    tick: 5,
+    creatures: [],
+    creatureDeltas: [
+      { id: first.id, needs: { ...first.needs, thirst: 777 } },
+      { id: 999_999, name: "Unknown" },
+    ],
+    relationships: [],
+    events: [],
+    territories: [],
+  });
+  const view = useWorldViewStore.getState().view!;
+  const row = view.creatures.find((c) => c.id === first.id)!;
+  assert.equal(row.needs.thirst, 777);
+  assert.equal(row.name, first.name, "untouched fields stay");
+  assert.deepEqual(row.genes, first.genes);
+  assert.equal(view.world.lastTick, 5);
+  assert.equal(
+    view.creatures.some((c) => c.id === 999_999),
+    false,
+    "a delta never invents a creature",
+  );
+  assert.equal(view.creatures.length, FIXTURE_WORLD_VIEW.creatures.length);
+});
