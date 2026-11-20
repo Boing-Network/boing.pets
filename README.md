@@ -6,6 +6,13 @@ remember, and die on their own. The player does not control them. The player
 watches, inspects, and nudges the world through five rate-limited _influences_
 (naming, favoring a bloodline, enriching or calming a territory).
 
+The v1 world has seven territories (Meadow, Thicket, Ridge, Moonlit Glade,
+Glowfen, Elder Grove, High Crags) and seven species, each with a procedural 3D
+model: Fire Fox, Moss Stag, Lantern Moth, Glow Tortoise, Moon Hare, Crag Ram,
+and Thistle Hog. The species table lives in
+`packages/contract/src/species.ts`; see
+[`docs/DESIGN.md`](docs/DESIGN.md#world-and-species) for biology and the map.
+
 This repo replaced the earlier Boing Pets pasture game in November 2026
 (`b116e6a` "Remove the pasture app and leave the M1 skeleton."). The design and
 milestone history are in [`docs/DESIGN.md`](docs/DESIGN.md).
@@ -166,7 +173,7 @@ minting is always off in the web build.
 - **Embedded Postgres is a beta build** (`embedded-postgres` `18.6.0-beta.19`).
   The Electron window uses `sandbox: false` (with `contextIsolation: true` and
   `nodeIntegration: false`).
-- The client build emits a ~1.36 MB main chunk and ships source maps
+- The client build emits a ~1.38 MB main chunk and ships source maps
   (`apps/client/vite.config.ts` `sourcemap: true`).
 
 ## Design

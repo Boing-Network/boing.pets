@@ -180,8 +180,8 @@ Newborns start with `NURSE`. A losing `CONTEST` can kill with cause `INJURY`.
 
 ### Migration and discovery
 
-- `RELOCATE` travels territory links (meadow↔thicket 6 ticks, thicket↔ridge
-  8 ticks).
+- `RELOCATE` travels territory links (seven two-way links, 5–8 ticks each; see
+  "World and species").
 - Migration reasons are `FLEE`, `SETTLE`, and `PROTECT`, and each writes a
   `MIGRATION` memory and event.
 - Each lineage records one `DISCOVERY` per territory it reaches.
@@ -202,31 +202,67 @@ Newborns start with `NURSE`. A losing `CONTEST` can kill with cause `INJURY`.
   domains are worldgen, name, genetics, personality, forage, and contest.
 - Integer math only (`assertInteger`), and every iteration order is fixed.
 - `canonicalHash` (SHA-256 over canonical JSON, `hash.ts`) pins the seed-1
-  founder world in `packages/sim/test/determinism.test.ts`.
+  founder world in `packages/sim/test/determinism.test.ts`. The golden hash
+  last changed on purpose in the species/map pass (species 1–3 renamed, four
+  species, four territories, and sixteen founders added); founders 1–12 kept
+  their ids, names, genes, and traits because founders are generated in
+  ascending species id, which matches the old slug order for ids 1–3.
   `catchup-equivalence.test.ts` checks that catch-up equals live stepping.
 
 ## World and species
 
-`worldgen/create-world.ts` builds one world, "Living World":
+`worldgen/catalog.ts` holds the species biology, territories, and links, and
+`worldgen/create-world.ts` builds one world, "Living World", from it.
+Territory ids follow catalog order, so the original three keep ids 1–3.
 
-| Territory | Food | Danger | Capacity |
-| --------- | ---- | ------ | -------- |
-| Meadow    | 700  | 200    | 40       |
-| Thicket   | 500  | 450    | 30       |
-| Ridge     | 350  | 700    | 20       |
+| Territory (id, slug) | Name          | Food | Danger | Capacity | Client biome            |
+| -------------------- | ------------- | ---- | ------ | -------- | ----------------------- |
+| 1 `meadow`           | Meadow        | 700  | 200    | 40       | meadow (pond)           |
+| 2 `thicket`          | Thicket       | 500  | 450    | 30       | thicket (swamp)         |
+| 3 `ridge`            | Ridge         | 350  | 700    | 20       | ridge (tarn, peak)      |
+| 4 `glade`            | Moonlit Glade | 650  | 250    | 35       | glade (pond)            |
+| 5 `fen`              | Glowfen       | 600  | 350    | 30       | fen (swamp, low)        |
+| 6 `grove`            | Elder Grove   | 550  | 400    | 28       | grove (pond, dark wood) |
+| 7 `crags`            | High Crags    | 300  | 600    | 18       | crags (tarn, peak)      |
 
-There are 4 founders per species (alternating female/male), for 12 total. Each
-founder starts its own lineage in its home territory.
+Links (two-way, travel ticks): meadow–thicket 6, thicket–ridge 8,
+meadow–glade 5, glade–grove 6, grove–thicket 6, thicket–fen 7,
+ridge–crags 7. The graph is connected, and the meadow–glade–grove–thicket
+loop gives creatures a second route between the lowlands.
 
-| Sim species (`id`, slug) | Home    | Maturity / lifespan / gestation / juvenile (days) | Base curiosity, aggression, loyalty, sociability, bravery, risk | Client skin (`species-skins.ts`)     |
-| ------------------------ | ------- | ------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------ |
-| 1 `fernfox`              | meadow  | 90 / 900 / 18 / 16                                | 700, 350, 500, 600, 550, 650                                    | Fire fox (`FireFoxMesh.tsx`)         |
-| 2 `mossback`             | thicket | 140 / 1400 / 30 / 28                              | 300, 250, 750, 400, 400, 200                                    | Moss stag (`MossStagMesh.tsx`)       |
-| 3 `pebblehare`           | ridge   | 70 / 700 / 14 / 12                                | 550, 200, 400, 500, 300, 500                                    | Lantern moth (`LanternMothMesh.tsx`) |
+There are 4 founders per species (alternating female/male), for 28 total. Each
+founder starts its own lineage in its species' home territory, and every home
+is a different territory.
 
-All species are `HERBIVORE`. Skins are view-only: the kernel knows Fernfox,
-Mossback, and Pebblehare, and the client maps them to the fire fox, moss stag,
-and lantern moth meshes.
+| Species (`id`, slug)            | Home    | Maturity / lifespan / gestation / juvenile (days) | Base curiosity, aggression, loyalty, sociability, bravery, risk | Mesh                   | Locomotion |
+| ------------------------------- | ------- | ------------------------------------------------- | --------------------------------------------------------------- | ---------------------- | ---------- |
+| 1 `fire-fox` Fire Fox           | meadow  | 90 / 900 / 18 / 16                                | 700, 350, 500, 600, 550, 650                                    | `FireFoxMesh.tsx`      | trot       |
+| 2 `moss-stag` Moss Stag         | thicket | 140 / 1400 / 30 / 28                              | 300, 250, 750, 400, 400, 200                                    | `MossStagMesh.tsx`     | walk       |
+| 3 `lantern-moth` Lantern Moth   | ridge   | 70 / 700 / 14 / 12                                | 550, 200, 400, 500, 300, 500                                    | `LanternMothMesh.tsx`  | fly        |
+| 4 `glow-tortoise` Glow Tortoise | fen     | 160 / 1800 / 36 / 32                              | 250, 150, 650, 350, 500, 150                                    | `GlowTortoiseMesh.tsx` | walk       |
+| 5 `moon-hare` Moon Hare         | glade   | 60 / 600 / 12 / 10                                | 650, 150, 350, 700, 250, 450                                    | `MoonHareMesh.tsx`     | trot       |
+| 6 `crag-ram` Crag Ram           | crags   | 120 / 1100 / 24 / 20                              | 400, 600, 550, 450, 750, 600                                    | `CragRamMesh.tsx`      | walk       |
+| 7 `thistle-hog` Thistle Hog     | grove   | 80 / 800 / 16 / 14                                | 500, 450, 600, 300, 600, 350                                    | `ThistleHogMesh.tsx`   | trot       |
+
+All species are `HERBIVORE` and breed only within their species.
+
+### Species naming
+
+There is one name per species. `packages/contract/src/species.ts`
+(`SPECIES_CATALOG`) is the canonical table of id, slug, and display name. The
+sim catalog maps over it (a test checks they match), and the client's skin id
+is the slug and its label is the display name, so the kernel, HUD, and
+renderer always agree.
+
+Species 1–3 used to be `fernfox`, `mossback`, and `pebblehare` in the kernel
+while the client drew a fire fox, moss stag, and lantern moth. The kernel now
+uses the presentation names. Ids did not change, so existing saves still
+render the right mesh. `LEGACY_SPECIES_SLUGS` / `speciesKeyForSlug` resolve
+the old slugs for any stored row or tool that still has them; stored species
+rows in an old save keep their old slug until that world is regenerated.
+
+The scale rehearsal (`create-scale-world.ts`) keeps using only species and
+territories 1–3 so its timings stay comparable.
 
 ## Player influences
 
@@ -278,14 +314,24 @@ and lantern moth meshes.
 
 - `state/worldViewStore.ts` mirrors host `WorldView` and applies
   `world.patch`. `state/uiStore.ts` holds selection, pause, and scale.
-- `view/world/*` turns the 3-node territory graph into one continuous night
-  landscape: terrain, water, flora, sky, and glow points. It is deterministic
-  from the seed and graph, and is never saved or fed back to the sim.
+- `view/world/*` turns the territory graph (seven nodes in v1) into one
+  continuous night landscape: terrain, water, flora, sky, and glow points. It
+  is deterministic from the seed and graph, and is never saved or fed back to
+  the sim. Each biome (`biomes.ts`) picks a flora family
+  (meadow/thicket/ridge), a water kind, and whether it has a peak, so new
+  biomes reuse the instanced flora instead of adding geometry. Region radius
+  is `clamp(24 + capacity × 0.36, 24, 52)`. Water sits beside the principal
+  axis of a region's links, which keeps rivers out of region hearts even
+  when two neighbours lie on the same side. The terrain grid stays capped at
+  380k cells, so a bigger map means slightly coarser cells, not more memory.
 - `view/motion/*` maps the sim goal/action to a presentation behavior
   (forage, drink, rest, social, court, and so on) and to waypoints from
   deterministic anchors. Creatures free-roam visually across regions, while
   their sim location stays the territory id.
-- `view/creatures/*`: procedural meshes and materials for the three skins. The
+- `view/creatures/*`: procedural meshes and materials for the seven skins.
+  Each mesh animates in `useFrame` from the shared `CreaturePose` (gait,
+  gait weight, head/body pitch) plus an idle loop (breathing, ear twitches,
+  sniffing, chewing). The four newer meshes use no per-creature lights. The
   repo has no model or texture assets.
 - HUD: `InspectionPanel` (creature, family, top memories), `InfluencePanel`
   (all five verbs), and `ClockControls`.
@@ -395,13 +441,12 @@ From the Nov 20, 2026 local audit:
 5. Give `FAVOR_BLOODLINE` a sim effect, or document it as cosmetic/ranking
    only.
 6. Show `CatchupReport` in the HUD (it is already stored in `worldViewStore`).
-7. Decide whether sim species names (Fernfox/Mossback/Pebblehare) or skin names
-   (fire fox/moss stag/lantern moth) are canonical.
-   `apps/client/src/view/species-skins.ts` cites a `docs/art-direction.md` that
-   is not in the repo.
+7. ~~Decide canonical species names.~~ Done: presentation names are canonical
+   (see "Species naming"). Old saves keep their stored legacy slugs until
+   regenerated; a migration could rewrite them.
 8. Desktop packaging: the main process assumes a repo checkout (`REPO_ROOT`,
    `npx prisma`), uses a beta embedded Postgres, and runs with
    `sandbox: false`.
-9. Split the 1.36 MB client chunk, and decide whether to ship source maps.
+9. Split the ~1.38 MB client chunk, and decide whether to ship source maps.
 10. Clean leftovers from the old game in local checkouts (`playtest-artifacts/`,
     `scripts/`, `.dev.vars` are no longer in `.gitignore`).
