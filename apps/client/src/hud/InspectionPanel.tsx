@@ -6,6 +6,7 @@ import {
   type RelationshipView,
 } from "@boing-pets/contract";
 import type { IpcClient } from "../api/ipc";
+import { speciesLabel } from "../view/species-skins";
 import { useUiStore } from "../state/uiStore";
 import { useWorldViewStore } from "../state/worldViewStore";
 import { topMemories } from "./topMemories";
@@ -119,6 +120,7 @@ export function InspectionPanel({ ipc }: Props) {
                 <button
                   type="button"
                   className="inspect-picker-btn"
+                  title={speciesLabel(row.speciesId)}
                   onClick={() => selectCreature(row.id)}
                 >
                   {row.name}
@@ -140,7 +142,8 @@ export function InspectionPanel({ ipc }: Props) {
         <div>
           <h2 className="inspect-name">{creature.name}</h2>
           <p className="inspect-sub">
-            gen {creature.family.generation} · {creature.gender.toLowerCase()} ·{" "}
+            {speciesLabel(creature.speciesId)} · gen{" "}
+            {creature.family.generation} · {creature.gender.toLowerCase()} ·{" "}
             {creature.status === CreatureStatus.ALIVE ? "alive" : "dead"} · age{" "}
             {creature.ageDays}d
           </p>
