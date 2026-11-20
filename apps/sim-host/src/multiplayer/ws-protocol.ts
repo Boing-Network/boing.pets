@@ -3,7 +3,11 @@
  * live in the contract so the browser client speaks the same shapes.
  * Payloads inside `command` / `query` are validated separately (validate.ts).
  */
-import type { WsClientToServer, WsServerToClient } from "@boing-pets/contract";
+import type {
+  WalletProof,
+  WsClientToServer,
+  WsServerToClient,
+} from "@boing-pets/contract";
 
 export type { WsClientToServer, WsServerToClient };
 
@@ -35,13 +39,35 @@ export function parseWsClientMessage(raw: string): WsClientToServer | null {
       const name = optionalString(record.name, 64);
       const ownerKey = optionalString(record.ownerKey, 256);
       if (token === null || name === null || ownerKey === null) return null;
+      let wallet: WalletProof | undefined;
+      if (record.wallet !== undefined) {
+        const w = record.wallet as Record<string, unknown> | null;
+        if (w == null || typeof w !== "object") return null;
+        const address = optionalString(w.address, 80);
+        const nonce = optionalString(w.nonce, 64);
+        const signature = optionalString(w.signature, 160);
+        if (!address || !nonce || !signature) return null;
+        wallet = { address, nonce, signature };
+      }
       return {
         type: "hello",
         v: record.v,
         ...(token !== undefined ? { token } : {}),
         ...(name !== undefined ? { name } : {}),
         ...(ownerKey !== undefined ? { ownerKey } : {}),
+        ...(wallet !== undefined ? { wallet } : {}),
       };
+    }
+    case "auth-challenge": {
+      const address = optionalString(record.address, 80);
+      return address ? { type: "auth-challenge", address } : null;
+    }
+    case "presence": {
+      const { x, z } = record;
+      if (typeof x !== "number" || typeof z !== "number") return null;
+      if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
+      if (Math.abs(x) > 100_000 || Math.abs(z) > 100_000) return null;
+      return { type: "presence", x, z };
     }
     case "command": {
       const message = record.message;

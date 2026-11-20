@@ -22,6 +22,8 @@ kill_timeout = "30s"
   # Speed for a brand-new world only; the owner can change it later.
   LIVING_PETS_MP_SCALE = "1"
   # Browser origins allowed to open the WebSocket. `*` = letters/digits/dashes.
+  # Boing wallets (0x + 64 hex, comma-separated) that sign in as owner.
+  # LIVING_PETS_MP_OWNER_WALLETS = "0x…"
   LIVING_PETS_MP_ALLOWED_ORIGINS = "https://boing-pets-*-nico-builds.vercel.app,https://boing-pets.vercel.app,http://localhost:*,http://127.0.0.1:*"
 
 [http_service]

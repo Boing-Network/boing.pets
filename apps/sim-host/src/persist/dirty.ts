@@ -111,8 +111,14 @@ export function markAfterTick(
       dirty.newModifierIds.add(modifier.id);
     }
   }
+  const dayBoundary =
+    snapshot.world.lastTick % snapshot.ruleset.ticksPerDay === 0;
   for (const lineage of snapshot.lineages) {
     if (lineage.id >= before.nextLineageId) dirty.lineageIds.add(lineage.id);
+    // Favor fades at day boundaries (decayLineageFavor).
+    else if (dayBoundary) {
+      dirty.lineageIds.add(lineage.id);
+    }
   }
   for (const influence of snapshot.pendingInfluences) {
     if (!influence.applied) continue;

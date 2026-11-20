@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { CreatureStatus } from "@boing-pets/contract";
 import type { IpcClient } from "../api/ipc";
+import { CatchupPanel } from "../hud/CatchupPanel";
 import { ClockControls } from "../hud/ClockControls";
 import { InfluencePanel } from "../hud/InfluencePanel";
 import { InspectionPanel } from "../hud/InspectionPanel";
@@ -53,6 +54,7 @@ export function App({ ipc }: Props) {
         </Suspense>
         <InfluencePanel ipc={ipc} />
         <InspectionPanel ipc={ipc} />
+        <CatchupPanel />
         <div className="status-chip">
           {view
             ? `${territoryCount} territories · seed ${view.world.seed}`

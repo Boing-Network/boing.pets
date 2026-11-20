@@ -919,6 +919,21 @@ export function resolveCooperateForage(
   }
 }
 
+/**
+ * FAVOR_BLOODLINE's effect: a favored lineage finds food more easily, so it
+ * survives lean seasons and breeds more. Integer math, no RNG: deterministic.
+ */
+export function favorForageBonus(
+  snapshot: WorldSnapshot,
+  actor: CreatureRow,
+): number {
+  const divisor = snapshot.ruleset.favorForageDivisor;
+  if (!(divisor > 0)) return 0;
+  const lineage = snapshot.lineages.find((row) => row.id === actor.lineageId);
+  const favor = lineage?.playerFavor ?? 0;
+  return favor > 0 ? Math.floor(favor / divisor) : 0;
+}
+
 const FOOD_INSECURITY_IMPORTANCE = 8;
 const FOOD_INSECURITY_EMOTION = -500;
 const GIFT_IMPORTANCE = 5;
@@ -943,7 +958,8 @@ export function resolveForage(
   const chancePerMille = clamp(
     territory.food -
       territory.population * rules.foragePopPressure +
-      Math.floor(actor.geneIntelligence / 5),
+      Math.floor(actor.geneIntelligence / 5) +
+      favorForageBonus(snapshot, actor),
     rules.forageChanceMin,
     rules.forageChanceMax,
   );

@@ -7,6 +7,7 @@
  * emit sink (local) or a broadcast sink (shared world).
  */
 import type {
+  CatchupReport,
   ClientToHost,
   HostToClient,
   QueryResult,
@@ -37,6 +38,7 @@ import {
 } from "../multiplayer/influence-book";
 import {
   createDisabledMintEdge,
+  enqueueInfluenceRewardMints,
   createRepositoryNftLinkStore,
   type MintEdge,
 } from "../boing";
@@ -88,6 +90,11 @@ export type HostRuntimeOptions = {
    */
   preferPatches?: boolean;
   /**
+   * With `preferPatches`, every Nth live view is a full `world.snapshot`
+   * keyframe instead of a patch. Default 60 (one hour of sim at 1x).
+   */
+  keyframeEvery?: number;
+  /**
    * Time scale for a world with no saved clock preference (e.g. a fresh
    * browser world). A saved scale always wins so reload keeps the speed.
    */
@@ -111,6 +118,11 @@ export type HostRuntime = {
   quit(): Promise<void>;
   /** Push a full snapshot + clock to the emit sink (join handshake). */
   pushViewToEmit(): void;
+  /**
+   * The catch-up report from this launch (time the world spent offline), or
+   * null. Shared hosts replay it to players who join later.
+   */
+  readonly lastCatchup: CatchupReport | null;
 };
 
 const DEFAULT_SEED = 1;
@@ -131,6 +143,7 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
   let frameTimer: ReturnType<typeof setInterval> | null = null;
   let lastFrameMs = 0;
   let started = false;
+  let lastCatchup: CatchupReport | null = null;
 
   /**
    * Single-writer lock. Contended commands wait (multiplayer safe).
@@ -176,8 +189,14 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
 
   // What listeners already hold; live patches only carry the difference.
   const baseline = createPatchBaseline();
+  // Every Nth live view is a full snapshot (a keyframe): it heals any
+  // listener whose merged view drifted, and older clients that ignore
+  // creature deltas, at the cost of one snapshot per N ticks.
+  const keyframeEvery = Math.max(1, options.keyframeEvery ?? 60);
+  let patchesSinceKeyframe = 0;
 
   function pushSnapshot(): void {
+    patchesSinceKeyframe = 0;
     const view = buildWorldView(requireSession().snapshot);
     resetPatchBaseline(baseline, view);
     options.emit({ message: "world.snapshot", body: view });
@@ -185,7 +204,12 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
 
   function pushLiveView(): void {
     const active = requireSession();
-    if (preferPatches && active.dirty.creatureIds.size > 0) {
+    if (
+      preferPatches &&
+      active.dirty.creatureIds.size > 0 &&
+      patchesSinceKeyframe < keyframeEvery - 1
+    ) {
+      patchesSinceKeyframe += 1;
       options.emit({
         message: "world.patch",
         body: buildWorldPatch(active.snapshot, active.dirty, baseline),
@@ -197,6 +221,9 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
   }
 
   const runtime: HostRuntime = {
+    get lastCatchup() {
+      return lastCatchup;
+    },
     get session() {
       return requireSession();
     },
@@ -230,6 +257,7 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
       });
 
       const report = await catchupOnLaunch(session, nowMs());
+      lastCatchup = report;
       pushSnapshot();
       if (report != null) {
         options.emit({ message: "world.catchup", body: report });
@@ -308,6 +336,16 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
                     detail: "the world is catching up; try again",
                   };
             }
+            // Wallet players earn a token for a landed influence (minting
+            // is off by default; see boing/influence-rewards.ts).
+            void enqueueInfluenceRewardMints(
+              mintEdge,
+              active.snapshot.world.id,
+              result.id,
+              message.body,
+              context.accountId,
+              nowMs(),
+            );
             pushSnapshot();
             pushClock();
             return { ok: true };

@@ -193,8 +193,11 @@ Newborns start with `NURSE`. A losing `CONTEST` can kill with cause `INJURY`.
 - A `CatchupReport` ranks notable events (rare-mutation births, deaths in
   favored lineages, and so on) via `catchupEventRank`.
 - Influence submits are rejected with `catching_up` while catch-up runs.
-- The client stores `world.catchup` in `worldViewStore.lastCatchup`, but no
-  HUD component displays it yet.
+- The client stores `world.catchup` in `worldViewStore.lastCatchup`, and
+  `hud/CatchupPanel.tsx` shows it once as "While you were away": world time
+  passed, the tallies, and up to five ranked highlights, dismissed with
+  Continue (seen reports are remembered per world in `localStorage`). A
+  shared host replays its launch report to players who join later.
 
 ### Determinism
 
@@ -268,14 +271,24 @@ territories 1–3 so its timings stay comparable.
 
 `packages/contract` `InfluenceKind`, applied in `kernel/influences.ts`:
 
-| Verb               | Effect                                                                                  |
-| ------------------ | --------------------------------------------------------------------------------------- |
-| `NAME_CREATURE`    | Sets the name and `nameGivenByPlayer = true`.                                           |
-| `NAME_LINEAGE`     | Renames the lineage.                                                                    |
-| `FAVOR_BLOODLINE`  | `lineage.playerFavor += 100` (max 1000). Today it only affects catch-up report ranking. |
-| `ENRICH_TERRITORY` | `FOOD` modifier +150 for 5 days (720 ticks).                                            |
-| `CALM_TERRITORY`   | `DANGER` modifier −100 for 5 days.                                                      |
+| Verb               | Effect                                                                |
+| ------------------ | --------------------------------------------------------------------- |
+| `NAME_CREATURE`    | Sets the name and `nameGivenByPlayer = true`.                         |
+| `NAME_LINEAGE`     | Renames the lineage.                                                  |
+| `FAVOR_BLOODLINE`  | `lineage.playerFavor += 100` (max 1000). See "Bloodline favor" below. |
+| `ENRICH_TERRITORY` | `FOOD` modifier +150 for 5 days (720 ticks).                          |
+| `CALM_TERRITORY`   | `DANGER` modifier −100 for 5 days.                                    |
 
+- **Bloodline favor.** A favored lineage forages better: every forage roll
+  of its members gains ⌊playerFavor / `favorForageDivisor`⌋ per mille
+  (divisor 4, so one favor of 100 is +2.5 %, the cap of 1000 is +25 %, still
+  clamped to `forageChanceMax`). Better food means fewer hunger deaths and
+  more healthy parents, so the bloodline tends to grow. Favor fades by
+  `favorDecayPerDay` (10) at every day boundary, floor 0, so one favor lasts
+  about ten world days unless renewed. Integer math and no new RNG draws keep
+  the kernel deterministic; health, genes and needs are never written
+  directly. Favor still also ranks catch-up highlights. Worlds saved before
+  these knobs existed pick up the defaults on load (`persist/load.ts`).
 - **Rate limit** (`apps/sim-host/src/influence.ts`): 3 accepted per rolling
   24 h of wall time (`INFLUENCE_RATE_LIMIT`, `INFLUENCE_RATE_WINDOW_MS`), per
   gate. Single-player uses one `"local"` gate, multiplayer one gate per account
@@ -379,6 +392,30 @@ territories 1–3 so its timings stay comparable.
   (`LIVING_PETS_MP_SECRET` or `<data>/session-secret`). A bad or expired token
   is refused (`invalid_token`) and the socket joins as a fresh guest. A
   `hello` with the owner key (constant-time compare) gets the `owner` role.
+- **Wallet sign-in:** a socket may send `auth-challenge {address}` (before
+  or after `hello`, at most 8 per socket). The server answers with a
+  one-time message bound to the page origin, chain id (6913, Boing testnet),
+  address, nonce, issue and expiry times (5 min):
+  `Boing Pets sign-in v1\nOrigin: …\nChain: 6913\nAddress: 0x…\nNonce: …\nIssued: …\nExpires: …`.
+  Boing Express signs it with `boing_signMessage` (no transaction); the
+  client reconnects with `hello {wallet: {address, nonce, signature}}` and the
+  server checks Ed25519(signature, BLAKE3(UTF-8 message), address), the same
+  scheme as the old pasture app. The nonce is consumed whatever the outcome.
+  Success joins as account `w:<64 hex>` (display name `0x1a2b3c…9f0e` unless
+  `name` is given) and the session token carries `wallet`, so reloads stay
+  signed in without a new signature. A bad, replayed or expired proof gets
+  `wallet_rejected` and joins as a guest; guests keep playing as before.
+- **Owner role:** wallets listed in `LIVING_PETS_MP_OWNER_WALLETS` get `owner`
+  on every join (a wallet's role is recomputed from that list, never taken
+  from its token). The owner key still works as a fallback.
+- **Presence:** clients send `presence {x, z}` (their camera focus) at most
+  5 times a second and only when it moves; the server rounds to 0.01, ignores
+  faster frames, and every 250 ms, when anything changed, sends everyone one
+  `players` frame (session id, name, role, wallet flag, x, z; at most 64).
+  Presence is cosmetic: it is not part of `seq`, never queued behind a slow
+  socket, and leaves the sim untouched. The client draws each other player as
+  a cone, ring and name label (owner violet, wallet gold, guest blue), eased
+  toward the latest position each frame and placed on the terrain height.
 - **Authority:** only the owner may pause, resume or rescale
   (`not_owner` notice otherwise). Influences keep their per-account budgets.
 - **Limits:** 64 KiB `maxPayload`; every command and query is rebuilt by a
@@ -387,9 +424,17 @@ territories 1–3 so its timings stay comparable.
   queued is skipped and rebased once the backlog halves; a heartbeat drops a
   socket after four silent 15 s intervals (any inbound frame counts).
 - **Bandwidth:** live `world.patch` frames carry only rows and events that
-  changed since the previous emit (`PatchBaseline`).
+  changed since the previous emit (`PatchBaseline`). Creatures go per field:
+  a creature the listeners already hold travels as a `creatureDeltas` entry
+  with just its changed top-level fields (nested objects such as `needs` are
+  replaced whole); a new creature goes out as a full row. Every 60th live
+  view is a full `world.snapshot` keyframe, which heals any drifted listener
+  and older clients that ignore deltas. Both sides merge with the contract's
+  `applyWorldPatch`. With 28 creatures this took the live stream from ~53 KB
+  to ~7 KB per tick (keyframes included). Seq gaps still trigger `resync`.
 - **Client** (`api/ws-host-ipc.ts`): `?mp=ws://…` or `VITE_LIVING_PETS_MP_URL`
-  selects it (the Vercel deployments default to Fly; `?mp=off` opts out). It keeps the token per server URL in `localStorage`, reconnects
+  selects it (the Vercel deployments default to Fly; `?mp=off` opts out). It
+  keeps the token per server URL in `localStorage`, reconnects
   with backoff (0.5 s doubling to 8 s), and reports `connecting/live/
 reconnecting` to the HUD.
 
@@ -419,9 +464,19 @@ CONFIRMED`, or `FAILED`, which can be retried. Links persist in
 - **M21, asset taxonomy** (`taxonomy.ts`): `UNIQUE_LINEAGE_ARTIFACT` (unique
   NFT) and `COMPRESSED_ITEM` (multi-token, fungible-like), persisted in
   `AssetMintLink`. The mint edge exposes `queueLineageArtifactMint` and
-  `queueCompressedItemMint`, but no game system calls them yet. Items and
-  artifacts are **planned** (the comments mention keepsakes, potions, and gear).
-- **Recipient:** `LIVING_PETS_BOING_NFT_RECIPIENT_HEX`, or else the address
+  `queueCompressedItemMint`.
+- **Player rewards** (`influence-rewards.ts`): when a wallet player's
+  influence lands, the host queues a reward minted **to that player's
+  wallet** (stored as `AssetMintLink.recipientHex`): Enrich → Rations Pack,
+  Calm → Calm Potion, Favor → Vitality Potion (one compressed item each), and
+  Name lineage → that lineage's Keepsake (unique artifact; the first wallet to
+  name a lineage keeps it). Naming a creature earns nothing (creatures mint at
+  birth). Guests and owner-key sessions earn nothing, so a reward never falls
+  back to the operator. Mint keys come from the influence or lineage id, so
+  retries never double-mint. The shared server (`multiplayer/serve.ts`) now
+  builds its mint edge from the environment, still off by default.
+- **Recipient:** player rewards go to the player's wallet. Creature mints at
+  birth go to `LIVING_PETS_BOING_NFT_RECIPIENT_HEX`, or else the address
   derived from `BOING_SECRET_HEX`, which means the operator.
 
 ## Trust and security model
@@ -495,11 +550,12 @@ From the Nov 20, 2026 local audit:
    (owner-only clock). Still open: wallet-signature login, per-field creature
    deltas to cut bandwidth, presence/cursors for other players, and a hosted
    `wss://` deployment.
-4. Minting: decide whether players get their own recipient addresses, separate
-   the signing key per collection, and choose a collection-deploy workflow.
-5. Give `FAVOR_BLOODLINE` a sim effect, or document it as cosmetic/ranking
-   only.
-6. Show `CatchupReport` in the HUD (it is already stored in `worldViewStore`).
+4. Minting: ~~player recipient addresses~~ done for item/artifact rewards.
+   Still open: separate the signing key per collection, a collection-deploy
+   workflow, and whether creatures should belong to a player.
+5. ~~Give `FAVOR_BLOODLINE` a sim effect~~ done (forage bonus that fades).
+6. ~~Show `CatchupReport` in the HUD~~ done (`CatchupPanel`). A per-player
+   "since your last visit" report for the shared world is a follow-up.
 7. ~~Decide canonical species names.~~ Done: presentation names are canonical
    (see "Species naming"). Old saves keep their stored legacy slugs until
    regenerated; a migration could rewrite them.

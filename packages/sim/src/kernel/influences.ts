@@ -156,9 +156,31 @@ function applyOne(
 }
 
 /**
+ * At each day boundary every lineage's favor fades by `favorDecayPerDay`
+ * (floor 0), so a blessing lasts about ten days unless renewed. Returns the
+ * lineages that changed.
+ */
+export function decayLineageFavor(
+  snapshot: WorldSnapshot,
+  tick: number,
+): number[] {
+  const rules = snapshot.ruleset;
+  const perDay = rules.favorDecayPerDay;
+  if (!(perDay > 0) || tick % rules.ticksPerDay !== 0) return [];
+  const changed: number[] = [];
+  for (const lineage of snapshot.lineages) {
+    if (lineage.playerFavor <= 0) continue;
+    lineage.playerFavor = Math.max(0, lineage.playerFavor - perDay);
+    changed.push(lineage.id);
+  }
+  return changed;
+}
+
+/**
  * Apply pending influences with `issuedAtTick == tick`, ascending id.
  * Enrich/calm append modifiers; they never write territory base abundance/danger.
- * Favor only touches lineage.playerFavor — never health, genes, or needs.
+ * Favor only touches lineage.playerFavor — never health, genes, or needs;
+ * its effect is the forage bonus in `resolveForage` (see favorForageBonus).
  */
 export function applyInfluences(snapshot: WorldSnapshot, tick: number): void {
   const pending = [...snapshot.pendingInfluences]

@@ -13,18 +13,7 @@ import type {
   WorldView,
 } from "@boing-pets/contract";
 import type { HostToClient } from "@boing-pets/contract";
-
-function replaceById<T extends { id: number }>(
-  current: T[],
-  incoming: T[],
-): T[] {
-  if (incoming.length === 0) return current;
-  const map = new Map(current.map((row) => [row.id, row]));
-  for (const row of incoming) {
-    map.set(row.id, row);
-  }
-  return [...map.values()].sort((a, b) => a.id - b.id);
-}
+import { applyWorldPatch } from "@boing-pets/contract";
 
 function monotonicNowMs(): number {
   return typeof performance !== "undefined" ? performance.now() : Date.now();
@@ -75,23 +64,8 @@ export const useWorldViewStore = create<WorldViewState>((set, get) => ({
   applyPatch(patch) {
     const current = get().view;
     if (!current) return;
-    const creatureMap = new Map(
-      current.creatures.map((c) => [c.id, c] as const),
-    );
-    for (const creature of patch.creatures) {
-      creatureMap.set(creature.id, creature);
-    }
-    // Dead creatures leave the map but stay in the cache for lineage later.
-    set({
-      view: {
-        ...current,
-        world: { ...current.world, lastTick: patch.tick },
-        creatures: [...creatureMap.values()].sort((a, b) => a.id - b.id),
-        relationships: replaceById(current.relationships, patch.relationships),
-        events: replaceById(current.events, patch.events),
-        territories: replaceById(current.territories, patch.territories),
-      },
-    });
+    // Dead creatures stay in the cache for lineage lookups.
+    set({ view: applyWorldPatch(current, patch).view });
   },
 
   applyHostMessage(message) {

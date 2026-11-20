@@ -463,6 +463,8 @@ model AssetMintLink {
   itemKindId       BigInt?        @map("item_kind_id")
   amount           BigInt?
   itemSlug         String?        @map("item_slug")
+  /// Player wallet (0x + 64 hex) that earned it; null mints to the operator.
+  recipientHex     String?        @map("recipient_hex")
   collectionHex    String         @map("collection_hex")
   tokenIdHex       String         @map("token_id_hex")
   chainId          String         @map("chain_id")

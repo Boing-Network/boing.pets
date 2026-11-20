@@ -17,11 +17,18 @@
  *                                       in the data dir)
  *   LIVING_PETS_MP_ALLOWED_ORIGINS      extra allowed browser origins, comma
  *                                       separated, `*` wildcards
+ *   LIVING_PETS_BOING_MINTING           mint creatures and player rewards on
+ *                                       Boing (default off; see README)
  *   NODE_ENV=production                 require the secrets, DATABASE_URL and
  *                                       an origin list from the environment
  */
 import path from "node:path";
 import { parseArgs } from "node:util";
+import {
+  createMintEdgeFromEnv,
+  createRepositoryAssetMintLinkStore,
+  createRepositoryNftLinkStore,
+} from "../boing";
 import { BrowserWorldRepository } from "../persist/browser-repository";
 import { createFileStringStore } from "../persist/file-string-store";
 import type { WorldRepository } from "../persist/repository";
@@ -33,6 +40,7 @@ import {
 } from "./server-config";
 import { createSharedWorldHost } from "./shared-world-host";
 import { generateOwnerKey, loadOrCreateSecret } from "./tokens";
+import { createWalletChallenges } from "./wallet-auth";
 import { listenSharedWorldWs } from "./ws-server";
 
 const { values } = parseArgs({
@@ -108,10 +116,17 @@ const ownerKeyFromEnv =
     : null;
 const ownerKey = ownerKeyFromEnv ?? generateOwnerKey();
 
+// Off unless LIVING_PETS_BOING_MINTING is set (see apps/sim-host/src/boing).
+const mintEdge = createMintEdgeFromEnv(
+  process.env,
+  createRepositoryNftLinkStore(repository),
+  createRepositoryAssetMintLinkStore(repository),
+);
 const host = createSharedWorldHost({
   repository,
   seed: config.seed,
   initialScale: config.scale,
+  mintEdge,
 });
 await host.start();
 const server = await listenSharedWorldWs({
@@ -120,6 +135,8 @@ const server = await listenSharedWorldWs({
   port: config.port,
   tokenSecret,
   ownerKey,
+  ownerWallets: config.ownerWallets,
+  walletChallenges: createWalletChallenges({ chainId: config.chainId }),
   log,
   allowOrigin: compileOriginMatcher(config.allowedOrigins),
   health: () => {

@@ -29,6 +29,8 @@ export type SessionClaims = {
   sub: string;
   name: string;
   role: SessionRole;
+  /** Boing wallet (`0x` + 64 hex) for wallet-signed sessions. */
+  wallet?: string;
   iat: number;
   exp: number;
 };
@@ -59,6 +61,8 @@ function isClaims(value: unknown): value is SessionClaims {
     typeof c.name === "string" &&
     c.name.length <= MAX_NAME_LENGTH &&
     (c.role === "owner" || c.role === "player") &&
+    (c.wallet === undefined ||
+      (typeof c.wallet === "string" && /^0x[0-9a-f]{64}$/.test(c.wallet))) &&
     typeof c.iat === "number" &&
     typeof c.exp === "number"
   );

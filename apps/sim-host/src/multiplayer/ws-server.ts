@@ -18,9 +18,13 @@ import { createServer, type Server as HttpServer } from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
 import {
   MP_MAX_CLIENT_MESSAGE_BYTES,
+  MP_MAX_LISTED_PLAYERS,
+  MP_PRESENCE_MAX_HZ,
   MP_PROTOCOL_VERSION,
   type HostToClient,
+  type PlayerPresence,
   type SessionRole,
+  type WalletProof,
 } from "@boing-pets/contract";
 import type { ClientConnection, EmitMeta } from "./client-registry";
 import type { SharedWorldHost } from "./shared-world-host";
@@ -33,6 +37,13 @@ import {
   verifySessionToken,
 } from "./tokens";
 import { createFloodGate, validateCommand, validateQuery } from "./validate";
+import {
+  createWalletChallenges,
+  normalizeWalletAddress,
+  shortWallet,
+  walletAccountId,
+  type WalletChallenges,
+} from "./wallet-auth";
 import {
   encodeWsServerMessage,
   parseWsClientMessage,
@@ -69,6 +80,12 @@ export type SharedWorldWsServerOptions = {
   allowOrigin?: (origin: string | undefined) => boolean;
   /** Extra fields for `GET /healthz` (e.g. world tick). */
   health?: () => Record<string, unknown>;
+  /** Wallet addresses (`0x` + 64 hex) that join as owner when signed in. */
+  ownerWallets?: readonly string[];
+  /** Sign-in challenges (tests inject a clock). Default: Boing testnet. */
+  walletChallenges?: WalletChallenges;
+  /** How often `players` presence frames go out (ms). 0 disables. */
+  presenceMs?: number;
 };
 
 export type SharedWorldWsServer = {
@@ -86,7 +103,20 @@ type SocketState = {
   skipped: boolean;
   missed: number;
   strikes: number;
+  /** `Origin` of the upgrade request; bound into sign-in messages. */
+  origin: string;
+  challenges: number;
+  wallet: string | null;
+  presence: { x: number; z: number } | null;
+  presenceAtMs: number;
 };
+
+/** Sign-in challenges one socket may request. */
+const MAX_CHALLENGES_PER_SOCKET = 8;
+
+function quantize(value: number): number {
+  return Math.round(value * 100) / 100;
+}
 
 function send(socket: WebSocket, message: WsServerToClient): void {
   if (socket.readyState !== socket.OPEN) return;
@@ -136,6 +166,16 @@ export async function listenSharedWorldWs(
   const log = options.log ?? (() => {});
 
   const allowOrigin = options.allowOrigin ?? (() => true);
+  const ownerWallets = new Set(
+    (options.ownerWallets ?? [])
+      .map((address) => normalizeWalletAddress(address))
+      .filter((address): address is string => address != null),
+  );
+  const challenges =
+    options.walletChallenges ?? createWalletChallenges({ nowMs });
+  const presenceMs = options.presenceMs ?? 250;
+  const presenceGapMs = 1000 / MP_PRESENCE_MAX_HZ;
+  let presenceDirty = false;
   const startedAtMs = Date.now();
   let closing = false;
 
@@ -243,13 +283,32 @@ export async function listenSharedWorldWs(
   async function hello(
     socket: WebSocket,
     state: SocketState,
-    message: { token?: string; name?: string; ownerKey?: string },
+    message: {
+      token?: string;
+      name?: string;
+      ownerKey?: string;
+      wallet?: WalletProof;
+    },
   ): Promise<void> {
     const now = nowMs();
-    let accountId: string;
-    let displayName: string;
+    let accountId: string | null = null;
+    let displayName = "";
     let role: SessionRole = "player";
-    if (message.token !== undefined) {
+    let wallet: string | null = null;
+    if (message.wallet !== undefined) {
+      wallet = await challenges.redeem(message.wallet);
+      if (wallet == null) {
+        send(socket, {
+          type: "error",
+          code: "wallet_rejected",
+          error: "wallet sign-in failed or expired; joining as a guest",
+        });
+      } else {
+        accountId = walletAccountId(wallet);
+        displayName = sanitizeDisplayName(message.name, shortWallet(wallet));
+      }
+    }
+    if (accountId == null && message.token !== undefined) {
       const claims = verifySessionToken(secret, message.token, now);
       if (claims == null) {
         // Expired / foreign tokens are not fatal: start a fresh guest.
@@ -258,23 +317,25 @@ export async function listenSharedWorldWs(
           code: "invalid_token",
           error: "session token rejected; starting a new guest session",
         });
-        accountId = newGuestAccountId();
-        displayName = sanitizeDisplayName(
-          message.name,
-          `Guest ${accountId.slice(-4)}`,
-        );
-      } else {
+      } else if (message.wallet === undefined || claims.wallet == null) {
+        // A failed wallet upgrade keeps a guest token's identity, but never
+        // falls back onto a previous wallet's token.
         accountId = claims.sub;
         displayName = claims.name;
-        role = claims.role;
+        wallet = claims.wallet ?? null;
+        // Wallet sessions get their role from the owner list on every join;
+        // owner-key sessions keep the role their token carries.
+        role = wallet == null ? claims.role : "player";
       }
-    } else {
+    }
+    if (accountId == null) {
       accountId = newGuestAccountId();
       displayName = sanitizeDisplayName(
         message.name,
         `Guest ${accountId.slice(-4)}`,
       );
     }
+    if (wallet != null && ownerWallets.has(wallet)) role = "owner";
     if (ownerKeyMatches(ownerKey, message.ownerKey)) role = "owner";
 
     const token = signSessionToken(secret, {
@@ -282,6 +343,7 @@ export async function listenSharedWorldWs(
       sub: accountId,
       name: displayName,
       role,
+      ...(wallet != null ? { wallet } : {}),
       iat: now,
       exp: now + SESSION_TOKEN_TTL_MS,
     });
@@ -294,10 +356,12 @@ export async function listenSharedWorldWs(
       displayName,
       role,
       worldId: options.host.runtime.session.snapshot.world.id,
+      ...(wallet != null ? { wallet } : {}),
     };
     let welcomed = false;
+    const joinedAccount = accountId;
     const connection = await options.host.join({
-      accountId,
+      accountId: joinedAccount,
       role,
       displayName,
       emit: (hostMessage, meta) => {
@@ -309,20 +373,65 @@ export async function listenSharedWorldWs(
       },
     });
     state.connection = connection;
+    state.wallet = wallet;
     if (connection != null) {
+      presenceDirty = true;
       log(
-        `join ${connection.sessionId} ${accountId} (${role}) "${displayName}"`,
+        `join ${connection.sessionId} ${joinedAccount} (${role}${
+          wallet != null ? ", wallet" : ""
+        }) "${displayName}"`,
       );
     }
   }
 
-  wss.on("connection", (socket) => {
+  function playersFrame(): WsServerToClient {
+    const players: PlayerPresence[] = [];
+    for (const state of states.values()) {
+      const connection = state.connection;
+      if (connection == null || state.presence == null) continue;
+      players.push({
+        id: connection.sessionId,
+        name: connection.displayName,
+        role: connection.role,
+        wallet: state.wallet != null,
+        x: state.presence.x,
+        z: state.presence.z,
+      });
+      if (players.length >= MP_MAX_LISTED_PLAYERS) break;
+    }
+    players.sort((a, b) => a.id.localeCompare(b.id));
+    return { type: "players", players };
+  }
+
+  function flushPresence(): void {
+    if (!presenceDirty) return;
+    presenceDirty = false;
+    const frame = encodeWsServerMessage(playersFrame());
+    for (const [socket, state] of states) {
+      if (state.connection == null || socket.readyState !== socket.OPEN)
+        continue;
+      // Presence is cosmetic: never queue it behind a slow socket.
+      if (socket.bufferedAmount > maxBuffered / 4) continue;
+      socket.send(frame);
+    }
+  }
+
+  wss.on("connection", (socket, request) => {
+    const originHeader = request.headers.origin;
     const state: SocketState = {
       connection: null,
       joining: false,
       skipped: false,
       missed: 0,
       strikes: 0,
+      origin:
+        typeof originHeader === "string" && originHeader.length > 0
+          ? originHeader.slice(0, 200)
+          : "unknown",
+      challenges: 0,
+      wallet: null,
+      presence: null,
+      presenceAtMs: Number.NEGATIVE_INFINITY,
     };
     states.set(socket, state);
     const flood = createFloodGate();
@@ -389,6 +498,46 @@ export async function listenSharedWorldWs(
             case "ping":
               send(socket, { type: "pong", t: message.t });
               return;
+            case "auth-challenge": {
+              const address = normalizeWalletAddress(message.address);
+              if (address == null) {
+                send(socket, {
+                  type: "error",
+                  code: "invalid_message",
+                  error: "not a Boing account id (0x + 64 hex)",
+                });
+                return;
+              }
+              if (state.challenges >= MAX_CHALLENGES_PER_SOCKET) {
+                send(socket, {
+                  type: "error",
+                  code: "rate_limited",
+                  error: "too many sign-in attempts; reconnect to retry",
+                });
+                return;
+              }
+              state.challenges += 1;
+              const challenge = challenges.issue(address, state.origin);
+              send(socket, { type: "auth-challenge", ...challenge });
+              return;
+            }
+            case "presence": {
+              if (state.connection == null) return;
+              const at = nowMs();
+              // Over the rate: drop quietly (the next frame carries newer data).
+              if (at - state.presenceAtMs < presenceGapMs * 0.8) return;
+              state.presenceAtMs = at;
+              const next = { x: quantize(message.x), z: quantize(message.z) };
+              if (
+                state.presence == null ||
+                state.presence.x !== next.x ||
+                state.presence.z !== next.z
+              ) {
+                state.presence = next;
+                presenceDirty = true;
+              }
+              return;
+            }
             case "leave": {
               if (state.connection != null) {
                 options.host.leave(state.connection.sessionId);
@@ -481,6 +630,7 @@ export async function listenSharedWorldWs(
         state.connection = null;
       }
       states.delete(socket);
+      presenceDirty = true;
     });
     socket.on("error", () => {
       // Oversized frames and protocol errors close the socket; nothing else to do.
@@ -502,6 +652,9 @@ export async function listenSharedWorldWs(
         }, heartbeatMs)
       : null;
   heartbeat?.unref?.();
+  const presenceTimer =
+    presenceMs > 0 ? setInterval(flushPresence, presenceMs) : null;
+  presenceTimer?.unref?.();
 
   await new Promise<void>((resolve, reject) => {
     httpServer.once("error", reject);
@@ -519,6 +672,7 @@ export async function listenSharedWorldWs(
     async close() {
       closing = true;
       if (heartbeat != null) clearInterval(heartbeat);
+      if (presenceTimer != null) clearInterval(presenceTimer);
       // 1012 "service restart": clients reconnect with their token.
       for (const socket of states.keys())
         socket.close(1012, "server restarting");

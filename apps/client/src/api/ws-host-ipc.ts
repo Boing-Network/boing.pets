@@ -10,13 +10,17 @@
  *   the view store for the HUD.
  */
 import {
+  MP_PRESENCE_MAX_HZ,
   MP_PROTOCOL_VERSION,
   type ClientToHost,
+  type PlayerPresence,
+  type WalletProof,
   type HostToClient,
   type QueryResult,
   type WsClientToServer,
   type WsServerToClient,
 } from "@boing-pets/contract";
+import type { SharedWorldControls } from "../state/sharedWorldStore";
 import type { ConnectionStatus } from "../state/worldViewStore";
 import type { HostMessageHandler, IpcClient } from "./ipc";
 
@@ -40,12 +44,23 @@ export type WsHostIpcOptions = {
   onStatus?: (status: ConnectionStatus) => void;
   /** Called once with the welcome (e.g. to scrub an owner key from the URL). */
   onWelcome?: (welcome: Extract<WsServerToClient, { type: "welcome" }>) => void;
+  /** Everyone's presence (including you; filter by session id). */
+  onPlayers?: (players: PlayerPresence[]) => void;
+  /** Server `error` frames (e.g. `wallet_rejected`). */
+  onError?: (code: string, message: string) => void;
+  /** Clock for presence throttling (tests). */
+  nowMs?: () => number;
   setTimer?: (fn: () => void, ms: number) => unknown;
   clearTimer?: (handle: unknown) => void;
   queryTimeoutMs?: number;
 };
 
 const OPEN = 1;
+/** Close code the client uses to rejoin with a different identity. */
+export const REJOIN_CLOSE_CODE = 4000;
+const CHALLENGE_TIMEOUT_MS = 15_000;
+
+export type WsHostIpc = IpcClient & SharedWorldControls;
 
 export function tokenStorageKey(url: string): string {
   return `boing-pets:mp-token:${url}`;
@@ -62,7 +77,7 @@ type Pending = {
   timer: unknown;
 };
 
-export function createWsHostIpc(options: WsHostIpcOptions): IpcClient {
+export function createWsHostIpc(options: WsHostIpcOptions): WsHostIpc {
   const storage =
     options.storage !== undefined
       ? options.storage
@@ -92,6 +107,20 @@ export function createWsHostIpc(options: WsHostIpcOptions): IpcClient {
   let awaitingBase = true;
   let ownerKey = options.ownerKey;
   let everLive = false;
+  let walletProof: WalletProof | undefined;
+  let challengeWaiter: {
+    address: string;
+    resolve: (value: { nonce: string; message: string }) => void;
+    reject: (error: Error) => void;
+    timer: unknown;
+  } | null = null;
+  const nowMs = options.nowMs ?? (() => Date.now());
+  const presenceGapMs = 1000 / MP_PRESENCE_MAX_HZ;
+  let presenceSentAt = Number.NEGATIVE_INFINITY;
+  let presenceSent: { x: number; z: number } | null = null;
+  // Older servers answer presence with invalid_message. A server that
+  // supports it sends a players frame right after every join, so wait for one.
+  let presenceSupported = false;
 
   function status(next: ConnectionStatus): void {
     options.onStatus?.(next);
@@ -168,6 +197,7 @@ export function createWsHostIpc(options: WsHostIpcOptions): IpcClient {
         ...(token ? { token } : {}),
         ...(options.name ? { name: options.name } : {}),
         ...(ownerKey ? { ownerKey } : {}),
+        ...(walletProof ? { wallet: walletProof } : {}),
       });
     };
     ws.onmessage = (event) => {
@@ -180,8 +210,11 @@ export function createWsHostIpc(options: WsHostIpcOptions): IpcClient {
       switch (frame.type) {
         case "welcome":
           storage?.setItem(tokenKey, frame.token);
-          // The owner role now lives in the signed token.
+          // The owner role (and any wallet) now lives in the signed token.
           ownerKey = undefined;
+          walletProof = undefined;
+          presenceSent = null;
+          presenceSupported = false;
           live = true;
           everLive = true;
           attempt = 0;
@@ -203,7 +236,21 @@ export function createWsHostIpc(options: WsHostIpcOptions): IpcClient {
         }
         case "error":
           if (frame.code === "invalid_token") storage?.removeItem(tokenKey);
+          if (frame.code === "wallet_rejected") walletProof = undefined;
           console.warn(`shared world: ${frame.code}: ${frame.error}`);
+          options.onError?.(frame.code, frame.error);
+          return;
+        case "auth-challenge": {
+          const waiter = challengeWaiter;
+          if (waiter == null || waiter.address !== frame.address) return;
+          challengeWaiter = null;
+          clearTimer(waiter.timer);
+          waiter.resolve({ nonce: frame.nonce, message: frame.message });
+          return;
+        }
+        case "players":
+          presenceSupported = true;
+          options.onPlayers?.(frame.players);
           return;
         case "fatal":
           console.error(`shared world: ${frame.error}`);
@@ -228,9 +275,61 @@ export function createWsHostIpc(options: WsHostIpcOptions): IpcClient {
     };
   }
 
+  function rejoin(): void {
+    // Drop the current identity; onclose reconnects with the new hello.
+    storage?.removeItem(tokenKey);
+    if (socket != null) socket.close(REJOIN_CLOSE_CODE, "rejoin");
+    else if (retryTimer == null) connect();
+  }
+
   connect();
 
   return {
+    requestChallenge(address) {
+      if (challengeWaiter != null) {
+        clearTimer(challengeWaiter.timer);
+        challengeWaiter.reject(new Error("superseded"));
+        challengeWaiter = null;
+      }
+      const want = address.toLowerCase();
+      return new Promise((resolve, reject) => {
+        const timer = setTimer(() => {
+          challengeWaiter = null;
+          reject(new Error("sign-in timed out; try again"));
+        }, CHALLENGE_TIMEOUT_MS);
+        challengeWaiter = { address: want, resolve, reject, timer };
+        if (!raw({ type: "auth-challenge", address: want })) {
+          clearTimer(timer);
+          challengeWaiter = null;
+          reject(new Error("shared world offline"));
+        }
+      });
+    },
+    signIn(proof) {
+      walletProof = proof;
+      rejoin();
+    },
+    signOut() {
+      walletProof = undefined;
+      rejoin();
+    },
+    sendPresence(x, z) {
+      if (!live || !presenceSupported) return;
+      if (!Number.isFinite(x) || !Number.isFinite(z)) return;
+      const now = nowMs();
+      if (now - presenceSentAt < presenceGapMs) return;
+      if (
+        presenceSent != null &&
+        Math.abs(presenceSent.x - x) < 0.05 &&
+        Math.abs(presenceSent.z - z) < 0.05
+      ) {
+        return;
+      }
+      if (raw({ type: "presence", x, z })) {
+        presenceSentAt = now;
+        presenceSent = { x, z };
+      }
+    },
     send(message: ClientToHost) {
       if (disposed) return;
       if (!live || !raw({ type: "command", message })) {
@@ -263,6 +362,11 @@ export function createWsHostIpc(options: WsHostIpcOptions): IpcClient {
     dispose() {
       disposed = true;
       if (retryTimer != null) clearTimer(retryTimer);
+      if (challengeWaiter != null) {
+        clearTimer(challengeWaiter.timer);
+        challengeWaiter.reject(new Error("ipc disposed"));
+        challengeWaiter = null;
+      }
       failPending("ipc disposed");
       handlers.clear();
       socket?.close(1000, "bye");

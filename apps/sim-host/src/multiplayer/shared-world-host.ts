@@ -115,6 +115,13 @@ export function createSharedWorldHost(
       },
       { seq, base: true },
     );
+    // The world's offline catch-up (from this launch); clients show it once.
+    if (runtime.lastCatchup != null) {
+      connection.emit(
+        { message: "world.catchup", body: runtime.lastCatchup },
+        { seq, base: true },
+      );
+    }
   }
 
   let started = false;
