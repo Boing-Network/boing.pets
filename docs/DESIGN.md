@@ -367,6 +367,34 @@ territories 1–3 so its timings stay comparable.
   (browser).
 - Accepted influences are queued for `lastTick + 1`.
 
+## Items (M22, slice 1)
+
+The item catalog is code in `packages/contract/src/items.ts`, deliberately **not**
+part of the frozen ruleset, so the live world picks it up without a ruleset
+migration. The kernel never stores inventory; it only sees two new influence
+verbs (`packages/sim/src/kernel/items.ts`, `kernel/influences.ts`):
+
+- **GATHER_RESOURCE** takes units from a territory's shared stock: Clover
+  (Meadow), Glowmoss (Glowfen), Crystal shard (Ridge, High Crags), Moonpetal
+  (Moonlit Glade). Each listed territory has a stock of 12 units. A gather
+  yields 1–3 units from `rngInt(seed, tick, "gather", territory, influenceId)`,
+  capped by free stock (`gatherYield`, pure; the host grants it at accept and
+  the kernel re-clamps). Each unit is a HARVEST modifier of −10 food for two
+  days, so gathering eats from the same pool creatures forage from and the
+  stock regrows when the modifier ends.
+- **USE_ITEM** applies a catalog effect: Seed bundle (food +100, 7 days),
+  Salt lick (COMFORT 2: thirst and discomfort drift −2 per tick, capped at 3
+  total, 3 days), Rations Pack (food +75, 3 days), Calm Potion (danger −50,
+  3 days), Vitality Potion (favor +50), relics (favor +25; the host enforces
+  once a week per relic).
+- **Relic triggers** (`relicTriggers`): a lineage's first non-founder BIRTH is
+  its First Child relic (recipient resolved from the mother), its first DEATH
+  its Remembrance relic (from the deceased). "First" is the host mint key.
+
+Both verbs count against the existing 3-per-24h influence budget. Worlds with
+no item influences step exactly as before. Schema migration
+`20261123090000_items_slice` only adds enum values (`ADD VALUE IF NOT EXISTS`).
+
 ## Time controls (`apps/sim-host/src/clock.ts`, `hud/ClockControls.tsx`)
 
 - **Pause:** freezes stepping. While paused, `clockAt` snaps forward (at most

@@ -98,6 +98,8 @@ export function influenceRewardJobs(
       };
     }
     case InfluenceKind.NAME_CREATURE:
+    case InfluenceKind.GATHER_RESOURCE:
+    case InfluenceKind.USE_ITEM:
       return { items: [], artifacts: [] };
     default: {
       const never: never = submit;

@@ -119,6 +119,25 @@ export type {
 } from "./dto";
 export { applyWorldPatch } from "./dto";
 
+export {
+  COMFORT_MAX_PER_TICK,
+  GATHER_RULES,
+  GATHER_SOURCES,
+  ITEM_CATALOG,
+  ItemCategory,
+  ItemSlug,
+  RECIPES,
+  isItemSlug,
+  itemDef,
+  recipeFor,
+  resourceForTerritory,
+  type GatherResourcePayload,
+  type ItemDef,
+  type ItemEffect,
+  type Recipe,
+  type UseItemPayload,
+} from "./items";
+
 export type {
   ClientToHost,
   HostToClient,

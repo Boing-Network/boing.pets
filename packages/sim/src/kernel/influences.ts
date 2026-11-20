@@ -8,9 +8,12 @@ import {
   type CalmTerritoryPayload,
   type EnrichTerritoryPayload,
   type FavorBloodlinePayload,
+  type GatherResourcePayload,
   type NameCreaturePayload,
   type NameLineagePayload,
+  type UseItemPayload,
 } from "@boing-pets/contract";
+import { harvestModifierSpec, itemDef, resourceStock } from "./items";
 import { assertInteger, clamp } from "../math";
 import type {
   PlayerInfluenceRow,
@@ -55,26 +58,35 @@ function applyNameLineage(
   lineage.name = payload.name;
 }
 
+function addFavor(
+  snapshot: WorldSnapshot,
+  lineageId: number,
+  amount: number,
+): void {
+  const lineage = indexById(snapshot.lineages).get(lineageId);
+  if (!lineage) throw new Error(`influence lineage ${lineageId}`);
+  lineage.playerFavor = assertInteger(
+    clamp(lineage.playerFavor + amount, 0, 1000),
+    "playerFavor",
+  );
+}
+
 function applyFavorBloodline(
   snapshot: WorldSnapshot,
   influence: PlayerInfluenceRow,
 ): void {
   const payload = influence.payload as FavorBloodlinePayload;
-  const lineage = indexById(snapshot.lineages).get(payload.lineageId);
-  if (!lineage) throw new Error(`influence lineage ${payload.lineageId}`);
-  lineage.playerFavor = assertInteger(
-    clamp(lineage.playerFavor + snapshot.ruleset.influenceFavorAmount, 0, 1000),
-    "playerFavor",
-  );
+  addFavor(snapshot, payload.lineageId, snapshot.ruleset.influenceFavorAmount);
 }
 
 function appendModifier(
   snapshot: WorldSnapshot,
   influence: PlayerInfluenceRow,
   territoryId: number,
-  kind: typeof ModifierKind.FOOD | typeof ModifierKind.DANGER,
+  kind: ModifierKind,
   amount: number,
   tick: number,
+  durationTicks: number = modifierDurationTicks(snapshot),
 ): void {
   if (!indexById(snapshot.territories).has(territoryId)) {
     throw new Error(`influence territory ${territoryId}`);
@@ -88,7 +100,7 @@ function appendModifier(
     kind,
     amount: assertInteger(amount, "modifierAmount"),
     startTick: tick,
-    endTick: tick + modifierDurationTicks(snapshot),
+    endTick: tick + assertInteger(durationTicks, "durationTicks"),
     sourceInfluenceId: influence.id,
   };
   snapshot.modifiers.push(row);
@@ -126,6 +138,60 @@ function applyCalmTerritory(
   );
 }
 
+/**
+ * GATHER_RESOURCE: the host granted `units` at acceptance with the same pure
+ * `gatherYield`; the kernel re-clamps to free stock so a bad row can never
+ * overdraw the territory. Zero units appends nothing.
+ */
+function applyGatherResource(
+  snapshot: WorldSnapshot,
+  influence: PlayerInfluenceRow,
+  tick: number,
+): void {
+  const payload = influence.payload as GatherResourcePayload;
+  const stock = resourceStock(snapshot, payload.territoryId, tick, 0);
+  if (!stock) throw new Error(`gather territory ${payload.territoryId}`);
+  const units = Math.min(Math.max(0, payload.units), stock.free);
+  if (units <= 0) return;
+  const spec = harvestModifierSpec(snapshot, units);
+  appendModifier(
+    snapshot,
+    influence,
+    payload.territoryId,
+    ModifierKind.HARVEST,
+    spec.amount,
+    tick,
+    spec.durationTicks,
+  );
+}
+
+/** USE_ITEM: inventory was debited by the host; apply the catalog effect. */
+function applyUseItem(
+  snapshot: WorldSnapshot,
+  influence: PlayerInfluenceRow,
+  tick: number,
+): void {
+  const payload = influence.payload as UseItemPayload;
+  const def = itemDef(payload.item);
+  if (!def || !def.effect) throw new Error(`use item ${payload.item}`);
+  const effect = def.effect;
+  if (effect.kind === "FAVOR") {
+    if (payload.lineageId == null) throw new Error("use item lineage");
+    addFavor(snapshot, payload.lineageId, effect.amount);
+    return;
+  }
+  if (payload.territoryId == null) throw new Error("use item territory");
+  appendModifier(
+    snapshot,
+    influence,
+    payload.territoryId,
+    ModifierKind[effect.kind],
+    effect.amount,
+    tick,
+    effect.days * snapshot.ruleset.ticksPerDay,
+  );
+}
+
 function applyOne(
   snapshot: WorldSnapshot,
   influence: PlayerInfluenceRow,
@@ -146,6 +212,12 @@ function applyOne(
       break;
     case InfluenceKind.CALM_TERRITORY:
       applyCalmTerritory(snapshot, influence, tick);
+      break;
+    case InfluenceKind.GATHER_RESOURCE:
+      applyGatherResource(snapshot, influence, tick);
+      break;
+    case InfluenceKind.USE_ITEM:
+      applyUseItem(snapshot, influence, tick);
       break;
     default: {
       const never: never = influence.kind;

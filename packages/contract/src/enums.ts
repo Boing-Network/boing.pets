@@ -123,12 +123,20 @@ export const InfluenceKind = {
   FAVOR_BLOODLINE: "FAVOR_BLOODLINE",
   ENRICH_TERRITORY: "ENRICH_TERRITORY",
   CALM_TERRITORY: "CALM_TERRITORY",
+  /** M22: take resource units from a territory's regrowing stock. */
+  GATHER_RESOURCE: "GATHER_RESOURCE",
+  /** M22: spend a tool, consumable or relic for its effect. */
+  USE_ITEM: "USE_ITEM",
 } as const;
 export type InfluenceKind = (typeof InfluenceKind)[keyof typeof InfluenceKind];
 
 export const ModifierKind = {
   FOOD: "FOOD",
   DANGER: "DANGER",
+  /** Gathered resource stock: negative food until it regrows. */
+  HARVEST: "HARVEST",
+  /** Salt lick: per-tick thirst and discomfort relief. */
+  COMFORT: "COMFORT",
 } as const;
 export type ModifierKind = (typeof ModifierKind)[keyof typeof ModifierKind];
 

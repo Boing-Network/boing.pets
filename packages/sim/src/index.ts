@@ -1,6 +1,14 @@
 export { step } from "./kernel/step";
 export { applyInfluences } from "./kernel/influences";
 export { aggregateTerritories } from "./kernel/territories";
+export {
+  activeHarvestUnits,
+  gatherYield,
+  relicTriggers,
+  resourceStock,
+  type RelicTrigger,
+  type ResourceStock,
+} from "./kernel/items";
 export { createWorld } from "./worldgen/create-world";
 export {
   INTRODUCED_FOUNDERS_PER_SPECIES,
