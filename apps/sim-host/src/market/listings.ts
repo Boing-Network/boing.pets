@@ -196,14 +196,19 @@ export function createListingIndex(input: {
   };
 }
 
-/** `ReadBatch` over a Boing JSON-RPC client, in batches of `chunk` calls. */
+/**
+ * `ReadBatch` over a Boing JSON-RPC client, in batches of `chunk` calls.
+ * Public testnet RPC refuses batches over 32 (`BOING_RPC_MAX_BATCH`).
+ */
+export const RPC_MAX_BATCH = 32;
+
 export function rpcReadBatch(
   client: {
     requestBatch(
       calls: ReadonlyArray<{ method: string; params?: unknown[] }>,
     ): Promise<{ result?: unknown; error?: unknown }[]>;
   },
-  chunk = 40,
+  chunk = RPC_MAX_BATCH,
 ): ReadBatch {
   return async (calls) => {
     const out: (string | null)[] = [];
