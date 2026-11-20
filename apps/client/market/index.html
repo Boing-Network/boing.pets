@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Living Pets Marketplace</title>
+    <meta
+      name="description"
+      content="Browse every Living Pets creature, lineage and item NFT with its live status in the world, and adopt or trade them through escrow on Boing testnet."
+    />
+  </head>
+  <body>
+    <header class="top">
+      <a class="brand" href="/market/">Living Pets <span>Marketplace</span></a>
+      <nav>
+        <a href="/welcome/">About</a>
+        <a href="/">Play</a>
+        <button type="button" class="wallet" id="wallet">Connect wallet</button>
+      </nav>
+    </header>
+    <main>
+      <section class="intro">
+        <h1>Every creature, lineage and item</h1>
+        <p>
+          Live from the shared world. The operator holds each NFT until a player
+          adopts or claims it, and every hand-over goes through escrow on Boing
+          testnet.
+        </p>
+        <div class="stats" id="stats" aria-live="polite"></div>
+        <p class="notice" id="notice" hidden></p>
+      </section>
+      <section class="controls" aria-label="Filters">
+        <div class="tabs" role="tablist" id="kind-tabs"></div>
+        <div class="filters">
+          <input
+            type="search"
+            id="q"
+            placeholder="Search by name, species or lineage"
+            aria-label="Search"
+          />
+          <select id="species" aria-label="Species">
+            <option value="">All species</option>
+          </select>
+          <select id="ownership" aria-label="Ownership">
+            <option value="">Any owner</option>
+            <option value="UNMINTED">Not minted yet</option>
+            <option value="OPERATOR">Held by operator</option>
+            <option value="IN_ESCROW">In escrow</option>
+            <option value="PLAYER">Owned by a player</option>
+          </select>
+          <label class="check"
+            ><input type="checkbox" id="alive" /> Alive only</label
+          >
+          <label class="check"
+            ><input type="checkbox" id="genesis" /> Genesis only</label
+          >
+          <label class="check"
+            ><input type="checkbox" id="mine" disabled /> Mine</label
+          >
+        </div>
+      </section>
+      <ul class="grid" id="grid" aria-live="polite"></ul>
+      <p class="empty" id="empty" hidden>No matches.</p>
+    </main>
+    <dialog id="trade">
+      <form method="dialog">
+        <h2 id="trade-title"></h2>
+        <ol id="trade-steps"></ol>
+        <p class="note" id="trade-note"></p>
+        <menu>
+          <button value="cancel">Close</button>
+          <button value="sign" id="trade-sign" class="primary" disabled>
+            Sign with Boing Express
+          </button>
+        </menu>
+      </form>
+    </dialog>
+    <footer>
+      <span id="source"></span>
+      <a href="/">Enter the world</a>
+    </footer>
+    <script type="module" src="../src/market/main.ts"></script>
+  </body>
+</html>
