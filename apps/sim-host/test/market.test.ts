@@ -8,6 +8,8 @@ import {
   createListingIndex,
   marketTokenKey,
   mintedTokens,
+  rpcReadBatch,
+  RPC_MAX_BATCH,
   type ReadCall,
 } from "../src/market/listings";
 import {
@@ -278,4 +280,31 @@ test("read-only CORS: allow-listed origins only", () => {
     "https://boing-pets.vercel.app",
   );
   assert.equal(readOnlyCors("https://evil.example", allow).allowed, false);
+});
+
+test("rpc read batch: chunks to the RPC's 32-call limit, keeps order", async () => {
+  const sizes: number[] = [];
+  const read = rpcReadBatch({
+    requestBatch: async (calls) => {
+      // Like the public testnet RPC: a non-array error past 32 calls.
+      if (calls.length > 32) throw new Error("batch exceeds max length 32");
+      sizes.push(calls.length);
+      return calls.map((c) => {
+        const tag = String(c.params?.[1]);
+        return tag.endsWith("ff")
+          ? { result: { success: false } }
+          : { result: { success: true, return_data: tag } };
+      });
+    },
+  });
+  const calls = Array.from({ length: 70 }, (_, i) => ({
+    contractHex: ESCROW,
+    calldataHex: `0x${i === 5 ? "ff" : i.toString(16).padStart(2, "0")}`,
+  }));
+  const out = await read(calls);
+  assert.equal(RPC_MAX_BATCH, 32);
+  assert.deepEqual(sizes, [32, 32, 6]);
+  assert.equal(out.length, 70);
+  assert.equal(out[5], null, "failed call reads as null");
+  assert.equal(out[69], "0x45");
 });
