@@ -39,9 +39,29 @@ $lines = @("LIVING_PETS_MP_OWNER_KEY=$owner")
 if ($RotateSession -or -not $hasSession) {
   $lines += "LIVING_PETS_MP_SECRET=$(New-Secret 48)"
 }
-$stageArgs = @()
-if ($Stage) { $stageArgs = @("--stage") }
 # `fly secrets import` reads NAME=value lines from stdin: nothing on the
-# command line, nothing echoed.
-$lines -join "`n" | fly secrets import -a $App @stageArgs | Out-Null
+# command line, nothing echoed. Write raw bytes so no encoder can add a BOM
+# (Windows PowerShell pipes prefix U+FEFF, which Fly rejects).
+# .NET Framework opens the child's stdin with Console.InputEncoding and writes
+# its preamble; a BOM-less encoding keeps the first name clean.
+[Console]::InputEncoding = New-Object System.Text.UTF8Encoding $false
+$psi = New-Object System.Diagnostics.ProcessStartInfo
+$psi.FileName = (Get-Command fly).Source
+$psi.Arguments = "secrets import -a $App" + $(if ($Stage) { " --stage" } else { "" })
+$psi.UseShellExecute = $false
+$psi.RedirectStandardInput = $true
+$psi.RedirectStandardOutput = $true
+$psi.RedirectStandardError = $true
+$proc = [System.Diagnostics.Process]::Start($psi)
+$bytes = [System.Text.Encoding]::ASCII.GetBytes(($lines -join "`n") + "`n")
+$proc.StandardInput.BaseStream.Write($bytes, 0, $bytes.Length)
+$proc.StandardInput.Close()
+$null = $proc.StandardOutput.ReadToEnd()
+$err = $proc.StandardError.ReadToEnd()
+$proc.WaitForExit()
+[Array]::Clear($bytes, 0, $bytes.Length)
+if ($proc.ExitCode -ne 0) {
+  # Fly's errors name the secret, never its value.
+  throw "fly secrets import failed (exit $($proc.ExitCode)): $err"
+}
 Write-Output "secrets set on $App; owner key saved at $OwnerKeyFile"
