@@ -3,7 +3,10 @@
  * the biome only decides how its region of the landscape is drawn.
  */
 
-export type BiomeId = "meadow" | "thicket" | "ridge";
+export type BiomeId =
+  "meadow" | "thicket" | "ridge" | "glade" | "fen" | "grove" | "crags";
+/** Which flora family a biome grows; new biomes reuse the three families with their own ground and glow. */
+export type FloraFamily = "meadow" | "thicket" | "ridge";
 export type WaterKind = "pond" | "swamp" | "tarn";
 
 export type Biome = {
@@ -15,6 +18,9 @@ export type Biome = {
   /** Craggy relief amplitude. */
   crag: number;
   water: WaterKind;
+  flora: FloraFamily;
+  /** High ground with a peak behind it, feeding a spring into its tarn. */
+  peak: boolean;
   /** Ground colors, linear-ish night palette. */
   ground: string;
   groundAlt: string;
@@ -26,6 +32,8 @@ export type Biome = {
 export const BIOMES: Record<BiomeId, Biome> = {
   meadow: {
     id: "meadow",
+    flora: "meadow",
+    peak: false,
     elevation: 2.4,
     relief: 1.1,
     crag: 0,
@@ -37,6 +45,8 @@ export const BIOMES: Record<BiomeId, Biome> = {
   },
   thicket: {
     id: "thicket",
+    flora: "thicket",
+    peak: false,
     elevation: 4.6,
     relief: 1.7,
     crag: 0.3,
@@ -48,6 +58,8 @@ export const BIOMES: Record<BiomeId, Biome> = {
   },
   ridge: {
     id: "ridge",
+    flora: "ridge",
+    peak: true,
     elevation: 13,
     relief: 2.4,
     crag: 4.2,
@@ -56,6 +68,58 @@ export const BIOMES: Record<BiomeId, Biome> = {
     groundAlt: "#6a6680",
     glow: "#8fd0ff",
     label: "#d9e6ff",
+  },
+  glade: {
+    id: "glade",
+    flora: "meadow",
+    peak: false,
+    elevation: 3.0,
+    relief: 0.9,
+    crag: 0,
+    water: "pond",
+    ground: "#2c5f58",
+    groundAlt: "#3f7a66",
+    glow: "#b8d4ff",
+    label: "#e2ecff",
+  },
+  fen: {
+    id: "fen",
+    flora: "thicket",
+    peak: false,
+    elevation: 1.6,
+    relief: 0.6,
+    crag: 0,
+    water: "swamp",
+    ground: "#26473a",
+    groundAlt: "#3a5c3e",
+    glow: "#7fe0b0",
+    label: "#d2f7e4",
+  },
+  grove: {
+    id: "grove",
+    flora: "thicket",
+    peak: false,
+    elevation: 5.8,
+    relief: 1.9,
+    crag: 0.4,
+    water: "pond",
+    ground: "#2a3d2c",
+    groundAlt: "#3d4f32",
+    glow: "#e07ad0",
+    label: "#f7d6f0",
+  },
+  crags: {
+    id: "crags",
+    flora: "ridge",
+    peak: true,
+    elevation: 16,
+    relief: 2.8,
+    crag: 5.2,
+    water: "tarn",
+    ground: "#55515e",
+    groundAlt: "#736c7c",
+    glow: "#9fc4ff",
+    label: "#e1e8ff",
   },
 };
 

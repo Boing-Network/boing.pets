@@ -111,3 +111,59 @@ test("resolveWorldModel keeps one instance across snapshot array churn", () => {
   assert.notEqual(third?.model, first.model);
   assert.equal(third?.key, worldModelKey(grown));
 });
+
+/** The enlarged v1 catalog: seven territories joined by seven two-way links. */
+const enlarged = {
+  seed: 1,
+  territories: [
+    ["meadow", "Meadow", 700, 200, 40],
+    ["thicket", "Thicket", 500, 450, 30],
+    ["ridge", "Ridge", 350, 700, 20],
+    ["glade", "Moonlit Glade", 650, 250, 35],
+    ["fen", "Glowfen", 600, 350, 30],
+    ["grove", "Elder Grove", 550, 400, 28],
+    ["crags", "High Crags", 300, 600, 18],
+  ].map(([slug, name, foodAbundance, danger, capacity], i) => ({
+    id: i + 1,
+    slug: slug as string,
+    name: name as string,
+    foodAbundance: foodAbundance as number,
+    danger: danger as number,
+    capacity: capacity as number,
+  })),
+  links: (
+    [
+      [1, 2, 6],
+      [2, 3, 8],
+      [1, 4, 5],
+      [4, 6, 6],
+      [6, 2, 6],
+      [2, 5, 7],
+      [3, 7, 7],
+    ] as const
+  ).flatMap(([a, b, travelTicks]) => [
+    { fromId: a, toId: b, travelTicks },
+    { fromId: b, toId: a, travelTicks },
+  ]),
+};
+
+test("enlarged world: seven separate regions, two peaks, dry hearts", () => {
+  const plan = planWorld(enlarged);
+  assert.equal(plan.regions.length, 7);
+  const peaks = plan.regions.filter((r) => r.peak).map((r) => r.name);
+  assert.deepEqual(peaks.sort(), ["High Crags", "Ridge"]);
+  for (let i = 0; i < plan.regions.length; i += 1) {
+    for (let j = i + 1; j < plan.regions.length; j += 1) {
+      const a = plan.regions[i]!;
+      const b = plan.regions[j]!;
+      const gap = Math.hypot(a.center.x - b.center.x, a.center.z - b.center.z);
+      assert.ok(gap >= a.radius + b.radius, `${a.name} and ${b.name} overlap`);
+    }
+  }
+  const model = buildWorldModel(enlarged);
+  for (const region of model.regions) {
+    assert.ok(model.heightAt(region.center.x, region.center.z) > 0.5);
+    assert.equal(model.waterSurfaceAt(region.center.x, region.center.z), null);
+  }
+  assert.ok(model.nx * model.nz < 450_000);
+});

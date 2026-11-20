@@ -179,7 +179,7 @@ function linkPairs(adjacency: Adjacency): Array<[number, number]> {
 }
 
 function regionRadius(capacity: number): number {
-  return clamp(22 + capacity * 0.3, 22, 46);
+  return clamp(24 + capacity * 0.36, 24, 52);
 }
 
 function layoutRegions(input: WorldInput, adjacency: Adjacency): Region[] {
@@ -264,7 +264,6 @@ function layoutRegions(input: WorldInput, adjacency: Adjacency): Region[] {
   const cx = (minX + maxX) / 2;
   const cz = (minZ + maxZ) / 2;
 
-  const placedIndex = new Map(order.map((id, index) => [id, index]));
   const regions: Region[] = sorted.map((t, index) => {
     const p = position.get(t.id)!;
     return {
@@ -301,29 +300,35 @@ function layoutRegions(input: WorldInput, adjacency: Adjacency): Region[] {
   }
 
   for (const region of regions) {
-    let dirX = 0;
-    let dirZ = 0;
+    // Principal axis of the links through this region (sign-free), so water
+    // sits beside the line of travel even when two neighbours lie on the same
+    // side. For one link, or two roughly opposite ones, this is the same axis
+    // as the signed in/out sum it replaces.
+    let sxx = 0;
+    let szz = 0;
+    let sxz = 0;
     for (const row of adjacency.get(region.territoryId) ?? []) {
       const other = byId.get(row.id)!;
-      const sign =
-        placedIndex.get(row.id)! > placedIndex.get(region.territoryId)!
-          ? 1
-          : -1;
       const d = normalize(
         other.center.x - region.center.x,
         other.center.z - region.center.z,
         { x: 1, z: 0 },
       );
-      dirX += d.x * sign;
-      dirZ += d.z * sign;
+      sxx += d.x * d.x;
+      szz += d.z * d.z;
+      sxz += d.x * d.z;
     }
-    const along = normalize(dirX, dirZ, { x: 1, z: 0 });
+    const theta = 0.5 * Math.atan2(2 * sxz, sxx - szz);
+    const along =
+      sxx + szz > 0
+        ? { x: Math.cos(theta), z: Math.sin(theta) }
+        : { x: 1, z: 0 };
     // Water sits beside the line of travel, on the side nearer the viewer.
     let side = { x: -along.z, z: along.x };
     if (side.z < 0) side = { x: -side.x, z: -side.z };
     region.waterSide = side;
 
-    if (region.biome.id === "ridge") {
+    if (region.biome.peak) {
       const away = normalize(
         region.center.x - centroidX,
         region.center.z - centroidZ,

@@ -172,8 +172,8 @@ export function layoutFlora(model: WorldModel): FloraLayout {
     for (let i = 0; i < regions.length; i += 1) {
       const r = regions[i]!;
       const w = weights[i]!;
-      if (r.biome.id === "meadow") site.meadow += w;
-      else if (r.biome.id === "thicket") site.thicket += w;
+      if (r.biome.flora === "meadow") site.meadow += w;
+      else if (r.biome.flora === "thicket") site.thicket += w;
       else site.ridge += w;
       site.heart = Math.min(
         site.heart,
