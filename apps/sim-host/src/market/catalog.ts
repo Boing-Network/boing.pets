@@ -15,15 +15,20 @@ import type { CreatureRow, WorldSnapshot } from "@boing-pets/sim";
 import type { AssetMintLinkRow } from "../boing/asset-mint-link";
 import type { CreatureNftLinkRow } from "../boing/nft-link";
 import { AssetMintClass } from "../boing/taxonomy";
-import { escrowInfo, type MarketConfig } from "./config";
+import { escrowInfo, type EscrowChainState, type MarketConfig } from "./config";
+import { marketTokenKey } from "./listings";
 import { resolveOwnership } from "./ownership";
 
 export type CatalogInputs = {
   snapshot: WorldSnapshot;
   creatureLinks: readonly CreatureNftLinkRow[];
   assetLinks: readonly AssetMintLinkRow[];
-  /** Open listings by asset key. */
+  /** Open escrow listings by `marketTokenKey`. */
   listings?: ReadonlyMap<string, MarketListing>;
+  /** On-chain holders by `marketTokenKey` (from the listing index). */
+  owners?: ReadonlyMap<string, string>;
+  /** What the listing index last read from the escrow contract. */
+  chain?: EscrowChainState | null;
   config: MarketConfig;
   nowMs: number;
 };
@@ -43,6 +48,7 @@ export function buildMarketCatalog(input: CatalogInputs): MarketCatalog {
   const { snapshot, config } = input;
   const tick = snapshot.world.lastTick;
   const listings = input.listings ?? new Map<string, MarketListing>();
+  const owners = input.owners ?? new Map<string, string>();
   const territory = new Map(snapshot.territories.map((t) => [t.id, t.name]));
   const species = new Map(snapshot.species.map((s) => [s.id, s]));
   const lineage = new Map(snapshot.lineages.map((l) => [l.id, l]));
@@ -57,16 +63,21 @@ export function buildMarketCatalog(input: CatalogInputs): MarketCatalog {
   }
 
   const owned = (
-    key: string,
     link:
       | {
           status: string;
           mintTxHex: string | null;
           recipientHex?: string | null;
+          collectionHex?: string | null;
+          tokenIdHex?: string | null;
         }
       | undefined,
   ) => {
-    const listing = listings.get(key) ?? null;
+    const token =
+      link?.collectionHex != null && link.tokenIdHex != null
+        ? marketTokenKey(link.collectionHex, link.tokenIdHex)
+        : null;
+    const listing = (token != null ? listings.get(token) : null) ?? null;
     const mint = mintState(link);
     return {
       mint,
@@ -74,7 +85,10 @@ export function buildMarketCatalog(input: CatalogInputs): MarketCatalog {
       listing,
       ...resolveOwnership({
         mint,
-        holderHex: link?.recipientHex ?? null,
+        holderHex:
+          (token != null ? owners.get(token) : null) ??
+          link?.recipientHex ??
+          null,
         operatorHex: config.operatorHex,
         escrowHex: config.escrowHex,
         inEscrow: listing != null,
@@ -108,7 +122,7 @@ export function buildMarketCatalog(input: CatalogInputs): MarketCatalog {
       collectionHex: link?.collectionHex ?? null,
       tokenIdHex: link?.tokenIdHex ?? null,
       live,
-      ...owned(key, link),
+      ...owned(link),
     });
   }
 
@@ -163,7 +177,7 @@ export function buildMarketCatalog(input: CatalogInputs): MarketCatalog {
         collectionHex: row?.collectionHex ?? null,
         tokenIdHex: row?.tokenIdHex ?? null,
         live,
-        ...owned(key, row),
+        ...owned(row),
       });
     }
   }
@@ -188,7 +202,7 @@ export function buildMarketCatalog(input: CatalogInputs): MarketCatalog {
       live: null,
       itemSlug: row.itemSlug,
       amount: row.amount,
-      ...owned(key, row),
+      ...owned(row),
     });
   }
 
@@ -197,7 +211,7 @@ export function buildMarketCatalog(input: CatalogInputs): MarketCatalog {
     worldId: snapshot.world.id,
     tick,
     generatedAtMs: input.nowMs,
-    escrow: escrowInfo(config),
+    escrow: escrowInfo(config, input.chain ?? null),
     assets,
   };
 }

@@ -5,12 +5,16 @@ import { NftMintStatus, type CreatureNftLinkRow } from "../src/boing/nft-link";
 import { buildMarketCatalog } from "../src/market/catalog";
 import { escrowInfo, readMarketConfig } from "../src/market/config";
 import {
-  boingToWei,
-  planEscrowPayment,
-  planListingDeposit,
-  planSettlement,
-  weiToBoing,
-} from "../src/market/escrow";
+  createListingIndex,
+  marketTokenKey,
+  mintedTokens,
+  type ReadCall,
+} from "../src/market/listings";
+import {
+  decodeEscrowListing,
+  escrowCalldata,
+  referenceNftCalldata,
+} from "@boing-pets/contract";
 import { canAdopt, canList, resolveOwnership } from "../src/market/ownership";
 import { readOnlyCors } from "../src/multiplayer/ws-server";
 
@@ -67,7 +71,17 @@ test("config: browse-only until operator and escrow are both valid", () => {
     LIVING_PETS_ESCROW_HEX: ESCROW,
   });
   assert.equal(full.operatorHex, OPERATOR);
-  assert.equal(escrowInfo(full).mode, "CUSTODIAL");
+  assert.equal(escrowInfo(full).mode, "CONTRACT");
+  assert.equal(escrowInfo(full).feeBps, null);
+  assert.equal(
+    escrowInfo(full, {
+      feeBps: 250,
+      feeToHex: OPERATOR,
+      refreshedAtMs: 5,
+      error: null,
+    }).feeBps,
+    250,
+  );
 });
 
 test("catalog: every creature and lineage with live status and genesis flag", () => {
@@ -119,33 +133,135 @@ test("catalog: every creature and lineage with live status and genesis flag", ()
   assert.doesNotThrow(() => JSON.stringify(catalog));
 });
 
-test("escrow plans: deposit, payment and settlement", () => {
-  assert.equal(boingToWei("1.5"), 1_500_000_000_000_000_000n);
-  assert.equal(boingToWei("abc"), null);
-  assert.equal(weiToBoing(1_500_000_000_000_000_000n), "1.5");
+const word = (hex: string) => hex.slice(2).padStart(64, "0");
+
+test("listing index: reads escrow listings and owners from contract state", async () => {
   const tokenIdHex = `0x${"00".repeat(31)}07`;
-  const deposit = planListingDeposit({
-    collectionHex: COLLECTION,
-    tokenIdHex,
+  const other = `0x${"00".repeat(31)}08`;
+  const huge = `0x01${"00".repeat(31)}`;
+  const rows = [
+    { status: "CONFIRMED", collectionHex: COLLECTION, tokenIdHex },
+    { status: "CONFIRMED", collectionHex: COLLECTION, tokenIdHex: other },
+    { status: "CONFIRMED", collectionHex: COLLECTION, tokenIdHex },
+    { status: "PENDING", collectionHex: COLLECTION, tokenIdHex: huge },
+    { status: "CONFIRMED", collectionHex: null, tokenIdHex: null },
+  ];
+  assert.equal(mintedTokens(rows).length, 2, "deduped, minted only");
+  const seen: ReadCall[][] = [];
+  const index = createListingIndex({
     escrowHex: ESCROW,
+    tokens: async () => [
+      ...mintedTokens(rows),
+      { collectionHex: COLLECTION, tokenIdHex: huge },
+    ],
+    nowMs: () => 42,
+    read: async (calls) => {
+      seen.push(calls);
+      return calls.map((c) => {
+        if (c.calldataHex === escrowCalldata.config()) {
+          return `0x${word(OPERATOR)}${(250).toString(16).padStart(64, "0")}${word(OPERATOR)}`;
+        }
+        if (c.calldataHex === escrowCalldata.listing(COLLECTION, 7)) {
+          return `0x${word(PLAYER)}${(10n ** 18n).toString(16).padStart(64, "0")}${"0".repeat(64)}`;
+        }
+        if (c.calldataHex === escrowCalldata.listing(COLLECTION, 8)) {
+          return `0x${"0".repeat(192)}`;
+        }
+        if (c.calldataHex === referenceNftCalldata.ownerOf(7)) {
+          return `0x${word(ESCROW)}`;
+        }
+        if (c.calldataHex === referenceNftCalldata.ownerOf(8)) {
+          return `0x${word(PLAYER)}`;
+        }
+        return null;
+      });
+    },
   });
-  assert.equal(deposit.kind, "contract_call");
-  if (deposit.kind === "contract_call") {
-    assert.ok(deposit.calldataHex.includes(ESCROW.slice(2)));
-  }
-  const pay = planEscrowPayment({ escrowHex: ESCROW, priceWei: 10n ** 18n });
-  assert.deepEqual(pay.kind === "transfer" && [pay.toHex, pay.amountWei], [
-    ESCROW,
-    "1000000000000000000",
-  ]);
-  const settle = planSettlement({
+  await index.refresh();
+  assert.equal(seen[0]!.length, 5, "config + (listing, owner) per u64 token");
+  const snap = index.snapshot();
+  assert.equal(snap.config?.feeBps, 250);
+  assert.equal(snap.refreshedAtMs, 42);
+  assert.deepEqual(snap.listings.get(marketTokenKey(COLLECTION, tokenIdHex)), {
+    sellerHex: PLAYER,
+    priceWei: "1000000000000000000",
+    buyerHex: null,
+  });
+  assert.equal(snap.listings.size, 1);
+  assert.equal(snap.owners.get(marketTokenKey(COLLECTION, other)), PLAYER);
+  const res = index.response();
+  assert.equal(res.feeBps, 250);
+  assert.deepEqual(
+    res.listings.map((l) => [l.tokenIdHex, l.priceWei]),
+    [[tokenIdHex, "1000000000000000000"]],
+  );
+
+  // A failed read keeps the last good view and reports the error.
+  const failing = createListingIndex({
+    escrowHex: ESCROW,
+    tokens: async () => [],
+    read: async () => [null],
+  });
+  await failing.refresh();
+  assert.equal(failing.snapshot().refreshedAtMs, null);
+  assert.match(failing.snapshot().error ?? "", /config read failed/);
+});
+
+test("catalog: escrow listings and on-chain owners come from the index", () => {
+  const { snapshot } = createWorld(1);
+  const [a, b] = snapshot.creatures;
+  const link = (id: number, token: string): CreatureNftLinkRow => ({
+    id,
+    worldId: snapshot.world.id,
+    creatureId: id,
+    birthEventId: null,
     collectionHex: COLLECTION,
-    tokenIdHex,
-    buyerHex: PLAYER,
-    sellerHex: OPERATOR,
-    priceWei: 10n ** 18n,
+    tokenIdHex: token,
+    chainId: "6913",
+    templateArtifact: "t",
+    templateVersion: "1",
+    mintTxHex: "0xabc",
+    status: NftMintStatus.CONFIRMED,
+    lastError: null,
+    createdAtMs: 0,
+    updatedAtMs: 0,
   });
-  assert.equal(settle.length, 2);
+  const t1 = `0x${"00".repeat(31)}01`;
+  const t2 = `0x${"00".repeat(31)}02`;
+  const catalog = buildMarketCatalog({
+    snapshot,
+    creatureLinks: [link(a!.id, t1), link(b!.id, t2)],
+    assetLinks: [],
+    config: readMarketConfig({
+      LIVING_PETS_OPERATOR_HEX: OPERATOR,
+      LIVING_PETS_ESCROW_HEX: ESCROW,
+    }),
+    listings: new Map([
+      [
+        marketTokenKey(COLLECTION, t1),
+        { sellerHex: OPERATOR, priceWei: "0", buyerHex: PLAYER },
+      ],
+    ]),
+    owners: new Map([
+      [marketTokenKey(COLLECTION, t1), ESCROW],
+      [marketTokenKey(COLLECTION, t2), PLAYER],
+    ]),
+    chain: { feeBps: 250, feeToHex: OPERATOR, refreshedAtMs: 9, error: null },
+    nowMs: 10,
+  });
+  const listed = catalog.assets.find((x) => x.key === `creature:${a!.id}`)!;
+  assert.equal(listed.ownership, "IN_ESCROW");
+  assert.equal(listed.listing?.buyerHex, PLAYER);
+  const sold = catalog.assets.find((x) => x.key === `creature:${b!.id}`)!;
+  assert.deepEqual([sold.ownership, sold.ownerHex], ["PLAYER", PLAYER]);
+  assert.equal(catalog.escrow.mode, "CONTRACT");
+  assert.equal(catalog.escrow.feeBps, 250);
+  assert.equal(catalog.escrow.listingsAtMs, 9);
+  assert.equal(
+    decodeEscrowListing(`0x${"0".repeat(192)}`),
+    null,
+    "zero seller = no listing",
+  );
 });
 
 test("read-only CORS: allow-listed origins only", () => {

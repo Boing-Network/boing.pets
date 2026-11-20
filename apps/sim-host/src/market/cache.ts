@@ -4,6 +4,7 @@ import type { AssetMintLinkStore } from "../boing/asset-mint-link";
 import type { CreatureNftLinkStore } from "../boing/nft-link";
 import { buildMarketCatalog } from "./catalog";
 import type { MarketConfig } from "./config";
+import type { ListingIndexSnapshot } from "./listings";
 
 /**
  * Serve the catalog from a short cache so a burst of page loads costs one
@@ -14,6 +15,8 @@ export function createCatalogCache(input: {
   creatureLinks: CreatureNftLinkStore;
   assetLinks: AssetMintLinkStore;
   config: MarketConfig;
+  /** Escrow listing index; null when no escrow is configured. */
+  index?: { snapshot(): ListingIndexSnapshot } | null;
   maxAgeMs?: number;
   nowMs?: () => number;
 }): () => Promise<MarketCatalog> {
@@ -28,12 +31,25 @@ export function createCatalogCache(input: {
         input.creatureLinks.list(),
         input.assetLinks.list(),
       ]);
+      const chain = input.index?.snapshot() ?? null;
       return buildMarketCatalog({
         snapshot: input.snapshot(),
         creatureLinks,
         assetLinks,
         config: input.config,
         nowMs: t,
+        ...(chain != null
+          ? {
+              listings: chain.listings,
+              owners: chain.owners,
+              chain: {
+                feeBps: chain.config?.feeBps ?? null,
+                feeToHex: chain.config?.feeToHex ?? null,
+                refreshedAtMs: chain.refreshedAtMs,
+                error: chain.error,
+              },
+            }
+          : {}),
       });
     })();
     cached = { atMs: t, value };

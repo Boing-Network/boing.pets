@@ -67,9 +67,19 @@
         <h2 id="trade-title"></h2>
         <ol id="trade-steps"></ol>
         <p class="note" id="trade-note"></p>
+        <label id="trade-price-row" class="price" hidden>
+          Price (BOING)
+          <input
+            id="trade-price"
+            inputmode="decimal"
+            placeholder="1.5"
+            autocomplete="off"
+          />
+        </label>
+        <p class="status" id="trade-status" role="status"></p>
         <menu>
           <button value="cancel">Close</button>
-          <button value="sign" id="trade-sign" class="primary" disabled>
+          <button type="button" id="trade-sign" class="primary" disabled>
             Sign with Boing Express
           </button>
         </menu>

@@ -182,20 +182,30 @@ the page at a local `npm run mp:serve`.
 
 **Ownership rule.** Every NFT is minted to the operator wallet, which holds
 it until a player adopts or claims it. Every hand-over (operator to player,
-player to player) goes through escrow: the NFT and the BOING payment are
-deposited with the escrow account, which then releases the NFT to the buyer
-and the BOING to the seller.
+player to player) goes through the escrow contract in
+[`contracts/escrow`](contracts/escrow/README.md), one wallet transaction each:
+
+- **List**: one atomic batch `[escrow.prepare, collection.transfer_nft(escrow), escrow.list]`.
+- **Buy**: `buy` with exactly the price attached; the escrow sends the NFT to
+  the buyer, 2.5% (250 bps, admin-adjustable, capped at 10%) to the operator
+  and the rest to the seller.
+- **Adopt**: the operator lists at price 0 reserved for the player; the
+  player sends `claim`.
+- **Cancel**: the seller (or admin) takes the NFT back.
 
 | Variable                   | Where                                | Meaning                                                             |
 | -------------------------- | ------------------------------------ | ------------------------------------------------------------------- |
 | `LIVING_PETS_OPERATOR_HEX` | `apps/sim-host/src/market/config.ts` | Operator wallet (`0x` + 64 hex). Unset: the catalog is browse-only. |
-| `LIVING_PETS_ESCROW_HEX`   | same                                 | Escrow account. Trading turns on only when both are set.            |
+| `LIVING_PETS_ESCROW_HEX`   | same                                 | Deployed escrow contract. Trading turns on only when both are set.  |
+| `BOING_RPC_URL`            | `apps/sim-host/src/boing/config.ts`  | RPC the listing index reads (default public testnet).               |
 
-No signing key is read by the marketplace code. Testnet has no NFT escrow
-contract yet (the reference NFT collection has `transfer_nft` but no
-approve/transfer-from), so escrow is an operator-run account and settlement
-is a separate step; until that exists the page shows each trade's escrow
-steps but signs nothing.
+With the escrow set, the server reads the contract every 30 s (read-only
+`boing_simulateContractCall` in JSON-RPC batches: the escrow's `config`, and
+`listing` plus the collection's `owner_of` for every minted token), serves
+the result at `GET /market/v1/listings` and folds listings and real on-chain
+owners into the catalog. The page builds each transaction and Boing Express
+signs it; no signing key is read by the marketplace code. The escrow is not
+deployed yet: `LIVING_PETS_ESCROW_HEX` stays unset until it is signed off.
 
 ### Genesis mint
 

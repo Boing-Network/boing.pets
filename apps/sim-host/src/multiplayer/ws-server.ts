@@ -26,6 +26,7 @@ import {
   type SessionRole,
   type WalletProof,
   MARKET_CATALOG_PATH,
+  MARKET_LISTINGS_PATH,
 } from "@boing-pets/contract";
 import type { ClientConnection, EmitMeta } from "./client-registry";
 import type { SharedWorldHost } from "./shared-world-host";
@@ -92,6 +93,8 @@ export type SharedWorldWsServerOptions = {
    * CORS headers only for origins `allowOrigin` accepts.
    */
   marketCatalog?: () => Promise<unknown>;
+  /** Open escrow listings from contract state (`GET /market/v1/listings`). */
+  marketListings?: () => Promise<unknown>;
 };
 
 /**
@@ -230,7 +233,13 @@ export async function listenSharedWorldWs(
       res.end(`${JSON.stringify(body)}\n`);
       return;
     }
-    if (pathname === MARKET_CATALOG_PATH && options.marketCatalog != null) {
+    const marketJson =
+      pathname === MARKET_CATALOG_PATH
+        ? options.marketCatalog
+        : pathname === MARKET_LISTINGS_PATH
+          ? options.marketListings
+          : undefined;
+    if (marketJson != null) {
       const cors = readOnlyCors(req.headers.origin, allowOrigin);
       if (!cors.allowed) {
         res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
@@ -247,8 +256,7 @@ export async function listenSharedWorldWs(
         res.end();
         return;
       }
-      options
-        .marketCatalog()
+      marketJson()
         .then((catalog) => {
           res.writeHead(200, {
             "content-type": "application/json; charset=utf-8",
