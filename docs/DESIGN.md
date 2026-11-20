@@ -387,7 +387,7 @@ territories 1–3 so its timings stay comparable.
 - **Bandwidth:** live `world.patch` frames carry only rows and events that
   changed since the previous emit (`PatchBaseline`).
 - **Client** (`api/ws-host-ipc.ts`): `?mp=ws://…` or `VITE_LIVING_PETS_MP_URL`
-  selects it. It keeps the token per server URL in `localStorage`, reconnects
+  selects it (the Vercel deployments default to Fly; `?mp=off` opts out). It keeps the token per server URL in `localStorage`, reconnects
   with backoff (0.5 s doubling to 8 s), and reports `connecting/live/
 reconnecting` to the HUD.
 

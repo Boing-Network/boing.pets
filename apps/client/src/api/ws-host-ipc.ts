@@ -272,13 +272,27 @@ export function createWsHostIpc(options: WsHostIpcOptions): IpcClient {
   };
 }
 
-/** `?mp=ws://…` (or VITE_LIVING_PETS_MP_URL) selects the shared world. */
+/** `?mp=` values that force the single-player (browser-hosted) world. */
+export const SINGLE_PLAYER_MP_VALUES = ["off", "local", "none", "0", "false"];
+
+/**
+ * Pick the world to join. `?mp=ws(s)://…` wins; `?mp=off` (or `local`,
+ * `none`, `0`, `false`) forces single-player even when the build has a
+ * default; otherwise VITE_LIVING_PETS_MP_URL (the production default) is used.
+ */
 export function sharedWorldFromLocation(
   search: string,
   envUrl?: string,
 ): { url: string; ownerKey?: string; name?: string } | null {
   const params = new URLSearchParams(search);
-  const url = params.get("mp") ?? envUrl ?? "";
+  const explicit = params.get("mp")?.trim();
+  if (
+    explicit != null &&
+    SINGLE_PLAYER_MP_VALUES.includes(explicit.toLowerCase())
+  ) {
+    return null;
+  }
+  const url = explicit || envUrl?.trim() || "";
   if (!/^wss?:\/\/[^\s]+$/.test(url)) return null;
   const ownerKey = params.get("owner") ?? undefined;
   const name = params.get("name") ?? undefined;
