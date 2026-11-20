@@ -5,11 +5,15 @@
   "description": "Runtime dependencies of the bundled shared-world server image (see Dockerfile).",
   "type": "module",
   "dependencies": {
-    "@prisma/client": "6.19.3",
-    "prisma": "6.19.3",
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "prisma": "7.10.1",
     "ws": "8.23.0"
   },
   "engines": {
     "node": ">=22.12"
+  },
+  "overrides": {
+    "effect": "^3.22.1"
   }
 }

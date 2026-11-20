@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1
 # Shared-world server image (Fly.io). Two stages:
 #   build:   install the workspace, bundle apps/sim-host/src/multiplayer/serve.ts
-#   runtime: node slim + Prisma client/CLI + ws + the bundle. Runs as `node`.
+#   runtime: node slim + Prisma 7 client/CLI (pg adapter) + ws + the bundle.
+#            Runs as `node`.
 # Node 24 satisfies the repo's engines (>=22.12) and matches CI.
 ARG NODE_VERSION=24
 
@@ -32,7 +33,8 @@ ENV NODE_ENV=production \
 COPY deploy/fly/package.json deploy/fly/package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
 COPY packages/db/prisma ./prisma
-RUN npx prisma generate --schema prisma/schema.prisma
+COPY deploy/fly/prisma.config.ts ./prisma.config.ts
+RUN npx prisma generate
 COPY --from=build /repo/apps/sim-host/dist/server.mjs /repo/apps/sim-host/dist/server.mjs.map ./
 USER node
 EXPOSE 8080

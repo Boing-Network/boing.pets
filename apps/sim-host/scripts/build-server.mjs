@@ -21,7 +21,9 @@ await esbuild.build({
   logLevel: "info",
   external: [
     "@prisma/client",
+    "@prisma/adapter-pg",
     ".prisma/*",
+    "pg",
     "ws",
     "bufferutil",
     "utf-8-validate",

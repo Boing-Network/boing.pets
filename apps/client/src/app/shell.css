@@ -99,3 +99,13 @@ body {
   pointer-events: none;
   box-shadow: 0 0 20px color-mix(in srgb, var(--glow) 12%, transparent);
 }
+
+.world-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--ink-muted);
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+  font-size: 0.9rem;
+}

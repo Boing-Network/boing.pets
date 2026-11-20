@@ -21,7 +21,12 @@ export {
   type FamilyCreatureNode,
 } from "./family";
 
-export { createDbClient, type DbClient } from "./client";
+export {
+  createDbClient,
+  pgConnectionOptions,
+  type DbClient,
+  type PgConnectionOptions,
+} from "./client";
 export { CURRENT_SCHEMA_VERSION } from "./schema-version";
 
 export {

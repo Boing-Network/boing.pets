@@ -11,7 +11,7 @@ kill_timeout = "30s"
 
 [deploy]
   # Applies Prisma migrations against DATABASE_URL before new code starts.
-  release_command = "npx prisma migrate deploy --schema prisma/schema.prisma"
+  release_command = "npx prisma migrate deploy"
   # One machine, updated in place: never two writers on the same world.
   strategy = "rolling"
 

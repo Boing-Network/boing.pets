@@ -13,6 +13,7 @@ const NAMED_IMPORTS = {
   "@react-three/drei": "three",
   prisma: "prisma",
   "@prisma/client": "prisma",
+  "@prisma/adapter-pg": "prisma",
   fs: "fs",
   "node:fs": "fs",
   net: "net",
@@ -232,7 +233,11 @@ export default ts.config(
         "error",
         {
           packageDir: "packages/db",
-          allowPackages: ["@boing-pets/contract", "@prisma/client"],
+          allowPackages: [
+            "@boing-pets/contract",
+            "@prisma/client",
+            "@prisma/adapter-pg",
+          ],
         },
       ],
     },
