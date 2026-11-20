@@ -3,9 +3,22 @@ export { applyInfluences } from "./kernel/influences";
 export { aggregateTerritories } from "./kernel/territories";
 export { createWorld } from "./worldgen/create-world";
 export {
+  INTRODUCED_FOUNDERS_PER_SPECIES,
+  introduceSpecies,
+  speciesUpToDate,
+} from "./worldgen/introduce-species";
+export type { IntroduceSpeciesResult } from "./worldgen/introduce-species";
+export {
+  biologyFor,
+  dietFoodBase,
+  perceivedDanger,
+  type BiologyProfile,
+} from "./kernel/biology";
+export {
   LINK_CATALOG,
   SPECIES as WORLDGEN_SPECIES,
   TERRITORY_CATALOG,
+  speciesCatalogRow,
 } from "./worldgen/catalog";
 export type {
   LinkCatalogRow,

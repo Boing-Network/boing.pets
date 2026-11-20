@@ -209,7 +209,9 @@ Newborns start with `NURSE`. A losing `CONTEST` can kill with cause `INJURY`.
   last changed on purpose in the species/map pass (species 1–3 renamed, four
   species, four territories, and sixteen founders added); founders 1–12 kept
   their ids, names, genes, and traits because founders are generated in
-  ascending species id, which matches the old slug order for ids 1–3.
+  ascending species id, which matches the old slug order for ids 1–3. It
+  changed again in the bestiary pass: 21 species with 2 founders each (42
+  founders, born mature) instead of 7 × 4, plus per-species biology.
   `catchup-equivalence.test.ts` checks that catch-up equals live stepping.
 
 ## World and species
@@ -233,21 +235,89 @@ meadow–glade 5, glade–grove 6, grove–thicket 6, thicket–fen 7,
 ridge–crags 7. The graph is connected, and the meadow–glade–grove–thicket
 loop gives creatures a second route between the lowlands.
 
-There are 4 founders per species (alternating female/male), for 28 total. Each
-founder starts its own lineage in its species' home territory, and every home
-is a different territory.
+There are 21 species, three per territory, and 2 founders per species (one
+female, one male), for 42 total. Each founder starts its own lineage in its
+species' home territory. Founders are born mature: their `birthTick` is
+`-maturityDays × ticksPerDay`, so they can court from day one (stored ticks may
+therefore be negative for founders; the DB mapper reads `birth_tick` signed).
 
-| Species (`id`, slug)            | Home    | Maturity / lifespan / gestation / juvenile (days) | Base curiosity, aggression, loyalty, sociability, bravery, risk | Mesh                   | Locomotion |
-| ------------------------------- | ------- | ------------------------------------------------- | --------------------------------------------------------------- | ---------------------- | ---------- |
-| 1 `fire-fox` Fire Fox           | meadow  | 90 / 900 / 18 / 16                                | 700, 350, 500, 600, 550, 650                                    | `FireFoxMesh.tsx`      | trot       |
-| 2 `moss-stag` Moss Stag         | thicket | 140 / 1400 / 30 / 28                              | 300, 250, 750, 400, 400, 200                                    | `MossStagMesh.tsx`     | walk       |
-| 3 `lantern-moth` Lantern Moth   | ridge   | 70 / 700 / 14 / 12                                | 550, 200, 400, 500, 300, 500                                    | `LanternMothMesh.tsx`  | fly        |
-| 4 `glow-tortoise` Glow Tortoise | fen     | 160 / 1800 / 36 / 32                              | 250, 150, 650, 350, 500, 150                                    | `GlowTortoiseMesh.tsx` | walk       |
-| 5 `moon-hare` Moon Hare         | glade   | 60 / 600 / 12 / 10                                | 650, 150, 350, 700, 250, 450                                    | `MoonHareMesh.tsx`     | trot       |
-| 6 `crag-ram` Crag Ram           | crags   | 120 / 1100 / 24 / 20                              | 400, 600, 550, 450, 750, 600                                    | `CragRamMesh.tsx`      | walk       |
-| 7 `thistle-hog` Thistle Hog     | grove   | 80 / 800 / 16 / 14                                | 500, 450, 600, 300, 600, 350                                    | `ThistleHogMesh.tsx`   | trot       |
+| Species (`id`, slug, name)           | Home    | Also lives in  | Diet        | Gait / body plan  | Maturity / lifespan / gestation / juvenile (days) | Forage skill |
+| ------------------------------------ | ------- | -------------- | ----------- | ----------------- | ------------------------------------------------- | ------------ |
+| 1 `fire-fox` Fire Fox                | meadow  | glade          | OMNIVORE    | trot / canid      | 90 / 900 / 18 / 16                                | 40           |
+| 2 `moss-stag` Moss Stag              | thicket | grove          | HERBIVORE   | walk / cervid     | 140 / 1400 / 30 / 28                              | 0            |
+| 3 `lantern-moth` Lantern Moth        | ridge   | crags          | HERBIVORE   | fly / moth        | 70 / 700 / 14 / 12                                | 60           |
+| 4 `glow-tortoise` Glow Tortoise      | fen     | thicket        | HERBIVORE   | crawl / chelonian | 160 / 1800 / 36 / 32                              | 0            |
+| 5 `moon-hare` Moon Hare              | glade   | meadow         | HERBIVORE   | hop / lagomorph   | 60 / 600 / 12 / 10                                | 30           |
+| 6 `crag-ram` Crag Ram                | crags   | ridge          | HERBIVORE   | walk / bovid      | 120 / 1100 / 24 / 20                              | 80           |
+| 7 `thistle-hog` Thistle Hog          | grove   | thicket        | OMNIVORE    | trot / suid       | 80 / 800 / 16 / 14                                | 40           |
+| 8 `barrow-badger` Barrow Badger      | meadow  | thicket        | OMNIVORE    | waddle / mustelid | 100 / 1000 / 20 / 18                              | 60           |
+| 9 `field-nightjar` Field Nightjar    | meadow  | glade          | INSECTIVORE | fly / nightjar    | 60 / 650 / 12 / 10                                | 50           |
+| 10 `shade-lynx` Shade Lynx           | thicket | grove, ridge   | CARNIVORE   | walk / felid      | 120 / 1100 / 22 / 22                              | 80           |
+| 11 `dusk-raccoon` Dusk Raccoon       | thicket | fen, grove     | OMNIVORE    | waddle / mustelid | 90 / 850 / 18 / 16                                | 60           |
+| 12 `slate-marmot` Slate Marmot       | ridge   | crags          | HERBIVORE   | bound / rodent    | 90 / 900 / 18 / 16                                | 60           |
+| 13 `gloam-bat` Gloam Bat             | ridge   | crags, thicket | INSECTIVORE | fly / bat         | 70 / 1000 / 16 / 14                               | 70           |
+| 14 `silver-deer` Silver Deer         | glade   | meadow, grove  | HERBIVORE   | walk / cervid     | 120 / 1200 / 26 / 24                              | 20           |
+| 15 `dew-shrew` Dew Shrew             | glade   | meadow, fen    | INSECTIVORE | scurry / rodent   | 45 / 450 / 10 / 8                                 | 90           |
+| 16 `reed-heron` Reed Heron           | fen     | thicket        | CARNIVORE   | wade / heron      | 110 / 1300 / 22 / 20                              | 60           |
+| 17 `ember-newt` Ember Newt           | fen     | thicket        | INSECTIVORE | crawl / urodele   | 80 / 1000 / 16 / 14                               | 40           |
+| 18 `hollow-squirrel` Hollow Squirrel | grove   | thicket, glade | HERBIVORE   | bound / rodent    | 70 / 700 / 14 / 12                                | 70           |
+| 19 `ash-wolf` Ash Wolf               | grove   | thicket, glade | CARNIVORE   | trot / canid      | 130 / 1200 / 22 / 24                              | 70           |
+| 20 `stone-pika` Stone Pika           | crags   | ridge          | HERBIVORE   | hop / lagomorph   | 60 / 600 / 12 / 10                                | 60           |
+| 21 `crag-owl` Crag Owl               | crags   | ridge          | CARNIVORE   | fly / owl         | 120 / 1400 / 24 / 22                              | 70           |
 
-All species are `HERBIVORE` and breed only within their species.
+Ids 1–7 are the original seven and never change; new species are appended.
+
+### Biology
+
+Biology lives in code, keyed by species id (`worldgen/catalog.ts`,
+`kernel/biology.ts`), so worlds stored by an older build pick it up on load
+without new columns:
+
+- **Needs:** per-tick hunger / thirst / fatigue offsets on top of the shared
+  drift (a shrew burns food faster; a tortoise or newt needs less).
+- **Diet:** `HERBIVORE` forages on territory food. `OMNIVORE`, `INSECTIVORE`
+  and `CARNIVORE` lean less on plant food (`dietFoodBase`); carnivores eat
+  more per success and a little less per miss. There is no predation between
+  creatures: `CARNIVORE` means small unmodelled prey.
+- **Forage skill** adds to forage chance; genes are drawn around each
+  species' gene centres.
+- **Habitat:** home plus extra territories. Danger inside the habitat feels
+  half as bad, exploration stays inside it, and settling there is favoured, so
+  each species keeps to its range instead of crowding the meadow.
+- **Balance guards:** survival needs (hunger, thirst) above 600 become urgent;
+  guarding offspring yields to a parent's own hunger and thirst; a nursing
+  infant beside its mother gets milk; breeding stops when a territory is full
+  or the species' kin fill more than half of it.
+
+`packages/sim/test/ecology.test.ts` runs seeds 1 and 7 for 150 days: every
+species must end with ≥ 2 alive and peak at ≤ 24, there must be ≥ 42 births,
+the population must grow but stay at or under the summed capacity (201), and
+thirst plus starvation deaths must stay ≤ 3. Longer runs (365 days) keep all
+21 species alive on both seeds (193 and 213 alive; deaths are illness and old
+age).
+
+### Introducing species into an existing world
+
+`worldgen/introduce-species.ts` (`introduceSpecies`) runs at every host boot
+on a loaded world (`apps/sim-host/src/session.ts`):
+
+1. Species already stored get their catalog diet refreshed (fire-fox and
+   thistle-hog become `OMNIVORE`). Nothing else on them changes.
+2. Each catalog species missing from the world is added with its
+   compatibility rows and **two founders** (female, male) in its home
+   territory at the world's `lastTick`, with BIRTH/DISCOVERY events, using the
+   world's id cursors and names unique against every existing creature.
+3. The result is committed at once, before any tick or catch-up. It is
+   deterministic, so a crash before that commit re-derives the same rows on
+   the next boot, and idempotent: a world that is up to date changes nothing.
+
+It never deletes, resets or rewrites existing creatures, lineages, memories or
+history. On deploy, `prisma migrate deploy` first adds the new `Diet` enum
+values (`20261122090000_bestiary_diets`); the first host boot then adds the 14
+new species × 2 founders to the live world. Founder BIRTH events go through the
+same after-commit mint queue as worldgen founders (they only mint if the mint
+edge is enabled). Stored rulesets keep their own `founderCountPerSpecies`,
+which only matters at world creation.
 
 ### Species naming
 

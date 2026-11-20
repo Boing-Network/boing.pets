@@ -10,21 +10,244 @@
  * Worlds saved with those slugs still load; ids are unchanged, so the client
  * keeps drawing them with the same skins.
  */
+import { Diet } from "./enums";
+
+/** How a species moves. The client picks a gait cycle from this. */
+export type SpeciesGait =
+  | "walk"
+  | "trot"
+  | "hop"
+  | "bound"
+  | "scurry"
+  | "waddle"
+  | "crawl"
+  | "wade"
+  | "fly";
+
+/** Broad body plan the client builds the procedural mesh from. */
+export type SpeciesBodyPlan =
+  | "canid"
+  | "cervid"
+  | "bovid"
+  | "lagomorph"
+  | "rodent"
+  | "mustelid"
+  | "felid"
+  | "suid"
+  | "chelonian"
+  | "urodele"
+  | "moth"
+  | "bat"
+  | "owl"
+  | "nightjar"
+  | "heron";
 
 export type SpeciesKey = {
   id: number;
   slug: string;
   displayName: string;
+  /** Home territory slug (founders are placed here). */
+  home: string;
+  diet: Diet;
+  gait: SpeciesGait;
+  bodyPlan: SpeciesBodyPlan;
 };
 
+/**
+ * Ids 1–7 are the original seven and keep their ids and founder order.
+ * Ids 8–21 were added by the bestiary expansion: two per territory, so every
+ * territory hosts three species. Never renumber; append only.
+ */
 export const SPECIES_CATALOG = [
-  { id: 1, slug: "fire-fox", displayName: "Fire Fox" },
-  { id: 2, slug: "moss-stag", displayName: "Moss Stag" },
-  { id: 3, slug: "lantern-moth", displayName: "Lantern Moth" },
-  { id: 4, slug: "glow-tortoise", displayName: "Glow Tortoise" },
-  { id: 5, slug: "moon-hare", displayName: "Moon Hare" },
-  { id: 6, slug: "crag-ram", displayName: "Crag Ram" },
-  { id: 7, slug: "thistle-hog", displayName: "Thistle Hog" },
+  {
+    id: 1,
+    slug: "fire-fox",
+    displayName: "Fire Fox",
+    home: "meadow",
+    diet: Diet.OMNIVORE,
+    gait: "trot",
+    bodyPlan: "canid",
+  },
+  {
+    id: 2,
+    slug: "moss-stag",
+    displayName: "Moss Stag",
+    home: "thicket",
+    diet: Diet.HERBIVORE,
+    gait: "walk",
+    bodyPlan: "cervid",
+  },
+  {
+    id: 3,
+    slug: "lantern-moth",
+    displayName: "Lantern Moth",
+    home: "ridge",
+    diet: Diet.HERBIVORE,
+    gait: "fly",
+    bodyPlan: "moth",
+  },
+  {
+    id: 4,
+    slug: "glow-tortoise",
+    displayName: "Glow Tortoise",
+    home: "fen",
+    diet: Diet.HERBIVORE,
+    gait: "crawl",
+    bodyPlan: "chelonian",
+  },
+  {
+    id: 5,
+    slug: "moon-hare",
+    displayName: "Moon Hare",
+    home: "glade",
+    diet: Diet.HERBIVORE,
+    gait: "hop",
+    bodyPlan: "lagomorph",
+  },
+  {
+    id: 6,
+    slug: "crag-ram",
+    displayName: "Crag Ram",
+    home: "crags",
+    diet: Diet.HERBIVORE,
+    gait: "walk",
+    bodyPlan: "bovid",
+  },
+  {
+    id: 7,
+    slug: "thistle-hog",
+    displayName: "Thistle Hog",
+    home: "grove",
+    diet: Diet.OMNIVORE,
+    gait: "trot",
+    bodyPlan: "suid",
+  },
+  {
+    id: 8,
+    slug: "barrow-badger",
+    displayName: "Barrow Badger",
+    home: "meadow",
+    diet: Diet.OMNIVORE,
+    gait: "waddle",
+    bodyPlan: "mustelid",
+  },
+  {
+    id: 9,
+    slug: "field-nightjar",
+    displayName: "Field Nightjar",
+    home: "meadow",
+    diet: Diet.INSECTIVORE,
+    gait: "fly",
+    bodyPlan: "nightjar",
+  },
+  {
+    id: 10,
+    slug: "shade-lynx",
+    displayName: "Shade Lynx",
+    home: "thicket",
+    diet: Diet.CARNIVORE,
+    gait: "walk",
+    bodyPlan: "felid",
+  },
+  {
+    id: 11,
+    slug: "dusk-raccoon",
+    displayName: "Dusk Raccoon",
+    home: "thicket",
+    diet: Diet.OMNIVORE,
+    gait: "waddle",
+    bodyPlan: "mustelid",
+  },
+  {
+    id: 12,
+    slug: "slate-marmot",
+    displayName: "Slate Marmot",
+    home: "ridge",
+    diet: Diet.HERBIVORE,
+    gait: "bound",
+    bodyPlan: "rodent",
+  },
+  {
+    id: 13,
+    slug: "gloam-bat",
+    displayName: "Gloam Bat",
+    home: "ridge",
+    diet: Diet.INSECTIVORE,
+    gait: "fly",
+    bodyPlan: "bat",
+  },
+  {
+    id: 14,
+    slug: "silver-deer",
+    displayName: "Silver Deer",
+    home: "glade",
+    diet: Diet.HERBIVORE,
+    gait: "walk",
+    bodyPlan: "cervid",
+  },
+  {
+    id: 15,
+    slug: "dew-shrew",
+    displayName: "Dew Shrew",
+    home: "glade",
+    diet: Diet.INSECTIVORE,
+    gait: "scurry",
+    bodyPlan: "rodent",
+  },
+  {
+    id: 16,
+    slug: "reed-heron",
+    displayName: "Reed Heron",
+    home: "fen",
+    diet: Diet.CARNIVORE,
+    gait: "wade",
+    bodyPlan: "heron",
+  },
+  {
+    id: 17,
+    slug: "ember-newt",
+    displayName: "Ember Newt",
+    home: "fen",
+    diet: Diet.INSECTIVORE,
+    gait: "crawl",
+    bodyPlan: "urodele",
+  },
+  {
+    id: 18,
+    slug: "hollow-squirrel",
+    displayName: "Hollow Squirrel",
+    home: "grove",
+    diet: Diet.HERBIVORE,
+    gait: "bound",
+    bodyPlan: "rodent",
+  },
+  {
+    id: 19,
+    slug: "ash-wolf",
+    displayName: "Ash Wolf",
+    home: "grove",
+    diet: Diet.CARNIVORE,
+    gait: "trot",
+    bodyPlan: "canid",
+  },
+  {
+    id: 20,
+    slug: "stone-pika",
+    displayName: "Stone Pika",
+    home: "crags",
+    diet: Diet.HERBIVORE,
+    gait: "hop",
+    bodyPlan: "lagomorph",
+  },
+  {
+    id: 21,
+    slug: "crag-owl",
+    displayName: "Crag Owl",
+    home: "crags",
+    diet: Diet.CARNIVORE,
+    gait: "fly",
+    bodyPlan: "owl",
+  },
 ] as const satisfies readonly SpeciesKey[];
 
 export type SpeciesSlug = (typeof SPECIES_CATALOG)[number]["slug"];

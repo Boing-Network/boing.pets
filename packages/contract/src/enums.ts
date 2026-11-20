@@ -13,8 +13,16 @@ export const Gender = {
 } as const;
 export type Gender = (typeof Gender)[keyof typeof Gender];
 
+/**
+ * What a species eats. The kernel turns this into forage odds and relief
+ * (see `packages/sim/src/kernel/biology.ts`); there is no predation, so
+ * CARNIVORE means "hunts small, unmodelled prey".
+ */
 export const Diet = {
   HERBIVORE: "HERBIVORE",
+  OMNIVORE: "OMNIVORE",
+  INSECTIVORE: "INSECTIVORE",
+  CARNIVORE: "CARNIVORE",
 } as const;
 export type Diet = (typeof Diet)[keyof typeof Diet];
 

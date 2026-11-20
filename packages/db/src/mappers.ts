@@ -49,6 +49,19 @@ export function toNumber(value: bigint): number {
   return Number(value);
 }
 
+/**
+ * Ticks may be negative for birth ticks only: founders are born mature, so
+ * their birth predates tick 0 (worldgen) by their species' maturity age.
+ */
+export function toTickNumber(value: bigint): number {
+  if (value < -MAX_SAFE || value > MAX_SAFE) {
+    throw new Error(
+      `bigint tick out of safe integer range: ${value.toString()}`,
+    );
+  }
+  return Number(value);
+}
+
 export function toBigInt(value: number): bigint {
   if (!Number.isSafeInteger(value)) {
     throw new Error(`id is not a safe integer: ${value}`);
@@ -411,7 +424,7 @@ export function mapCreature(row: Creature): MappedCreature {
     speciesId: toNumber(row.speciesId),
     gender: row.gender,
     status: row.status,
-    birthTick: toNumber(row.birthTick),
+    birthTick: toTickNumber(row.birthTick),
     deathTick: toNumberOrNull(row.deathTick),
     deathCause: row.deathCause,
     territoryId: toNumber(row.territoryId),

@@ -7,11 +7,15 @@
  * order, so the first 12 founders of every seed are unchanged by the
  * expansion. New species and territories append after them.
  */
-import { SPECIES_CATALOG, type SpeciesSlug } from "@boing-pets/contract";
+import {
+  SPECIES_CATALOG,
+  type Diet,
+  type SpeciesGait,
+  type SpeciesSlug,
+} from "@boing-pets/contract";
 
 export type SpeciesBiology = {
   slug: SpeciesSlug;
-  home: TerritorySlug;
   maturityDays: number;
   baseLifespanDays: number;
   gestationDays: number;
@@ -23,17 +27,33 @@ export type SpeciesBiology = {
   baseBravery: number;
   baseRiskTaking: number;
   colorHex: string;
+  /** Per-tick offsets added to the ruleset's hunger / thirst / fatigue drift. */
+  needs: { hunger: number; thirst: number; fatigue: number };
+  /** Per-mille added to the forage success chance (skill at finding food). */
+  forageSkill: number;
+  /** Founder gene centres (0–1000); founders roll ± `worldgenGeneSpread`. */
+  genes: {
+    strength: number;
+    speed: number;
+    intelligence: number;
+    curiosity: number;
+    sociability: number;
+  };
+  /** Territories besides home the species is at ease in. */
+  habitat: readonly TerritorySlug[];
 };
 
 export type SpeciesCatalogRow = SpeciesBiology & {
   id: number;
   displayName: string;
+  home: TerritorySlug;
+  diet: Diet;
+  gait: SpeciesGait;
 };
 
 const BIOLOGY: readonly SpeciesBiology[] = [
   {
     slug: "fire-fox",
-    home: "meadow",
     maturityDays: 90,
     baseLifespanDays: 900,
     gestationDays: 18,
@@ -45,10 +65,19 @@ const BIOLOGY: readonly SpeciesBiology[] = [
     baseBravery: 550,
     baseRiskTaking: 650,
     colorHex: "#E07A3D",
+    needs: { hunger: 0, thirst: 0, fatigue: 0 },
+    forageSkill: 40,
+    genes: {
+      strength: 500,
+      speed: 600,
+      intelligence: 600,
+      curiosity: 600,
+      sociability: 550,
+    },
+    habitat: ["glade"],
   },
   {
     slug: "moss-stag",
-    home: "thicket",
     maturityDays: 140,
     baseLifespanDays: 1400,
     gestationDays: 30,
@@ -60,10 +89,19 @@ const BIOLOGY: readonly SpeciesBiology[] = [
     baseBravery: 400,
     baseRiskTaking: 200,
     colorHex: "#6B8F71",
+    needs: { hunger: 0, thirst: 0, fatigue: 0 },
+    forageSkill: 0,
+    genes: {
+      strength: 650,
+      speed: 450,
+      intelligence: 450,
+      curiosity: 400,
+      sociability: 450,
+    },
+    habitat: ["grove"],
   },
   {
     slug: "lantern-moth",
-    home: "ridge",
     maturityDays: 70,
     baseLifespanDays: 700,
     gestationDays: 14,
@@ -75,11 +113,20 @@ const BIOLOGY: readonly SpeciesBiology[] = [
     baseBravery: 300,
     baseRiskTaking: 500,
     colorHex: "#C2B280",
+    needs: { hunger: -1, thirst: -1, fatigue: 0 },
+    forageSkill: 60,
+    genes: {
+      strength: 300,
+      speed: 600,
+      intelligence: 450,
+      curiosity: 550,
+      sociability: 500,
+    },
+    habitat: ["crags"],
   },
   {
     // Slow, long-lived fen grazer. Calm and steady; rarely contests food.
     slug: "glow-tortoise",
-    home: "fen",
     maturityDays: 160,
     baseLifespanDays: 1800,
     gestationDays: 36,
@@ -91,11 +138,20 @@ const BIOLOGY: readonly SpeciesBiology[] = [
     baseBravery: 500,
     baseRiskTaking: 150,
     colorHex: "#7A8F5A",
+    needs: { hunger: -1, thirst: -2, fatigue: -1 },
+    forageSkill: 0,
+    genes: {
+      strength: 700,
+      speed: 250,
+      intelligence: 450,
+      curiosity: 350,
+      sociability: 450,
+    },
+    habitat: ["thicket"],
   },
   {
     // Quick-breeding glade forager. Social and curious, easily spooked.
     slug: "moon-hare",
-    home: "glade",
     maturityDays: 60,
     baseLifespanDays: 600,
     gestationDays: 12,
@@ -107,11 +163,20 @@ const BIOLOGY: readonly SpeciesBiology[] = [
     baseBravery: 250,
     baseRiskTaking: 450,
     colorHex: "#C9D2E6",
+    needs: { hunger: 0, thirst: 0, fatigue: 0 },
+    forageSkill: 30,
+    genes: {
+      strength: 400,
+      speed: 700,
+      intelligence: 450,
+      curiosity: 650,
+      sociability: 650,
+    },
+    habitat: ["meadow"],
   },
   {
     // Hardy high-crag grazer. Brave and quick to contest scarce food.
     slug: "crag-ram",
-    home: "crags",
     maturityDays: 120,
     baseLifespanDays: 1100,
     gestationDays: 24,
@@ -123,11 +188,20 @@ const BIOLOGY: readonly SpeciesBiology[] = [
     baseBravery: 750,
     baseRiskTaking: 600,
     colorHex: "#8A7F74",
+    needs: { hunger: -1, thirst: -1, fatigue: 0 },
+    forageSkill: 80,
+    genes: {
+      strength: 700,
+      speed: 450,
+      intelligence: 450,
+      curiosity: 400,
+      sociability: 450,
+    },
+    habitat: ["ridge"],
   },
   {
     // Grove rooter. Loyal to kin and prickly with strangers.
     slug: "thistle-hog",
-    home: "grove",
     maturityDays: 80,
     baseLifespanDays: 800,
     gestationDays: 16,
@@ -139,6 +213,366 @@ const BIOLOGY: readonly SpeciesBiology[] = [
     baseBravery: 600,
     baseRiskTaking: 350,
     colorHex: "#6E5A48",
+    needs: { hunger: 0, thirst: 0, fatigue: 0 },
+    forageSkill: 40,
+    genes: {
+      strength: 550,
+      speed: 450,
+      intelligence: 500,
+      curiosity: 500,
+      sociability: 350,
+    },
+    habitat: ["thicket"],
+  },
+  {
+    // Meadow digger. Stubborn, brave, keeps to its sett.
+    slug: "barrow-badger",
+    maturityDays: 100,
+    baseLifespanDays: 1000,
+    gestationDays: 20,
+    juvenileDays: 18,
+    baseCuriosity: 450,
+    baseAggression: 550,
+    baseLoyalty: 600,
+    baseSociability: 300,
+    baseBravery: 700,
+    baseRiskTaking: 400,
+    colorHex: "#5E5A55",
+    needs: { hunger: 0, thirst: 0, fatigue: 0 },
+    forageSkill: 60,
+    genes: {
+      strength: 650,
+      speed: 400,
+      intelligence: 550,
+      curiosity: 450,
+      sociability: 350,
+    },
+    habitat: ["thicket"],
+  },
+  {
+    // Moth-hawking meadow bird. Shy, crepuscular, camouflaged.
+    slug: "field-nightjar",
+    maturityDays: 60,
+    baseLifespanDays: 650,
+    gestationDays: 12,
+    juvenileDays: 10,
+    baseCuriosity: 600,
+    baseAggression: 150,
+    baseLoyalty: 450,
+    baseSociability: 350,
+    baseBravery: 300,
+    baseRiskTaking: 450,
+    colorHex: "#7B6A55",
+    needs: { hunger: 0, thirst: -1, fatigue: 0 },
+    forageSkill: 50,
+    genes: {
+      strength: 300,
+      speed: 700,
+      intelligence: 450,
+      curiosity: 600,
+      sociability: 400,
+    },
+    habitat: ["glade"],
+  },
+  {
+    // Solitary thicket stalker. Hunts small prey; avoids company.
+    slug: "shade-lynx",
+    maturityDays: 120,
+    baseLifespanDays: 1100,
+    gestationDays: 22,
+    juvenileDays: 22,
+    baseCuriosity: 550,
+    baseAggression: 650,
+    baseLoyalty: 400,
+    baseSociability: 200,
+    baseBravery: 700,
+    baseRiskTaking: 650,
+    colorHex: "#6F6A60",
+    needs: { hunger: 0, thirst: 0, fatigue: 0 },
+    forageSkill: 80,
+    genes: {
+      strength: 600,
+      speed: 650,
+      intelligence: 600,
+      curiosity: 550,
+      sociability: 250,
+    },
+    habitat: ["grove", "ridge"],
+  },
+  {
+    // Clever thicket scavenger. Curious, opportunistic, social.
+    slug: "dusk-raccoon",
+    maturityDays: 90,
+    baseLifespanDays: 850,
+    gestationDays: 18,
+    juvenileDays: 16,
+    baseCuriosity: 750,
+    baseAggression: 400,
+    baseLoyalty: 550,
+    baseSociability: 550,
+    baseBravery: 500,
+    baseRiskTaking: 600,
+    colorHex: "#6B6E73",
+    needs: { hunger: 0, thirst: 0, fatigue: 0 },
+    forageSkill: 60,
+    genes: {
+      strength: 450,
+      speed: 500,
+      intelligence: 700,
+      curiosity: 700,
+      sociability: 550,
+    },
+    habitat: ["fen", "grove"],
+  },
+  {
+    // Colonial ridge grazer. Whistles at danger, sticks close.
+    slug: "slate-marmot",
+    maturityDays: 90,
+    baseLifespanDays: 900,
+    gestationDays: 18,
+    juvenileDays: 16,
+    baseCuriosity: 400,
+    baseAggression: 300,
+    baseLoyalty: 650,
+    baseSociability: 650,
+    baseBravery: 350,
+    baseRiskTaking: 250,
+    colorHex: "#7D7468",
+    needs: { hunger: 0, thirst: -1, fatigue: -1 },
+    forageSkill: 60,
+    genes: {
+      strength: 500,
+      speed: 450,
+      intelligence: 450,
+      curiosity: 400,
+      sociability: 650,
+    },
+    habitat: ["crags"],
+  },
+  {
+    // Roosting ridge insect-hunter. Long-lived for its size.
+    slug: "gloam-bat",
+    maturityDays: 70,
+    baseLifespanDays: 1000,
+    gestationDays: 16,
+    juvenileDays: 14,
+    baseCuriosity: 600,
+    baseAggression: 200,
+    baseLoyalty: 500,
+    baseSociability: 700,
+    baseBravery: 400,
+    baseRiskTaking: 500,
+    colorHex: "#4F4A52",
+    needs: { hunger: 0, thirst: 0, fatigue: 0 },
+    forageSkill: 70,
+    genes: {
+      strength: 300,
+      speed: 700,
+      intelligence: 550,
+      curiosity: 600,
+      sociability: 700,
+    },
+    habitat: ["crags", "thicket"],
+  },
+  {
+    // Glade browser. Herd-minded, wary, graceful.
+    slug: "silver-deer",
+    maturityDays: 120,
+    baseLifespanDays: 1200,
+    gestationDays: 26,
+    juvenileDays: 24,
+    baseCuriosity: 400,
+    baseAggression: 200,
+    baseLoyalty: 650,
+    baseSociability: 600,
+    baseBravery: 300,
+    baseRiskTaking: 250,
+    colorHex: "#A8A39A",
+    needs: { hunger: 0, thirst: 0, fatigue: 0 },
+    forageSkill: 20,
+    genes: {
+      strength: 550,
+      speed: 650,
+      intelligence: 450,
+      curiosity: 400,
+      sociability: 600,
+    },
+    habitat: ["meadow", "grove"],
+  },
+  {
+    // Tiny glade insectivore. Always hungry, always busy.
+    slug: "dew-shrew",
+    maturityDays: 45,
+    baseLifespanDays: 450,
+    gestationDays: 10,
+    juvenileDays: 8,
+    baseCuriosity: 700,
+    baseAggression: 400,
+    baseLoyalty: 300,
+    baseSociability: 300,
+    baseBravery: 350,
+    baseRiskTaking: 600,
+    colorHex: "#6C625A",
+    needs: { hunger: 1, thirst: 0, fatigue: 0 },
+    forageSkill: 90,
+    genes: {
+      strength: 250,
+      speed: 700,
+      intelligence: 450,
+      curiosity: 700,
+      sociability: 300,
+    },
+    habitat: ["meadow", "fen"],
+  },
+  {
+    // Patient fen wader. Fishes the shallows alone.
+    slug: "reed-heron",
+    maturityDays: 110,
+    baseLifespanDays: 1300,
+    gestationDays: 22,
+    juvenileDays: 20,
+    baseCuriosity: 350,
+    baseAggression: 450,
+    baseLoyalty: 500,
+    baseSociability: 250,
+    baseBravery: 500,
+    baseRiskTaking: 350,
+    colorHex: "#8C9399",
+    needs: { hunger: 0, thirst: -1, fatigue: 0 },
+    forageSkill: 60,
+    genes: {
+      strength: 450,
+      speed: 450,
+      intelligence: 550,
+      curiosity: 400,
+      sociability: 300,
+    },
+    habitat: ["thicket"],
+  },
+  {
+    // Fen salamander with faint ember spots. Slow and frugal.
+    slug: "ember-newt",
+    maturityDays: 80,
+    baseLifespanDays: 1000,
+    gestationDays: 16,
+    juvenileDays: 14,
+    baseCuriosity: 450,
+    baseAggression: 200,
+    baseLoyalty: 350,
+    baseSociability: 300,
+    baseBravery: 300,
+    baseRiskTaking: 300,
+    colorHex: "#4E4438",
+    needs: { hunger: -1, thirst: -1, fatigue: 0 },
+    forageSkill: 40,
+    genes: {
+      strength: 300,
+      speed: 350,
+      intelligence: 400,
+      curiosity: 450,
+      sociability: 350,
+    },
+    habitat: ["thicket"],
+  },
+  {
+    // Grove nut-cacher. Quick, curious, a little reckless.
+    slug: "hollow-squirrel",
+    maturityDays: 70,
+    baseLifespanDays: 700,
+    gestationDays: 14,
+    juvenileDays: 12,
+    baseCuriosity: 650,
+    baseAggression: 300,
+    baseLoyalty: 450,
+    baseSociability: 450,
+    baseBravery: 350,
+    baseRiskTaking: 550,
+    colorHex: "#7A5E48",
+    needs: { hunger: 0, thirst: 0, fatigue: 0 },
+    forageSkill: 70,
+    genes: {
+      strength: 350,
+      speed: 700,
+      intelligence: 550,
+      curiosity: 650,
+      sociability: 450,
+    },
+    habitat: ["thicket", "glade"],
+  },
+  {
+    // Grove pack hunter. Fiercely loyal to kin.
+    slug: "ash-wolf",
+    maturityDays: 130,
+    baseLifespanDays: 1200,
+    gestationDays: 22,
+    juvenileDays: 24,
+    baseCuriosity: 500,
+    baseAggression: 600,
+    baseLoyalty: 800,
+    baseSociability: 700,
+    baseBravery: 750,
+    baseRiskTaking: 550,
+    colorHex: "#6E6B66",
+    needs: { hunger: 0, thirst: 0, fatigue: 0 },
+    forageSkill: 70,
+    genes: {
+      strength: 650,
+      speed: 650,
+      intelligence: 600,
+      curiosity: 500,
+      sociability: 700,
+    },
+    habitat: ["thicket", "glade"],
+  },
+  {
+    // Crag haymaker. Small, social, quick to hide.
+    slug: "stone-pika",
+    maturityDays: 60,
+    baseLifespanDays: 600,
+    gestationDays: 12,
+    juvenileDays: 10,
+    baseCuriosity: 500,
+    baseAggression: 300,
+    baseLoyalty: 550,
+    baseSociability: 650,
+    baseBravery: 300,
+    baseRiskTaking: 300,
+    colorHex: "#8B8277",
+    needs: { hunger: 0, thirst: -1, fatigue: 0 },
+    forageSkill: 60,
+    genes: {
+      strength: 300,
+      speed: 600,
+      intelligence: 450,
+      curiosity: 450,
+      sociability: 650,
+    },
+    habitat: ["ridge"],
+  },
+  {
+    // Cliff-nesting night hunter. Patient and territorial.
+    slug: "crag-owl",
+    maturityDays: 120,
+    baseLifespanDays: 1400,
+    gestationDays: 24,
+    juvenileDays: 22,
+    baseCuriosity: 450,
+    baseAggression: 550,
+    baseLoyalty: 650,
+    baseSociability: 200,
+    baseBravery: 650,
+    baseRiskTaking: 450,
+    colorHex: "#6F6558",
+    needs: { hunger: -1, thirst: -1, fatigue: 0 },
+    forageSkill: 70,
+    genes: {
+      strength: 500,
+      speed: 600,
+      intelligence: 700,
+      curiosity: 450,
+      sociability: 250,
+    },
+    habitat: ["ridge"],
   },
 ];
 
@@ -147,9 +581,21 @@ export const SPECIES: readonly SpeciesCatalogRow[] = SPECIES_CATALOG.map(
   (key) => {
     const biology = BIOLOGY.find((row) => row.slug === key.slug);
     if (!biology) throw new Error(`species biology ${key.slug}`);
-    return { ...biology, id: key.id, displayName: key.displayName };
+    return {
+      ...biology,
+      id: key.id,
+      displayName: key.displayName,
+      home: key.home,
+      diet: key.diet,
+      gait: key.gait,
+    };
   },
 );
+
+/** Catalog row for a species id, or null for ids this build does not know. */
+export function speciesCatalogRow(id: number): SpeciesCatalogRow | null {
+  return SPECIES.find((row) => row.id === id) ?? null;
+}
 
 export type TerritorySlug =
   "meadow" | "thicket" | "ridge" | "glade" | "fen" | "grove" | "crags";

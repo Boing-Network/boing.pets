@@ -27,6 +27,8 @@ export {
   SPECIES_CATALOG,
   speciesKeyForId,
   speciesKeyForSlug,
+  type SpeciesBodyPlan,
+  type SpeciesGait,
   type SpeciesKey,
   type SpeciesSlug,
 } from "./species";

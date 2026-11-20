@@ -17,40 +17,57 @@ import { sha256Hex } from "../src/hash";
 import { clamp, divRound } from "../src/math";
 
 /**
- * Seed-1 founders. The first twelve are byte-for-byte the original fixture
- * (species ids 1–3 were renamed, not reordered); the last sixteen are the
- * four species added with the enlarged map.
+ * Seed-1 founders: two per species (female, then male), ascending species id.
+ * Names come from (seed, tick 0, creature id), so ids 1–28 keep the names
+ * the old four-per-species fixture had at the same ids; species moved
+ * because each now takes two ids instead of four.
  */
 const FOUNDERS = [
   ["fire-fox", "FEMALE", "meadow", "Torkaeith"],
   ["fire-fox", "MALE", "meadow", "Moswrennima"],
-  ["fire-fox", "FEMALE", "meadow", "Ariquillkae"],
-  ["fire-fox", "MALE", "meadow", "Brivessfen"],
-  ["moss-stag", "FEMALE", "thicket", "Saelunsol"],
-  ["moss-stag", "MALE", "thicket", "Ithwrentor"],
-  ["moss-stag", "FEMALE", "thicket", "Eliodorrvess"],
-  ["moss-stag", "MALE", "thicket", "Solnimasol"],
-  ["lantern-moth", "FEMALE", "ridge", "Tormiraari"],
-  ["lantern-moth", "MALE", "ridge", "Oakbrikae"],
-  ["lantern-moth", "FEMALE", "ridge", "Ithdorrsol"],
-  ["lantern-moth", "MALE", "ridge", "Wrenmoslun"],
-  ["glow-tortoise", "FEMALE", "fen", "Dorrnimaith"],
-  ["glow-tortoise", "MALE", "fen", "Oakpeloak"],
-  ["glow-tortoise", "FEMALE", "fen", "Torlunvess"],
-  ["glow-tortoise", "MALE", "fen", "Saequillelio"],
-  ["moon-hare", "FEMALE", "glade", "Saemiramos"],
-  ["moon-hare", "MALE", "glade", "Miraithkae"],
-  ["moon-hare", "FEMALE", "glade", "Pelfenoak"],
-  ["moon-hare", "MALE", "glade", "Mosvessquill"],
-  ["crag-ram", "FEMALE", "crags", "Oakquilldorr"],
-  ["crag-ram", "MALE", "crags", "Fenpaxsae"],
-  ["crag-ram", "FEMALE", "crags", "Lunlunlun"],
-  ["crag-ram", "MALE", "crags", "Wrenquillelio"],
-  ["thistle-hog", "FEMALE", "grove", "Quillnimaari"],
-  ["thistle-hog", "MALE", "grove", "Soldorroak"],
-  ["thistle-hog", "FEMALE", "grove", "Tortormos"],
-  ["thistle-hog", "MALE", "grove", "Vesssolquill"],
+  ["moss-stag", "FEMALE", "thicket", "Ariquillkae"],
+  ["moss-stag", "MALE", "thicket", "Brivessfen"],
+  ["lantern-moth", "FEMALE", "ridge", "Saelunsol"],
+  ["lantern-moth", "MALE", "ridge", "Ithwrentor"],
+  ["glow-tortoise", "FEMALE", "fen", "Eliodorrvess"],
+  ["glow-tortoise", "MALE", "fen", "Solnimasol"],
+  ["moon-hare", "FEMALE", "glade", "Tormiraari"],
+  ["moon-hare", "MALE", "glade", "Oakbrikae"],
+  ["crag-ram", "FEMALE", "crags", "Ithdorrsol"],
+  ["crag-ram", "MALE", "crags", "Wrenmoslun"],
+  ["thistle-hog", "FEMALE", "grove", "Dorrnimaith"],
+  ["thistle-hog", "MALE", "grove", "Oakpeloak"],
+  ["barrow-badger", "FEMALE", "meadow", "Torlunvess"],
+  ["barrow-badger", "MALE", "meadow", "Saequillelio"],
+  ["field-nightjar", "FEMALE", "meadow", "Saemiramos"],
+  ["field-nightjar", "MALE", "meadow", "Miraithkae"],
+  ["shade-lynx", "FEMALE", "thicket", "Pelfenoak"],
+  ["shade-lynx", "MALE", "thicket", "Mosvessquill"],
+  ["dusk-raccoon", "FEMALE", "thicket", "Oakquilldorr"],
+  ["dusk-raccoon", "MALE", "thicket", "Fenpaxsae"],
+  ["slate-marmot", "FEMALE", "ridge", "Lunlunlun"],
+  ["slate-marmot", "MALE", "ridge", "Wrenquillelio"],
+  ["gloam-bat", "FEMALE", "ridge", "Quillnimaari"],
+  ["gloam-bat", "MALE", "ridge", "Soldorroak"],
+  ["silver-deer", "FEMALE", "glade", "Tortormos"],
+  ["silver-deer", "MALE", "glade", "Vesssolquill"],
+  ["dew-shrew", "FEMALE", "glade", "Pelmosmira"],
+  ["dew-shrew", "MALE", "glade", "Toraripax"],
+  ["reed-heron", "FEMALE", "fen", "Kaekaetor"],
+  ["reed-heron", "MALE", "fen", "Kaeithelio"],
+  ["ember-newt", "FEMALE", "fen", "Quillmirator"],
+  ["ember-newt", "MALE", "fen", "Oakelionima"],
+  ["hollow-squirrel", "FEMALE", "grove", "Pelbrifen"],
+  ["hollow-squirrel", "MALE", "grove", "Toraripel"],
+  ["ash-wolf", "FEMALE", "grove", "Solbrioak"],
+  ["ash-wolf", "MALE", "grove", "Solvesssae"],
+  ["stone-pika", "FEMALE", "crags", "Brifenquill"],
+  ["stone-pika", "MALE", "crags", "Kaeluntor"],
+  ["crag-owl", "FEMALE", "crags", "Elionimabri"],
+  ["crag-owl", "MALE", "crags", "Lunvesskae"],
 ] as const;
+
+const SPECIES_IDS = Array.from({ length: 21 }, (_, index) => index + 1);
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -117,10 +134,13 @@ test("seed 1 twice produces the same founders", () => {
   assert.equal(canonicalHash(first.snapshot), canonicalHash(second.snapshot));
   assert.equal(
     canonicalHash(second.snapshot),
-    // Changed intentionally with the favor pass: the ruleset gains
-    // favorForageDivisor and favorDecayPerDay. No world field changed
-    // (before: c7ad0ed0…, movement pass; 4a81cc1c…, species/map pass).
-    "d928f32abdca2d53a19ff15a87e671d394108bfa64ee3f4751ab196e659b25bc",
+    // Changed intentionally with the bestiary pass: 21 species (14 new rows
+    // and diets), two founders each instead of four (founderCountPerSpecies
+    // 4 → 2), founders born at -maturityDays (young adults), and founder
+    // genes centred on each species' catalog genes instead of 500.
+    // (before: d928f32a…, favor pass; c7ad0ed0…, movement pass;
+    // 4a81cc1c…, species/map pass).
+    "523b3f7ea8edf15e8566517f98bfc83571769135e7fe6f161b4e6fdcfd9877db",
   );
   assert.notEqual(
     canonicalHash(first.snapshot),
@@ -132,9 +152,9 @@ test("seed 1 twice produces the same founders", () => {
   assert.equal(snapshot.world.lastTick, 0);
   assert.equal(snapshot.world.schemaVersion, 2);
   assert.equal(snapshot.world.rulesetVersion, 1);
-  assert.equal(snapshot.world.nextCreatureId, 29);
-  assert.equal(snapshot.world.nextLineageId, 29);
-  assert.equal(snapshot.world.nextEventId, 57);
+  assert.equal(snapshot.world.nextCreatureId, 43);
+  assert.equal(snapshot.world.nextLineageId, 43);
+  assert.equal(snapshot.world.nextEventId, 85);
   assert.equal(snapshot.world.nextTerritoryId, 8);
   assert.equal(snapshot.world.nextMemoryId, 1);
   assert.equal(snapshot.world.nextRelationshipId, 1);
@@ -143,20 +163,22 @@ test("seed 1 twice produces the same founders", () => {
   snapshot.ruleset.hungerPerTick = 99;
   assert.equal(RULESET_V1.hungerPerTick, 4);
 
-  assert.equal(snapshot.creatures.length, 28);
-  assert.equal(snapshot.lineages.length, 28);
-  assert.equal(snapshot.discoveries.length, 28);
-  assert.equal(events.length, 56);
+  assert.equal(snapshot.creatures.length, 42);
+  assert.equal(snapshot.lineages.length, 42);
+  assert.equal(snapshot.discoveries.length, 42);
+  assert.equal(events.length, 84);
   assert.deepEqual(
     snapshot.compatibility.map((row) => [
       row.speciesLowId,
       row.speciesHighId,
       row.fertility,
     ]),
-    [1, 2, 3, 4, 5, 6, 7].flatMap((low) =>
-      [1, 2, 3, 4, 5, 6, 7]
-        .filter((high) => high >= low)
-        .map((high) => [low, high, low === high ? 1000 : 0]),
+    SPECIES_IDS.flatMap((low) =>
+      SPECIES_IDS.filter((high) => high >= low).map((high) => [
+        low,
+        high,
+        low === high ? 1000 : 0,
+      ]),
     ),
   );
   assert.deepEqual(
@@ -190,7 +212,9 @@ test("seed 1 twice produces the same founders", () => {
       founder.geneCuriosity,
       founder.geneSociability,
     ],
-    [578, 419, 565, 439, 371],
+    // Fire fox gene centres are 500/600/600/600/550: the same rolls as
+    // before (78, -81, 65, -61, -129) on the new centres.
+    [578, 519, 665, 539, 421],
   );
   assert.deepEqual(
     [
@@ -243,7 +267,10 @@ test("seed 1 twice produces the same founders", () => {
     assert.equal(lineage?.name, `${name} line`);
     assert.equal(lineage?.founderCreatureId, creature.id);
     assert.equal(lineage?.foundedTick, 0);
-    assert.equal(creature.birthTick, 0);
+    assert.equal(
+      creature.birthTick,
+      -(species?.maturityDays ?? 0) * snapshot.ruleset.ticksPerDay,
+    );
     assert.equal(creature.status, "ALIVE");
     // Founders start uneasy in proportion to home danger (danger / 5).
     assert.ok(territory);
@@ -271,10 +298,10 @@ test("seed 1 twice produces the same founders", () => {
     if (index === 0 && birth?.kind === "BIRTH") {
       assert.deepEqual(birth.payload.genes, {
         strength: 578,
-        speed: 419,
-        intelligence: 565,
-        curiosity: 439,
-        sociability: 371,
+        speed: 519,
+        intelligence: 665,
+        curiosity: 539,
+        sociability: 421,
         extra: {},
       });
       assert.deepEqual(birth.payload.mutations, []);

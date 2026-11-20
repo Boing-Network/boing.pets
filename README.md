@@ -6,12 +6,18 @@ remember, and die on their own. The player does not control them. The player
 watches, inspects, and nudges the world through five rate-limited _influences_
 (naming, favoring a bloodline, enriching or calming a territory).
 
-The v1 world has seven territories (Meadow, Thicket, Ridge, Moonlit Glade,
-Glowfen, Elder Grove, High Crags) and seven species, each with a procedural 3D
-model: Fire Fox, Moss Stag, Lantern Moth, Glow Tortoise, Moon Hare, Crag Ram,
-and Thistle Hog. The species table lives in
+The world has seven territories (Meadow, Thicket, Ridge, Moonlit Glade,
+Glowfen, Elder Grove, High Crags) and 21 species, three per territory, each
+starting from two founders (one female, one male): Fire Fox, Barrow Badger
+and Field Nightjar (Meadow); Moss Stag, Shade Lynx and Dusk Raccoon
+(Thicket); Lantern Moth, Slate Marmot and Gloam Bat (Ridge); Moon Hare,
+Silver Deer and Dew Shrew (Moonlit Glade); Glow Tortoise, Reed Heron and
+Ember Newt (Glowfen); Thistle Hog, Hollow Squirrel and Ash Wolf (Elder
+Grove); Crag Ram, Stone Pika and Crag Owl (High Crags). Each has its own
+diet, needs, habitat and gait. The species table lives in
 `packages/contract/src/species.ts`; see
-[`docs/DESIGN.md`](docs/DESIGN.md#world-and-species) for biology and the map.
+[`docs/DESIGN.md`](docs/DESIGN.md#world-and-species) for biology, balance, the
+map, and how new species are introduced into an existing world.
 
 This repo replaced the earlier Boing Pets pasture game in November 2026
 (`b116e6a` "Remove the pasture app and leave the M1 skeleton."). The design and

@@ -93,6 +93,20 @@ export const SPECIES_WORLD_SCALE: Record<string, number> = {
   "moon-hare": 2.45,
   "crag-ram": 3.0,
   "thistle-hog": 2.7,
+  "barrow-badger": 2.6,
+  "field-nightjar": 1.9,
+  "shade-lynx": 2.9,
+  "dusk-raccoon": 2.45,
+  "slate-marmot": 2.2,
+  "gloam-bat": 1.8,
+  "silver-deer": 3.1,
+  "dew-shrew": 1.6,
+  "reed-heron": 3.0,
+  "ember-newt": 1.9,
+  "hollow-squirrel": 1.9,
+  "ash-wolf": 3.0,
+  "stone-pika": 1.8,
+  "crag-owl": 2.2,
 };
 
 export function worldScaleForSkin(skinId: string, selected: boolean): number {

@@ -28,7 +28,7 @@ test("host runtime boots empty store, emits snapshot, and answers family query",
   assert.equal(snapshot.message, "world.snapshot");
   if (snapshot.message !== "world.snapshot") return;
   assert.equal(snapshot.body.territories.length, 7);
-  assert.equal(snapshot.body.creatures.length, 28);
+  assert.equal(snapshot.body.creatures.length, 42);
 
   const family = await runtime.handleQuery({
     message: "query.family",

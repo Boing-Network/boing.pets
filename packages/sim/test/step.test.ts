@@ -63,10 +63,10 @@ test("a starved founder emits one DEATH and stays dead", () => {
   assert.equal(first.snapshot, snapshot);
   assert.equal(snapshot.world.lastTick, 1);
   assert.equal(snapshot.world.clockAtMs, 0);
-  assert.equal(snapshot.world.nextEventId, 58);
+  assert.equal(snapshot.world.nextEventId, 86);
   assert.equal(snapshot.world.nextMemoryId, 1);
-  assert.equal(snapshot.world.nextCreatureId, 29);
-  assert.equal(snapshot.creatures.length, 28);
+  assert.equal(snapshot.world.nextCreatureId, 43);
+  assert.equal(snapshot.creatures.length, 42);
   assert.equal(
     snapshot.creatures.filter((creature) => creature.status === "DEAD").length,
     1,
@@ -82,7 +82,7 @@ test("a starved founder emits one DEATH and stays dead", () => {
   assert.equal(neighbor.hunger, 304);
   assert.deepEqual(first.events, [
     {
-      id: 57,
+      id: 85,
       worldId: 1,
       tick: 1,
       kind: "DEATH",
@@ -90,11 +90,11 @@ test("a starved founder emits one DEATH and stays dead", () => {
       subjectId: null,
       territoryId: home.id,
       lineageId: founder.lineageId,
-      summary: "Torkaeith died of starvation in Meadow at age 0.",
+      summary: "Torkaeith died of starvation in Meadow at age 90.",
       payload: {
         template: "death.v1",
         cause: "STARVATION",
-        ageDays: 0,
+        ageDays: 90,
         territoryId: home.id,
         gestationLost: false,
       },
@@ -104,7 +104,7 @@ test("a starved founder emits one DEATH and stays dead", () => {
   const second = step(snapshot);
   assert.deepEqual(second.events, []);
   assert.equal(snapshot.world.lastTick, 2);
-  assert.equal(snapshot.world.nextEventId, 58);
+  assert.equal(snapshot.world.nextEventId, 86);
   assert.equal(founder.status, "DEAD");
   assert.equal(founder.deathTick, 1);
   assert.equal(founder.deathCause, "STARVATION");
@@ -144,8 +144,14 @@ test("awake drift uses territory danger and the ruleset", () => {
   const drifted = step(snapshot);
   assert.deepEqual(drifted.events, []);
   const meadow = byId(snapshot, 1);
-  const thicket = byId(snapshot, 5);
-  const ridge = byId(snapshot, 9);
+  const thicket = byId(snapshot, 3);
+  const ridge = byId(snapshot, 5);
+  // Ridge is the moth's own habitat, so a moth feels half its danger (350):
+  // no danger discomfort. An outsider (a fox there) feels the full 700.
+  const outsider = clone(world());
+  byId(outsider, 2).territoryId = ridge.territoryId;
+  step(outsider);
+  assert.equal(byId(outsider, 2).discomfort, 103);
   assert.deepEqual(
     [
       meadow.hunger,
@@ -161,7 +167,7 @@ test("awake drift uses territory danger and the ruleset", () => {
   assert.equal(thicket.unsafety, 98);
   assert.equal(thicket.discomfort, 101);
   assert.equal(thicket.health, 855);
-  assert.equal(ridge.discomfort, 103);
+  assert.equal(ridge.discomfort, 101);
   assert.equal(ridge.unsafety, 148);
   assert.equal(ridge.health, 855);
   assert.ok(meadow.currentAction);
@@ -171,7 +177,8 @@ test("awake drift uses territory danger and the ruleset", () => {
   const custom = world();
   custom.ruleset.hungerPerTick = 0;
   custom.ruleset.healthCriticalPerTick = 0;
-  custom.ruleset.discomfortDangerThreshold = 100;
+  // Meadow is the fox's habitat: it feels half of danger 200, so 100 > 50.
+  custom.ruleset.discomfortDangerThreshold = 50;
   byId(custom, 1).hunger = 996;
   step(custom);
   const stayed = byId(custom, 1);
@@ -188,10 +195,12 @@ test("awake drift uses territory danger and the ruleset", () => {
   assert.equal(byId(faster, 1).deathCause, "STARVATION");
   const fasterDeath = deathOf(died.events);
   assert.equal(fasterDeath.payload.cause, "STARVATION");
-  assert.equal(fasterDeath.payload.ageDays, 0);
+  assert.equal(fasterDeath.payload.ageDays, 90);
 
   const aged = world();
   aged.ruleset.ticksPerDay = 1;
+  // Founders are born at -maturity days; pin a newborn so the age is 1.
+  byId(aged, 1).birthTick = 0;
   byId(aged, 1).hunger = 996;
   const agedDeath = deathOf(step(aged).events);
   assert.equal(agedDeath.payload.ageDays, 1);
@@ -225,15 +234,16 @@ test("rest, nurse, and approach change only their drift terms", () => {
   assert.equal(resting.loneliness, 202);
   assert.equal(resting.health, 855);
   assert.equal(resting.currentAction, "REST");
+  // Nursing beside its mother: +2 / +3 drift minus milk (4 / 5).
   assert.deepEqual(
     [nursing.hunger, nursing.thirst, nursing.fatigue, nursing.loneliness],
-    [302, 303, 201, 180],
+    [298, 298, 201, 180],
   );
   assert.equal(alone.loneliness, 202);
   assert.equal(alone.hunger, 302);
   assert.equal(approaching.loneliness, 200);
   assert.equal(approaching.hunger, 304);
-  assert.equal(snapshot.world.nextEventId, 57);
+  assert.equal(snapshot.world.nextEventId, 85);
 });
 
 test("health penalties follow the ruleset thresholds", () => {
@@ -278,7 +288,7 @@ test("health penalties follow the ruleset thresholds", () => {
   assert.equal(illnessDeath.payload.cause, "ILLNESS");
   assert.equal(
     illnessDeath.event.summary,
-    "Torkaeith died of illness in Meadow at age 0.",
+    "Torkaeith died of illness in Meadow at age 90.",
   );
 });
 
@@ -338,7 +348,8 @@ test("population and modifiers are fixed before deaths", () => {
   assert.ok(meadow);
   meadow.capacity = 1;
   step(crowded);
-  assert.equal(byId(crowded, 2).discomfort, 107);
+  // Meadow holds 6 founders (fox, badger, nightjar): 5 over capacity × 2.
+  assert.equal(byId(crowded, 2).discomfort, 111);
 
   const counted = world();
   const countedMeadow = counted.territories.find(
@@ -349,14 +360,14 @@ test("population and modifiers are fixed before deaths", () => {
   byId(counted, 1).hunger = 996;
   step(counted);
   assert.equal(byId(counted, 1).status, "DEAD");
-  assert.equal(byId(counted, 1).discomfort, 107);
-  assert.equal(byId(counted, 2).discomfort, 107);
+  assert.equal(byId(counted, 1).discomfort, 111);
+  assert.equal(byId(counted, 2).discomfort, 111);
 
   const quiet = world();
   const quietMeadow = quiet.territories.find((row) => row.slug === "meadow");
   assert.ok(quietMeadow);
   quietMeadow.capacity = 1;
-  for (const id of [2, 3, 4]) {
+  for (const id of [2, 15, 16, 17, 18]) {
     const creature = byId(quiet, id);
     creature.status = "DEAD";
     creature.hunger = 300;
@@ -367,7 +378,7 @@ test("population and modifiers are fixed before deaths", () => {
   assert.equal(byId(quiet, 2).hunger, 300);
   assert.equal(
     quiet.creatures.filter((creature) => creature.status === "DEAD").length,
-    3,
+    5,
   );
 
   const calmed = world();
@@ -383,9 +394,11 @@ test("population and modifiers are fixed before deaths", () => {
     endTick: 5,
     sourceInfluenceId: null,
   });
+  // A fox on the ridge feels its full danger (the moth would feel half).
+  byId(calmed, 5).speciesId = 1;
   step(calmed);
-  assert.equal(byId(calmed, 9).discomfort, 101);
-  assert.equal(byId(calmed, 9).unsafety, 148);
+  assert.equal(byId(calmed, 5).discomfort, 101);
+  assert.equal(byId(calmed, 5).unsafety, 148);
 
   const expired = world();
   const expiredRidge = expired.territories.find((row) => row.slug === "ridge");
@@ -400,8 +413,9 @@ test("population and modifiers are fixed before deaths", () => {
     endTick: 1,
     sourceInfluenceId: null,
   });
+  byId(expired, 5).speciesId = 1;
   step(expired);
-  assert.equal(byId(expired, 9).discomfort, 103);
+  assert.equal(byId(expired, 5).discomfort, 103);
 
   const clamped = world();
   const clampedMeadow = clamped.territories.find(
@@ -419,6 +433,8 @@ test("population and modifiers are fixed before deaths", () => {
     endTick: 2,
     sourceInfluenceId: null,
   });
+  // A stag in the meadow is outside its habitat and feels the full danger.
+  byId(clamped, 1).speciesId = 2;
   step(clamped);
   assert.equal(byId(clamped, 1).discomfort, 103);
   assert.equal(byId(clamped, 1).unsafety, 996);
@@ -597,8 +613,8 @@ test("influences for other ticks stay pending; births need matching endTick", ()
   step(snapshot);
 
   assert.equal(snapshot.world.lastTick, 144);
-  assert.equal(snapshot.creatures.length, 28);
-  assert.equal(snapshot.world.nextCreatureId, 29);
+  assert.equal(snapshot.creatures.length, 42);
+  assert.equal(snapshot.world.nextCreatureId, 43);
   assert.equal(mother.gestationEndTick, 1);
   assert.equal(mother.currentAction, "FORAGE");
   assert.equal(mother.actionEndsTick, 200);
@@ -608,5 +624,5 @@ test("influences for other ticks stay pending; births need matching endTick", ()
   assert.equal(snapshot.pendingInfluences[0]?.applied, false);
   assert.equal(snapshot.relationships[0]?.friendship, 50);
   assert.equal(snapshot.relationships[0]?.score, 100);
-  assert.equal(snapshot.world.nextEventId, 57);
+  assert.equal(snapshot.world.nextEventId, 85);
 });

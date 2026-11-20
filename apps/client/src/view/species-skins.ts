@@ -102,6 +102,132 @@ const SKIN_PALETTES: Record<CreatureSkinId, PaletteBody> = {
     emissiveIntensity: 0.58,
     locomotion: "trot",
   },
+  "barrow-badger": {
+    primary: "#5E5A55",
+    secondary: "#D9D4CA",
+    accent: "#1E1C1A",
+    emissive: "#C9B27A",
+    // Lamp-amber cheek stripe, faint.
+    emissiveIntensity: 0.4,
+    locomotion: "walk",
+  },
+  "field-nightjar": {
+    primary: "#6B5B48",
+    secondary: "#B8A487",
+    accent: "#2E261E",
+    emissive: "#E8D49A",
+    // Pale wing-bar flash.
+    emissiveIntensity: 0.38,
+    locomotion: "fly",
+  },
+  "shade-lynx": {
+    primary: "#6F6A60",
+    secondary: "#C8C0B0",
+    accent: "#24211D",
+    emissive: "#9FD0C8",
+    // Ear-tuft glints, cold teal.
+    emissiveIntensity: 0.4,
+    locomotion: "walk",
+  },
+  "dusk-raccoon": {
+    primary: "#5D5852",
+    secondary: "#BDB6AA",
+    accent: "#1F1D1B",
+    emissive: "#B7A5E0",
+    // Lavender mask-rim shimmer.
+    emissiveIntensity: 0.42,
+    locomotion: "walk",
+  },
+  "slate-marmot": {
+    primary: "#7A6B58",
+    secondary: "#C2B095",
+    accent: "#3A2F25",
+    emissive: "#E0B070",
+    // Warm amber whisker-pads.
+    emissiveIntensity: 0.36,
+    locomotion: "trot",
+  },
+  "gloam-bat": {
+    primary: "#3E3833",
+    secondary: "#6E6357",
+    accent: "#1A1715",
+    emissive: "#8FB8E8",
+    // Blue membrane veins.
+    emissiveIntensity: 0.42,
+    locomotion: "fly",
+  },
+  "silver-deer": {
+    primary: "#8E8A80",
+    secondary: "#E2DDD2",
+    accent: "#3C352D",
+    emissive: "#C6D8F2",
+    // Moon-silver flank dapples.
+    emissiveIntensity: 0.42,
+    locomotion: "walk",
+  },
+  "dew-shrew": {
+    primary: "#5A4E44",
+    secondary: "#A89C8C",
+    accent: "#231E1A",
+    emissive: "#9EE0C8",
+    // Dewdrop mint on the snout.
+    emissiveIntensity: 0.4,
+    locomotion: "trot",
+  },
+  "reed-heron": {
+    primary: "#7D8790",
+    secondary: "#D7DADB",
+    accent: "#2C3238",
+    emissive: "#A8D8F0",
+    // Pale crest plume glow.
+    emissiveIntensity: 0.38,
+    locomotion: "walk",
+  },
+  "ember-newt": {
+    primary: "#4A3A30",
+    secondary: "#C27A3A",
+    accent: "#1E1714",
+    emissive: "#F09050",
+    // Ember-orange belly spots.
+    emissiveIntensity: 0.62,
+    locomotion: "walk",
+  },
+  "hollow-squirrel": {
+    primary: "#7A5C44",
+    secondary: "#D0BDA2",
+    accent: "#2E2219",
+    emissive: "#E0A860",
+    // Tail-tip amber fleck.
+    emissiveIntensity: 0.38,
+    locomotion: "trot",
+  },
+  "ash-wolf": {
+    primary: "#6A665F",
+    secondary: "#C9C3B8",
+    accent: "#26231F",
+    emissive: "#D8C08A",
+    // Ash-gold eyeshine.
+    emissiveIntensity: 0.36,
+    locomotion: "trot",
+  },
+  "stone-pika": {
+    primary: "#857A6C",
+    secondary: "#CFC3B0",
+    accent: "#3A332B",
+    emissive: "#BFD8FF",
+    // Cold quartz ear rims.
+    emissiveIntensity: 0.34,
+    locomotion: "trot",
+  },
+  "crag-owl": {
+    primary: "#6E6152",
+    secondary: "#CDBFA8",
+    accent: "#2A231C",
+    emissive: "#F0C060",
+    // Amber eyes and facial-disc rim.
+    emissiveIntensity: 0.5,
+    locomotion: "fly",
+  },
 };
 
 export function skinIdForSpecies(speciesId: number): CreatureSkinId {

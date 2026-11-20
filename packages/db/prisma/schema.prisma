@@ -22,6 +22,9 @@ enum Gender {
 
 enum Diet {
   HERBIVORE
+  OMNIVORE
+  INSECTIVORE
+  CARNIVORE
 }
 
 enum Goal {

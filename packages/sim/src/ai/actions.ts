@@ -14,6 +14,14 @@ import { discoveryEvent, matingEvent, migrationEvent } from "../history/events";
 import { ageDays, die } from "../kernel/death";
 import type { TerritoryTick } from "../kernel/needs";
 import { settleScore } from "../kernel/territories";
+import {
+  biologyFor,
+  dietFoodBase,
+  dietOf,
+  dietReliefBonus,
+  inHabitat,
+  perceivedDanger,
+} from "../kernel/biology";
 import { clamp, divRound } from "../math";
 import { initialMemoryStrength } from "../memories/strength";
 import { isMemoryThrottled } from "../memories/throttle";
@@ -361,9 +369,30 @@ function restDuration(
   );
 }
 
+/** Settle bonus for a territory inside the species' habitat. */
+export const HABITAT_SETTLE_BONUS = 1500;
+
+function habitatSettle(
+  snapshot: WorldSnapshot,
+  creature: CreatureRow,
+  territoryId: number,
+  stats: TerritoryTick,
+): { settle: number; habitat: boolean } {
+  const slug =
+    snapshot.territories.find((row) => row.id === territoryId)?.slug ?? "";
+  const habitat = inHabitat(biologyFor(creature.speciesId), slug);
+  return {
+    settle: settleScore(stats) + (habitat ? HABITAT_SETTLE_BONUS : 0),
+    habitat,
+  };
+}
+
 /**
  * Neighbor for explore: undiscovered with the highest settle, else a neighbor
- * that beats the current settle by settleMargin.
+ * that beats the current settle by settleMargin. A creature inside its
+ * species' habitat only explores within that habitat; a stray (one that fled
+ * or followed young out of range) scores habitat neighbors with a large
+ * bonus, so it drifts home.
  */
 export function exploreDestination(
   snapshot: WorldSnapshot,
@@ -372,21 +401,24 @@ export function exploreDestination(
 ): { territoryId: number; travelTicks: number } | null {
   const current = territories.get(creature.territoryId);
   if (!current) throw new Error("territory");
-  const currentSettle = settleScore(current);
+  const here = habitatSettle(snapshot, creature, creature.territoryId, current);
+  const currentSettle = here.settle;
   const neighbors = snapshot.links
     .filter((link) => link.fromId === creature.territoryId)
     .map((link) => {
       const stats = territories.get(link.toId);
       if (!stats) throw new Error("territory");
+      const scored = habitatSettle(snapshot, creature, link.toId, stats);
       return {
         territoryId: link.toId,
         travelTicks: link.travelTicks,
-        settle: settleScore(stats),
+        settle: scored.settle,
+        habitat: scored.habitat,
         discovered: knowsTerritory(snapshot, creature.lineageId, link.toId),
       };
     });
   const undiscovered = neighbors
-    .filter((row) => !row.discovered)
+    .filter((row) => !row.discovered && (row.habitat || !here.habitat))
     .sort((a, b) => {
       if (a.settle !== b.settle) return b.settle - a.settle;
       return a.territoryId - b.territoryId;
@@ -398,6 +430,7 @@ export function exploreDestination(
     };
   }
   const better = neighbors
+    .filter((row) => row.habitat || !here.habitat)
     .filter((row) => row.settle > currentSettle + snapshot.ruleset.settleMargin)
     .sort((a, b) => {
       if (a.settle !== b.settle) return b.settle - a.settle;
@@ -530,7 +563,8 @@ export function startActionForGoal(
     case Goal.SEEK_SHELTER: {
       const flee =
         (creature.unsafety > rules.fleeUnsafety ||
-          territory.danger > rules.fleeDanger) &&
+          perceivedDanger(biologyFor(creature.speciesId), territory) >
+            rules.fleeDanger) &&
         fleeDestination(snapshot, creature.territoryId, territories);
       if (flee) {
         beginRelocate(snapshot, creature, tick, flee.territoryId, goal);
@@ -955,8 +989,12 @@ export function resolveForage(
   if (!territory) throw new Error("territory");
 
   const hungerBefore = actor.hunger;
+  const biology = biologyFor(actor.speciesId);
+  const species = snapshot.species.find((row) => row.id === actor.speciesId);
+  const diet = dietOf(species, actor.speciesId);
   const chancePerMille = clamp(
-    territory.food -
+    dietFoodBase(diet, territory.food) +
+      biology.forageSkill -
       territory.population * rules.foragePopPressure +
       Math.floor(actor.geneIntelligence / 5) +
       favorForageBonus(snapshot, actor),
@@ -967,7 +1005,8 @@ export function resolveForage(
   const success = roll < chancePerMille;
   actor.hunger = clamp(
     actor.hunger -
-      (success ? rules.forageHungerSuccess : rules.forageHungerFail),
+      (success ? rules.forageHungerSuccess : rules.forageHungerFail) -
+      dietReliefBonus(diet, success),
     0,
     1000,
   );

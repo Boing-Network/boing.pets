@@ -4,6 +4,7 @@
  */
 import { MemoryKind, MemoryTag, type Ruleset } from "@boing-pets/contract";
 import type { MemoryRow, WorldSnapshot } from "../types";
+import { memoriesOf } from "./index-by-owner";
 
 export type MemoryThrottleQuery = {
   creatureId: number;
@@ -80,7 +81,7 @@ export function isMemoryThrottled(
 ): boolean {
   const window = windowTicks(query.kind, snapshot.ruleset);
   if (window == null) return false;
-  for (const memory of snapshot.memories) {
+  for (const memory of memoriesOf(snapshot.memories, query.creatureId)) {
     if (!matchesThrottle(memory, query)) continue;
     if (window === "once") return true;
     if (query.tick - memory.tick <= window) return true;
