@@ -205,6 +205,70 @@ docker run --rm -p 8080:8080 -e LIVING_PETS_MP_HOST=0.0.0.0 \
   -e LIVING_PETS_MP_ALLOWED_ORIGINS=http://localhost:* boing-living-pets
 ```
 
+## Database backups
+
+The shared world's Postgres (`boing-living-pets-db`, self-managed Fly
+Postgres) is backed up by a separate, service-less Fly app,
+`boing-living-pets-backup` (`deploy/backup/`):
+
+- **nightly-backup** (scheduled machine, `--schedule daily`): `backup.sh`
+  opens one `REPEATABLE READ` transaction, records every table's row count in
+  it, and runs `pg_dump --format=custom --snapshot=…` from the same snapshot.
+  It checks the archive with `pg_restore --list`, uploads
+  `pg/boing_living_pets/<UTC stamp>.dump` (sha256 in the object metadata)
+  and `<stamp>.counts.tsv` to the private Tigris bucket
+  `boing-living-pets-backups`, then deletes dumps older than
+  `BACKUP_RETENTION_DAYS` (14), always keeping the newest `BACKUP_KEEP_MIN` (3).
+- **weekly-restore-check** (`--schedule weekly`): `restore-check.sh`
+  restores the newest dump into a throwaway database (`restore_check_<stamp>`)
+  on the same cluster, compares its row counts with the recorded ones, logs
+  `RESTORE CHECK PASSED`/`FAILED`, and drops the throwaway database. The live
+  database is only read.
+
+Fly picks the time of day for `daily`/`weekly` schedules. Secrets on the
+backup app: `DATABASE_URL` (from `fly postgres attach … --database-user
+boing_backup`) and the Tigris `AWS_*`/`BUCKET_NAME` set by `fly storage create`.
+
+Cost: the machines run for about 10 s a day and are billed for their
+146 MB rootfs while stopped (about $0.04/month for both); the dumps (about
+60 KB each, 14 kept) sit inside Tigris's free 5 GB. Expect well under
+$0.10/month.
+
+```bash
+npm run backup:now     # take a backup now (one-off machine, removed after)
+npm run backup:check   # restore the newest backup into a throwaway DB and compare
+npm run backup:logs    # look for "done key=…" and "RESTORE CHECK PASSED"
+npm run backup:image   # rebuild after editing deploy/backup, then point the
+                       # scheduled machines at it:
+fly machine list -a boing-living-pets-backup
+fly machine update <id> --image registry.fly.io/boing-living-pets-backup:latest --skip-start -a boing-living-pets-backup
+```
+
+**Restoring for real**
+
+1. Stop writes: `fly scale count 0 -a boing-living-pets` (the server saves on
+   `SIGTERM`; skip this only when restoring somewhere else).
+2. Pick a key (`latest` also works):
+   `fly machine run registry.fly.io/boing-living-pets-backup:latest list-backups.sh -a boing-living-pets-backup --restart no --rm`,
+   then `npm run backup:logs`.
+3. Restore into a fresh, empty database on the cluster (safest), then point
+   the app at it:
+   ```bash
+   fly postgres connect -a boing-living-pets-db   # create database boing_living_pets_restored;
+   fly machine run registry.fly.io/boing-living-pets-backup:latest restore.sh <key|latest> \
+     --env TARGET_DB_NAME=boing_living_pets_restored \
+     -a boing-living-pets-backup --restart no --rm
+   npm run backup:logs                            # "restored <key>"
+   ```
+   Then point the app at it: in `fly postgres connect`, rename the databases
+   (`alter database boing_living_pets rename to boing_living_pets_old;
+alter database boing_living_pets_restored rename to boing_living_pets;`),
+   so no secret changes. `restore.sh` checks the sha256 first and restores in
+   one transaction. It refuses to target the live database unless
+   `RESTORE_INTO_LIVE=yes` (with `RESTORE_CLEAN=1` to drop objects first).
+4. `fly scale count 1 -a boing-living-pets`, then check
+   `curl https://boing-living-pets.fly.dev/healthz`.
+
 ## Environment variables
 
 Names only. Never commit values.
