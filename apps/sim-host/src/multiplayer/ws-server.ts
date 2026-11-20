@@ -25,6 +25,7 @@ import {
   type PlayerPresence,
   type SessionRole,
   type WalletProof,
+  MARKET_CATALOG_PATH,
 } from "@boing-pets/contract";
 import type { ClientConnection, EmitMeta } from "./client-registry";
 import type { SharedWorldHost } from "./shared-world-host";
@@ -86,7 +87,34 @@ export type SharedWorldWsServerOptions = {
   walletChallenges?: WalletChallenges;
   /** How often `players` presence frames go out (ms). 0 disables. */
   presenceMs?: number;
+  /**
+   * Read-only marketplace catalog for `GET /market/v1/catalog`. Browsers get
+   * CORS headers only for origins `allowOrigin` accepts.
+   */
+  marketCatalog?: () => Promise<unknown>;
 };
+
+/**
+ * CORS for the read-only HTTP endpoints. A request without `Origin` (curl,
+ * server-to-server) gets no CORS headers and is served; an allowed origin is
+ * echoed back; any other origin is refused.
+ */
+export function readOnlyCors(
+  origin: string | undefined,
+  allowOrigin: (origin: string | undefined) => boolean,
+): { allowed: boolean; headers: Record<string, string> } {
+  if (origin == null || origin === "") return { allowed: true, headers: {} };
+  if (!allowOrigin(origin)) return { allowed: false, headers: {} };
+  return {
+    allowed: true,
+    headers: {
+      "access-control-allow-origin": origin,
+      "access-control-allow-methods": "GET, OPTIONS",
+      "access-control-max-age": "600",
+      vary: "Origin",
+    },
+  };
+}
 
 export type SharedWorldWsServer = {
   /** Bound port after listen. */
@@ -200,6 +228,42 @@ export async function listenSharedWorldWs(
         "cache-control": "no-store",
       });
       res.end(`${JSON.stringify(body)}\n`);
+      return;
+    }
+    if (pathname === MARKET_CATALOG_PATH && options.marketCatalog != null) {
+      const cors = readOnlyCors(req.headers.origin, allowOrigin);
+      if (!cors.allowed) {
+        res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+        res.end("origin not allowed\n");
+        return;
+      }
+      if (req.method === "OPTIONS") {
+        res.writeHead(204, cors.headers);
+        res.end();
+        return;
+      }
+      if (req.method !== "GET" && req.method !== "HEAD") {
+        res.writeHead(405, { allow: "GET, HEAD, OPTIONS", ...cors.headers });
+        res.end();
+        return;
+      }
+      options
+        .marketCatalog()
+        .then((catalog) => {
+          res.writeHead(200, {
+            "content-type": "application/json; charset=utf-8",
+            "cache-control": "public, max-age=2",
+            ...cors.headers,
+          });
+          res.end(req.method === "HEAD" ? undefined : JSON.stringify(catalog));
+        })
+        .catch(() => {
+          res.writeHead(500, {
+            "content-type": "text/plain; charset=utf-8",
+            ...cors.headers,
+          });
+          res.end("catalog unavailable\n");
+        });
       return;
     }
     res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });

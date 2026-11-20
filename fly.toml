@@ -21,6 +21,10 @@ kill_timeout = "30s"
   LIVING_PETS_MP_HOST = "0.0.0.0"
   # Speed for a brand-new world only; the owner can change it later.
   LIVING_PETS_MP_SCALE = "1"
+  # Marketplace: operator wallet that holds NFTs until a player adopts or claims
+  # them (public address). LIVING_PETS_ESCROW_HEX stays unset until a real
+  # escrow contract is deployed.
+  LIVING_PETS_OPERATOR_HEX = "0xc8b386c732a9f00c7ccd28aa4a8c377634057d6b5604099f4809a8fee58af6f8"
   # Browser origins allowed to open the WebSocket. `*` = letters/digits/dashes.
   # Boing wallets (0x + 64 hex, comma-separated) that sign in as owner.
   # LIVING_PETS_MP_OWNER_WALLETS = "0x…"
