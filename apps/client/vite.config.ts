@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
@@ -5,6 +6,16 @@ import { defineConfig } from "vite";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(root, "../..");
+
+// The game at `/`, plus static pages beside it (`/welcome/`, `/market/`).
+// Each page is built only when its HTML exists.
+const PAGES = ["index.html", "welcome/index.html", "market/index.html"];
+const input = Object.fromEntries(
+  PAGES.filter((page) => existsSync(path.resolve(root, page))).map((page) => [
+    page === "index.html" ? "main" : path.dirname(page),
+    path.resolve(root, page),
+  ]),
+);
 
 export default defineConfig({
   // Relative base so Electron can load the built index over file://.
@@ -35,11 +46,7 @@ export default defineConfig({
     // three alone is ~720 kB minified; it is lazy-loaded with the 3D view.
     chunkSizeWarningLimit: 800,
     rollupOptions: {
-      // The game at `/`, and the static marketing page at `/welcome/`.
-      input: {
-        main: path.resolve(root, "index.html"),
-        welcome: path.resolve(root, "welcome/index.html"),
-      },
+      input,
       output: {
         // Long-lived vendor chunks: app changes do not bust the 3D stack.
         manualChunks(id) {
