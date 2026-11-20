@@ -79,6 +79,8 @@ export type QuadSpec = {
   splay?: number;
   /** Long folded hind legs (hares, squirrels, marmots). */
   hindFold?: number;
+  /** Long hind feet resting flat on the ground (hares), as a length. */
+  hindFoot?: number;
   neck: { len: number; pitch: number; r: number };
   head: {
     r: Vec3;
@@ -386,9 +388,23 @@ function buildLeg(
       y0 * (0.55 - fold * 0.1),
       top[2] + r * 1.4 + fold * y0 * 0.25,
     ];
-    const hock: Vec3 = [top[0], y0 * 0.24, top[2] - r * 2.4 - fold * y0 * 0.35];
+    const flat = spec.hindFoot ?? 0;
+    const hock: Vec3 = flat
+      ? [top[0], r * 1.1, top[2] - r * 2.4 - fold * y0 * 0.3]
+      : [top[0], y0 * 0.24, top[2] - r * 2.4 - fold * y0 * 0.35];
     b.tube(top, knee, r * 1.3, r, "coat");
     b.tube(knee, hock, r, r * 0.78, lower(0.75));
+    if (flat) {
+      // Heel down, long foot forward under the haunch.
+      b.tube(
+        hock,
+        [top[0], r * 0.55, hock[2] + flat],
+        r * 0.8,
+        r * 0.6,
+        lower(0.3),
+      );
+      return;
+    }
     b.tube(hock, [top[0], r * 0.6, footZ], r * 0.72, r * 0.62, lower(0.3));
   } else {
     const elbow: Vec3 = [top[0], y0 * 0.6, top[2] - r * 1.1];

@@ -15,7 +15,11 @@ import { DoubleSide, FrontSide, MeshStandardMaterial } from "three";
 /** Seconds, advanced once per frame by whoever renders creatures. */
 export const creatureTime = { value: 0 };
 
-function patch(material: MeshStandardMaterial): MeshStandardMaterial {
+function patch(
+  material: MeshStandardMaterial,
+  /** Moonlight passing through thin wing membranes when backlit. */
+  translucency = 0,
+): MeshStandardMaterial {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uCreatureTime = creatureTime;
     shader.vertexShader = shader.vertexShader
@@ -78,10 +82,12 @@ roughnessFactor = clamp(roughnessFactor - (1.0 - vGlow.a) * 0.4, 0.3, 1.0);`,
 float cRim = pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), 3.0);
 totalEmissiveRadiance += vec3(0.30, 0.40, 0.58) * cRim * 0.07 * vGlow.a;
 float cPulse = 0.78 + 0.22 * sin(uCreatureTime * 1.3 + vObj.x * 9.0 + vObj.z * 7.0);
-totalEmissiveRadiance += vGlow.rgb * cPulse;`,
+totalEmissiveRadiance += vGlow.rgb * cPulse;
+totalEmissiveRadiance += diffuseColor.rgb * vec3(0.42, 0.48, 0.62) * ${translucency.toFixed(3)};`,
       );
   };
-  material.customProgramCacheKey = () => "living-pets-creature-v1";
+  material.customProgramCacheKey = () =>
+    `living-pets-creature-v2-${translucency}`;
   return material;
 }
 
@@ -101,4 +107,5 @@ export const creatureMembrane = patch(
     metalness: 0,
     side: DoubleSide,
   }),
+  0.28,
 );

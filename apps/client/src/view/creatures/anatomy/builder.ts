@@ -138,7 +138,7 @@ export class CreatureBuilder {
     /** 1 for close-up detail, ~0.5 for the far, instanced body. */
     readonly detail: number,
     readonly pattern: PatternFn | null = null,
-    /** Standing height, used to scale ground occlusion. */
+    /** Standing height, used to scale ground occlusion (<= 0 for fliers). */
     readonly height = 0.4,
   ) {}
 
@@ -431,7 +431,11 @@ export class CreatureBuilder {
       const vary = 0.86 + broad * 0.18 + fine * 0.1 * grain;
       // Occlusion: underside, and everything close to the ground.
       const under = 0.78 + 0.22 * smoothstep(-0.9, 0.2, n.y);
-      const ground = 0.62 + 0.38 * smoothstep(0, this.height * 0.35, p.y);
+      // Fliers (height <= 0) are never near the ground, so skip ground occlusion.
+      const ground =
+        this.height <= 0
+          ? 1
+          : 0.62 + 0.38 * smoothstep(0, this.height * 0.35, p.y);
       const k = vary * under * ground;
       colors[i * 3] = tmpColor.r * k;
       colors[i * 3 + 1] = tmpColor.g * k;

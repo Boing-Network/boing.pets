@@ -198,9 +198,10 @@ const QUAD_SPECIES = {
     chest: [0.055, 0.065, 0.075],
     rump: [0.068, 0.078, 0.085],
     rumpLift: 0.02,
-    legR: 0.015,
+    legR: 0.019,
     foot: "paw",
-    hindFold: 0.6,
+    hindFold: 0.9,
+    hindFoot: 0.075,
     neck: { len: 0.05, pitch: 1.0, r: 0.035 },
     head: {
       r: [0.04, 0.042, 0.052],
@@ -242,7 +243,7 @@ const QUAD_SPECIES = {
         : null,
   }),
   "thistle-hog": quadruped({
-    coat: { back: "#625448", belly: "#8c7c6a", dark: "#221c17" },
+    coat: { back: "#7e6b5a", belly: "#ab9a82", dark: "#2c241d" },
     gait: "trot",
     legH: 0.08,
     bodyLen: 0.2,
@@ -570,7 +571,7 @@ export const ANATOMY: Record<SpeciesSlug, Anatomy> = {
     glow: "#7fe0b0",
   }),
   "field-nightjar": bird({
-    coat: { back: "#7a6a54", belly: "#a8967c", dark: "#2e261e" },
+    coat: { back: "#8e7d65", belly: "#bcab90", dark: "#2e261e" },
     gait: "fly",
     body: [0.06, 0.05, 0.11],
     bodyY: 0.2,
@@ -604,7 +605,7 @@ export const ANATOMY: Record<SpeciesSlug, Anatomy> = {
     },
   }),
   "gloam-bat": bat({
-    coat: { back: "#5a4e44", belly: "#7a6e62", dark: "#1a1715" },
+    coat: { back: "#6e6155", belly: "#93867a", dark: "#1a1715" },
     membrane: "#51463e",
     glow: "#8fb8e8",
     body: [0.045, 0.04, 0.07],
@@ -638,7 +639,7 @@ export const ANATOMY: Record<SpeciesSlug, Anatomy> = {
     glow: "#f09050",
   }),
   "crag-owl": bird({
-    coat: { back: "#6e6152", belly: "#c8baa2", dark: "#2a231c" },
+    coat: { back: "#857664", belly: "#d4c7b0", dark: "#2a231c" },
     gait: "fly",
     body: [0.1, 0.12, 0.1],
     bodyY: 0.22,

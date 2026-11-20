@@ -21,6 +21,11 @@ function anatomyFor(speciesId: number) {
   return ANATOMY[skinIdForSpecies(speciesId)];
 }
 
+/** Fliers hover, so they get no ground occlusion. */
+function groundHeight(info: { gait: string; height: number }): number {
+  return info.gait === "fly" ? 0 : info.height;
+}
+
 export function rigForSpecies(speciesId: number): CreatureRig {
   let rig = near.get(speciesId);
   if (rig == null) {
@@ -29,7 +34,7 @@ export function rigForSpecies(speciesId: number): CreatureRig {
       anatomy.coat,
       1,
       anatomy.pattern ?? null,
-      anatomy.info.height,
+      groundHeight(anatomy.info),
     );
     anatomy.build(b);
     rig = { info: anatomy.info, parts: b.build() };
@@ -47,7 +52,7 @@ export function farBodyForSpecies(speciesId: number): BufferGeometry {
       anatomy.coat,
       0.45,
       anatomy.pattern ?? null,
-      anatomy.info.height,
+      groundHeight(anatomy.info),
     );
     anatomy.build(b);
     geometry = b.buildMerged();
