@@ -3,10 +3,13 @@
 //! The escrow holds NFTs from allow-listed reference NFT collections while they
 //! are listed, and settles sales in native BOING:
 //!
-//! - `list` (0x40): the holder moves the token to the escrow with
-//!   `transfer_nft` and calls `list` in the same atomic batch. The escrow
-//!   checks with `owner_of` that it really holds the token, then records the
-//!   seller (`CALLER`), the price and an optional reserved buyer.
+//! - `prepare` (0x4b) + `list` (0x40): one atomic batch of
+//!   `[escrow.prepare, collection.transfer_nft(escrow), escrow.list]`.
+//!   `prepare` records the caller as pending seller while `owner_of` still says
+//!   the caller holds the token; `list` requires the escrow to hold the token
+//!   now and the caller to be that pending seller, then records seller, price
+//!   and an optional reserved buyer. A token sent to the escrow without
+//!   `prepare` can never be listed by anyone (only `rescue` returns it).
 //! - `cancel` (0x41): seller or admin; the token goes back to the seller.
 //! - `buy` (0x42): `ContractCallWithValue` with exactly the price. The token
 //!   goes to the buyer, the fee (`price * fee_bps / 10_000`, floored) to the
@@ -45,6 +48,7 @@ pub const SEL_SET_COLLECTION: u8 = 0x47;
 pub const SEL_CONFIG: u8 = 0x48;
 pub const SEL_SET_ADMIN: u8 = 0x49;
 pub const SEL_COLLECTION: u8 = 0x4a;
+pub const SEL_PREPARE: u8 = 0x4b;
 
 /// Default market fee: 2.5%, paid to the admin until `set_fee` runs.
 pub const DEFAULT_FEE_BPS: u128 = 250;
@@ -79,6 +83,8 @@ pub const T_COLL_OK: [u8; 32] = tag(b"LPESC_COK");
 pub const T_SELLER: [u8; 32] = tag(b"LPESC_SELLER");
 pub const T_PRICE: [u8; 32] = tag(b"LPESC_PRICE");
 pub const T_BUYER: [u8; 32] = tag(b"LPESC_BUYER");
+/// Pending seller recorded by `prepare` while the seller still holds the token.
+pub const T_PENDING: [u8; 32] = tag(b"LPESC_PENDING");
 /// Log topic0 values.
 pub const LOG_LIST: [u8; 32] = tag(b"LPESC_LIST");
 pub const LOG_CANCEL: [u8; 32] = tag(b"LPESC_CANCEL");
@@ -148,7 +154,12 @@ struct Asm {
 
 impl Asm {
     fn new() -> Self {
-        Self { code: Vec::new(), labels: HashMap::new(), fixups: Vec::new(), n: 0 }
+        Self {
+            code: Vec::new(),
+            labels: HashMap::new(),
+            fixups: Vec::new(),
+            n: 0,
+        }
     }
     fn op(&mut self, o: O) {
         self.code.push(o as u8);
@@ -197,7 +208,10 @@ impl Asm {
     }
     fn finish(mut self) -> Vec<u8> {
         for (at, l) in &self.fixups {
-            let dest = *self.labels.get(l).unwrap_or_else(|| panic!("missing label {l}"));
+            let dest = *self
+                .labels
+                .get(l)
+                .unwrap_or_else(|| panic!("missing label {l}"));
             self.code[at + 1..at + 33].copy_from_slice(&word_u128(dest as u128));
         }
         self.code
@@ -365,6 +379,7 @@ pub fn escrow_bytecode(admin: &AccountId) -> Vec<u8> {
         (SEL_CONFIG, "config"),
         (SEL_SET_ADMIN, "set_admin"),
         (SEL_COLLECTION, "collection"),
+        (SEL_PREPARE, "prepare"),
     ] {
         a.mload(M_SEL);
         a.push_u(sel as u128);
@@ -394,6 +409,14 @@ pub fn escrow_bytecode(admin: &AccountId) -> Vec<u8> {
     a.op(O::IsZero);
     a.require();
     a.require_owner(|a| a.op(O::Address));
+    a.listing_key(T_PENDING);
+    a.op(O::SLoad);
+    a.op(O::Caller);
+    a.op(O::Eq);
+    a.require();
+    a.push_u(0);
+    a.listing_key(T_PENDING);
+    a.op(O::SStore);
     a.op(O::Caller);
     a.mstore(M_SELLER);
     a.store_listing();
@@ -595,6 +618,18 @@ pub fn escrow_bytecode(admin: &AccountId) -> Vec<u8> {
     a.push_u(M_OUT as u128);
     a.op(O::Return);
 
+    // -- prepare(collection, token) -------------------------------------------
+    a.label("prepare");
+    a.load_coll_tok();
+    a.coll_key(T_COLL_OK);
+    a.op(O::SLoad);
+    a.require();
+    a.require_owner(|a| a.op(O::Caller));
+    a.op(O::Caller);
+    a.listing_key(T_PENDING);
+    a.op(O::SStore);
+    a.op(O::Stop);
+
     // Any failed check lands here: jump out of range faults and reverts.
     a.label("fault");
     a.push_u(u64::MAX as u128);
@@ -617,8 +652,21 @@ pub fn token_word(token: u64) -> [u8; 32] {
     word_u128(token as u128)
 }
 
-pub fn encode_list(collection: &AccountId, token: u64, price: u128, buyer: Option<&AccountId>) -> Vec<u8> {
-    words(SEL_LIST, &[collection.0, token_word(token), word_u128(price), buyer.map(|b| b.0).unwrap_or([0u8; 32])])
+pub fn encode_list(
+    collection: &AccountId,
+    token: u64,
+    price: u128,
+    buyer: Option<&AccountId>,
+) -> Vec<u8> {
+    words(
+        SEL_LIST,
+        &[
+            collection.0,
+            token_word(token),
+            word_u128(price),
+            buyer.map(|b| b.0).unwrap_or([0u8; 32]),
+        ],
+    )
 }
 pub fn encode_cancel(collection: &AccountId, token: u64) -> Vec<u8> {
     words(SEL_CANCEL, &[collection.0, token_word(token)])
@@ -639,13 +687,19 @@ pub fn encode_rescue(collection: &AccountId, token: u64, to: &AccountId) -> Vec<
     words(SEL_RESCUE, &[collection.0, token_word(token), to.0])
 }
 pub fn encode_set_collection(collection: &AccountId, allowed: bool) -> Vec<u8> {
-    words(SEL_SET_COLLECTION, &[collection.0, word_u128(allowed as u128)])
+    words(
+        SEL_SET_COLLECTION,
+        &[collection.0, word_u128(allowed as u128)],
+    )
 }
 pub fn encode_config() -> Vec<u8> {
     words(SEL_CONFIG, &[])
 }
 pub fn encode_set_admin(admin: &AccountId) -> Vec<u8> {
     words(SEL_SET_ADMIN, &[admin.0])
+}
+pub fn encode_prepare(collection: &AccountId, token: u64) -> Vec<u8> {
+    words(SEL_PREPARE, &[collection.0, token_word(token)])
 }
 pub fn encode_collection(collection: &AccountId) -> Vec<u8> {
     words(SEL_COLLECTION, &[collection.0])
