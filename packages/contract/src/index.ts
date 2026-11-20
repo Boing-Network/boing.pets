@@ -26,6 +26,7 @@ export {
   MARKET_API_VERSION,
   MARKET_CATALOG_PATH,
   MARKET_LISTINGS_PATH,
+  LPIT_NOT_LISTABLE_NOTE,
   type MarketAsset,
   type MarketAssetKind,
   type MarketCatalog,

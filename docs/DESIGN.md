@@ -429,6 +429,32 @@ no item influences step exactly as before. Schema migration
   (favor ranking, relic cooldowns, item-use audit). It starts empty on the
   live world; earlier favors are not attributed.
 
+### Items on chain (M22, slice 3)
+
+- **LPIT** ("Living Pets Items", reference multi-token
+  `boing.reference_multi_token.v1`) holds the Vitality Potion (id 1), Calm
+  Potion (2) and Rations Pack (3) rewards. **Not deployed yet.** A simulated
+  deploy from the operator (Nov 20 2026, testnet 6913, nonce 129) succeeded:
+  220,799 gas, fee **0.00220799 BOING**, QA `allow`, bytecode 2,334 bytes,
+  predicted address `0x4877b234…4fa3f96` (nonce-derived; changes if the
+  operator sends anything first). Deploy runbook: deploy the multi-token from
+  the operator, set `LIVING_PETS_BOING_ITEM_COLLECTION_HEX` as a Fly secret via
+  stdin, restart. The boot drain then retries every FAILED item reward row
+  (they failed with "LIVING_PETS_BOING_ITEM_COLLECTION_HEX required") and the
+  rows already mirrored in inventories are not duplicated.
+- **Burning**: the pinned multi-token template exposes balance_of, transfer,
+  mint, set_item_metadata, mint_batch, transfer_batch, total_supply,
+  item_metadata, admin and transfer_admin. There is **no burn**, and the host
+  cannot move a player's balance. So using an LPIT item debits the off-chain
+  inventory lot and the token stays in the wallet as a keepsake of the reward;
+  the DB is the source of truth for "used". A later slice could ask the wallet
+  to `transfer` the unit to a sink account when it is used.
+- **Market**: First Child and Remembrance relics (LPAR, already allow-listed
+  in the escrow) appear in the Items tab as listable. LPIT items appear there
+  too with `escrowListable: false` and a note: the escrow only holds single
+  reference NFTs (`owner_of`/`transfer_nft`), so multi-token balances cannot
+  be listed until a multi-token escrow exists.
+
 ## Time controls (`apps/sim-host/src/clock.ts`, `hud/ClockControls.tsx`)
 
 - **Pause:** freezes stepping. While paused, `clockAt` snaps forward (at most
