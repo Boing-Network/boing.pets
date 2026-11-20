@@ -1,4 +1,4 @@
-import { StrictMode } from "react";
+import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./app/App";
 import { bindIpcToStores } from "./api/bind";
@@ -57,23 +57,42 @@ function bootSharedWorldIpc(shared: {
   return client;
 }
 
-const shared = sharedWorldFromLocation(
-  window.location.search,
-  import.meta.env.VITE_LIVING_PETS_MP_URL as string | undefined,
+/** Dev-only art review stage (`?bestiary`); never boots a world. */
+const Bestiary = lazy(() =>
+  import("./dev/Bestiary").then((module) => ({ default: module.Bestiary })),
 );
 
-const ipc = isElectronBridgeAvailable()
-  ? (() => {
-      const client = createElectronIpc();
-      bindIpcToStores(client);
-      return client;
-    })()
-  : shared != null
-    ? bootSharedWorldIpc(shared)
-    : bootBrowserHostIpc();
+if (new URLSearchParams(window.location.search).has("bestiary")) {
+  createRoot(rootElement).render(
+    <StrictMode>
+      <Suspense fallback={null}>
+        <Bestiary />
+      </Suspense>
+    </StrictMode>,
+  );
+} else {
+  bootGame(rootElement);
+}
 
-createRoot(rootElement).render(
-  <StrictMode>
-    <App ipc={ipc} />
-  </StrictMode>,
-);
+function bootGame(rootElement: HTMLElement) {
+  const shared = sharedWorldFromLocation(
+    window.location.search,
+    import.meta.env.VITE_LIVING_PETS_MP_URL as string | undefined,
+  );
+
+  const ipc = isElectronBridgeAvailable()
+    ? (() => {
+        const client = createElectronIpc();
+        bindIpcToStores(client);
+        return client;
+      })()
+    : shared != null
+      ? bootSharedWorldIpc(shared)
+      : bootBrowserHostIpc();
+
+  createRoot(rootElement).render(
+    <StrictMode>
+      <App ipc={ipc} />
+    </StrictMode>,
+  );
+}

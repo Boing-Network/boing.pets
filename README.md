@@ -143,6 +143,24 @@ shared-world server. Production and previews default to the Fly.io server
 below; point one at your own server with `?mp=wss://…` (browsers block
 `ws://` from an `https://` page).
 
+## Creature rendering
+
+Creatures are procedural: no model or texture files. Each of the 21 species
+has its own body built from code (`apps/client/src/view/creatures/anatomy/`).
+They share one material, lit by the world's moonlight and fog, have soft
+ground contact shadows and breathing, gait and look-at animation. Far away,
+each species is drawn as one instanced mesh. To see every species under the
+world lighting, open the dev bestiary:
+
+```sh
+npm run dev -w @boing-pets/client
+# http://127.0.0.1:5173/?bestiary              all species
+# http://127.0.0.1:5173/?bestiary=fire-fox     one species, close up
+```
+
+See [Creature rendering in the design doc](docs/DESIGN.md#creature-rendering)
+for details.
+
 ## Hosting on Fly.io
 
 The shared-world server runs as one always-on Fly.io machine

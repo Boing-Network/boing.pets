@@ -282,6 +282,7 @@ export function CreatureToken({
         speciesId={creature.speciesId}
         selected={selected}
         pose={poseRef}
+        phase={phase0}
       />
     </group>
   );

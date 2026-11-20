@@ -4,6 +4,7 @@ import { CreatureStatus, type CreatureView } from "@boing-pets/contract";
 import { useUiStore } from "../../state/uiStore";
 import { useWorldViewStore } from "../../state/worldViewStore";
 import { CreatureToken } from "../CreatureToken";
+import { CreatureCrowd } from "../creatures/CreatureCrowd";
 import { Backdrop } from "./Backdrop";
 import { CameraRig } from "./CameraRig";
 import { Flora } from "./Flora";
@@ -73,6 +74,7 @@ export function WorldScene() {
   return (
     <>
       <Sky focusRef={orbitTarget} />
+      <CreatureCrowd />
       <Terrain model={model} />
       <Water model={model} />
       <Flora layout={flora} />
