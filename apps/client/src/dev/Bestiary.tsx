@@ -187,7 +187,7 @@ export function Bestiary() {
   // old and new renderers alike, so before/after shots line up).
   const size = single
     ? worldScaleForSkin(single.slug, false) *
-      (TALL.has(single.slug) ? 0.62 : 0.4)
+      (TALL.has(single.slug) ? 0.8 : 0.4)
     : 1;
   const camera = single
     ? {
@@ -216,7 +216,10 @@ export function Bestiary() {
           gl.setClearColor("#0d2638");
           cam.lookAt(
             0,
-            single ? size * 0.42 + (FLIERS.has(single.slug) ? 1.1 : 0) : 0,
+            single
+              ? size * (TALL.has(single.slug) ? 0.52 : 0.42) +
+                  (FLIERS.has(single.slug) ? 1.1 : 0)
+              : 0,
             single ? 0 : 0.6,
           );
         }}
