@@ -2,6 +2,7 @@
  * Sim host: clock, persistence, influences, WorldView mapping, and inspection IPC.
  * Single writer. Electron packaging (M18) drives the live runtime.
  * Boing NFT minting (M19+) attaches only at this host edge — never in step().
+ * Multiplayer shared-world seam (M22) is opt-in via createSharedWorldHost / WS.
  */
 export {
   ALL_ASSET_MINT_CLASSES,
@@ -170,7 +171,35 @@ export {
   worldgenTables,
 } from "./persist/save";
 export {
+  allocateSessionId,
+  canAcceptForAccount,
+  createClientRegistry,
+  createInfluenceGateBook,
+  createSharedWorldHost,
+  encodeWsServerMessage,
+  gateForAccount,
+  hydrateInfluenceBook,
+  isValidAccountId,
+  listenSharedWorldWs,
+  localAcceptedAtMs,
+  LOCAL_ACCOUNT_ID,
+  parseWsClientMessage,
+  resolveAccountId,
+  serializeInfluenceBook,
+  type ClientConnection,
+  type ClientEmit,
+  type ClientRegistry,
+  type InfluenceGateBook,
+  type SharedWorldHost,
+  type SharedWorldHostOptions,
+  type SharedWorldWsServer,
+  type SharedWorldWsServerOptions,
+  type WsClientToServer,
+  type WsServerToClient,
+} from "./multiplayer";
+export {
   createHostRuntime,
+  type CommandContext,
   type HostRuntime,
   type HostRuntimeEmit,
   type HostRuntimeOptions,
@@ -183,6 +212,7 @@ export {
   stepSession,
   type HostSession,
 } from "./session";
+export { buildWorldPatch } from "./view/world-patch";
 export { buildWorldView } from "./view/world-view";
 export {
   formatScaleRehearsalTiming,

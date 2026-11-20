@@ -68,5 +68,8 @@ export type {
   QueryFamily,
   QueryLineage,
   QueryResult,
+  SessionJoin,
+  SessionRejected,
+  SessionWelcome,
   WorldClock,
 } from "./ipc";

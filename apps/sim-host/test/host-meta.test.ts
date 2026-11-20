@@ -11,10 +11,41 @@ test("host meta sidecar round-trips influence accept times", async () => {
     const store = createFileHostMetaStore(path.join(dir, "host-meta.json"));
     const empty = await store.read();
     assert.deepEqual(empty.influenceAcceptedAtMs, []);
+    assert.deepEqual(empty.influenceAcceptedByAccount, { local: [] });
 
-    await store.write({ influenceAcceptedAtMs: [10, 20, 30] });
+    await store.write({
+      influenceAcceptedAtMs: [10, 20, 30],
+      influenceAcceptedByAccount: {
+        local: [10, 20, 30],
+        alice: [40],
+      },
+    });
     const again = await store.read();
     assert.deepEqual(again.influenceAcceptedAtMs, [10, 20, 30]);
+    assert.deepEqual(again.influenceAcceptedByAccount, {
+      local: [10, 20, 30],
+      alice: [40],
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("host meta hydrates legacy flat accept log as local account", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "living-pets-host-meta-"));
+  try {
+    const filePath = path.join(dir, "host-meta.json");
+    await (
+      await import("node:fs/promises")
+    ).writeFile(
+      filePath,
+      `${JSON.stringify({ influenceAcceptedAtMs: [1, 2, 3] }, null, 2)}\n`,
+      "utf8",
+    );
+    const store = createFileHostMetaStore(filePath);
+    const meta = await store.read();
+    assert.deepEqual(meta.influenceAcceptedAtMs, [1, 2, 3]);
+    assert.deepEqual(meta.influenceAcceptedByAccount, { local: [1, 2, 3] });
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

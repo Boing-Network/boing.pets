@@ -154,12 +154,28 @@ export class BrowserWorldRepository implements WorldRepository {
     const raw = await this.#store.get(this.#storageKey);
     if (raw != null) {
       const tables = JSON.parse(raw) as DurableTables;
-      // Older browser saves predate M20/M21; default the sidecars.
+      // Older browser saves predate M20/M21/M22; default the sidecars.
       if (!Array.isArray(tables.creatureNftLinks)) {
         tables.creatureNftLinks = [];
       }
       if (!Array.isArray(tables.assetMintLinks)) {
         tables.assetMintLinks = [];
+      }
+      if (
+        tables.influenceAcceptedByAccount == null ||
+        typeof tables.influenceAcceptedByAccount !== "object" ||
+        Array.isArray(tables.influenceAcceptedByAccount)
+      ) {
+        tables.influenceAcceptedByAccount = {
+          local: Array.isArray(tables.influenceAcceptedAtMs)
+            ? [...tables.influenceAcceptedAtMs]
+            : [],
+        };
+      }
+      if (!Array.isArray(tables.influenceAcceptedAtMs)) {
+        tables.influenceAcceptedAtMs = [
+          ...(tables.influenceAcceptedByAccount.local ?? []),
+        ];
       }
       await this.#memory.insertWorld(tables);
     }

@@ -13,9 +13,13 @@
     "@boing-network/boing-sdk": "^0.5.41",
     "@boing-pets/contract": "0.0.0",
     "@boing-pets/db": "0.0.0",
-    "@boing-pets/sim": "0.0.0"
+    "@boing-pets/sim": "0.0.0",
+    "ws": "^8.23.0"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.2"
   }
 }

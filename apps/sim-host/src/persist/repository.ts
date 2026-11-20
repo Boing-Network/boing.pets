@@ -35,9 +35,14 @@ export type DurableTables = {
   influences: PlayerInfluenceRow[];
   /**
    * Wall-clock accept times for the host rate limit (3 / 24h).
-   * Not read by `step()`.
+   * Legacy / local single-player account. Not read by `step()`.
    */
   influenceAcceptedAtMs: number[];
+  /**
+   * Per-account accept times (M22). Keyed by accountId. The `"local"` entry
+   * mirrors `influenceAcceptedAtMs` for single-player compatibility.
+   */
+  influenceAcceptedByAccount: Record<string, number[]>;
   events: WorldEvent[];
   catchups: CatchupReport[];
   /**
@@ -68,6 +73,8 @@ export type CommitBatch = {
   appliedInfluenceIds: number[];
   /** Replace the durable accept-time log when non-null. */
   influenceAcceptedAtMs: number[] | null;
+  /** Replace the per-account accept log when non-null (M22). */
+  influenceAcceptedByAccount: Record<string, number[]> | null;
   /** Set when this commit closes an offline catch-up gap. */
   insertCatchup: CatchupReport | null;
 };

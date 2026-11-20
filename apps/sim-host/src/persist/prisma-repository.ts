@@ -159,6 +159,7 @@ export class PrismaWorldRepository implements WorldRepository {
       memories: memories.map(mapMemory),
       influences: influences.map(mapInfluence),
       influenceAcceptedAtMs: [...hostMeta.influenceAcceptedAtMs],
+      influenceAcceptedByAccount: { ...hostMeta.influenceAcceptedByAccount },
       events: events.map(mapWorldEvent),
       catchups: catchups.map(mapCatchupReport),
       creatureNftLinks: [],
@@ -238,6 +239,11 @@ export class PrismaWorldRepository implements WorldRepository {
 
     await this.#hostMeta.write({
       influenceAcceptedAtMs: [...tables.influenceAcceptedAtMs],
+      influenceAcceptedByAccount: {
+        ...(tables.influenceAcceptedByAccount ?? {
+          local: [...tables.influenceAcceptedAtMs],
+        }),
+      },
     });
   }
 
@@ -343,9 +349,25 @@ export class PrismaWorldRepository implements WorldRepository {
       }
     });
 
-    if (batch.influenceAcceptedAtMs != null) {
+    if (
+      batch.influenceAcceptedAtMs != null ||
+      batch.influenceAcceptedByAccount != null
+    ) {
+      const current = await this.#hostMeta.read();
+      const byAccount = {
+        ...current.influenceAcceptedByAccount,
+        ...(batch.influenceAcceptedByAccount ?? {}),
+      };
+      if (
+        batch.influenceAcceptedAtMs != null &&
+        batch.influenceAcceptedByAccount == null
+      ) {
+        byAccount.local = [...batch.influenceAcceptedAtMs];
+      }
+      const local = byAccount.local ?? batch.influenceAcceptedAtMs ?? [];
       await this.#hostMeta.write({
-        influenceAcceptedAtMs: [...batch.influenceAcceptedAtMs],
+        influenceAcceptedAtMs: [...local],
+        influenceAcceptedByAccount: byAccount,
       });
     }
   }

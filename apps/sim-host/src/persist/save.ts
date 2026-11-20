@@ -7,6 +7,7 @@ import {
   type WorldEvent,
   type WorldSnapshot,
 } from "@boing-pets/sim";
+import { LOCAL_ACCOUNT_ID } from "../multiplayer/account";
 import {
   dirtyCreatures,
   dirtyLineages,
@@ -42,6 +43,7 @@ export function worldgenTables(
     memories: clone(snapshot.memories),
     influences: clone(snapshot.pendingInfluences),
     influenceAcceptedAtMs: [],
+    influenceAcceptedByAccount: { [LOCAL_ACCOUNT_ID]: [] },
     events: clone([...events]),
     catchups: [],
     creatureNftLinks: [],
@@ -92,6 +94,7 @@ export function buildCommitBatch(
     insertInfluences: [],
     appliedInfluenceIds: [...dirty.appliedInfluenceIds],
     influenceAcceptedAtMs: null,
+    influenceAcceptedByAccount: null,
     insertCatchup: catchup == null ? null : clone(catchup),
   };
 }

@@ -292,6 +292,9 @@ export default ts.config(
             "@boing-network/boing-sdk",
             "node:fs",
             "node:path",
+            // M22 shared-world WebSocket transport (host edge only).
+            "node:http",
+            "ws",
           ],
         },
       ],
@@ -316,6 +319,7 @@ export default ts.config(
             "node:path",
             "node:url",
             "node:os",
+            "ws",
           ],
         },
       ],

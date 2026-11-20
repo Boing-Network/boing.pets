@@ -7,6 +7,7 @@
  */
 import { InfluenceKind, type InfluenceSubmit } from "@boing-pets/contract";
 import type { PlayerInfluenceRow } from "@boing-pets/sim";
+import { LOCAL_ACCOUNT_ID } from "./multiplayer/account";
 import type { WorldRepository } from "./persist/repository";
 import type { HostSession } from "./session";
 
@@ -114,16 +115,28 @@ function assertValidSubmit(
   }
 }
 
+export type SubmitInfluenceOptions = {
+  /**
+   * Durable accept log for every account (M22). When set, replaces the
+   * single-gate persist so per-session rate limits survive reload.
+   */
+  influenceAcceptedByAccount?: Record<string, readonly number[]>;
+};
+
 /**
  * Queue one influence for `lastTick + 1` if the rate limit allows.
  * Persists the row and the accept-time log in their own commit between ticks.
  * Rejects while catch-up is running (`session.catchingUp`).
+ *
+ * Rate limiting is per gate. Multiplayer passes a per-account gate; local
+ * single-player keeps one shared gate (the `"local"` account).
  */
 export async function submitInfluence(
   session: HostSession,
   gate: InfluenceGate,
   submit: InfluenceSubmit,
   nowMs: number,
+  options: SubmitInfluenceOptions = {},
 ): Promise<InfluenceSubmitResult> {
   if (session.catchingUp) {
     return { ok: false, reason: "catching_up" };
@@ -148,7 +161,22 @@ export async function submitInfluence(
   session.snapshot.pendingInfluences.push(row);
   gate.acceptedAtMs.push(nowMs);
 
-  await persistInfluenceSubmit(session, row, gate.acceptedAtMs);
+  const byAccount = options.influenceAcceptedByAccount;
+  await persistInfluenceSubmit(
+    session,
+    row,
+    byAccount == null
+      ? [...gate.acceptedAtMs]
+      : [...(byAccount[LOCAL_ACCOUNT_ID] ?? gate.acceptedAtMs)],
+    byAccount == null
+      ? null
+      : Object.fromEntries(
+          Object.entries(byAccount).map(([accountId, times]) => [
+            accountId,
+            [...times],
+          ]),
+        ),
+  );
   return { ok: true, id, issuedAtTick };
 }
 
@@ -160,6 +188,7 @@ async function persistInfluenceSubmit(
   session: HostSession,
   row: PlayerInfluenceRow,
   influenceAcceptedAtMs: readonly number[],
+  influenceAcceptedByAccount: Record<string, number[]> | null,
 ): Promise<void> {
   await session.repository.commit({
     world: clone(session.snapshot.world),
@@ -176,6 +205,7 @@ async function persistInfluenceSubmit(
     insertInfluences: [clone(row)],
     appliedInfluenceIds: [],
     influenceAcceptedAtMs: [...influenceAcceptedAtMs],
+    influenceAcceptedByAccount,
     insertCatchup: null,
   });
 }
@@ -186,7 +216,11 @@ export async function loadInfluenceGate(
 ): Promise<InfluenceGate> {
   const tables = await repository.readTables();
   if (tables == null) return createInfluenceGate();
-  return createInfluenceGate(tables.influenceAcceptedAtMs);
+  // Prefer the local account entry when the M22 map is present.
+  const local =
+    tables.influenceAcceptedByAccount?.[LOCAL_ACCOUNT_ID] ??
+    tables.influenceAcceptedAtMs;
+  return createInfluenceGate(local);
 }
 
 /** Mark catch-up in progress so submits wait until the gap is closed. */

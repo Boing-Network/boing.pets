@@ -1,6 +1,10 @@
 /**
  * Live host runtime used by the Electron main process.
  * Single writer: either steps or handles a player command, never both at once.
+ *
+ * M22: optional CommandContext.accountId scopes influence rate limits.
+ * Multiplayer fan-out lives in SharedWorldHost — this runtime still has one
+ * emit sink (local) or a broadcast sink (shared world).
  */
 import type {
   ClientToHost,
@@ -21,12 +25,15 @@ import {
   tickWhilePaused,
   type HostClock,
 } from "../clock";
-import {
-  loadInfluenceGate,
-  submitInfluence,
-  type InfluenceGate,
-} from "../influence";
+import { submitInfluence, type InfluenceGate } from "../influence";
 import { handleInspectionQuery } from "../ipc/queries";
+import { LOCAL_ACCOUNT_ID, resolveAccountId } from "../multiplayer/account";
+import {
+  gateForAccount,
+  hydrateInfluenceBook,
+  serializeInfluenceBook,
+  type InfluenceGateBook,
+} from "../multiplayer/influence-book";
 import {
   createDisabledMintEdge,
   createRepositoryNftLinkStore,
@@ -34,9 +41,15 @@ import {
 } from "../boing";
 import type { WorldRepository } from "../persist/repository";
 import { bootSession, commitSession, type HostSession } from "../session";
+import { buildWorldPatch } from "../view/world-patch";
 import { buildWorldView } from "../view/world-view";
 
 export type HostRuntimeEmit = (message: HostToClient) => void;
+
+/** Attribution for a client command (M22). Local play omits this. */
+export type CommandContext = {
+  accountId?: string;
+};
 
 export type HostRuntimeOptions = {
   repository: WorldRepository;
@@ -55,6 +68,11 @@ export type HostRuntimeOptions = {
    * Never passed into `step()`.
    */
   mintEdge?: MintEdge;
+  /**
+   * When true, live ticks fan out `world.patch` instead of a full snapshot.
+   * Shared-world hosts enable this; local single-player keeps full snapshots.
+   */
+  preferPatches?: boolean;
 };
 
 export type HostRuntime = {
@@ -62,11 +80,15 @@ export type HostRuntime = {
   clock: HostClock;
   /** Host-edge Boing mint seam. Disabled by default. */
   mintEdge: MintEdge;
+  /** Per-account influence gates (includes `"local"`). */
+  influenceBook: InfluenceGateBook;
   start(): Promise<void>;
-  handleCommand(message: ClientToHost): Promise<void>;
+  handleCommand(message: ClientToHost, context?: CommandContext): Promise<void>;
   handleQuery(message: ClientToHost): Promise<QueryResult>;
   tickFrame(frameDeltaMs: number): Promise<void>;
   quit(): Promise<void>;
+  /** Push a full snapshot + clock to the emit sink (join handshake). */
+  pushViewToEmit(): void;
 };
 
 const DEFAULT_SEED = 1;
@@ -78,21 +100,33 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
   const mintEdge =
     options.mintEdge ??
     createDisabledMintEdge(createRepositoryNftLinkStore(options.repository));
+  const preferPatches = options.preferPatches === true;
   let session: HostSession | null = null;
   let clock: HostClock | null = null;
-  let gate: InfluenceGate | null = null;
+  let book: InfluenceGateBook | null = null;
   let busy = false;
+  const exclusiveWaiters: Array<() => void> = [];
   let frameTimer: ReturnType<typeof setInterval> | null = null;
   let lastFrameMs = 0;
   let started = false;
 
+  /**
+   * Single-writer lock. Contended commands wait (multiplayer safe).
+   * `tickFrame` still early-returns when busy so frames do not pile up.
+   */
   async function withExclusive<T>(fn: () => Promise<T>): Promise<T> {
-    if (busy) throw new Error("host busy");
+    while (busy) {
+      await new Promise<void>((resolve) => {
+        exclusiveWaiters.push(resolve);
+      });
+    }
     busy = true;
     try {
       return await fn();
     } finally {
       busy = false;
+      const next = exclusiveWaiters.shift();
+      if (next != null) next();
     }
   }
 
@@ -106,9 +140,9 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
     return clock;
   }
 
-  function requireGate(): InfluenceGate {
-    if (gate == null) throw new Error("host not started");
-    return gate;
+  function requireBook(): InfluenceGateBook {
+    if (book == null) throw new Error("host not started");
+    return book;
   }
 
   function pushClock(): void {
@@ -125,6 +159,19 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
     });
   }
 
+  function pushLiveView(): void {
+    const active = requireSession();
+    if (preferPatches && active.dirty.creatureIds.size > 0) {
+      options.emit({
+        message: "world.patch",
+        body: buildWorldPatch(active.snapshot, active.dirty),
+      });
+    } else {
+      pushSnapshot();
+    }
+    pushClock();
+  }
+
   const runtime: HostRuntime = {
     get session() {
       return requireSession();
@@ -133,6 +180,13 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
       return requireClock();
     },
     mintEdge,
+    get influenceBook() {
+      return requireBook();
+    },
+    pushViewToEmit() {
+      pushSnapshot();
+      pushClock();
+    },
     async start() {
       if (started) throw new Error("already started");
       started = true;
@@ -142,7 +196,11 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
         mintEdge,
       });
       clock = createHostClock();
-      gate = await loadInfluenceGate(options.repository);
+      const tables = await options.repository.readTables();
+      book = hydrateInfluenceBook({
+        influenceAcceptedAtMs: tables?.influenceAcceptedAtMs,
+        influenceAcceptedByAccount: tables?.influenceAcceptedByAccount,
+      });
 
       const report = await catchupOnLaunch(session, nowMs());
       pushSnapshot();
@@ -160,7 +218,15 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
       }
     },
 
-    async handleCommand(message) {
+    async handleCommand(message, context = {}) {
+      // Session framing is handled by SharedWorldHost, not the writer.
+      if (
+        message.message === "session.join" ||
+        message.message === "session.leave"
+      ) {
+        return;
+      }
+
       await withExclusive(async () => {
         const active = requireSession();
         const activeClock = requireClock();
@@ -178,11 +244,24 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
             pushClock();
             return;
           case "influence.submit": {
+            const accountId = resolveAccountId(
+              context.accountId ?? LOCAL_ACCOUNT_ID,
+            );
+            const gate: InfluenceGate = gateForAccount(
+              requireBook(),
+              accountId,
+            );
             const result = await submitInfluence(
               active,
-              requireGate(),
+              gate,
               message.body,
               nowMs(),
+              {
+                influenceAcceptedByAccount: serializeInfluenceBook(
+                  requireBook(),
+                  nowMs(),
+                ),
+              },
             );
             if (!result.ok) {
               // Rate-limit rejects are silent to the renderer in v1 packaging;
@@ -223,8 +302,7 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
 
         const result = advanceClock(activeClock, active, frameDeltaMs);
         if (result.ticksStepped > 0) {
-          pushSnapshot();
-          pushClock();
+          pushLiveView();
         }
         if (result.shouldCommit) {
           await commitSession(active);
