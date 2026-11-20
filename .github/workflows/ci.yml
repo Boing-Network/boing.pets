@@ -32,4 +32,16 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run desktop:build
+      # Hosted Windows runners run as an administrator, and Postgres refuses
+      # to start under an admin account, so the smoke uses the runner's
+      # preinstalled Postgres service (CI-only default credentials) instead
+      # of embedded Postgres. It still exercises migrateDeploy on Windows.
+      - name: Start the runner's Postgres
+        shell: pwsh
+        run: |
+          $pg = Get-Service -Name 'postgresql*' | Select-Object -First 1
+          Set-Service -Name $pg.Name -StartupType Manual
+          Start-Service -Name $pg.Name
       - run: npm run desktop:smoke
+        env:
+          LIVING_PETS_SMOKE_DATABASE_URL: postgresql://postgres:root@localhost:5432/postgres?schema=living_pets_smoke

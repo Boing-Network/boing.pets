@@ -1,6 +1,10 @@
 /**
  * Headless cold-boot smoke: local Postgres → migrate → bootSession → WorldView.
  * Does not open an Electron window (packaging proof without a display).
+ *
+ * LIVING_PETS_SMOKE_DATABASE_URL skips embedded Postgres and uses that empty
+ * database instead (CI on Windows runs as an administrator, and Postgres
+ * refuses to start under an admin account).
  */
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
@@ -27,19 +31,23 @@ const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "living-pets-m18-"));
 let postgres;
 let repository;
 
-try {
-  postgres = await startLocalPostgres({
-    databaseDir: path.join(tmpRoot, "postgres"),
-    port,
-    password,
-  });
-  process.env.DATABASE_URL = postgres.databaseUrl;
+const externalUrl = process.env.LIVING_PETS_SMOKE_DATABASE_URL;
 
-  migrateDeploy({
-    repoRoot,
-    schemaPath,
-    databaseUrl: postgres.databaseUrl,
-  });
+try {
+  let databaseUrl;
+  if (externalUrl) {
+    databaseUrl = externalUrl;
+  } else {
+    postgres = await startLocalPostgres({
+      databaseDir: path.join(tmpRoot, "postgres"),
+      port,
+      password,
+    });
+    databaseUrl = postgres.databaseUrl;
+  }
+  process.env.DATABASE_URL = databaseUrl;
+
+  migrateDeploy({ repoRoot, schemaPath, databaseUrl });
 
   repository = new PrismaWorldRepository({
     hostMeta: createFileHostMetaStore(path.join(tmpRoot, "host-meta.json")),
@@ -74,7 +82,7 @@ try {
         territories: view.territories.length,
         creatures: view.creatures.length,
         seed: again.snapshot.world.seed,
-        databaseUrl: postgres.databaseUrl.replace(password, "***"),
+        postgres: externalUrl ? "external" : "embedded",
       },
       null,
       2,

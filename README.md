@@ -129,25 +129,26 @@ shared-world server. Point a preview at your own server with
 
 Names only. Never commit values.
 
-| Variable                                                         | Read by                                      | Purpose                                                                                                    |
-| ---------------------------------------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `LIVING_PETS_BOING_MINTING`                                      | `apps/sim-host/src/boing/config.ts`          | `1`/`true`/`yes`/`on` enables the Boing mint edge. **Off by default.**                                     |
-| `BOING_RPC_URL`                                                  | same                                         | RPC endpoint. Defaults to `https://testnet-rpc.boing.network/`. Chain id is fixed to testnet.              |
-| `BOING_SECRET_HEX`                                               | same                                         | 32-byte Ed25519 seed (0x-hex) that signs mint transactions. Needed only when minting.                      |
-| `LIVING_PETS_BOING_NFT_COLLECTION_HEX`                           | same                                         | Pre-deployed creature NFT collection AccountId.                                                            |
-| `LIVING_PETS_BOING_ARTIFACT_COLLECTION_HEX`                      | same                                         | Lineage-artifact NFT collection (falls back to the creature collection).                                   |
-| `LIVING_PETS_BOING_ITEM_COLLECTION_HEX`                          | same                                         | Multi-token collection for compressed items.                                                               |
-| `LIVING_PETS_BOING_NFT_RECIPIENT_HEX`                            | same                                         | Mint recipient. If unset, mints go to the address derived from `BOING_SECRET_HEX`.                         |
-| `LIVING_PETS_BOING_{NFT,ARTIFACT,ITEM}_COLLECTION_{NAME,SYMBOL}` | same                                         | Collection labels. Defaults: `Living Pets Creatures`/`LPET`, `…Lineage Artifacts`/`LPAR`, `…Items`/`LPIT`. |
-| `LIVING_PETS_PG_PORT`                                            | `apps/desktop/src/main.ts`, smoke scripts    | Embedded Postgres port. Default `55432` (app), `55433` (cold-boot smoke).                                  |
-| `LIVING_PETS_SEED`                                               | `apps/desktop/src/main.ts`                   | World seed for a new desktop world. Default `1`.                                                           |
-| `LIVING_PETS_DEV_URL`                                            | `apps/desktop/src/main.ts`                   | Load this URL in the Electron window instead of the built client.                                          |
-| `DATABASE_URL`                                                   | Prisma, `packages/db/scripts/check-sql.mjs`  | Set by the desktop main and smoke scripts after Postgres starts.                                           |
-| `LIVING_PETS_MP_HOST`, `_PORT`, `_DATA`, `_SEED`, `_SCALE`       | `apps/sim-host/src/multiplayer/serve.ts`     | Shared-world server bind address (default `127.0.0.1`), port (`8787`), data dir, new-world seed and scale. |
-| `LIVING_PETS_MP_OWNER_KEY`                                       | same                                         | Owner key (pause/rescale). Generated and printed when unset.                                               |
-| `LIVING_PETS_MP_SECRET`                                          | same                                         | HMAC key for session tokens. When unset, a random key is saved to `<data>/session-secret` (mode 0600).     |
-| `VITE_LIVING_PETS_MP_URL`                                        | `apps/client/src/main.tsx` (build time)      | Default shared-world URL for a built client. `?mp=` overrides it.                                          |
-| `SCALE_REHEARSAL`                                                | `apps/sim-host/test/scale-rehearsal.test.ts` | `1` runs the 5,000-creature rehearsal test (skipped otherwise).                                            |
+| Variable                                                         | Read by                                      | Purpose                                                                                                        |
+| ---------------------------------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `LIVING_PETS_BOING_MINTING`                                      | `apps/sim-host/src/boing/config.ts`          | `1`/`true`/`yes`/`on` enables the Boing mint edge. **Off by default.**                                         |
+| `BOING_RPC_URL`                                                  | same                                         | RPC endpoint. Defaults to `https://testnet-rpc.boing.network/`. Chain id is fixed to testnet.                  |
+| `BOING_SECRET_HEX`                                               | same                                         | 32-byte Ed25519 seed (0x-hex) that signs mint transactions. Needed only when minting.                          |
+| `LIVING_PETS_BOING_NFT_COLLECTION_HEX`                           | same                                         | Pre-deployed creature NFT collection AccountId.                                                                |
+| `LIVING_PETS_BOING_ARTIFACT_COLLECTION_HEX`                      | same                                         | Lineage-artifact NFT collection (falls back to the creature collection).                                       |
+| `LIVING_PETS_BOING_ITEM_COLLECTION_HEX`                          | same                                         | Multi-token collection for compressed items.                                                                   |
+| `LIVING_PETS_BOING_NFT_RECIPIENT_HEX`                            | same                                         | Mint recipient. If unset, mints go to the address derived from `BOING_SECRET_HEX`.                             |
+| `LIVING_PETS_BOING_{NFT,ARTIFACT,ITEM}_COLLECTION_{NAME,SYMBOL}` | same                                         | Collection labels. Defaults: `Living Pets Creatures`/`LPET`, `…Lineage Artifacts`/`LPAR`, `…Items`/`LPIT`.     |
+| `LIVING_PETS_PG_PORT`                                            | `apps/desktop/src/main.ts`, smoke scripts    | Embedded Postgres port. Default `55432` (app), `55433` (cold-boot smoke).                                      |
+| `LIVING_PETS_SMOKE_DATABASE_URL`                                 | `apps/desktop/scripts/smoke-cold-boot.mjs`   | Run the cold-boot smoke against this empty database instead of embedded Postgres (used by the Windows CI job). |
+| `LIVING_PETS_SEED`                                               | `apps/desktop/src/main.ts`                   | World seed for a new desktop world. Default `1`.                                                               |
+| `LIVING_PETS_DEV_URL`                                            | `apps/desktop/src/main.ts`                   | Load this URL in the Electron window instead of the built client.                                              |
+| `DATABASE_URL`                                                   | Prisma, `packages/db/scripts/check-sql.mjs`  | Set by the desktop main and smoke scripts after Postgres starts.                                               |
+| `LIVING_PETS_MP_HOST`, `_PORT`, `_DATA`, `_SEED`, `_SCALE`       | `apps/sim-host/src/multiplayer/serve.ts`     | Shared-world server bind address (default `127.0.0.1`), port (`8787`), data dir, new-world seed and scale.     |
+| `LIVING_PETS_MP_OWNER_KEY`                                       | same                                         | Owner key (pause/rescale). Generated and printed when unset.                                                   |
+| `LIVING_PETS_MP_SECRET`                                          | same                                         | HMAC key for session tokens. When unset, a random key is saved to `<data>/session-secret` (mode 0600).         |
+| `VITE_LIVING_PETS_MP_URL`                                        | `apps/client/src/main.tsx` (build time)      | Default shared-world URL for a built client. `?mp=` overrides it.                                              |
+| `SCALE_REHEARSAL`                                                | `apps/sim-host/test/scale-rehearsal.test.ts` | `1` runs the 5,000-creature rehearsal test (skipped otherwise).                                                |
 
 The browser worker reads mint config from `process.env` only if it exists, so
 minting is always off in the web build.
