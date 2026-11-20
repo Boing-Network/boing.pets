@@ -2,6 +2,7 @@
  * Maps sim goal/action into a presentation behavior. Pure and view-only.
  */
 import { Action, Goal } from "@boing-pets/contract";
+import { skinForSpecies } from "../species-skins";
 
 export type BehaviorId =
   | "forage"
@@ -75,8 +76,6 @@ export function behaviorFor(goal: Goal, action: Action | null): BehaviorId {
 }
 
 export function locomotionForSpecies(speciesId: number): Locomotion {
-  // pebblehare → lantern moth presentation flies; others walk/trot.
-  if (speciesId === 3) return "fly";
-  if (speciesId === 1) return "trot";
-  return "walk";
+  // Lantern moths fly; foxes, hares, and hogs trot; the rest walk.
+  return skinForSpecies(speciesId).locomotion;
 }

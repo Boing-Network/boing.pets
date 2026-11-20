@@ -44,6 +44,42 @@ export const TERRITORY_LAYOUT: Record<string, TerritoryLayout> = {
     emissive: "#4a3a28",
     rim: "#8fd0ff",
   },
+  glade: {
+    slug: "glade",
+    x: -140,
+    z: 120,
+    visualRadius: 36,
+    color: "#2c5f58",
+    emissive: "#245a52",
+    rim: "#b8d4ff",
+  },
+  fen: {
+    slug: "fen",
+    x: 40,
+    z: 110,
+    visualRadius: 35,
+    color: "#26473a",
+    emissive: "#1f5a44",
+    rim: "#7fe0b0",
+  },
+  grove: {
+    slug: "grove",
+    x: -60,
+    z: -40,
+    visualRadius: 34,
+    color: "#2a3d2c",
+    emissive: "#3a2a3a",
+    rim: "#e07ad0",
+  },
+  crags: {
+    slug: "crags",
+    x: 140,
+    z: -130,
+    visualRadius: 30,
+    color: "#55515e",
+    emissive: "#3a3a4a",
+    rim: "#9fc4ff",
+  },
 };
 
 export function layoutForSlug(slug: string): TerritoryLayout {

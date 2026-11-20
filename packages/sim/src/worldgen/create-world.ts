@@ -13,6 +13,7 @@ import { discoveryEvent, founderBirthEvent } from "../history/events";
 import { assertInteger, clamp } from "../math";
 import { rngInt } from "../rng";
 import { RULESET_V1 } from "../ruleset";
+import { LINK_CATALOG, SPECIES, TERRITORY_CATALOG } from "./catalog";
 import type {
   CompatibilityRow,
   CreatureRow,
@@ -33,109 +34,6 @@ const RULESET_VERSION = 1;
 const GENE_SALTS = [0, 1, 2, 3, 4] as const;
 /** Trait index order: curiosity, aggression, loyalty, sociability, bravery, risk taking. */
 const TRAIT_SALT_BASE = 5;
-
-type SpeciesCatalog = {
-  id: number;
-  slug: string;
-  displayName: string;
-  home: string;
-  maturityDays: number;
-  baseLifespanDays: number;
-  gestationDays: number;
-  juvenileDays: number;
-  baseCuriosity: number;
-  baseAggression: number;
-  baseLoyalty: number;
-  baseSociability: number;
-  baseBravery: number;
-  baseRiskTaking: number;
-  colorHex: string;
-};
-
-const SPECIES: SpeciesCatalog[] = [
-  {
-    id: 1,
-    slug: "fernfox",
-    displayName: "Fernfox",
-    home: "meadow",
-    maturityDays: 90,
-    baseLifespanDays: 900,
-    gestationDays: 18,
-    juvenileDays: 16,
-    baseCuriosity: 700,
-    baseAggression: 350,
-    baseLoyalty: 500,
-    baseSociability: 600,
-    baseBravery: 550,
-    baseRiskTaking: 650,
-    colorHex: "#E07A3D",
-  },
-  {
-    id: 2,
-    slug: "mossback",
-    displayName: "Mossback",
-    home: "thicket",
-    maturityDays: 140,
-    baseLifespanDays: 1400,
-    gestationDays: 30,
-    juvenileDays: 28,
-    baseCuriosity: 300,
-    baseAggression: 250,
-    baseLoyalty: 750,
-    baseSociability: 400,
-    baseBravery: 400,
-    baseRiskTaking: 200,
-    colorHex: "#6B8F71",
-  },
-  {
-    id: 3,
-    slug: "pebblehare",
-    displayName: "Pebblehare",
-    home: "ridge",
-    maturityDays: 70,
-    baseLifespanDays: 700,
-    gestationDays: 14,
-    juvenileDays: 12,
-    baseCuriosity: 550,
-    baseAggression: 200,
-    baseLoyalty: 400,
-    baseSociability: 500,
-    baseBravery: 300,
-    baseRiskTaking: 500,
-    colorHex: "#C2B280",
-  },
-];
-
-const TERRITORY_CATALOG = [
-  {
-    slug: "meadow",
-    name: "Meadow",
-    foodAbundance: 700,
-    danger: 200,
-    capacity: 40,
-  },
-  {
-    slug: "thicket",
-    name: "Thicket",
-    foodAbundance: 500,
-    danger: 450,
-    capacity: 30,
-  },
-  {
-    slug: "ridge",
-    name: "Ridge",
-    foodAbundance: 350,
-    danger: 700,
-    capacity: 20,
-  },
-] as const;
-
-const LINK_CATALOG = [
-  { from: "meadow", to: "thicket", travelTicks: 6 },
-  { from: "thicket", to: "meadow", travelTicks: 6 },
-  { from: "thicket", to: "ridge", travelTicks: 8 },
-  { from: "ridge", to: "thicket", travelTicks: 8 },
-] as const;
 
 export type CreateWorldResult = {
   snapshot: WorldSnapshot;
@@ -256,9 +154,9 @@ export function createWorld(seed: number): CreateWorldResult {
   const discoveries: DiscoveryRow[] = [];
   const events: WorldEvent[] = [];
   const usedNames = new Set<string>();
-  const founderSpecies = [...SPECIES].sort((a, b) =>
-    a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0,
-  );
+  // Ascending species id. Ids 1–3 were in slug order under their old names
+  // (fernfox, mossback, pebblehare), so the original 12 founders keep their ids.
+  const founderSpecies = [...SPECIES].sort((a, b) => a.id - b.id);
 
   for (const catalog of founderSpecies) {
     const home = territoryBySlug.get(catalog.home);

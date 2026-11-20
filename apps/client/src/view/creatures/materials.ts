@@ -89,6 +89,10 @@ export const SPECIES_WORLD_SCALE: Record<string, number> = {
   "fire-fox": 2.55,
   "moss-stag": 3.25,
   "lantern-moth": 2.15,
+  "glow-tortoise": 2.9,
+  "moon-hare": 2.45,
+  "crag-ram": 3.0,
+  "thistle-hog": 2.7,
 };
 
 export function worldScaleForSkin(skinId: string, selected: boolean): number {

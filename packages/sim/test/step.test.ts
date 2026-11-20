@@ -63,10 +63,10 @@ test("a starved founder emits one DEATH and stays dead", () => {
   assert.equal(first.snapshot, snapshot);
   assert.equal(snapshot.world.lastTick, 1);
   assert.equal(snapshot.world.clockAtMs, 0);
-  assert.equal(snapshot.world.nextEventId, 26);
+  assert.equal(snapshot.world.nextEventId, 58);
   assert.equal(snapshot.world.nextMemoryId, 1);
-  assert.equal(snapshot.world.nextCreatureId, 13);
-  assert.equal(snapshot.creatures.length, 12);
+  assert.equal(snapshot.world.nextCreatureId, 29);
+  assert.equal(snapshot.creatures.length, 28);
   assert.equal(
     snapshot.creatures.filter((creature) => creature.status === "DEAD").length,
     1,
@@ -82,7 +82,7 @@ test("a starved founder emits one DEATH and stays dead", () => {
   assert.equal(neighbor.hunger, 304);
   assert.deepEqual(first.events, [
     {
-      id: 25,
+      id: 57,
       worldId: 1,
       tick: 1,
       kind: "DEATH",
@@ -104,7 +104,7 @@ test("a starved founder emits one DEATH and stays dead", () => {
   const second = step(snapshot);
   assert.deepEqual(second.events, []);
   assert.equal(snapshot.world.lastTick, 2);
-  assert.equal(snapshot.world.nextEventId, 26);
+  assert.equal(snapshot.world.nextEventId, 58);
   assert.equal(founder.status, "DEAD");
   assert.equal(founder.deathTick, 1);
   assert.equal(founder.deathCause, "STARVATION");
@@ -233,7 +233,7 @@ test("rest, nurse, and approach change only their drift terms", () => {
   assert.equal(alone.hunger, 302);
   assert.equal(approaching.loneliness, 200);
   assert.equal(approaching.hunger, 304);
-  assert.equal(snapshot.world.nextEventId, 25);
+  assert.equal(snapshot.world.nextEventId, 57);
 });
 
 test("health penalties follow the ruleset thresholds", () => {
@@ -597,8 +597,8 @@ test("influences for other ticks stay pending; births need matching endTick", ()
   step(snapshot);
 
   assert.equal(snapshot.world.lastTick, 144);
-  assert.equal(snapshot.creatures.length, 12);
-  assert.equal(snapshot.world.nextCreatureId, 13);
+  assert.equal(snapshot.creatures.length, 28);
+  assert.equal(snapshot.world.nextCreatureId, 29);
   assert.equal(mother.gestationEndTick, 1);
   assert.equal(mother.currentAction, "FORAGE");
   assert.equal(mother.actionEndsTick, 200);
@@ -608,5 +608,5 @@ test("influences for other ticks stay pending; births need matching endTick", ()
   assert.equal(snapshot.pendingInfluences[0]?.applied, false);
   assert.equal(snapshot.relationships[0]?.friendship, 50);
   assert.equal(snapshot.relationships[0]?.score, 100);
-  assert.equal(snapshot.world.nextEventId, 25);
+  assert.equal(snapshot.world.nextEventId, 57);
 });

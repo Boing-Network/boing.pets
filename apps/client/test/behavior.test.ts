@@ -23,4 +23,9 @@ test("species locomotion matches presentation skins", () => {
   assert.equal(locomotionForSpecies(1), "trot");
   assert.equal(locomotionForSpecies(2), "walk");
   assert.equal(locomotionForSpecies(3), "fly");
+  assert.equal(locomotionForSpecies(4), "walk");
+  assert.equal(locomotionForSpecies(5), "trot");
+  assert.equal(locomotionForSpecies(6), "walk");
+  assert.equal(locomotionForSpecies(7), "trot");
+  assert.equal(locomotionForSpecies(99), "walk");
 });

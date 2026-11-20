@@ -148,7 +148,7 @@ test("a flee from ridge arrives in thicket and a second visit is not a discovery
   assert.ok(migration);
   assert.ok(discovery);
   assert.equal(migration.kind, "MIGRATION");
-  assert.equal(migration.id, 25);
+  assert.equal(migration.id, 57);
   assert.equal(migration.tick, 16);
   assert.equal(migration.actorId, hare.id);
   assert.equal(migration.subjectId, null);
@@ -163,7 +163,7 @@ test("a flee from ridge arrives in thicket and a second visit is not a discovery
     reason: "FLEE",
   });
   assert.equal(discovery.kind, "DISCOVERY");
-  assert.equal(discovery.id, 26);
+  assert.equal(discovery.id, 58);
   assert.equal(discovery.tick, 16);
   assert.equal(discovery.actorId, hare.id);
   assert.equal(discovery.territoryId, thicket.id);
@@ -178,7 +178,7 @@ test("a flee from ridge arrives in thicket and a second visit is not a discovery
     territoryId: thicket.id,
     lineageId: hare.lineageId,
   });
-  assert.equal(snapshot.world.nextEventId, 27);
+  assert.equal(snapshot.world.nextEventId, 59);
   assert.equal(snapshot.memories.length, 2);
   const migrationMemory = snapshot.memories[0];
   const discoveryMemory = snapshot.memories[1];
@@ -265,7 +265,7 @@ test("a flee from ridge arrives in thicket and a second visit is not a discovery
   // Return-trip MIGRATION memory is still hot, so the revisit is throttled.
   assert.equal(snapshot.memories.length, 1);
   assert.equal(snapshot.world.nextMemoryId, 4);
-  assert.equal(snapshot.world.nextEventId, 29);
+  assert.equal(snapshot.world.nextEventId, 61);
   assert.equal(
     snapshot.discoveries.filter(
       (row) =>
@@ -325,9 +325,9 @@ test("death during travel writes no migration and stays on the origin", () => {
   assert.equal(result.events.length, 1);
   assert.equal(result.events[0]?.kind, "DEATH");
   assert.equal(result.events[0]?.territoryId, ridge.id);
-  assert.equal(snapshot.discoveries.length, 12);
+  assert.equal(snapshot.discoveries.length, 28);
   assert.equal(snapshot.memories.length, 0);
-  assert.equal(snapshot.world.nextEventId, 26);
+  assert.equal(snapshot.world.nextEventId, 58);
 });
 
 test("a traveler still counts toward the origin", () => {
@@ -572,5 +572,5 @@ test("a finished forage clears so utility can choose again", () => {
   assert.ok(founder.currentAction != null);
   assert.ok(founder.actionEndsTick != null && founder.actionEndsTick > 1);
   assert.deepEqual(result.events, []);
-  assert.equal(snapshot.discoveries.length, 12);
+  assert.equal(snapshot.discoveries.length, 28);
 });

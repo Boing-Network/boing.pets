@@ -242,7 +242,7 @@ async function assertBehavior(client) {
       base_curiosity, base_aggression, base_loyalty, base_sociability,
       base_bravery, base_risk_taking, color_hex
     ) VALUES (
-      1, 1, 'fernfox', 'Fernfox', 'HERBIVORE',
+      1, 1, 'fire-fox', 'Fire Fox', 'HERBIVORE',
       90, 900, 18, 16, 700, 350, 500, 600, 550, 650, '#E07A3D'
     )`,
   );

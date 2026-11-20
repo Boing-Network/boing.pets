@@ -16,19 +16,40 @@ import {
 import { sha256Hex } from "../src/hash";
 import { clamp, divRound } from "../src/math";
 
+/**
+ * Seed-1 founders. The first twelve are byte-for-byte the original fixture
+ * (species ids 1–3 were renamed, not reordered); the last sixteen are the
+ * four species added with the enlarged map.
+ */
 const FOUNDERS = [
-  ["fernfox", "FEMALE", "meadow", "Torkaeith"],
-  ["fernfox", "MALE", "meadow", "Moswrennima"],
-  ["fernfox", "FEMALE", "meadow", "Ariquillkae"],
-  ["fernfox", "MALE", "meadow", "Brivessfen"],
-  ["mossback", "FEMALE", "thicket", "Saelunsol"],
-  ["mossback", "MALE", "thicket", "Ithwrentor"],
-  ["mossback", "FEMALE", "thicket", "Eliodorrvess"],
-  ["mossback", "MALE", "thicket", "Solnimasol"],
-  ["pebblehare", "FEMALE", "ridge", "Tormiraari"],
-  ["pebblehare", "MALE", "ridge", "Oakbrikae"],
-  ["pebblehare", "FEMALE", "ridge", "Ithdorrsol"],
-  ["pebblehare", "MALE", "ridge", "Wrenmoslun"],
+  ["fire-fox", "FEMALE", "meadow", "Torkaeith"],
+  ["fire-fox", "MALE", "meadow", "Moswrennima"],
+  ["fire-fox", "FEMALE", "meadow", "Ariquillkae"],
+  ["fire-fox", "MALE", "meadow", "Brivessfen"],
+  ["moss-stag", "FEMALE", "thicket", "Saelunsol"],
+  ["moss-stag", "MALE", "thicket", "Ithwrentor"],
+  ["moss-stag", "FEMALE", "thicket", "Eliodorrvess"],
+  ["moss-stag", "MALE", "thicket", "Solnimasol"],
+  ["lantern-moth", "FEMALE", "ridge", "Tormiraari"],
+  ["lantern-moth", "MALE", "ridge", "Oakbrikae"],
+  ["lantern-moth", "FEMALE", "ridge", "Ithdorrsol"],
+  ["lantern-moth", "MALE", "ridge", "Wrenmoslun"],
+  ["glow-tortoise", "FEMALE", "fen", "Dorrnimaith"],
+  ["glow-tortoise", "MALE", "fen", "Oakpeloak"],
+  ["glow-tortoise", "FEMALE", "fen", "Torlunvess"],
+  ["glow-tortoise", "MALE", "fen", "Saequillelio"],
+  ["moon-hare", "FEMALE", "glade", "Saemiramos"],
+  ["moon-hare", "MALE", "glade", "Miraithkae"],
+  ["moon-hare", "FEMALE", "glade", "Pelfenoak"],
+  ["moon-hare", "MALE", "glade", "Mosvessquill"],
+  ["crag-ram", "FEMALE", "crags", "Oakquilldorr"],
+  ["crag-ram", "MALE", "crags", "Fenpaxsae"],
+  ["crag-ram", "FEMALE", "crags", "Lunlunlun"],
+  ["crag-ram", "MALE", "crags", "Wrenquillelio"],
+  ["thistle-hog", "FEMALE", "grove", "Quillnimaari"],
+  ["thistle-hog", "MALE", "grove", "Soldorroak"],
+  ["thistle-hog", "FEMALE", "grove", "Tortormos"],
+  ["thistle-hog", "MALE", "grove", "Vesssolquill"],
 ] as const;
 
 function clone<T>(value: T): T {
@@ -96,7 +117,10 @@ test("seed 1 twice produces the same founders", () => {
   assert.equal(canonicalHash(first.snapshot), canonicalHash(second.snapshot));
   assert.equal(
     canonicalHash(second.snapshot),
-    "10833d69126bdc73beee2d06d31109e31bc25126bb63f4e1c52bd934b40f5f5d",
+    // Changed intentionally with the species/map pass: species 1–3 were
+    // renamed to their presentation names and four species, four territories,
+    // ten links, and sixteen founders were added. Founders 1–12 are unchanged.
+    "4a81cc1c8a89d1ee9c6eb297660a54349a35d766b9ec0753c9d08b0a6fa9050d",
   );
   assert.notEqual(
     canonicalHash(first.snapshot),
@@ -108,10 +132,10 @@ test("seed 1 twice produces the same founders", () => {
   assert.equal(snapshot.world.lastTick, 0);
   assert.equal(snapshot.world.schemaVersion, 1);
   assert.equal(snapshot.world.rulesetVersion, 1);
-  assert.equal(snapshot.world.nextCreatureId, 13);
-  assert.equal(snapshot.world.nextLineageId, 13);
-  assert.equal(snapshot.world.nextEventId, 25);
-  assert.equal(snapshot.world.nextTerritoryId, 4);
+  assert.equal(snapshot.world.nextCreatureId, 29);
+  assert.equal(snapshot.world.nextLineageId, 29);
+  assert.equal(snapshot.world.nextEventId, 57);
+  assert.equal(snapshot.world.nextTerritoryId, 8);
   assert.equal(snapshot.world.nextMemoryId, 1);
   assert.equal(snapshot.world.nextRelationshipId, 1);
   assert.notEqual(snapshot.ruleset, RULESET_V1);
@@ -119,24 +143,21 @@ test("seed 1 twice produces the same founders", () => {
   snapshot.ruleset.hungerPerTick = 99;
   assert.equal(RULESET_V1.hungerPerTick, 4);
 
-  assert.equal(snapshot.creatures.length, 12);
-  assert.equal(snapshot.lineages.length, 12);
-  assert.equal(snapshot.discoveries.length, 12);
-  assert.equal(events.length, 24);
+  assert.equal(snapshot.creatures.length, 28);
+  assert.equal(snapshot.lineages.length, 28);
+  assert.equal(snapshot.discoveries.length, 28);
+  assert.equal(events.length, 56);
   assert.deepEqual(
     snapshot.compatibility.map((row) => [
       row.speciesLowId,
       row.speciesHighId,
       row.fertility,
     ]),
-    [
-      [1, 1, 1000],
-      [1, 2, 0],
-      [1, 3, 0],
-      [2, 2, 1000],
-      [2, 3, 0],
-      [3, 3, 1000],
-    ],
+    [1, 2, 3, 4, 5, 6, 7].flatMap((low) =>
+      [1, 2, 3, 4, 5, 6, 7]
+        .filter((high) => high >= low)
+        .map((high) => [low, high, low === high ? 1000 : 0]),
+    ),
   );
   assert.deepEqual(
     snapshot.links.map((row) => [row.fromId, row.toId, row.travelTicks]),
@@ -145,6 +166,16 @@ test("seed 1 twice produces the same founders", () => {
       [2, 1, 6],
       [2, 3, 8],
       [3, 2, 8],
+      [1, 4, 5],
+      [4, 1, 5],
+      [4, 6, 6],
+      [6, 4, 6],
+      [6, 2, 6],
+      [2, 6, 6],
+      [2, 5, 7],
+      [5, 2, 7],
+      [3, 7, 7],
+      [7, 3, 7],
     ],
   );
 
@@ -214,14 +245,9 @@ test("seed 1 twice produces the same founders", () => {
     assert.equal(lineage?.foundedTick, 0);
     assert.equal(creature.birthTick, 0);
     assert.equal(creature.status, "ALIVE");
-    assert.equal(
-      creature.unsafety,
-      territory?.slug === "meadow"
-        ? 40
-        : territory?.slug === "thicket"
-          ? 90
-          : 140,
-    );
+    // Founders start uneasy in proportion to home danger (danger / 5).
+    assert.ok(territory);
+    assert.equal(creature.unsafety, Math.floor(territory.danger / 5));
     for (const gene of [
       creature.geneStrength,
       creature.geneSpeed,
