@@ -513,6 +513,8 @@ export function createMintEdge(
       const creatureLinks = await linkStore.list();
       for (const link of creatureLinks) {
         if (!isRetryableMintStatus(link.status)) continue;
+        // Genesis rows are retried only by the genesis mint (it sets metadata).
+        if (link.genesis === true) continue;
         await processCreature(link.creatureId, null, nowMs);
       }
       const assetLinks = await assetLinkStore.list();

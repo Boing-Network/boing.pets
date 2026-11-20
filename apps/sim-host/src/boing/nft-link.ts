@@ -19,6 +19,8 @@ export type CreatureNftLinkRow = {
   worldId: number;
   creatureId: number;
   birthEventId: number | null;
+  /** Founder minted as part of the genesis set. Absent on older rows = false. */
+  genesis?: boolean;
   collectionHex: string;
   tokenIdHex: string;
   chainId: string;

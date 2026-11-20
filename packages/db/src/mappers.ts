@@ -847,6 +847,7 @@ export type MappedCreatureNftLink = {
   worldId: number;
   creatureId: number;
   birthEventId: number | null;
+  genesis?: boolean;
   collectionHex: string;
   tokenIdHex: string;
   chainId: string;
@@ -867,6 +868,7 @@ export function mapCreatureNftLink(
     worldId: toNumber(row.worldId),
     creatureId: toNumber(row.creatureId),
     birthEventId: toNumberOrNull(row.birthEventId),
+    genesis: row.genesis,
     collectionHex: row.collectionHex,
     tokenIdHex: row.tokenIdHex,
     chainId: row.chainId,
@@ -886,6 +888,7 @@ export function creatureNftLinkToDb(row: MappedCreatureNftLink) {
     worldId: toBigInt(row.worldId),
     creatureId: toBigInt(row.creatureId),
     birthEventId: toBigIntOrNull(row.birthEventId),
+    genesis: row.genesis ?? false,
     collectionHex: row.collectionHex,
     tokenIdHex: row.tokenIdHex,
     chainId: row.chainId,

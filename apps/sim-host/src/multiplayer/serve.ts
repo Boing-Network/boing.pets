@@ -41,6 +41,7 @@ import {
 import { createSharedWorldHost } from "./shared-world-host";
 import { generateOwnerKey, loadOrCreateSecret } from "./tokens";
 import { readMarketConfig } from "../market/config";
+import { createSdkGenesisChain, runGenesisMint } from "../boing/genesis-mint";
 import { createCatalogCache } from "../market/cache";
 import { createWalletChallenges } from "./wallet-auth";
 import { listenSharedWorldWs } from "./ws-server";
@@ -183,6 +184,34 @@ if (!config.production) {
   }
 }
 console.log(lines.join("\n"));
+
+function envFlag(value: string | undefined): boolean {
+  const v = value?.trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes" || v === "on";
+}
+
+// Genesis mint of the founders (see apps/sim-host/src/boing/genesis-mint.ts).
+// Runs in the background, once per boot while the flag is set; idempotent.
+if (mintEdge.enabled && envFlag(process.env.LIVING_PETS_BOING_GENESIS_MINT)) {
+  void (async () => {
+    try {
+      const result = await runGenesisMint({
+        config: mintEdge.config,
+        chain: createSdkGenesisChain(mintEdge.config),
+        linkStore: creatureLinks,
+        snapshot: host.runtime.session.snapshot,
+        log,
+      });
+      log(
+        `genesis: done. founders ${result.founders}, minted ${result.minted.length}, already ${result.alreadyMinted}, recovered ${result.recoveredFromChain}, failed ${result.failed.length}`,
+      );
+    } catch (error) {
+      log(
+        `genesis: stopped: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  })();
+}
 
 let stopping = false;
 async function shutdown(signal: string): Promise<void> {

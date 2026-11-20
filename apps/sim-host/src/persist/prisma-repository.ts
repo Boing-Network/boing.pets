@@ -438,6 +438,7 @@ export class PrismaWorldRepository implements WorldRepository {
       create: data,
       update: {
         birthEventId: data.birthEventId,
+        genesis: data.genesis,
         collectionHex: data.collectionHex,
         tokenIdHex: data.tokenIdHex,
         chainId: data.chainId,
