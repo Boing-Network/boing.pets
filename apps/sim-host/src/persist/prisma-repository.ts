@@ -6,12 +6,14 @@ import {
   catchupReportToDb,
   compatibilityToDb,
   createDbClient,
+  creatureNftLinkToDb,
   creatureToDb,
   influenceToDb,
   lineageToDb,
   mapCatchupReport,
   mapCompatibility,
   mapCreature,
+  mapCreatureNftLink,
   mapInfluence,
   mapLineage,
   mapMemory,
@@ -35,6 +37,7 @@ import {
   worldHeaderUpdateToDb,
   type DbClient,
 } from "@boing-pets/db";
+import type { CreatureNftLinkRow } from "../boing/nft-link";
 import type { HostMetaStore } from "./host-meta";
 import type { CommitBatch, DurableTables, WorldRepository } from "./repository";
 
@@ -137,6 +140,8 @@ export class PrismaWorldRepository implements WorldRepository {
       this.#hostMeta.read(),
     ]);
 
+    // NFT links live outside the hot snapshot; load empty here and use
+    // readCreatureNftLinks / upsertCreatureNftLink for the mint edge.
     return {
       world: mapWorldHeader(world),
       ruleset: mapRuleset(world),
@@ -153,6 +158,7 @@ export class PrismaWorldRepository implements WorldRepository {
       influenceAcceptedAtMs: [...hostMeta.influenceAcceptedAtMs],
       events: events.map(mapWorldEvent),
       catchups: catchups.map(mapCatchupReport),
+      creatureNftLinks: [],
     };
   }
 
@@ -338,5 +344,32 @@ export class PrismaWorldRepository implements WorldRepository {
         influenceAcceptedAtMs: [...batch.influenceAcceptedAtMs],
       });
     }
+  }
+
+  async readCreatureNftLinks(): Promise<CreatureNftLinkRow[]> {
+    const rows = await this.#client.creatureNftLink.findMany({
+      orderBy: { creatureId: "asc" },
+    });
+    return rows.map(mapCreatureNftLink);
+  }
+
+  async upsertCreatureNftLink(row: CreatureNftLinkRow): Promise<void> {
+    const data = creatureNftLinkToDb(row);
+    await this.#client.creatureNftLink.upsert({
+      where: { creatureId: data.creatureId },
+      create: data,
+      update: {
+        birthEventId: data.birthEventId,
+        collectionHex: data.collectionHex,
+        tokenIdHex: data.tokenIdHex,
+        chainId: data.chainId,
+        templateArtifact: data.templateArtifact,
+        templateVersion: data.templateVersion,
+        mintTxHex: data.mintTxHex,
+        status: data.status,
+        lastError: data.lastError,
+        updatedAt: data.updatedAt,
+      },
+    });
   }
 }

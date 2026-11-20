@@ -26,6 +26,11 @@ export type BoingNftConfig = {
    * Never commit a real value.
    */
   secretHex: string | null;
+  /**
+   * Optional mint recipient AccountId (0x + 64 hex). When null, submit derives
+   * the sender address from `secretHex`.
+   */
+  recipientHex: string | null;
   collectionName: string;
   collectionSymbol: string;
   /** Boing canonical NFT template identity (existing deployment system). */
@@ -51,6 +56,7 @@ function trimOrNull(value: string | undefined): string | null {
  * - `LIVING_PETS_BOING_MINTING` — enable (default off)
  * - `BOING_RPC_URL` — RPC (default public testnet)
  * - `LIVING_PETS_BOING_NFT_COLLECTION_HEX` — existing collection AccountId
+ * - `LIVING_PETS_BOING_NFT_RECIPIENT_HEX` — mint recipient (else derived from secret)
  * - `BOING_SECRET_HEX` — signing seed when enabled ops need submit
  */
 export function readBoingNftConfig(
@@ -62,6 +68,7 @@ export function readBoingNftConfig(
     chainIdDecimal: BOING_TESTNET_CHAIN_ID_DECIMAL,
     collectionHex: trimOrNull(env.LIVING_PETS_BOING_NFT_COLLECTION_HEX),
     secretHex: trimOrNull(env.BOING_SECRET_HEX),
+    recipientHex: trimOrNull(env.LIVING_PETS_BOING_NFT_RECIPIENT_HEX),
     collectionName:
       trimOrNull(env.LIVING_PETS_BOING_NFT_COLLECTION_NAME) ??
       LIVING_PETS_COLLECTION_NAME,
@@ -80,6 +87,7 @@ export function createDisabledBoingNftConfig(): BoingNftConfig {
     chainIdDecimal: BOING_TESTNET_CHAIN_ID_DECIMAL,
     collectionHex: null,
     secretHex: null,
+    recipientHex: null,
     collectionName: LIVING_PETS_COLLECTION_NAME,
     collectionSymbol: LIVING_PETS_COLLECTION_SYMBOL,
     templateArtifactId: REFERENCE_NFT_COLLECTION_TEMPLATE_ARTIFACT_ID,

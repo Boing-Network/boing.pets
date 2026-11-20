@@ -10,6 +10,7 @@ import {
   createFileHostMetaStore,
   createHostRuntime,
   createMintEdgeFromEnv,
+  createRepositoryNftLinkStore,
   PrismaWorldRepository,
   type HostRuntime,
 } from "@boing-pets/sim-host";
@@ -64,12 +65,16 @@ async function bootHost(): Promise<void> {
     hostMeta: createFileHostMetaStore(paths.hostMetaPath),
   });
 
-  // Mint edge defaults off (LIVING_PETS_BOING_MINTING unset). M20 wires birth queue.
+  // Mint edge defaults off (LIVING_PETS_BOING_MINTING unset).
+  // When enabled, founders and live births queue NFT mints after history commit.
   runtime = createHostRuntime({
     repository,
     seed: WORLD_SEED,
     emit: emitToRenderer,
-    mintEdge: createMintEdgeFromEnv(),
+    mintEdge: createMintEdgeFromEnv(
+      process.env,
+      createRepositoryNftLinkStore(repository),
+    ),
   });
 
   ipcMain.on(IPC_TO_HOST, (_event, message: ClientToHost) => {

@@ -22,8 +22,10 @@ import type {
 } from "@boing-pets/contract";
 import type {
   Creature,
+  CreatureNftLink,
   Lineage,
   Memory,
+  NftMintStatus,
   PlayerInfluence,
   Relationship,
   Species,
@@ -811,4 +813,61 @@ function asCatchupSummary(value: unknown): CatchupSummary {
     throw new Error("expected catchup summary");
   }
   return value as CatchupSummary;
+}
+
+export type MappedCreatureNftLink = {
+  id: number;
+  worldId: number;
+  creatureId: number;
+  birthEventId: number | null;
+  collectionHex: string;
+  tokenIdHex: string;
+  chainId: string;
+  templateArtifact: string;
+  templateVersion: string;
+  mintTxHex: string | null;
+  status: NftMintStatus;
+  lastError: string | null;
+  createdAtMs: number;
+  updatedAtMs: number;
+};
+
+export function mapCreatureNftLink(
+  row: CreatureNftLink,
+): MappedCreatureNftLink {
+  return {
+    id: toNumber(row.id),
+    worldId: toNumber(row.worldId),
+    creatureId: toNumber(row.creatureId),
+    birthEventId: toNumberOrNull(row.birthEventId),
+    collectionHex: row.collectionHex,
+    tokenIdHex: row.tokenIdHex,
+    chainId: row.chainId,
+    templateArtifact: row.templateArtifact,
+    templateVersion: row.templateVersion,
+    mintTxHex: row.mintTxHex,
+    status: row.status,
+    lastError: row.lastError,
+    createdAtMs: row.createdAt.getTime(),
+    updatedAtMs: row.updatedAt.getTime(),
+  };
+}
+
+export function creatureNftLinkToDb(row: MappedCreatureNftLink) {
+  return {
+    id: toBigInt(row.id),
+    worldId: toBigInt(row.worldId),
+    creatureId: toBigInt(row.creatureId),
+    birthEventId: toBigIntOrNull(row.birthEventId),
+    collectionHex: row.collectionHex,
+    tokenIdHex: row.tokenIdHex,
+    chainId: row.chainId,
+    templateArtifact: row.templateArtifact,
+    templateVersion: row.templateVersion,
+    mintTxHex: row.mintTxHex,
+    status: row.status,
+    lastError: row.lastError,
+    createdAt: new Date(row.createdAtMs),
+    updatedAt: new Date(row.updatedAtMs),
+  };
 }

@@ -27,7 +27,11 @@ import {
   type InfluenceGate,
 } from "../influence";
 import { handleInspectionQuery } from "../ipc/queries";
-import { createDisabledMintEdge, type MintEdge } from "../boing";
+import {
+  createDisabledMintEdge,
+  createRepositoryNftLinkStore,
+  type MintEdge,
+} from "../boing";
 import type { WorldRepository } from "../persist/repository";
 import { bootSession, commitSession, type HostSession } from "../session";
 import { buildWorldView } from "../view/world-view";
@@ -46,8 +50,8 @@ export type HostRuntimeOptions = {
    */
   autoFrame?: boolean;
   /**
-   * Boing NFT mint edge (M19). Default is disabled / offline-safe.
-   * M20 will call `mintEdge.queueCreatureMint` after BIRTH commits.
+   * Boing NFT mint edge (M19–M20). Default is disabled / offline-safe.
+   * After each durable BIRTH commit the session queues creature mints here.
    * Never passed into `step()`.
    */
   mintEdge?: MintEdge;
@@ -71,7 +75,9 @@ const FRAME_MS = 250;
 export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
   const nowMs = options.nowMs ?? (() => Date.now());
   const seed = options.seed ?? DEFAULT_SEED;
-  const mintEdge = options.mintEdge ?? createDisabledMintEdge();
+  const mintEdge =
+    options.mintEdge ??
+    createDisabledMintEdge(createRepositoryNftLinkStore(options.repository));
   let session: HostSession | null = null;
   let clock: HostClock | null = null;
   let gate: InfluenceGate | null = null;
@@ -131,7 +137,10 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
       if (started) throw new Error("already started");
       started = true;
 
-      session = await bootSession(options.repository, seed, { nowMs: nowMs() });
+      session = await bootSession(options.repository, seed, {
+        nowMs: nowMs(),
+        mintEdge,
+      });
       clock = createHostClock();
       gate = await loadInfluenceGate(options.repository);
 

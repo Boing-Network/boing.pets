@@ -6,6 +6,7 @@
  * static Vite client can keep a living world across refresh without inventing a
  * second simulation.
  */
+import type { CreatureNftLinkRow } from "../boing/nft-link";
 import type { CommitBatch, DurableTables, WorldRepository } from "./repository";
 import { MemoryWorldRepository } from "./memory-repository";
 
@@ -152,6 +153,10 @@ export class BrowserWorldRepository implements WorldRepository {
     const raw = await this.#store.get(this.#storageKey);
     if (raw != null) {
       const tables = JSON.parse(raw) as DurableTables;
+      // Older browser saves predate M20; default the sidecar.
+      if (!Array.isArray(tables.creatureNftLinks)) {
+        tables.creatureNftLinks = [];
+      }
       await this.#memory.insertWorld(tables);
     }
     this.#hydrated = true;
@@ -177,6 +182,17 @@ export class BrowserWorldRepository implements WorldRepository {
   async commit(batch: CommitBatch): Promise<void> {
     await this.#ready;
     await this.#memory.commit(batch);
+    await this.#persist();
+  }
+
+  async readCreatureNftLinks() {
+    await this.#ready;
+    return this.#memory.readCreatureNftLinks();
+  }
+
+  async upsertCreatureNftLink(row: CreatureNftLinkRow) {
+    await this.#ready;
+    await this.#memory.upsertCreatureNftLink(row);
     await this.#persist();
   }
 }

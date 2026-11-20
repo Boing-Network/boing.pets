@@ -8,7 +8,7 @@ import type {
   HostToClient,
   QueryResult,
 } from "@boing-pets/contract";
-import { createMintEdgeFromEnv } from "../boing";
+import { createMintEdgeFromEnv, createRepositoryNftLinkStore } from "../boing";
 import {
   BrowserWorldRepository,
   createIndexedDbStringStore,
@@ -63,7 +63,10 @@ async function start(seed: number, scale: 1 | 4 | 16 | 64): Promise<void> {
       seed,
       emit,
       autoFrame: true,
-      mintEdge: createMintEdgeFromEnv(),
+      mintEdge: createMintEdgeFromEnv(
+        typeof process !== "undefined" ? process.env : {},
+        createRepositoryNftLinkStore(repository),
+      ),
     });
     await runtime.start();
     if (scale !== 1) {

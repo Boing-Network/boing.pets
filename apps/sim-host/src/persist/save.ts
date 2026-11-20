@@ -44,6 +44,7 @@ export function worldgenTables(
     influenceAcceptedAtMs: [],
     events: clone([...events]),
     catchups: [],
+    creatureNftLinks: [],
   };
 }
 

@@ -2,8 +2,13 @@
  * Single-writer host session: load, step, dirty commit, discard-on-crash.
  * Offline catch-up and live clock both commit through this dirty path.
  */
-import type { CatchupReport } from "@boing-pets/contract";
+import { EventKind, type CatchupReport } from "@boing-pets/contract";
 import { createWorld, step, type WorldSnapshot } from "@boing-pets/sim";
+import {
+  createDisabledMintEdge,
+  enqueueBirthMintsAfterCommit,
+  type MintEdge,
+} from "./boing";
 import {
   clearDirty,
   createDirtySet,
@@ -25,14 +30,17 @@ export type HostSession = {
    * `issuedAtTick` uses the post-catch-up `lastTick + 1`.
    */
   catchingUp: boolean;
+  /** Host-edge Boing mint seam. Never passed into step(). */
+  mintEdge: MintEdge;
 };
 
 /** Boot from the store, or createWorld(seed) when empty and persist it. */
 export async function bootSession(
   repository: WorldRepository,
   seed: number,
-  options: { nowMs?: number } = {},
+  options: { nowMs?: number; mintEdge?: MintEdge } = {},
 ): Promise<HostSession> {
+  const mintEdge = options.mintEdge ?? createDisabledMintEdge();
   const loaded = await loadSnapshot(repository);
   if (loaded != null) {
     return {
@@ -40,6 +48,7 @@ export async function bootSession(
       dirty: createDirtySet(),
       repository,
       catchingUp: false,
+      mintEdge,
     };
   }
   const { snapshot, events } = createWorld(seed);
@@ -47,11 +56,19 @@ export async function bootSession(
   // so a cold launch does not owe an epoch→now catch-up.
   snapshot.world.clockAtMs = options.nowMs ?? Date.now();
   await saveWorldgen(repository, snapshot, events);
+  // Founders: queue unique NFT mints only after durable BIRTH commit.
+  await enqueueBirthMintsAfterCommit(
+    mintEdge,
+    snapshot.world.id,
+    events,
+    snapshot.world.clockAtMs,
+  );
   return {
     snapshot,
     dirty: createDirtySet(),
     repository,
     catchingUp: false,
+    mintEdge,
   };
 }
 
@@ -67,11 +84,21 @@ export async function commitSession(
   session: HostSession,
   options: { catchup?: CatchupReport | null } = {},
 ): Promise<void> {
+  const birthEvents = session.dirty.events.filter(
+    (event) => event.kind === EventKind.BIRTH,
+  );
   await saveDirty(
     session.repository,
     session.snapshot,
     session.dirty,
     options.catchup ?? null,
+  );
+  // Live / catch-up births: mint only after history commit succeeds.
+  await enqueueBirthMintsAfterCommit(
+    session.mintEdge,
+    session.snapshot.world.id,
+    birthEvents,
+    session.snapshot.world.clockAtMs,
   );
   pruneHotSnapshot(session.snapshot);
   clearDirty(session.dirty);
