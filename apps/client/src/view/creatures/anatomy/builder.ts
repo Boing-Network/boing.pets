@@ -71,6 +71,9 @@ export type PartName =
   | "wing2L"
   | "wing2R";
 
+/** One elliptical cross-section of a lofted body, centred on x = 0. */
+export type LoftRing = { z: number; y: number; rx: number; ry: number };
+
 export type BuiltPart = {
   name: PartName;
   geometry: BufferGeometry;
@@ -217,6 +220,108 @@ export class CreatureBuilder {
     return this.#add(g, paint);
   }
 
+  /**
+   * Smooth lofted body through elliptical cross-sections (Catmull-Rom
+   * between control rings), closed at both ends. Gives torsos one
+   * continuous silhouette instead of stacked blobs.
+   */
+  loft(
+    profile: LoftRing[],
+    paint: Paint = "coat",
+    rings = 26,
+    segs = 20,
+  ): this {
+    const ringsN = Math.max(8, Math.round(rings * this.detail));
+    const segN = Math.max(8, Math.round(segs * this.detail));
+    const sample = (t: number): LoftRing => {
+      const f = t * (profile.length - 1);
+      const i = Math.min(profile.length - 2, Math.floor(f));
+      const u = f - i;
+      const p0 = profile[Math.max(0, i - 1)]!;
+      const p1 = profile[i]!;
+      const p2 = profile[i + 1]!;
+      const p3 = profile[Math.min(profile.length - 1, i + 2)]!;
+      const cr = (a: number, b: number, c: number, d: number) =>
+        0.5 *
+        (2 * b +
+          (-a + c) * u +
+          (2 * a - 5 * b + 4 * c - d) * u * u +
+          (-a + 3 * b - 3 * c + d) * u * u * u);
+      return {
+        z: cr(p0.z, p1.z, p2.z, p3.z),
+        y: cr(p0.y, p1.y, p2.y, p3.y),
+        rx: Math.max(0.001, cr(p0.rx, p1.rx, p2.rx, p3.rx)),
+        ry: Math.max(0.001, cr(p0.ry, p1.ry, p2.ry, p3.ry)),
+      };
+    };
+    // Rings follow the path: each ring is perpendicular to the local
+    // tangent in the y-z plane, so curling tails keep their thickness.
+    const centres = Array.from({ length: ringsN }, (_, r) =>
+      sample(r / (ringsN - 1)),
+    );
+    const positions: number[] = [];
+    for (let r = 0; r < ringsN; r += 1) {
+      const ring = centres[r]!;
+      const prev = centres[Math.max(0, r - 1)]!;
+      const next = centres[Math.min(ringsN - 1, r + 1)]!;
+      let ty = next.y - prev.y;
+      let tz = next.z - prev.z;
+      const tl = Math.hypot(ty, tz) || 1;
+      ty /= tl;
+      tz /= tl;
+      // In-plane normal (0, tz, -ty): "up" for a body facing +z.
+      const ny = tz;
+      const nz = -ty;
+      for (let s = 0; s < segN; s += 1) {
+        const a = (s / segN) * Math.PI * 2;
+        const c = Math.cos(a) * ring.rx;
+        const k = Math.sin(a) * ring.ry;
+        positions.push(c, ring.y + k * ny, ring.z + k * nz);
+      }
+    }
+    const first = profile[0]!;
+    const last = profile[profile.length - 1]!;
+    const capA = positions.length / 3;
+    positions.push(0, first.y, first.z);
+    const capB = capA + 1;
+    positions.push(0, last.y, last.z);
+    const index: number[] = [];
+    for (let r = 0; r < ringsN - 1; r += 1) {
+      for (let s = 0; s < segN; s += 1) {
+        const a = r * segN + s;
+        const b = r * segN + ((s + 1) % segN);
+        const c = (r + 1) * segN + s;
+        const d = (r + 1) * segN + ((s + 1) % segN);
+        index.push(a, b, c, b, d, c);
+      }
+    }
+    const lastRing = (ringsN - 1) * segN;
+    for (let s = 0; s < segN; s += 1) {
+      const n = (s + 1) % segN;
+      index.push(capA, n, s);
+      index.push(capB, lastRing + s, lastRing + n);
+    }
+    const g = new BufferGeometry();
+    g.setAttribute(
+      "position",
+      new BufferAttribute(new Float32Array(positions), 3),
+    );
+    g.setIndex(index);
+    g.computeVertexNormals();
+    // Wind consistently outward: flip if the first side normal points in.
+    const nx = g.getAttribute("normal").getX(0);
+    if (nx < 0) {
+      const idx = g.index!;
+      for (let i = 0; i < idx.count; i += 3) {
+        const t = idx.getX(i + 1);
+        idx.setX(i + 1, idx.getX(i + 2));
+        idx.setX(i + 2, t);
+      }
+      g.computeVertexNormals();
+    }
+    return this.#add(g, paint);
+  }
+
   /** Flat membrane (wing) from a 2D outline on axes `u`, `v` at `origin`. */
   membrane(
     origin: Vec3,
@@ -289,7 +394,7 @@ export class CreatureBuilder {
       } else {
         // Countershading: sky-facing coat reads as the back colour, the
         // underside and inner legs as the paler belly.
-        tmpColor.copy(belly).lerp(back, smoothstep(-0.55, 0.45, n.y));
+        tmpColor.copy(belly).lerp(back, smoothstep(-0.75, 0.05, n.y));
       }
       let gr = 0;
       let gg = 0;

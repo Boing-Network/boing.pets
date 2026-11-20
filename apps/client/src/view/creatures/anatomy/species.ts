@@ -138,6 +138,7 @@ const QUAD_SPECIES = {
     gait: "trot",
     legH: 0.15,
     bodyLen: 0.2,
+    waist: 0.55,
     chest: [0.068, 0.075, 0.1],
     rump: [0.064, 0.068, 0.09],
     legR: 0.016,
@@ -151,7 +152,7 @@ const QUAD_SPECIES = {
       eyeshine: "#c9a050",
     },
     ears: { kind: "pointed", len: 0.075, w: 0.028, tilt: 0.3 },
-    tail: { kind: "bushy", len: 0.3, r: 0.042, lift: -0.25, tip: "#e2d8c6" },
+    tail: { kind: "bushy", len: 0.3, r: 0.042, lift: -0.55, tip: "#e2d8c6" },
     pattern: patterns(
       (p, n, part) =>
         part === "head" && n.z > 0.2 && p.y < 0.36
@@ -165,13 +166,14 @@ const QUAD_SPECIES = {
     gait: "walk",
     legH: 0.3,
     bodyLen: 0.26,
+    waist: 0.25,
     chest: [0.085, 0.1, 0.12],
     rump: [0.08, 0.095, 0.11],
     rumpLift: 0.01,
     legR: 0.016,
     foot: "hoof",
     socks: 0.2,
-    neck: { len: 0.17, pitch: 1.0, r: 0.045 },
+    neck: { len: 0.14, pitch: 0.95, r: 0.05 },
     head: {
       r: [0.045, 0.05, 0.07],
       snoutLen: 0.08,
@@ -192,12 +194,13 @@ const QUAD_SPECIES = {
     gait: "hop",
     legH: 0.06,
     bodyLen: 0.12,
+    waist: 0.2,
     chest: [0.055, 0.065, 0.075],
     rump: [0.068, 0.078, 0.085],
     rumpLift: 0.02,
-    legR: 0.012,
+    legR: 0.015,
     foot: "paw",
-    hindFold: 1,
+    hindFold: 0.6,
     neck: { len: 0.05, pitch: 1.0, r: 0.035 },
     head: {
       r: [0.04, 0.042, 0.052],
@@ -239,7 +242,7 @@ const QUAD_SPECIES = {
         : null,
   }),
   "thistle-hog": quadruped({
-    coat: { back: "#4b4038", belly: "#776858", dark: "#1e1915" },
+    coat: { back: "#625448", belly: "#8c7c6a", dark: "#221c17" },
     gait: "trot",
     legH: 0.08,
     bodyLen: 0.2,
@@ -282,7 +285,7 @@ const QUAD_SPECIES = {
     },
   }),
   "barrow-badger": quadruped({
-    coat: { back: "#6a665f", belly: "#2a2724", dark: "#1b1a18" },
+    coat: { back: "#7a766e", belly: "#2e2b28", dark: "#1b1a18" },
     gait: "waddle",
     legH: 0.06,
     bodyLen: 0.2,
@@ -313,14 +316,15 @@ const QUAD_SPECIES = {
   "shade-lynx": quadruped({
     coat: { back: "#7b7163", belly: "#cfc6b6", dark: "#24211d" },
     gait: "walk",
-    legH: 0.2,
+    legH: 0.17,
     bodyLen: 0.2,
+    waist: 0.55,
     chest: [0.07, 0.08, 0.1],
     rump: [0.07, 0.08, 0.095],
     rumpLift: 0.015,
     legR: 0.02,
     foot: "paw",
-    neck: { len: 0.07, pitch: 0.6, r: 0.048 },
+    neck: { len: 0.05, pitch: 0.45, r: 0.052 },
     head: {
       r: [0.055, 0.05, 0.05],
       snoutLen: 0.025,
@@ -377,7 +381,7 @@ const QUAD_SPECIES = {
       eyeshine: "#b7a5e0",
     },
     ears: { kind: "round", len: 0.03, w: 0.02 },
-    tail: { kind: "ringed", len: 0.17, r: 0.03, lift: -0.15, tip: "#1f1d1b" },
+    tail: { kind: "ringed", len: 0.17, r: 0.03, lift: -0.45 },
     pattern: (p, n, part) => {
       if (part !== "head") return null;
       const mask = p.y > 0.2 && p.y < 0.245 && n.z > -0.2;
@@ -414,6 +418,7 @@ const QUAD_SPECIES = {
     gait: "walk",
     legH: 0.27,
     bodyLen: 0.22,
+    waist: 0.35,
     chest: [0.07, 0.085, 0.1],
     rump: [0.07, 0.085, 0.1],
     rumpLift: 0.01,
@@ -464,6 +469,7 @@ const QUAD_SPECIES = {
     gait: "bound",
     legH: 0.04,
     bodyLen: 0.1,
+    waist: 0.15,
     chest: [0.04, 0.045, 0.055],
     rump: [0.05, 0.055, 0.065],
     rumpLift: 0.015,
@@ -479,7 +485,7 @@ const QUAD_SPECIES = {
       eyeshine: "#e0a860",
     },
     ears: { kind: "tufted", len: 0.03, w: 0.012, tilt: 0.15 },
-    tail: { kind: "plume", len: 0.2, r: 0.035, lift: 0.4, tip: "#c8915a" },
+    tail: { kind: "plume", len: 0.22, r: 0.034, lift: 0.5 },
     pattern: glowSpot([0, 0.3, -0.12], 0.04, "#e0a860", 0.18, ["tail"]),
   }),
   "ash-wolf": quadruped({
@@ -487,12 +493,13 @@ const QUAD_SPECIES = {
     gait: "trot",
     legH: 0.22,
     bodyLen: 0.26,
+    waist: 0.5,
     chest: [0.08, 0.095, 0.12],
     rump: [0.07, 0.08, 0.1],
     rumpLift: -0.005,
-    legR: 0.02,
+    legR: 0.024,
     foot: "paw",
-    socks: 0.2,
+    socks: 0,
     neck: { len: 0.1, pitch: 0.55, r: 0.06 },
     head: {
       r: [0.055, 0.05, 0.065],
@@ -502,7 +509,7 @@ const QUAD_SPECIES = {
       eyeshine: "#d8c08a",
     },
     ears: { kind: "pointed", len: 0.055, w: 0.026, tilt: 0.25 },
-    tail: { kind: "bushy", len: 0.26, r: 0.036, lift: -0.7, tip: "#2c2925" },
+    tail: { kind: "bushy", len: 0.26, r: 0.036, lift: -1.0, tip: "#2c2925" },
     extras: (b, at) => {
       // Neck ruff.
       b.part("body");
@@ -626,10 +633,10 @@ export const ANATOMY: Record<SpeciesSlug, Anatomy> = {
   "reed-heron": bird({
     coat: { back: "#7d8790", belly: "#d4d7d8", dark: "#2c3238" },
     gait: "wade",
-    body: [0.075, 0.08, 0.15],
-    bodyY: 0.52,
+    body: [0.085, 0.09, 0.17],
+    bodyY: 0.44,
     bodyPitch: 0.35,
-    neck: { len: 0.24, r: 0.022, s: 1 },
+    neck: { len: 0.26, r: 0.024, s: 1 },
     head: {
       r: [0.028, 0.03, 0.045],
       bill: { len: 0.14, r: 0.012, color: "#a8955a" },
@@ -637,7 +644,7 @@ export const ANATOMY: Record<SpeciesSlug, Anatomy> = {
       eyeColor: "#c8b050",
       crest: 0.08,
     },
-    legs: { len: 0.46, r: 0.009, color: "#5a5240" },
+    legs: { len: 0.37, r: 0.01, color: "#5a5240" },
     wings: { span: 0, chord: 0, color: "#67717a" },
     tail: { len: 0.08, w: 0.05 },
     pattern: (p, _n, part) =>

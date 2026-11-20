@@ -156,6 +156,16 @@ function Clock() {
   return null;
 }
 
+/** Species whose heads (or antlers) stand well above their backs. */
+const TALL = new Set(["moss-stag", "silver-deer", "reed-heron"]);
+/** Fliers hover about 0.9 world units up; frame them in the air. */
+const FLIERS = new Set([
+  "lantern-moth",
+  "field-nightjar",
+  "gloam-bat",
+  "crag-owl",
+]);
+
 export function Bestiary() {
   const params = new URLSearchParams(window.location.search);
   const only = params.get("bestiary") ?? "";
@@ -164,7 +174,7 @@ export function Bestiary() {
   const single = SPECIES_CATALOG.find((row) => row.slug === only);
   const rows = single ? [single] : [...SPECIES_CATALOG];
   const cols = 7;
-  const spacing = 2.9;
+  const spacing = 3.2;
   const placed = rows.map((row, index) => {
     const col = index % cols;
     const line = Math.floor(index / cols);
@@ -173,10 +183,23 @@ export function Bestiary() {
     const z = single ? 0 : (line - (lines - 1) / 2) * spacing * 1.05;
     return { row, x, z };
   });
+  // Close-up framing scales with the species' world size (works for the
+  // old and new renderers alike, so before/after shots line up).
+  const size = single
+    ? worldScaleForSkin(single.slug, false) *
+      (TALL.has(single.slug) ? 0.62 : 0.4)
+    : 1;
   const camera = single
-    ? { position: [1.2, 1.5, 4.2] as [number, number, number], fov: 34 }
+    ? {
+        position: [size * 0.75, size * 0.9, size * 2.9] as [
+          number,
+          number,
+          number,
+        ],
+        fov: 34,
+      }
     : {
-        position: [0, 8.5, 12.5 + (rows.length > 7 ? 1.5 : 0)] as [
+        position: [0, 10.5, 15 + (rows.length > 7 ? 2 : 0)] as [
           number,
           number,
           number,
@@ -191,7 +214,11 @@ export function Bestiary() {
         camera={{ ...camera, near: 0.1, far: 2000 }}
         onCreated={({ camera: cam, gl }) => {
           gl.setClearColor("#0d2638");
-          cam.lookAt(0, single ? 0.45 : 0, single ? 0 : 0.6);
+          cam.lookAt(
+            0,
+            single ? size * 0.42 + (FLIERS.has(single.slug) ? 1.1 : 0) : 0,
+            single ? 0 : 0.6,
+          );
         }}
       >
         <Clock />

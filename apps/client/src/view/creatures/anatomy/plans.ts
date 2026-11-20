@@ -65,6 +65,8 @@ export type QuadSpec = {
   legH: number;
   /** Chest-centre to rump-centre distance along z. */
   bodyLen: number;
+  /** Tucked waist (0 barrel-bodied … 1 greyhound-lean). */
+  waist?: number;
   chest: Vec3;
   rump: Vec3;
   /** Rump centre height relative to the chest centre. */
@@ -151,21 +153,48 @@ export function quadruped(spec: QuadSpec): Anatomy {
       ...spec.info,
     },
     build(b) {
-      // Torso: chest, barrel and rump blend into one silhouette.
+      // Torso: one lofted silhouette from tail root to withers, with a
+      // tucked waist for lean runners.
       b.part("body");
-      b.ellipsoid(chest, spec.chest, "coat", [0, 0, 0], 20);
-      b.ellipsoid(rump, spec.rump, "coat", [0, 0, 0], 20);
-      b.ellipsoid(
-        [0, chestY + (spec.rumpLift ?? 0) * 0.5 - spec.chest[1] * 0.05, 0],
-        [
-          (spec.chest[0] + spec.rump[0]) * 0.47,
-          (spec.chest[1] + spec.rump[1]) * 0.45,
-          spec.bodyLen * 0.62,
-        ],
-        "coat",
-        [0, 0, 0],
-        18,
-      );
+      const [cx, cy, cz] = spec.chest;
+      const [rx, ry, rz] = spec.rump;
+      const waist = spec.waist ?? 0;
+      const midY = (chest[1] + rump[1]) / 2;
+      const midRy = ((cy + ry) / 2) * (1 - waist * 0.22);
+      b.loft([
+        {
+          z: rump[2] - rz * 1.0,
+          y: rump[1] + ry * 0.12,
+          rx: rx * 0.2,
+          ry: ry * 0.2,
+        },
+        {
+          z: rump[2] - rz * 0.75,
+          y: rump[1] + ry * 0.05,
+          rx: rx * 0.78,
+          ry: ry * 0.8,
+        },
+        { z: rump[2] - rz * 0.1, y: rump[1], rx, ry },
+        {
+          z: (chest[2] + rump[2]) / 2,
+          y: midY + (cy + ry) * 0.5 * waist * 0.12,
+          rx: ((cx + rx) / 2) * (1 - waist * 0.12),
+          ry: midRy,
+        },
+        { z: chest[2], y: chest[1], rx: cx, ry: cy },
+        {
+          z: chest[2] + cz * 0.6,
+          y: chest[1] + cy * 0.12,
+          rx: cx * 0.82,
+          ry: cy * 0.85,
+        },
+        {
+          z: chest[2] + cz * 1.0,
+          y: chest[1] + cy * 0.3,
+          rx: cx * 0.3,
+          ry: cy * 0.32,
+        },
+      ]);
       b.tube(
         neckBase,
         add(headPivot, [0, -hr[1] * 0.1, -hr[2] * 0.1]),
@@ -413,31 +442,32 @@ function buildTail(b: CreatureBuilder, spec: QuadSpec, base: Vec3): void {
     b.tube(mid, end, r * 0.7, r * 0.25, tipPaint);
     return;
   }
-  // Bushy, plume and ringed tails: overlapping soft lobes along a curve.
-  const steps = kind === "plume" ? 6 : 5;
-  for (let i = 0; i < steps; i += 1) {
-    const t = (i + 0.5) / steps;
-    const plume = kind === "plume";
-    const a = plume ? lift + t * 1.6 : lift - t * 0.9;
-    const reach = len * t;
-    const y = Math.sin(a) * reach * 0.8 + (plume ? t * t * len * 0.7 : 0);
-    const z = -Math.cos(a) * reach * (plume ? 0.6 : 1);
-    const swell = Math.sin(Math.PI * Math.min(1, t * 1.1 + 0.12));
-    const rr = r * (0.55 + swell * 0.75);
-    const paint: Paint =
-      i === steps - 1 && tip
-        ? tipPaint
-        : kind === "ringed" && i % 2 === 1
-          ? "dark"
-          : "coat";
-    b.ellipsoid(
-      add(base, [0, y, z]),
-      [rr, rr, (len / steps) * 0.85],
-      paint,
-      [-a * 0.6, 0, 0],
-      12,
-    );
+  // Bushy, plume and ringed tails: one swept brush along a curve. A plume
+  // (squirrel) rises behind the back and curls forward at the top.
+  const plume = kind === "plume";
+  const steps = 9;
+  const rings = [];
+  let y = base[1];
+  let z = base[2];
+  for (let i = 0; i <= steps; i += 1) {
+    const t = i / steps;
+    const swell = Math.sin(Math.PI * Math.min(1, t * 0.92 + 0.1));
+    const rr = r * (0.35 + swell * 0.9) * (i === steps ? 0.3 : 1);
+    rings.push({ z, y, rx: rr * 0.9, ry: rr });
+    const a = plume ? lift + t * 2.6 : lift - t * 0.6;
+    const seg = len / steps;
+    y += Math.sin(a) * seg;
+    z -= Math.cos(a) * seg;
   }
+  if (kind === "ringed") {
+    for (let i = 0; i < steps; i += 1) {
+      b.loft(rings.slice(i, i + 2), i % 2 === 1 ? "dark" : "coat", 4, 14);
+    }
+    return;
+  }
+  const cut = tip ? Math.round(steps * 0.68) : steps;
+  b.loft(rings.slice(0, cut + 1), "coat", 20, 14);
+  if (tip) b.loft(rings.slice(cut - 1), tipPaint, 10, 14);
 }
 
 // ---------------------------------------------------------------- birds --
@@ -927,12 +957,17 @@ export function tortoise(spec: TortoiseSpec): Anatomy {
   const pattern: PatternFn = (p, n, part) => {
     if (part !== "body" || p.y < shellY - 0.02) return null;
     // Scutes: a cell field over the dome; the seams glow faintly.
-    const u = Math.atan2(p.x, p.z) * 2.2;
+    const u = Math.atan2(p.x, p.z) * 3.2;
     const row = Math.round(u);
-    const v = p.y * 26 + (row % 2) * 0.5;
+    const v = p.y * 34 + (Math.abs(row) % 2) * 0.5;
     const edge = Math.max(Math.abs(u - row), Math.abs(v - Math.round(v)));
-    if (edge > 0.4 && n.y > 0.1) {
-      return { color: spec.seam, mix: 0.8, glow: spec.glow, glowStrength: 0.3 };
+    if (edge > 0.44 && n.y > 0.15) {
+      return {
+        color: spec.seam,
+        mix: 0.75,
+        glow: spec.glow,
+        glowStrength: 0.1,
+      };
     }
     return { color: spec.shell, mix: 0.85 };
   };
@@ -1027,8 +1062,13 @@ export function newt(spec: NewtSpec): Anatomy {
     },
     build(b) {
       b.part("body").grain(GRAIN.smooth);
-      b.ellipsoid([0, y, 0.04], [0.045, 0.035, 0.11], "coat", [0, 0, 0], 16);
-      b.ellipsoid([0, y, -0.06], [0.04, 0.032, 0.08], "coat", [0, 0, 0], 14);
+      b.loft([
+        { z: -0.14, y, rx: 0.026, ry: 0.024 },
+        { z: -0.08, y, rx: 0.036, ry: 0.03 },
+        { z: 0.02, y: y + 0.003, rx: 0.042, ry: 0.032 },
+        { z: 0.1, y: y + 0.002, rx: 0.036, ry: 0.028 },
+        { z: 0.15, y: y + 0.004, rx: 0.02, ry: 0.018 },
+      ]);
       b.part("head", [0, y + 0.005, 0.14]);
       b.ellipsoid(
         [0, y + 0.005, 0.18],
@@ -1066,16 +1106,12 @@ export function newt(spec: NewtSpec): Anatomy {
         );
       }
       b.part("tail", [0, y, -0.13]);
-      for (let i = 0; i < 5; i += 1) {
-        const t = (i + 0.5) / 5;
-        b.ellipsoid(
-          [0, y - t * 0.01, -0.13 - t * 0.2],
-          [0.018 * (1 - t * 0.6), 0.03 * (1 - t * 0.4), 0.035],
-          "coat",
-          [0, 0, 0],
-          10,
-        );
-      }
+      b.loft([
+        { z: -0.12, y, rx: 0.024, ry: 0.024 },
+        { z: -0.2, y: y - 0.004, rx: 0.016, ry: 0.024 },
+        { z: -0.29, y: y - 0.008, rx: 0.01, ry: 0.018 },
+        { z: -0.36, y: y - 0.01, rx: 0.004, ry: 0.006 },
+      ]);
     },
   };
 }

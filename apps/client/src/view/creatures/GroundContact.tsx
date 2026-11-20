@@ -47,7 +47,7 @@ function contactShared() {
         color: "#03060a",
         alphaMap: softTexture(),
         transparent: true,
-        opacity: 0.55,
+        opacity: 0.5,
         depthWrite: false,
       }),
     };
@@ -71,7 +71,7 @@ export function GroundContact({ radius = 0.28, y = 0.012, ref }: Props) {
       geometry={geometry}
       material={material}
       position={[0, y, 0]}
-      scale={[radius * 2, 1, radius * 2.5]}
+      scale={[radius * 1.7, 1, radius * 2.3]}
       renderOrder={-1}
     />
   );

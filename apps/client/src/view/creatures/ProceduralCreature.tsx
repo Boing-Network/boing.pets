@@ -214,7 +214,8 @@ export function ProceduralCreature({
     // Fliers: the shadow stays on the ground below them.
     if (shadow.current && flier) {
       const scale = r.parent?.scale.y ?? 1;
-      shadow.current.position.y = -(0.9 + p.bob) / Math.max(0.01, scale);
+      shadow.current.position.y =
+        (0.03 - (0.9 + p.bob)) / Math.max(0.01, scale);
     }
   });
 

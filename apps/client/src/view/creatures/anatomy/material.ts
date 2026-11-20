@@ -76,7 +76,7 @@ roughnessFactor = clamp(roughnessFactor - (1.0 - vGlow.a) * 0.4, 0.3, 1.0);`,
         "#include <lights_fragment_end>",
         `#include <lights_fragment_end>
 float cRim = pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), 3.0);
-totalEmissiveRadiance += vec3(0.30, 0.40, 0.58) * cRim * 0.16 * vGlow.a;
+totalEmissiveRadiance += vec3(0.30, 0.40, 0.58) * cRim * 0.07 * vGlow.a;
 float cPulse = 0.78 + 0.22 * sin(uCreatureTime * 1.3 + vObj.x * 9.0 + vObj.z * 7.0);
 totalEmissiveRadiance += vGlow.rgb * cPulse;`,
       );
