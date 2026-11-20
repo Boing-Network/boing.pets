@@ -28,6 +28,7 @@ import type {
   WorldEvent,
   WorldSnapshot,
 } from "../types";
+import { SPECIES as CATALOG_SPECIES } from "./catalog";
 import type { CreateWorldResult } from "./create-world";
 
 const WORLD_ID = 1;
@@ -38,77 +39,11 @@ const RULESET_VERSION = 1;
 const GENE_SALTS = [0, 1, 2, 3, 4] as const;
 const TRAIT_SALT_BASE = 5;
 
-type SpeciesCatalog = {
-  id: number;
-  slug: string;
-  displayName: string;
-  home: string;
-  maturityDays: number;
-  baseLifespanDays: number;
-  gestationDays: number;
-  juvenileDays: number;
-  baseCuriosity: number;
-  baseAggression: number;
-  baseLoyalty: number;
-  baseSociability: number;
-  baseBravery: number;
-  baseRiskTaking: number;
-  colorHex: string;
-};
-
-const SPECIES: SpeciesCatalog[] = [
-  {
-    id: 1,
-    slug: "fernfox",
-    displayName: "Fernfox",
-    home: "meadow",
-    maturityDays: 90,
-    baseLifespanDays: 900,
-    gestationDays: 18,
-    juvenileDays: 16,
-    baseCuriosity: 700,
-    baseAggression: 350,
-    baseLoyalty: 500,
-    baseSociability: 600,
-    baseBravery: 550,
-    baseRiskTaking: 650,
-    colorHex: "#E07A3D",
-  },
-  {
-    id: 2,
-    slug: "mossback",
-    displayName: "Mossback",
-    home: "thicket",
-    maturityDays: 140,
-    baseLifespanDays: 1400,
-    gestationDays: 30,
-    juvenileDays: 28,
-    baseCuriosity: 300,
-    baseAggression: 250,
-    baseLoyalty: 750,
-    baseSociability: 400,
-    baseBravery: 400,
-    baseRiskTaking: 200,
-    colorHex: "#6B8F71",
-  },
-  {
-    id: 3,
-    slug: "pebblehare",
-    displayName: "Pebblehare",
-    home: "ridge",
-    maturityDays: 70,
-    baseLifespanDays: 700,
-    gestationDays: 14,
-    juvenileDays: 12,
-    baseCuriosity: 550,
-    baseAggression: 200,
-    baseLoyalty: 400,
-    baseSociability: 500,
-    baseBravery: 300,
-    baseRiskTaking: 500,
-    colorHex: "#C2B280",
-  },
-];
+/**
+ * The rehearsal keeps the original three species and territories (ids 1–3),
+ * so its timings stay comparable across catalog growth.
+ */
+const SPECIES = CATALOG_SPECIES.filter((row) => row.id <= 3);
 
 /**
  * Same food/danger as the MVP catalog. Capacity is raised so a 5,000-creature
@@ -179,7 +114,7 @@ function geneticProfile(creature: CreatureRow): GeneticProfile {
   };
 }
 
-/** Split `livingCount` across species in slug order; earlier species get the remainder. */
+/** Split `livingCount` across species in id order; earlier species get the remainder. */
 export function livingCountsPerSpecies(
   livingCount: number,
   speciesCount: number,
@@ -283,9 +218,7 @@ export function createScaleWorld(
   const discoveries: DiscoveryRow[] = [];
   const events: WorldEvent[] = [];
   const usedNames = new Set<string>();
-  const founderSpecies = [...SPECIES].sort((a, b) =>
-    a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0,
-  );
+  const founderSpecies = [...SPECIES].sort((a, b) => a.id - b.id);
   const perSpecies = livingCountsPerSpecies(livingCount, founderSpecies.length);
 
   for (

@@ -22,6 +22,15 @@ export {
 
 export type { Ruleset } from "./ruleset";
 
+export {
+  LEGACY_SPECIES_SLUGS,
+  SPECIES_CATALOG,
+  speciesKeyForId,
+  speciesKeyForSlug,
+  type SpeciesKey,
+  type SpeciesSlug,
+} from "./species";
+
 export type {
   BirthEventPayload,
   CalmTerritoryPayload,

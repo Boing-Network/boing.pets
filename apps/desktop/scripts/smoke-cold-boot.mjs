@@ -48,11 +48,11 @@ try {
   const session = await bootSession(repository, 1);
   const view = buildWorldView(session.snapshot);
 
-  if (view.territories.length !== 3) {
-    throw new Error(`expected 3 territories, got ${view.territories.length}`);
+  if (view.territories.length !== 7) {
+    throw new Error(`expected 7 territories, got ${view.territories.length}`);
   }
-  if (view.creatures.length !== 12) {
-    throw new Error(`expected 12 founders, got ${view.creatures.length}`);
+  if (view.creatures.length !== 28) {
+    throw new Error(`expected 28 founders, got ${view.creatures.length}`);
   }
 
   // Second boot must load the persisted world, not create another.

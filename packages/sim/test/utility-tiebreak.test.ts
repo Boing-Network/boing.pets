@@ -29,7 +29,7 @@ function byId(snapshot: WorldSnapshot, id: number): CreatureRow {
 }
 
 /**
- * Documented M6 fixture: a hungry, aggressive fernfox with calm companions
+ * Documented M6 fixture: a hungry, aggressive fire fox with calm companions
  * and low competing needs. Utility must select FIND_FOOD and start FORAGE.
  *
  * Terms at choice time (tick 0, no drift yet):

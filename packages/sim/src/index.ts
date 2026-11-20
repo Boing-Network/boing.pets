@@ -3,6 +3,17 @@ export { applyInfluences } from "./kernel/influences";
 export { aggregateTerritories } from "./kernel/territories";
 export { createWorld } from "./worldgen/create-world";
 export {
+  LINK_CATALOG,
+  SPECIES as WORLDGEN_SPECIES,
+  TERRITORY_CATALOG,
+} from "./worldgen/catalog";
+export type {
+  LinkCatalogRow,
+  SpeciesCatalogRow,
+  TerritoryCatalogRow,
+  TerritorySlug,
+} from "./worldgen/catalog";
+export {
   createScaleWorld,
   livingCountsPerSpecies,
 } from "./worldgen/create-scale-world";
