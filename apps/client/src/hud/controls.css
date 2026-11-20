@@ -132,3 +132,34 @@
     overflow: auto;
   }
 }
+
+.clock-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.mp-chip {
+  align-self: center;
+  margin-right: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: #dfe9ff;
+  background: rgba(40, 60, 90, 0.7);
+  border: 1px solid rgba(160, 190, 255, 0.35);
+  white-space: nowrap;
+}
+
+.mp-chip--live {
+  border-color: rgba(120, 230, 170, 0.55);
+}
+
+.mp-chip--reconnecting,
+.mp-chip--connecting {
+  border-color: rgba(240, 200, 120, 0.6);
+}
+
+.mp-chip--offline {
+  border-color: rgba(240, 120, 120, 0.6);
+}

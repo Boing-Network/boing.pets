@@ -6,3 +6,4 @@ coverage/
 .postgres-data/
 apps/desktop/user-data/
 *.asar
+.living-pets-mp/

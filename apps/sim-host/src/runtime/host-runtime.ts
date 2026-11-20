@@ -42,10 +42,23 @@ import {
 } from "../boing";
 import type { WorldRepository } from "../persist/repository";
 import { bootSession, commitSession, type HostSession } from "../session";
-import { buildWorldPatch } from "../view/world-patch";
+import {
+  buildWorldPatch,
+  createPatchBaseline,
+  resetPatchBaseline,
+} from "../view/world-patch";
 import { buildWorldView } from "../view/world-view";
 
 export type HostRuntimeEmit = (message: HostToClient) => void;
+
+/** Result of a command. Rejections are per-sender and never fatal. */
+export type CommandOutcome =
+  | { ok: true }
+  | {
+      ok: false;
+      code: "rate_limited" | "influence_rejected" | "not_owner";
+      detail: string;
+    };
 
 /** Attribution for a client command (M22). Local play omits this. */
 export type CommandContext = {
@@ -89,7 +102,10 @@ export type HostRuntime = {
   /** Per-account influence gates (includes `"local"`). */
   influenceBook: InfluenceGateBook;
   start(): Promise<void>;
-  handleCommand(message: ClientToHost, context?: CommandContext): Promise<void>;
+  handleCommand(
+    message: ClientToHost,
+    context?: CommandContext,
+  ): Promise<CommandOutcome>;
   handleQuery(message: ClientToHost): Promise<QueryResult>;
   tickFrame(frameDeltaMs: number): Promise<void>;
   quit(): Promise<void>;
@@ -158,11 +174,13 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
     });
   }
 
+  // What listeners already hold; live patches only carry the difference.
+  const baseline = createPatchBaseline();
+
   function pushSnapshot(): void {
-    options.emit({
-      message: "world.snapshot",
-      body: buildWorldView(requireSession().snapshot),
-    });
+    const view = buildWorldView(requireSession().snapshot);
+    resetPatchBaseline(baseline, view);
+    options.emit({ message: "world.snapshot", body: view });
   }
 
   function pushLiveView(): void {
@@ -170,7 +188,7 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
     if (preferPatches && active.dirty.creatureIds.size > 0) {
       options.emit({
         message: "world.patch",
-        body: buildWorldPatch(active.snapshot, active.dirty),
+        body: buildWorldPatch(active.snapshot, active.dirty, baseline),
       });
     } else {
       pushSnapshot();
@@ -233,28 +251,28 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
         message.message === "session.join" ||
         message.message === "session.leave"
       ) {
-        return;
+        return { ok: true };
       }
 
-      await withExclusive(async () => {
+      return withExclusive(async (): Promise<CommandOutcome> => {
         const active = requireSession();
         const activeClock = requireClock();
         switch (message.message) {
           case "clock.pause":
             pauseClock(activeClock);
             pushClock();
-            return;
+            return { ok: true };
           case "clock.resume":
             resumeClock(activeClock);
             pushClock();
-            return;
+            return { ok: true };
           case "clock.setScale":
             setClockScale(activeClock, message.body.scale);
             await options.repository.writeHostClock?.({
               scale: activeClock.scale,
             });
             pushClock();
-            return;
+            return { ok: true };
           case "influence.submit": {
             const accountId = resolveAccountId(
               context.accountId ?? LOCAL_ACCOUNT_ID,
@@ -276,13 +294,23 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
               },
             );
             if (!result.ok) {
-              // Rate-limit rejects are silent to the renderer in v1 packaging;
-              // the influence simply does not land.
-              return;
+              // Local play stays silent (the influence simply does not land);
+              // shared hosts relay this to the sender as a notice.
+              return result.reason === "rate_limit"
+                ? {
+                    ok: false,
+                    code: "rate_limited",
+                    detail: "influence limit reached for this account",
+                  }
+                : {
+                    ok: false,
+                    code: "influence_rejected",
+                    detail: "the world is catching up; try again",
+                  };
             }
             pushSnapshot();
             pushClock();
-            return;
+            return { ok: true };
           }
           default:
             throw new Error(`not a command: ${message.message}`);

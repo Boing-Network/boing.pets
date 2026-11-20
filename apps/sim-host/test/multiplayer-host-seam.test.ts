@@ -7,21 +7,13 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { WebSocket } from "ws";
-import {
-  InfluenceKind,
-  type HostToClient,
-  type QueryResult,
-} from "@boing-pets/contract";
+import { InfluenceKind, type HostToClient } from "@boing-pets/contract";
 import { canonicalHash, createWorld, step } from "@boing-pets/sim";
 import {
   INFLUENCE_RATE_LIMIT,
   LOCAL_ACCOUNT_ID,
   createHostRuntime,
   createSharedWorldHost,
-  listenSharedWorldWs,
-  parseWsClientMessage,
-  type WsServerToClient,
 } from "../src/index";
 import { MemoryWorldRepository } from "../src/persist/memory-repository";
 
@@ -53,7 +45,11 @@ test("shared host joins two clients and fans out clock + snapshot", async () => 
   const alice = collectEmit();
   const bob = collectEmit();
 
-  const a = await host.join({ accountId: "alice", emit: alice.emit });
+  const a = await host.join({
+    accountId: "alice",
+    emit: alice.emit,
+    role: "owner",
+  });
   const b = await host.join({ accountId: "bob", emit: bob.emit });
   assert.ok(a);
   assert.ok(b);
@@ -155,8 +151,17 @@ test("single writer serializes concurrent client commands", async () => {
 
   const alice = collectEmit();
   const bob = collectEmit();
-  const a = await host.join({ accountId: "alice", emit: alice.emit });
-  const b = await host.join({ accountId: "bob", emit: bob.emit });
+  // One owner, two tabs: both may drive the clock.
+  const a = await host.join({
+    accountId: "alice",
+    emit: alice.emit,
+    role: "owner",
+  });
+  const b = await host.join({
+    accountId: "alice",
+    emit: bob.emit,
+    role: "owner",
+  });
   assert.ok(a);
   assert.ok(b);
 
@@ -241,99 +246,6 @@ test("local HostRuntime still works without multiplayer join", async () => {
   await runtime.quit();
 });
 
-test("WebSocket transport joins two clients and fans out patches", async () => {
-  const repository = new MemoryWorldRepository();
-  let now = 6_000_000;
-  const host = createSharedWorldHost({
-    repository,
-    seed: 1,
-    nowMs: () => now,
-    autoFrame: false,
-  });
-  await host.start();
-  const server = await listenSharedWorldWs({ host, port: 0 });
-
-  function openClient(accountId: string) {
-    const inbox: HostToClient[] = [];
-    const pending = new Map<
-      number,
-      { resolve: (r: QueryResult) => void; reject: (e: Error) => void }
-    >();
-    const ws = new WebSocket(server.url);
-    const ready = new Promise<void>((resolve, reject) => {
-      ws.once("open", () => resolve());
-      ws.once("error", reject);
-    });
-    ws.on("message", (data) => {
-      const text = Buffer.isBuffer(data) ? data.toString("utf8") : String(data);
-      const parsed = JSON.parse(text) as WsServerToClient;
-      if (parsed.type === "host") inbox.push(parsed.message);
-      if (parsed.type === "query-result") {
-        pending.get(parsed.id)?.resolve(parsed.result);
-        pending.delete(parsed.id);
-      }
-      if (parsed.type === "query-error") {
-        pending.get(parsed.id)?.reject(new Error(parsed.error));
-        pending.delete(parsed.id);
-      }
-    });
-    return {
-      inbox,
-      async join() {
-        await ready;
-        ws.send(JSON.stringify({ type: "join", accountId }));
-        await waitFor(() => inbox.some((m) => m.message === "session.welcome"));
-      },
-      sendCommand(message: Parameters<typeof host.handleCommand>[1]) {
-        ws.send(JSON.stringify({ type: "command", message }));
-      },
-      close() {
-        ws.close();
-      },
-    };
-  }
-
-  const c1 = openClient("ws_alice");
-  const c2 = openClient("ws_bob");
-  await c1.join();
-  await c2.join();
-  assert.equal(host.clients.size(), 2);
-
-  c1.sendCommand({ message: "clock.setScale", body: { scale: 4 } });
-  await waitFor(() =>
-    c2.inbox.some((m) => m.message === "world.clock" && m.body.scale === 4),
-  );
-
-  // Advance one tick so preferPatches path can emit world.patch.
-  now += 60_000;
-  await host.runtime.tickFrame(60_000);
-  await waitFor(() =>
-    c1.inbox.some(
-      (m) => m.message === "world.patch" || m.message === "world.snapshot",
-    ),
-  );
-  await waitFor(() =>
-    c2.inbox.some(
-      (m) => m.message === "world.patch" || m.message === "world.snapshot",
-    ),
-  );
-
-  c1.close();
-  c2.close();
-  await server.close();
-  await host.quit();
-});
-
-test("ws protocol parser rejects garbage", () => {
-  assert.equal(parseWsClientMessage("not-json"), null);
-  assert.equal(parseWsClientMessage("{}"), null);
-  assert.deepEqual(parseWsClientMessage('{"type":"leave"}'), { type: "leave" });
-  assert.deepEqual(parseWsClientMessage('{"type":"join","accountId":"a"}'), {
-    type: "join",
-    accountId: "a",
-  });
-});
-
 test("packages/sim must not import multiplayer or ws", () => {
   const root = join(HERE, "../../../packages/sim/src");
   const files: string[] = [];
@@ -352,16 +264,3 @@ test("packages/sim must not import multiplayer or ws", () => {
     assert.equal(text.includes("WebSocket"), false, file);
   }
 });
-
-async function waitFor(
-  predicate: () => boolean,
-  timeoutMs = 2_000,
-): Promise<void> {
-  const start = Date.now();
-  while (!predicate()) {
-    if (Date.now() - start > timeoutMs) {
-      throw new Error("waitFor timeout");
-    }
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-}

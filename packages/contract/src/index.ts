@@ -78,7 +78,9 @@ export type {
   QueryLineage,
   QueryResult,
   SessionJoin,
+  SessionNotice,
   SessionRejected,
+  SessionRole,
   SessionWelcome,
   WorldClock,
 } from "./ipc";
@@ -89,3 +91,10 @@ export {
   SPOT_SCALE,
   isShoreSpot,
 } from "./positions";
+export {
+  MP_DEFAULT_PORT,
+  MP_MAX_CLIENT_MESSAGE_BYTES,
+  MP_PROTOCOL_VERSION,
+  type WsClientToServer,
+  type WsServerToClient,
+} from "./ws";

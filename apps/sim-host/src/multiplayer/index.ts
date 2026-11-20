@@ -13,7 +13,26 @@ export {
   type ClientConnection,
   type ClientEmit,
   type ClientRegistry,
+  type EmitMeta,
 } from "./client-registry";
+export {
+  SESSION_TOKEN_TTL_MS,
+  generateOwnerKey,
+  loadOrCreateSecret,
+  newGuestAccountId,
+  ownerKeyMatches,
+  sanitizeDisplayName,
+  signSessionToken,
+  verifySessionToken,
+  type SessionClaims,
+} from "./tokens";
+export {
+  createFloodGate,
+  validateCommand,
+  validateQuery,
+  type FloodGate,
+  type Validated,
+} from "./validate";
 export {
   canAcceptForAccount,
   createInfluenceGateBook,

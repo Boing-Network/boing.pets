@@ -20,6 +20,7 @@
     "desktop:build": "npm run build -w @boing-pets/desktop",
     "desktop:start": "npm run client:build && npm run desktop:build && npm run start -w @boing-pets/desktop",
     "desktop:smoke": "npm run smoke -w @boing-pets/desktop",
+    "mp:serve": "node --import tsx apps/sim-host/src/multiplayer/serve.ts",
     "db:validate": "prisma validate --schema packages/db/prisma/schema.prisma",
     "db:generate": "prisma generate --schema packages/db/prisma/schema.prisma",
     "db:check": "node packages/db/scripts/check-sql.mjs",

@@ -295,6 +295,10 @@ export default ts.config(
             // M22 shared-world WebSocket transport (host edge only).
             "node:http",
             "ws",
+            // Shared-world session tokens and the `mp:serve` entrypoint.
+            // Never imported by the browser worker.
+            "node:crypto",
+            "node:util",
           ],
         },
       ],
@@ -319,6 +323,7 @@ export default ts.config(
             "node:path",
             "node:url",
             "node:os",
+            "node:crypto",
             "ws",
           ],
         },
