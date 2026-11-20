@@ -73,8 +73,20 @@ function createFakeClient(options?: {
     planCollectionDeploy() {
       return real.planCollectionDeploy();
     },
+    planArtifactCollectionDeploy() {
+      return real.planArtifactCollectionDeploy();
+    },
+    planItemCollectionDeploy() {
+      return real.planItemCollectionDeploy();
+    },
     planCreatureMint(input) {
       return real.planCreatureMint(input);
+    },
+    planLineageArtifactMint(input) {
+      return real.planLineageArtifactMint(input);
+    },
+    planCompressedItemMint(input) {
+      return real.planCompressedItemMint(input);
     },
     async submitCreatureMint(plan) {
       client.attempts += 1;
@@ -90,6 +102,19 @@ function createFakeClient(options?: {
       };
       submits.push(result);
       return result;
+    },
+    async submitLineageArtifactMint(plan) {
+      return client.submitCreatureMint(plan);
+    },
+    async submitCompressedItemMint(plan) {
+      return client.submitCreatureMint({
+        collectionHex: plan.collectionHex,
+        toHex: plan.toHex,
+        tokenIdHex: plan.tokenIdHex,
+        calldataHex: plan.calldataHex,
+        calldataBytes: plan.calldataBytes,
+        tokenClass: plan.tokenClass,
+      });
     },
   };
   return client;
@@ -312,10 +337,30 @@ test("incomplete mint config persists FAILED and does not call network submit", 
     planCollectionDeploy() {
       throw new Error("unexpected");
     },
+    planArtifactCollectionDeploy() {
+      throw new Error("unexpected");
+    },
+    planItemCollectionDeploy() {
+      throw new Error("unexpected");
+    },
     planCreatureMint() {
       throw new Error("unexpected plan");
     },
+    planLineageArtifactMint() {
+      throw new Error("unexpected plan");
+    },
+    planCompressedItemMint() {
+      throw new Error("unexpected plan");
+    },
     async submitCreatureMint() {
+      submitCalled = true;
+      throw new Error("unexpected submit");
+    },
+    async submitLineageArtifactMint() {
+      submitCalled = true;
+      throw new Error("unexpected submit");
+    },
+    async submitCompressedItemMint() {
       submitCalled = true;
       throw new Error("unexpected submit");
     },

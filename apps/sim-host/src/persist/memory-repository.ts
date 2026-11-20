@@ -2,6 +2,7 @@
  * In-memory durable store for tests and crash-redo.
  * Commits are atomic: a failed mid-write leaves the previous committed tables.
  */
+import type { AssetMintLinkRow } from "../boing/asset-mint-link";
 import type { CreatureNftLinkRow } from "../boing/nft-link";
 import type { CommitBatch, DurableTables, WorldRepository } from "./repository";
 
@@ -56,6 +57,9 @@ export class MemoryWorldRepository implements WorldRepository {
     }
     if (!Array.isArray(tables.creatureNftLinks)) {
       throw new Error("creatureNftLinks");
+    }
+    if (!Array.isArray(tables.assetMintLinks)) {
+      throw new Error("assetMintLinks");
     }
     this.#tables = clone(tables);
   }
@@ -197,6 +201,41 @@ export class MemoryWorldRepository implements WorldRepository {
       next.creatureNftLinks.push(clone(row));
     }
     next.creatureNftLinks.sort((a, b) => a.creatureId - b.creatureId);
+    this.#tables = next;
+  }
+
+  async readAssetMintLinks(): Promise<AssetMintLinkRow[]> {
+    if (this.#tables == null) return [];
+    return clone(this.#tables.assetMintLinks).sort((a, b) => {
+      if (a.worldId !== b.worldId) return a.worldId - b.worldId;
+      if (a.tokenClass !== b.tokenClass) {
+        return a.tokenClass.localeCompare(b.tokenClass);
+      }
+      return a.mintKey.localeCompare(b.mintKey);
+    });
+  }
+
+  async upsertAssetMintLink(row: AssetMintLinkRow): Promise<void> {
+    if (this.#tables == null) throw new Error("no world");
+    const next = clone(this.#tables);
+    const idx = next.assetMintLinks.findIndex(
+      (link) =>
+        link.worldId === row.worldId &&
+        link.tokenClass === row.tokenClass &&
+        link.mintKey === row.mintKey,
+    );
+    if (idx >= 0) {
+      next.assetMintLinks[idx] = clone(row);
+    } else {
+      next.assetMintLinks.push(clone(row));
+    }
+    next.assetMintLinks.sort((a, b) => {
+      if (a.worldId !== b.worldId) return a.worldId - b.worldId;
+      if (a.tokenClass !== b.tokenClass) {
+        return a.tokenClass.localeCompare(b.tokenClass);
+      }
+      return a.mintKey.localeCompare(b.mintKey);
+    });
     this.#tables = next;
   }
 }

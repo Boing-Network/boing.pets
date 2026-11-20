@@ -109,6 +109,7 @@ test("sdk client plans collection deploy via reference NFT template", () => {
   const plan = client.planCollectionDeploy();
   assert.equal(plan.deployMeta.type, "contract_deploy_meta");
   assert.equal(plan.deployMeta.purpose_category, "nft");
+  assert.equal(plan.tokenClass, "UNIQUE_CREATURE");
   assert.equal(
     plan.templateArtifactId,
     REFERENCE_NFT_COLLECTION_TEMPLATE_ARTIFACT_ID,

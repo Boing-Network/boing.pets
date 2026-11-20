@@ -21,6 +21,8 @@ import type {
   Ruleset,
 } from "@boing-pets/contract";
 import type {
+  AssetMintClass,
+  AssetMintLink,
   Creature,
   CreatureNftLink,
   Lineage,
@@ -859,6 +861,79 @@ export function creatureNftLinkToDb(row: MappedCreatureNftLink) {
     worldId: toBigInt(row.worldId),
     creatureId: toBigInt(row.creatureId),
     birthEventId: toBigIntOrNull(row.birthEventId),
+    collectionHex: row.collectionHex,
+    tokenIdHex: row.tokenIdHex,
+    chainId: row.chainId,
+    templateArtifact: row.templateArtifact,
+    templateVersion: row.templateVersion,
+    mintTxHex: row.mintTxHex,
+    status: row.status,
+    lastError: row.lastError,
+    createdAt: new Date(row.createdAtMs),
+    updatedAt: new Date(row.updatedAtMs),
+  };
+}
+
+export type MappedAssetMintLink = {
+  id: number;
+  worldId: number;
+  tokenClass: AssetMintClass;
+  mintKey: string;
+  lineageId: number | null;
+  artifactKind: string | null;
+  tokenSerial: number | null;
+  itemKindId: number | null;
+  amount: number | null;
+  itemSlug: string | null;
+  collectionHex: string;
+  tokenIdHex: string;
+  chainId: string;
+  templateArtifact: string;
+  templateVersion: string;
+  mintTxHex: string | null;
+  status: NftMintStatus;
+  lastError: string | null;
+  createdAtMs: number;
+  updatedAtMs: number;
+};
+
+export function mapAssetMintLink(row: AssetMintLink): MappedAssetMintLink {
+  return {
+    id: toNumber(row.id),
+    worldId: toNumber(row.worldId),
+    tokenClass: row.tokenClass,
+    mintKey: row.mintKey,
+    lineageId: toNumberOrNull(row.lineageId),
+    artifactKind: row.artifactKind,
+    tokenSerial: toNumberOrNull(row.tokenSerial),
+    itemKindId: toNumberOrNull(row.itemKindId),
+    amount: toNumberOrNull(row.amount),
+    itemSlug: row.itemSlug,
+    collectionHex: row.collectionHex,
+    tokenIdHex: row.tokenIdHex,
+    chainId: row.chainId,
+    templateArtifact: row.templateArtifact,
+    templateVersion: row.templateVersion,
+    mintTxHex: row.mintTxHex,
+    status: row.status,
+    lastError: row.lastError,
+    createdAtMs: row.createdAt.getTime(),
+    updatedAtMs: row.updatedAt.getTime(),
+  };
+}
+
+export function assetMintLinkToDb(row: MappedAssetMintLink) {
+  return {
+    id: toBigInt(row.id),
+    worldId: toBigInt(row.worldId),
+    tokenClass: row.tokenClass,
+    mintKey: row.mintKey,
+    lineageId: toBigIntOrNull(row.lineageId),
+    artifactKind: row.artifactKind,
+    tokenSerial: toBigIntOrNull(row.tokenSerial),
+    itemKindId: toBigIntOrNull(row.itemKindId),
+    amount: toBigIntOrNull(row.amount),
+    itemSlug: row.itemSlug,
     collectionHex: row.collectionHex,
     tokenIdHex: row.tokenIdHex,
     chainId: row.chainId,
