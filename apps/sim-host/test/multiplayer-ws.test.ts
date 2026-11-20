@@ -22,6 +22,7 @@ import {
   listenSharedWorldWs,
   parseWsClientMessage,
   signSessionToken,
+  slowClientDecision,
   validateCommand,
   validateQuery,
   verifySessionToken,
@@ -364,6 +365,22 @@ test("heartbeat tolerates a stalled reader but drops a dead one", async () => {
   chatty.close();
   await server.close();
   await host.quit();
+});
+
+test("a skipped slow client is rebased once its backlog drains", () => {
+  const max = 1000;
+  assert.equal(slowClientDecision(false, 10, max), "send");
+  assert.equal(slowClientDecision(false, 1001, max), "skip");
+  assert.equal(
+    slowClientDecision(true, 800, max),
+    "skip",
+    "wait for the backlog to halve",
+  );
+  assert.equal(
+    slowClientDecision(true, 400, max),
+    "rebase",
+    "no gap reaches the client, so the server must rebase",
+  );
 });
 
 test("session tokens verify, expire, and reject tampering", () => {

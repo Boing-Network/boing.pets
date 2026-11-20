@@ -103,6 +103,19 @@ function droppable(message: HostToClient): boolean {
   );
 }
 
+/**
+ * Backpressure for droppable live frames. Over the limit: skip. While
+ * skipping, wait until the backlog halves, then rebase the client.
+ */
+export function slowClientDecision(
+  skipped: boolean,
+  bufferedBytes: number,
+  maxBufferedBytes: number,
+): "send" | "skip" | "rebase" {
+  if (skipped) return bufferedBytes > maxBufferedBytes / 2 ? "skip" : "rebase";
+  return bufferedBytes > maxBufferedBytes ? "skip" : "send";
+}
+
 export async function listenSharedWorldWs(
   options: SharedWorldWsServerOptions,
 ): Promise<SharedWorldWsServer> {
@@ -134,12 +147,28 @@ export async function listenSharedWorldWs(
   ): void {
     const seq = meta?.seq ?? options.host.seq;
     if (!meta?.base && droppable(message)) {
-      if (state.skipped) return;
-      if (socket.bufferedAmount > maxBuffered) {
+      const decision = slowClientDecision(
+        state.skipped,
+        socket.bufferedAmount,
+        maxBuffered,
+      );
+      if (decision === "skip") {
+        if (!state.skipped) {
+          log(
+            `slow client ${state.connection?.sessionId ?? "?"}: skipping live frames`,
+          );
+        }
         state.skipped = true;
-        log(
-          `slow client ${state.connection?.sessionId ?? "?"}: skipping until resync`,
-        );
+        return;
+      }
+      if (decision === "rebase") {
+        // Every live frame was dropped, so the client never sees a seq gap
+        // and would never ask: push a fresh base once the backlog drains.
+        state.skipped = false;
+        if (state.connection != null) {
+          log(`slow client ${state.connection.sessionId}: caught up, rebasing`);
+          options.host.resync(state.connection.sessionId);
+        }
         return;
       }
     }

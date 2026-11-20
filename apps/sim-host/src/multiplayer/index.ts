@@ -55,6 +55,7 @@ export {
 } from "./ws-protocol";
 export {
   listenSharedWorldWs,
+  slowClientDecision,
   type SharedWorldWsServer,
   type SharedWorldWsServerOptions,
 } from "./ws-server";

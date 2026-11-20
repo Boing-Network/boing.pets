@@ -193,6 +193,7 @@ export {
   resolveAccountId,
   serializeInfluenceBook,
   signSessionToken,
+  slowClientDecision,
   validateCommand,
   validateQuery,
   verifySessionToken,
