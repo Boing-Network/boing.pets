@@ -290,7 +290,25 @@ territories 1–3 so its timings stay comparable.
   every 10 s), so paused time is discarded rather than owed.
 - **Resume:** continues without replaying the paused gap.
 - **Scale:** 1×, 4×, 16×, or 64×. The contents of a tick do not change with
-  scale.
+  scale. The chosen scale is saved with the world (`hostClock`); pause is not,
+  because quitting is not a pause.
+
+## Movement (`packages/sim/src/ai/movement.ts`)
+
+- Every creature has an authoritative spot (`spotX/spotZ`) and the spot it
+  is walking from (`fromSpotX/fromSpotZ`), in territory-local permille
+  integers. Land spots lie within radius 900; a value beyond 1000 is a shore
+  spot (radius 1200) that the client resolves to the nearest water edge.
+- `startAction` calls `planMove`, which picks the destination from the action
+  (rest at the nest, drink at the shore, social/court beside the partner,
+  forage/explore at a settle spot) using the stateless `rng(..., "move", ...)`
+  domain, so moves never perturb other random draws. Relocation starts from
+  the old territory's edge; newborns appear at the mother's spot.
+- The client (`view/motion/trajectory.ts`) walks a token from `fromSpot` to
+  `spot` over the action window: it estimates a fractional sim tick from the
+  last `world.clock` and its receipt time, caps the walk at a natural speed
+  for the current scale, follows trails when relocating, and picks the gait
+  from distance. Two clients with the same clock render the same positions.
 
 ## Persistence
 
@@ -300,10 +318,18 @@ territories 1–3 so its timings stay comparable.
   dirty each tick, because its needs drift.
 - **Desktop:** `PrismaWorldRepository` writes to embedded Postgres, one
   transaction per commit. The schema is in `packages/db/prisma/schema.prisma`,
-  with 3 migrations, and `CURRENT_SCHEMA_VERSION = 1`. Load refuses newer
-  schemas (`SchemaTooNewError`).
+  with 4 migrations, and `CURRENT_SCHEMA_VERSION = 2`
+  (`20261120120000_creature_positions` adds the four spot columns, default 0).
+  Load refuses newer schemas (`SchemaTooNewError`).
 - **Browser:** `BrowserWorldRepository` uses the same commit semantics over
-  IndexedDB.
+  IndexedDB (database version 2, key `v2`). A v1 save is read once, upgraded,
+  and the v1 record is left in place as a backup.
+- **Upgrading old saves:** `upgradeSnapshotPositions` places every creature of
+  a schema-1 world at a settle spot, then re-plans in-progress actions at
+  their start tick. It is a pure function of the save, and the boot marks all
+  creatures dirty, so a crash during the first save simply repeats it.
+- **Shared-world server:** JSON file store (atomic temp-file + rename) by
+  default, or `PrismaWorldRepository` with `DATABASE_URL`.
 - **Tests:** `MemoryWorldRepository`.
 - **Single writer:** `HostRuntime` either steps or handles a command, never
   both at once. On a crash, in-memory state is discarded and the next boot
@@ -336,17 +362,34 @@ territories 1–3 so its timings stay comparable.
 - HUD: `InspectionPanel` (creature, family, top memories), `InfluencePanel`
   (all five verbs), and `ClockControls`.
 
-## Multiplayer host seam (M22)
+## Multiplayer (shared world)
 
-- `createSharedWorldHost` (`multiplayer/shared-world-host.ts`) wraps one
-  `HostRuntime`. Clients `join` with an `accountId`, receive a snapshot and
-  clock, and send commands and queries scoped to their account.
-- `ws-protocol.ts` defines `join | command | query | leave` messages from the
-  client and `host | query-result | query-error | fatal` messages from the
-  server. `ws-server.ts` defaults to `127.0.0.1` and an ephemeral port.
-- Auth is a placeholder (`multiplayer/account.ts`: "Real auth lands later").
-- Clock commands from any client affect the shared world.
-- No production entrypoint or client transport exists yet.
+- `npm run mp:serve` (`multiplayer/serve.ts`) runs one `HostRuntime` (the
+  single writer) behind `listenSharedWorldWs`. Default bind `127.0.0.1:8787`.
+- **Protocol v2** (`packages/contract/src/ws.ts`, `multiplayer/ws-protocol.ts`):
+  the client sends `hello {v, token?, name?, ownerKey?}`; the server answers
+  `welcome {accountId, role, displayName, token}` and then `host` frames.
+  Every `host` frame carries a `seq`; join and resync snapshots are marked
+  `base`. A client that sees a gap drops live frames and sends `resync`.
+  `ping`/`pong` measure latency; `error` is recoverable, `fatal` closes.
+- **Identity:** session tokens are HMAC-SHA256 over
+  `{sub (account id), role, name, iat, exp}` with a server secret
+  (`LIVING_PETS_MP_SECRET` or `<data>/session-secret`). A bad or expired token
+  is refused (`invalid_token`) and the socket joins as a fresh guest. A
+  `hello` with the owner key (constant-time compare) gets the `owner` role.
+- **Authority:** only the owner may pause, resume or rescale
+  (`not_owner` notice otherwise). Influences keep their per-account budgets.
+- **Limits:** 64 KiB `maxPayload`; every command and query is rebuilt by a
+  strict validator; a per-socket token bucket (20/s, burst 40) answers
+  `rate_limited` and closes persistent floods; a socket with more than 4 MB
+  queued is skipped and rebased once the backlog halves; a heartbeat drops a
+  socket after four silent 15 s intervals (any inbound frame counts).
+- **Bandwidth:** live `world.patch` frames carry only rows and events that
+  changed since the previous emit (`PatchBaseline`).
+- **Client** (`api/ws-host-ipc.ts`): `?mp=ws://…` or `VITE_LIVING_PETS_MP_URL`
+  selects it. It keeps the token per server URL in `localStorage`, reconnects
+  with backoff (0.5 s doubling to 8 s), and reports `connecting/live/
+reconnecting` to the HUD.
 
 ## On-chain integration (Boing testnet, `apps/sim-host/src/boing/`)
 
@@ -383,8 +426,10 @@ CONFIRMED`, or `FAILED`, which can be retried. Links persist in
 - Desktop: the host connects to embedded Postgres at `127.0.0.1` with a fixed
   local password in `apps/desktop/src/main.ts`. The Electron window has `contextIsolation: true`,
   `nodeIntegration: false`, and `sandbox: false`.
-- Multiplayer has no real identity yet: account ids are self-asserted, so
-  per-account rate limits can be bypassed by choosing a new id.
+- Shared world: identity is a signed guest token, not a login, so a player
+  who clears storage becomes a new guest with a fresh influence allowance. The
+  owner key is a shared secret carried in a URL (scrubbed after join). Traffic
+  is plain `ws://` unless you put a TLS proxy in front.
 
 ## Milestone history (from `git log`)
 
@@ -431,11 +476,13 @@ Unnumbered work between M18 and M22:
 
 From the Nov 20, 2026 local audit:
 
-1. Fix `apps/desktop/src/migrate.ts` on Windows (spawn with a shell, or call
-   the Prisma CLI entry with `node`), and add a Windows CI job.
+1. ~~Fix `apps/desktop/src/migrate.ts` on Windows and add a Windows CI
+   job.~~ Done: the Prisma CLI entry runs with the current binary.
 2. Upgrade Prisma 6 → 7 to clear the high-severity `npm audit` findings.
-3. Multiplayer: real auth, a WebSocket `maxPayload`, a client transport, and a
-   decision on who may pause or rescale a shared world.
+3. Multiplayer: ~~`maxPayload`, a client transport, who may pause~~ done
+   (owner-only clock). Still open: wallet-signature login, per-field creature
+   deltas to cut bandwidth, presence/cursors for other players, and a hosted
+   `wss://` deployment.
 4. Minting: decide whether players get their own recipient addresses, separate
    the signing key per collection, and choose a collection-deploy workflow.
 5. Give `FAVOR_BLOODLINE` a sim effect, or document it as cosmetic/ranking
