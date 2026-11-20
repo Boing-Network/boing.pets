@@ -6,6 +6,11 @@
   "outputDirectory": "apps/client/dist",
   "redirects": [
     {
+      "source": "/welcome",
+      "destination": "/welcome/",
+      "permanent": false
+    },
+    {
       "source": "/market",
       "destination": "/market/",
       "permanent": false
