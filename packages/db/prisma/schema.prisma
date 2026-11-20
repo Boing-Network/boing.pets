@@ -428,6 +428,8 @@ model CreatureNftLink {
   worldId          BigInt        @map("world_id")
   creatureId       BigInt        @unique @map("creature_id")
   birthEventId     BigInt?       @map("birth_event_id")
+  /// Minted as part of the genesis set (a founder with no parents).
+  genesis          Boolean       @default(false)
   /// Boing AccountId of the reference NFT collection contract (0x + 64 hex).
   collectionHex    String        @map("collection_hex")
   /// 32-byte token id word (reference NFT layout).

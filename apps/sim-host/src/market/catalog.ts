@@ -104,7 +104,7 @@ export function buildMarketCatalog(input: CatalogInputs): MarketCatalog {
       speciesName: sp?.displayName ?? null,
       lineageId: c.lineageId,
       lineageName: lineage.get(c.lineageId)?.name ?? null,
-      genesis: isGenesisCreature(c),
+      genesis: isGenesisCreature(c) || link?.genesis === true,
       collectionHex: link?.collectionHex ?? null,
       tokenIdHex: link?.tokenIdHex ?? null,
       live,

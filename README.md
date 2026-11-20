@@ -197,6 +197,15 @@ approve/transfer-from), so escrow is an operator-run account and settlement
 is a separate step; until that exists the page shows each trade's escrow
 steps but signs nothing.
 
+### Genesis mint
+
+The founders of the shared world (every creature with no parents, generation 0) are the genesis set. With `LIVING_PETS_BOING_MINTING` and `LIVING_PETS_BOING_GENESIS_MINT` on, the Fly server mints each one into the creature collection on boot, owned by the operator wallet, one transaction at a time, waiting for each receipt. Each `creature_nft_link` row gets `genesis = true` and the mint tx hash, and the token's on-chain metadata hash is the SHA-256 of `{v, game, genesis: true, worldId, creatureId, name, species}`. The run is idempotent: confirmed rows are skipped, a token already owned on chain is recorded without minting again, and failures are retried on the next boot (the regular birth-mint drain leaves genesis rows alone). Collections on testnet 6913:
+
+- creatures (LPET): `0x9aebaf44c0151b58be361aa1b4e4d02dbe9922e6f33c7ef3bdb2fb5832b51701`
+- lineage artifacts (LPAR): `0x95cf68bc73ec4d842ba2c5765eccd424aa2d7fe913627fa70efeb321cb2cdcea`
+
+The operator seed is the `BOING_SECRET_HEX` Fly secret (set it from stdin; never commit or log it).
+
 ## Hosting on Fly.io
 
 The shared-world server runs as one always-on Fly.io machine
