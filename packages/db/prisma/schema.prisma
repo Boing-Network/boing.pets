@@ -140,20 +140,22 @@ model World {
   nextTerritoryId    BigInt   @map("next_territory_id")
   nextInfluenceId    BigInt   @map("next_influence_id")
 
-  species         Species[]
-  compatibilities SpeciesCompatibility[]
-  territories     Territory[]
-  links           TerritoryLink[]
-  modifiers       TerritoryModifier[]
-  lineages        Lineage[]
-  creatures       Creature[]
-  relationships   Relationship[]
-  memories        Memory[]
-  events          WorldEvent[]
-  influences       PlayerInfluence[]
-  catchups         CatchupReport[]
-  creatureNftLinks CreatureNftLink[]
-  assetMintLinks   AssetMintLink[]
+  species           Species[]
+  compatibilities   SpeciesCompatibility[]
+  territories       Territory[]
+  links             TerritoryLink[]
+  modifiers         TerritoryModifier[]
+  lineages          Lineage[]
+  creatures         Creature[]
+  relationships     Relationship[]
+  memories          Memory[]
+  events            WorldEvent[]
+  influences        PlayerInfluence[]
+  catchups          CatchupReport[]
+  creatureNftLinks  CreatureNftLink[]
+  assetMintLinks    AssetMintLink[]
+  inventoryLots     InventoryLot[]
+  influenceAccounts InfluenceAccount[]
 
   @@map("world")
 }
@@ -311,17 +313,17 @@ model Creature {
   fromSpotX Int @default(0) @map("from_spot_x")
   fromSpotZ Int @default(0) @map("from_spot_z")
 
-  world            World          @relation(fields: [worldId], references: [id])
-  species          Species        @relation(fields: [speciesId], references: [id])
-  territory        Territory      @relation(fields: [territoryId], references: [id])
-  lineage          Lineage        @relation(fields: [lineageId], references: [id])
-  mother           Creature?      @relation("MotherChildren", fields: [motherId], references: [id])
-  father           Creature?      @relation("FatherChildren", fields: [fatherId], references: [id])
-  childrenAsMother Creature[]     @relation("MotherChildren")
-  childrenAsFather Creature[]     @relation("FatherChildren")
+  world            World            @relation(fields: [worldId], references: [id])
+  species          Species          @relation(fields: [speciesId], references: [id])
+  territory        Territory        @relation(fields: [territoryId], references: [id])
+  lineage          Lineage          @relation(fields: [lineageId], references: [id])
+  mother           Creature?        @relation("MotherChildren", fields: [motherId], references: [id])
+  father           Creature?        @relation("FatherChildren", fields: [fatherId], references: [id])
+  childrenAsMother Creature[]       @relation("MotherChildren")
+  childrenAsFather Creature[]       @relation("FatherChildren")
   memories         Memory[]
-  relationshipsAsA Relationship[] @relation("RelA")
-  relationshipsAsB Relationship[] @relation("RelB")
+  relationshipsAsA Relationship[]   @relation("RelA")
+  relationshipsAsB Relationship[]   @relation("RelB")
   nftLink          CreatureNftLink?
 
   @@index([worldId, status])
@@ -500,4 +502,46 @@ model HostMeta {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("host_meta")
+}
+
+/// M22: one stack of off-chain items gained by an account (gather, craft, or
+/// a mirrored LPIT reward). Host edge only; step() never reads it. Debits lower
+/// `remaining` oldest-spoiling first; a lot past `spoils_at_tick` is gone.
+model InventoryLot {
+  id           BigInt   @id
+  worldId      BigInt   @map("world_id")
+  accountId    String   @map("account_id")
+  /// Idempotency key within the world: gather:<influenceId>, craft:<lotId>,
+  /// mint:<assetMintKey>.
+  sourceKey    String   @map("source_key")
+  itemSlug     String   @map("item_slug")
+  amount       Int
+  remaining    Int
+  gainedTick   BigInt   @map("gained_tick")
+  spoilsAtTick BigInt?  @map("spoils_at_tick")
+  createdAt    DateTime @map("created_at")
+  updatedAt    DateTime @map("updated_at")
+  world        World    @relation(fields: [worldId], references: [id])
+
+  @@unique([worldId, sourceKey])
+  @@index([worldId, accountId])
+  @@map("inventory_lot")
+}
+
+/// M22: which account issued each accepted influence (favor-giver ranking for
+/// relic recipients, relic weekly cooldown, item use audit). Host edge only.
+model InfluenceAccount {
+  influenceId BigInt        @id @map("influence_id")
+  worldId     BigInt        @map("world_id")
+  accountId   String        @map("account_id")
+  kind        InfluenceKind
+  lineageId   BigInt?       @map("lineage_id")
+  territoryId BigInt?       @map("territory_id")
+  itemSlug    String?       @map("item_slug")
+  acceptedAt  DateTime      @map("accepted_at")
+  world       World         @relation(fields: [worldId], references: [id])
+
+  @@index([worldId, accountId])
+  @@index([worldId, kind, lineageId])
+  @@map("influence_account")
 }

@@ -156,11 +156,27 @@ const listingIndex =
         log,
       });
 listingIndex?.start();
+// M22: relic recipients and relic ownership read owner_of on chain. Read-only
+// simulate calls; null when minting is off or no operator seed is configured.
+const relicChain = (() => {
+  if (!mintEdge.enabled || mintEdge.config.secretHex == null) return null;
+  try {
+    const chain = createSdkGenesisChain(mintEdge.config);
+    return {
+      operatorHex: () => chain.operatorHex(),
+      ownerOf: (collectionHex: string, tokenIdHex: string) =>
+        chain.ownerOf(collectionHex, tokenIdHex),
+    };
+  } catch {
+    return null;
+  }
+})();
 const host = createSharedWorldHost({
   repository,
   seed: config.seed,
   initialScale: config.scale,
   mintEdge,
+  relicChain,
 });
 await host.start();
 const server = await listenSharedWorldWs({

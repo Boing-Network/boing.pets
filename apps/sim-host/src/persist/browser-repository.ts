@@ -8,6 +8,7 @@
  */
 import type { AssetMintLinkRow } from "../boing/asset-mint-link";
 import type { CreatureNftLinkRow } from "../boing/nft-link";
+import type { ItemChange } from "../items/types";
 import type {
   CommitBatch,
   DurableTables,
@@ -30,6 +31,8 @@ export const BROWSER_WORLD_STORAGE_KEY = "boing-pets:durable-tables:v2";
 export const LEGACY_BROWSER_WORLD_STORAGE_KEYS = [
   "boing-pets:durable-tables:v1",
 ] as const;
+/** M22 item side tables live under their own key; world tables are untouched. */
+export const BROWSER_ITEMS_STORAGE_KEY = "boing-pets:items:v1";
 /** IndexedDB database version. v2 marks the schema-2 storage key. */
 export const BROWSER_IDB_VERSION = 2;
 
@@ -222,7 +225,34 @@ export class BrowserWorldRepository implements WorldRepository {
       // Write the current key now; the legacy value stays as a backup.
       if (migrated) await this.#persist();
     }
+    const items = await this.#store.get(this.#itemsKey());
+    if (items != null) this.#memory.importItems(JSON.parse(items));
     this.#hydrated = true;
+  }
+
+  #itemsKey(): string {
+    return this.#storageKey === BROWSER_WORLD_STORAGE_KEY
+      ? BROWSER_ITEMS_STORAGE_KEY
+      : `${this.#storageKey}:items`;
+  }
+
+  async readInventoryLots(worldId: number) {
+    await this.#ready;
+    return this.#memory.readInventoryLots(worldId);
+  }
+
+  async readInfluenceAccounts(worldId: number) {
+    await this.#ready;
+    return this.#memory.readInfluenceAccounts(worldId);
+  }
+
+  async commitItems(change: ItemChange) {
+    await this.#ready;
+    await this.#memory.commitItems(change);
+    await this.#store.set(
+      this.#itemsKey(),
+      JSON.stringify(this.#memory.exportItems()),
+    );
   }
 
   async #persist(): Promise<void> {

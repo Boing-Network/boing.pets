@@ -23,6 +23,7 @@ import {
   MP_PROTOCOL_VERSION,
   type HostToClient,
   type PlayerPresence,
+  type SessionNotice,
   type SessionRole,
   type WalletProof,
   MARKET_CATALOG_PATH,
@@ -342,8 +343,7 @@ export async function listenSharedWorldWs(
   function notice(
     socket: WebSocket,
     state: SocketState,
-    code:
-      "not_owner" | "rate_limited" | "influence_rejected" | "invalid_message",
+    code: SessionNotice["code"],
     detail: string,
   ): void {
     deliver(socket, state, {

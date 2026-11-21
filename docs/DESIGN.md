@@ -395,6 +395,40 @@ Both verbs count against the existing 3-per-24h influence budget. Worlds with
 no item influences step exactly as before. Schema migration
 `20261123090000_items_slice` only adds enum values (`ADD VALUE IF NOT EXISTS`).
 
+### Items on the host (M22, slice 2: `apps/sim-host/src/items/`)
+
+- **Inventory** is off-chain: `inventory_lot` rows (migration
+  `20261123100000_inventory`, new tables only). Lots are keyed by source
+  (`gather:<influenceId>`, `craft:<lotId>`, `mint:<assetMintKey>`) so every
+  write is idempotent. Resources spoil 3–7 days after gathering and tools 7
+  days after crafting, counted in sim ticks. Debits take the soonest-spoiling
+  lot first.
+- **Who can hold items**: wallet accounts and the local single-player account.
+  Guests cannot gather, craft or use (anti-farming, like rewards).
+- **Gather** grants units at accept time with the kernel's `gatherYield`; the
+  client cannot choose the resource or the yield. Gather and use-item are
+  influences, so they share the 3-per-24h budget. **Crafting** is a host
+  command (`item.craft`), not an influence, and costs no budget.
+- **LPIT rewards** (Vitality, Calm, Rations) are mirrored into the bag from
+  their asset mint rows at boot and after each reward, whatever their mint
+  status (rows marked FAILED before the LPIT collection existed included).
+  Using one debits the off-chain lot; the on-chain LPIT balance is **not
+  burned** (see slice 3), so usage is tracked in the DB. Boot also kicks a
+  mint drain so FAILED rows retry once `LIVING_PETS_BOING_ITEM_COLLECTION_HEX`
+  is set.
+- **Relics** are LPAR NFTs, not lots. A lineage's first non-founder birth
+  mints its First Child relic (`relic:first-child:<lineage>`, serial
+  lineage×4+2) and its first death its Remembrance relic
+  (`relic:remembrance:<lineage>`, serial lineage×4+3, the GRIEF
+  commemorative). Recipient: the trigger creature's on-chain owner (read with
+  `owner_of`); if the operator holds it or it was never minted, the lineage's
+  top favor-giver from `influence_account` (most favors, then earliest, then
+  account id); otherwise the operator. Honoring a relic (USE_ITEM) needs the
+  wallet to hold it and works once per 7 days per relic.
+- `influence_account` records which account issued each accepted influence
+  (favor ranking, relic cooldowns, item-use audit). It starts empty on the
+  live world; earlier favors are not attributed.
+
 ## Time controls (`apps/sim-host/src/clock.ts`, `hud/ClockControls.tsx`)
 
 - **Pause:** freezes stepping. While paused, `clockAt` snaps forward (at most

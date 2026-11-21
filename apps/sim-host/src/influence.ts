@@ -2,10 +2,15 @@
  * Player influence submit path and wall-clock rate limit.
  * The kernel applies queued influences; this module never calls step().
  *
- * Players never write needs, genes, or territoryId directly — only the five
- * verbs, which become PlayerInfluence rows.
+ * Players never write needs, genes, or territoryId directly — only the
+ * influence verbs (five, plus M22 gather and use-item), which become
+ * PlayerInfluence rows.
  */
-import { InfluenceKind, type InfluenceSubmit } from "@boing-pets/contract";
+import {
+  InfluenceKind,
+  itemDef,
+  type InfluenceSubmit,
+} from "@boing-pets/contract";
 import type { PlayerInfluenceRow } from "@boing-pets/sim";
 import { LOCAL_ACCOUNT_ID } from "./multiplayer/account";
 import type { WorldRepository } from "./persist/repository";
@@ -108,11 +113,26 @@ function assertValidSubmit(
       if (!territory) throw new Error("territory");
       break;
     }
-    case InfluenceKind.GATHER_RESOURCE:
-    case InfluenceKind.USE_ITEM:
-      // Inventory lands with the DB/server item PR; until then the kernel
-      // supports these verbs but the host does not accept them.
-      throw new Error("items not enabled");
+    case InfluenceKind.GATHER_RESOURCE: {
+      // Units are granted by the item service (items/service.ts) before this.
+      const territory = session.snapshot.territories.find(
+        (row) => row.id === submit.payload.territoryId,
+      );
+      if (!territory) throw new Error("territory");
+      if (
+        !Number.isSafeInteger(submit.payload.units) ||
+        submit.payload.units < 1
+      ) {
+        throw new Error("units");
+      }
+      break;
+    }
+    case InfluenceKind.USE_ITEM: {
+      // Ownership and balance are checked by the item service; here only shape.
+      const def = itemDef(submit.payload.item);
+      if (!def || !def.effect) throw new Error("item");
+      break;
+    }
     default: {
       const never: never = submit;
       throw new Error(`kind ${String(never)}`);

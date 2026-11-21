@@ -132,9 +132,13 @@ export {
   recipeFor,
   resourceForTerritory,
   type GatherResourcePayload,
+  type InventoryEntry,
+  type InventoryView,
+  type ItemCraft,
   type ItemDef,
   type ItemEffect,
   type Recipe,
+  type RelicHolding,
   type UseItemPayload,
 } from "./items";
 

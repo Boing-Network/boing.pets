@@ -30,6 +30,7 @@ import {
   type ClientEmit,
   type ClientRegistry,
 } from "./client-registry";
+import type { RelicChain } from "../items/relics";
 
 export type SharedWorldHostOptions = {
   repository: WorldRepository;
@@ -37,6 +38,8 @@ export type SharedWorldHostOptions = {
   nowMs?: () => number;
   autoFrame?: boolean;
   mintEdge?: MintEdge;
+  /** M22: on-chain owner reads for relics. */
+  relicChain?: RelicChain | null;
   /**
    * Optional outer emit (logging / metrics). Fan-out to clients is separate.
    */
@@ -91,6 +94,7 @@ export function createSharedWorldHost(
     nowMs,
     autoFrame: options.autoFrame,
     mintEdge: options.mintEdge,
+    relicChain: options.relicChain ?? null,
     preferPatches: true,
     initialScale: options.initialScale,
     emit(message) {
@@ -233,7 +237,7 @@ export function createSharedWorldHost(
     async handleQuery(sessionId, message) {
       const client = clients.get(sessionId);
       if (client == null) throw new Error("session not joined");
-      return runtime.handleQuery(message);
+      return runtime.handleQuery(message, { accountId: client.accountId });
     },
 
     async quit() {

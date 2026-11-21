@@ -5,6 +5,11 @@
 import type { AssetMintLinkRow } from "../boing/asset-mint-link";
 import type { CreatureNftLinkRow } from "../boing/nft-link";
 import type {
+  InfluenceAccountRow,
+  InventoryLotRow,
+  ItemChange,
+} from "../items/types";
+import type {
   CommitBatch,
   DurableTables,
   PersistedHostClock,
@@ -39,6 +44,65 @@ function assertExplicitIds<T extends { id: number }>(
 
 export class MemoryWorldRepository implements WorldRepository {
   #tables: DurableTables | null = null;
+  #lots: InventoryLotRow[] = [];
+  #influenceAccounts: InfluenceAccountRow[] = [];
+
+  async readInventoryLots(worldId: number): Promise<InventoryLotRow[]> {
+    return clone(this.#lots.filter((row) => row.worldId === worldId)).sort(
+      (a, b) => a.id - b.id,
+    );
+  }
+
+  async readInfluenceAccounts(worldId: number): Promise<InfluenceAccountRow[]> {
+    return clone(
+      this.#influenceAccounts.filter((row) => row.worldId === worldId),
+    ).sort((a, b) => a.influenceId - b.influenceId);
+  }
+
+  async commitItems(change: ItemChange): Promise<void> {
+    const lots = clone(this.#lots);
+    for (const row of change.upsertLots) {
+      if (row.remaining < 0 || row.remaining > row.amount) {
+        throw new Error("inventory_lot_remaining_range");
+      }
+      const idx = lots.findIndex(
+        (lot) => lot.worldId === row.worldId && lot.sourceKey === row.sourceKey,
+      );
+      if (idx >= 0) {
+        const existing = lots[idx];
+        if (existing == null) throw new Error("lot");
+        lots[idx] = { ...clone(row), id: existing.id };
+      } else {
+        if (lots.some((lot) => lot.id === row.id)) {
+          throw new Error(`duplicate lot id ${row.id}`);
+        }
+        lots.push(clone(row));
+      }
+    }
+    const accounts = clone(this.#influenceAccounts);
+    for (const row of change.insertInfluenceAccounts) {
+      if (accounts.some((a) => a.influenceId === row.influenceId)) continue;
+      accounts.push(clone(row));
+    }
+    this.#lots = lots;
+    this.#influenceAccounts = accounts;
+  }
+
+  /** Browser persistence: export and restore the item side tables. */
+  exportItems(): { lots: InventoryLotRow[]; accounts: InfluenceAccountRow[] } {
+    return {
+      lots: clone(this.#lots),
+      accounts: clone(this.#influenceAccounts),
+    };
+  }
+
+  importItems(data: {
+    lots?: InventoryLotRow[];
+    accounts?: InfluenceAccountRow[];
+  }): void {
+    this.#lots = clone(data.lots ?? []);
+    this.#influenceAccounts = clone(data.accounts ?? []);
+  }
 
   async readTables(): Promise<DurableTables | null> {
     return this.#tables == null ? null : clone(this.#tables);
