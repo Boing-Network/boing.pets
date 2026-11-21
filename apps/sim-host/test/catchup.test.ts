@@ -76,6 +76,7 @@ test("host catch-up of 1,440 ticks matches 1,440 single steps and report counts"
   assert.equal(report.summary.matings, goldSummary.matings);
   assert.equal(report.summary.migrations, goldSummary.migrations);
   assert.equal(report.summary.discoveries, goldSummary.discoveries);
+  assert.equal(report.summary.items, goldSummary.items);
   assert.deepEqual(report.summary.notable, goldSummary.notable);
 
   const kindTotal =
@@ -83,7 +84,8 @@ test("host catch-up of 1,440 ticks matches 1,440 single steps and report counts"
     report.summary.deaths +
     report.summary.matings +
     report.summary.migrations +
-    report.summary.discoveries;
+    report.summary.discoveries +
+    (report.summary.items ?? 0);
   assert.equal(kindTotal, goldEvents.length);
 
   // Batch commits every catchupBatchTicks (500) plus the final commit.

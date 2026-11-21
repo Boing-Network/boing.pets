@@ -15,6 +15,11 @@ export const MARKET_LISTINGS_PATH = "/market/v1/listings";
  * wallet's tradable balances and its own listings.
  */
 export const MARKET_ITEMS_PATH = "/market/v1/items";
+/** POST: ask for a one-time mint message to sign (see MarketMintChallenge). */
+export const MARKET_ITEMS_MINT_CHALLENGE_PATH =
+  "/market/v1/items/mint/challenge";
+/** POST: redeem a signed mint message; the operator mints the units. */
+export const MARKET_ITEMS_MINT_PATH = "/market/v1/items/mint";
 
 export type MarketAssetKind = "CREATURE" | "LINEAGE" | "ITEM";
 
@@ -170,13 +175,63 @@ export type MarketItemHolding = {
   name: string;
   /** LPIT balance in the wallet (chain). */
   chain: number | null;
-  /** Unused units in the world inventory (DB). */
+  /** Minted units still unused in the world inventory (DB): the backing. */
   usable: number;
   /** min(chain, usable): what can be listed. */
   tradable: number;
   /** Units in this wallet's open listings. */
   listed: number;
+  /**
+   * Units in the world inventory that are not minted yet (looted, crafted or
+   * earned). Mint turns them into LPIT in this wallet. Absent on servers
+   * without mint on demand.
+   */
+  unminted?: number;
+  /** Units with a mint requested that has not confirmed on chain yet. */
+  minting?: number;
 };
+
+/** Mint-on-demand terms the server enforces. */
+export type MarketMintInfo = {
+  enabled: boolean;
+  minQty: number;
+  maxQty: number;
+  maxRequestsPerDay: number;
+  /** Requests this wallet has left in the rolling 24 hours (null: no wallet). */
+  requestsLeft: number | null;
+  note: string;
+};
+
+export type MarketMintChallengeRequest = {
+  wallet: string;
+  itemSlug: string;
+  qty: number;
+};
+
+/** The exact message Boing Express signs (`boing_signMessage`). */
+export type MarketMintChallenge = {
+  nonce: string;
+  message: string;
+  expiresAt: number;
+};
+
+export type MarketMintRequest = {
+  wallet: string;
+  nonce: string;
+  signature: string;
+};
+
+export type MarketMintResult =
+  | {
+      ok: true;
+      mintKey: string;
+      itemSlug: string;
+      itemId: number;
+      qty: number;
+      /** Mint row status right after queueing (PENDING / SUBMITTED / ...). */
+      status: string;
+    }
+  | { ok: false; error: string };
 
 export type MarketItemsResponse = {
   v: typeof MARKET_API_VERSION;
@@ -190,4 +245,6 @@ export type MarketItemsResponse = {
   note: string;
   listings: MarketItemListing[];
   wallet: { hex: string; holdings: MarketItemHolding[] } | null;
+  /** Mint on demand (absent on older servers). */
+  mint?: MarketMintInfo;
 };

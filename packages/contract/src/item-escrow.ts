@@ -38,6 +38,13 @@ export const LPIT_ITEM_IDS: Readonly<Record<string, number>> = {
   [ItemSlug.POTION_VITALITY]: 1,
   [ItemSlug.POTION_CALM]: 2,
   [ItemSlug.RATIONS]: 3,
+  // Mint on demand: looted resources and crafted tools.
+  [ItemSlug.CLOVER]: 4,
+  [ItemSlug.GLOWMOSS]: 5,
+  [ItemSlug.CRYSTAL_SHARD]: 6,
+  [ItemSlug.MOONPETAL]: 7,
+  [ItemSlug.SEED_BUNDLE]: 8,
+  [ItemSlug.SALT_LICK]: 9,
 };
 
 export function lpitItemId(slug: string): number | null {

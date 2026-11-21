@@ -131,6 +131,22 @@ export function validateCommand(raw: unknown): Validated<ClientToHost> {
         ? { ok: true, value: { message: "item.craft", body: { output } } }
         : { ok: false, reason: "invalid recipe" };
     }
+    case "item.autonomy": {
+      if (!isRecord(body)) return { ok: false, reason: "invalid settings" };
+      const out: { autoCraft?: boolean; autoUse?: boolean } = {};
+      for (const key of ["autoCraft", "autoUse"] as const) {
+        const value = body[key];
+        if (value === undefined) continue;
+        if (typeof value !== "boolean") {
+          return { ok: false, reason: "invalid settings" };
+        }
+        out[key] = value;
+      }
+      if (out.autoCraft === undefined && out.autoUse === undefined) {
+        return { ok: false, reason: "invalid settings" };
+      }
+      return { ok: true, value: { message: "item.autonomy", body: out } };
+    }
     case "influence.submit": {
       const clean = influence(body);
       return clean

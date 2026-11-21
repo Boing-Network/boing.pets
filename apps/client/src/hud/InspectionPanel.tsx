@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CreatureStatus,
   type CreatureView,
   type FamilyQueryResult,
   type RelationshipView,
+  type WorldEventView,
 } from "@boing-pets/contract";
+import { creatureActivity, tickClock } from "./activity";
 import type { IpcClient } from "../api/ipc";
 import { speciesLabel } from "../view/species-skins";
 import { useUiStore } from "../state/uiStore";
@@ -74,6 +76,48 @@ export function InspectionPanel({ ipc }: Props) {
 
   const creature =
     view?.creatures.find((row) => row.id === selectedCreatureId) ?? null;
+
+  // Item activity: durable history (query.events) plus live patch events.
+  const [history, setHistory] = useState<WorldEventView[]>([]);
+  const worldId = view?.world.id ?? null;
+  const lastTick = view?.world.lastTick ?? 0;
+  const ticksPerDay = 144;
+  const historyBucket = Math.floor(lastTick / 36);
+  useEffect(() => {
+    if (selectedCreatureId == null || worldId == null) {
+      setHistory([]);
+      return;
+    }
+    let cancelled = false;
+    const toTick = Math.max(0, historyBucket * 36 + 36);
+    void ipc
+      .query({
+        message: "query.events",
+        body: {
+          worldId,
+          fromTick: Math.max(0, toTick - 2 * ticksPerDay),
+          toTick,
+          limit: 500,
+        },
+      })
+      .then((result) => {
+        if (cancelled || result.message !== "query.events") return;
+        setHistory(result.body.events);
+      })
+      .catch(() => {
+        // Older hosts or a busy writer: live events still show.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ipc, selectedCreatureId, worldId, historyBucket]);
+  const activity = useMemo(() => {
+    if (selectedCreatureId == null) return [];
+    const byId = new Map<number, WorldEventView>();
+    for (const event of history) byId.set(event.id, event);
+    for (const event of view?.events ?? []) byId.set(event.id, event);
+    return creatureActivity(byId.values(), selectedCreatureId);
+  }, [history, view?.events, selectedCreatureId]);
 
   useEffect(() => {
     if (selectedCreatureId == null) {
@@ -183,6 +227,24 @@ export function InspectionPanel({ ipc }: Props) {
       <section className="inspect-section">
         <h3>Goal</h3>
         <p className="inspect-goal">{creature.currentGoal}</p>
+      </section>
+
+      <section className="inspect-section">
+        <h3>Activity</h3>
+        {activity.length === 0 ? (
+          <p className="inspect-empty">
+            Nothing found, crafted or eaten lately.
+          </p>
+        ) : (
+          <ul className="inspect-activity">
+            {activity.map((line) => (
+              <li key={line.id}>
+                <time>{tickClock(line.tick, ticksPerDay)}</time>
+                {line.text}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="inspect-section">

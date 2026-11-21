@@ -28,18 +28,45 @@ export function spoilTick(
   return tick + def.spoilDays * ticksPerDay;
 }
 
+/** Which lots count: every lot, only on-chain (minted) ones, or only off-chain. */
+export type MintFilter = "any" | "minted" | "unminted";
+
+export function lotMatches(lot: InventoryLotRow, which: MintFilter): boolean {
+  if (which === "any") return true;
+  return (lot.minted === true) === (which === "minted");
+}
+
 export function balanceOf(
   lots: readonly InventoryLotRow[],
   accountId: string,
   slug: string,
   tick: number,
+  which: MintFilter = "any",
 ): number {
   let total = 0;
   for (const lot of lots) {
     if (lot.accountId !== accountId || lot.itemSlug !== slug) continue;
+    if (!lotMatches(lot, which)) continue;
     if (lotLive(lot, tick)) total += lot.remaining;
   }
   return total;
+}
+
+/** Every live unit per slug for one account, filtered by mint state. */
+export function bagUnits(
+  lots: readonly InventoryLotRow[],
+  accountId: string,
+  tick: number,
+  which: MintFilter = "any",
+): Map<ItemSlug, number> {
+  const out = new Map<ItemSlug, number>();
+  for (const lot of lots) {
+    if (lot.accountId !== accountId || !lotMatches(lot, which)) continue;
+    if (!lotLive(lot, tick)) continue;
+    const slug = lot.itemSlug as ItemSlug;
+    out.set(slug, (out.get(slug) ?? 0) + lot.remaining);
+  }
+  return out;
 }
 
 /** Catalog-ordered stacks with a positive live balance. */
@@ -51,11 +78,13 @@ export function inventoryEntries(
   const out: InventoryEntry[] = [];
   for (const def of ITEM_CATALOG) {
     let count = 0;
+    let minted = 0;
     let nextSpoilTick: number | null = null;
     for (const lot of lots) {
       if (lot.accountId !== accountId || lot.itemSlug !== def.slug) continue;
       if (!lotLive(lot, tick)) continue;
       count += lot.remaining;
+      if (lot.minted === true) minted += lot.remaining;
       if (
         lot.spoilsAtTick != null &&
         (nextSpoilTick == null || lot.spoilsAtTick < nextSpoilTick)
@@ -63,14 +92,24 @@ export function inventoryEntries(
         nextSpoilTick = lot.spoilsAtTick;
       }
     }
-    if (count > 0) out.push({ slug: def.slug, count, nextSpoilTick });
+    if (count > 0) {
+      out.push({ slug: def.slug, count, minted, nextSpoilTick });
+    }
   }
   return out;
 }
 
+export type DebitOptions = {
+  /** Only take lots in this mint state (default: any). */
+  only?: MintFilter;
+  /** Take lots in this mint state first, then the rest. */
+  prefer?: "minted" | "unminted";
+};
+
 /**
  * Take `count` of `slug`, soonest-spoiling first (never-spoiling last), ties
- * by lot id. Returns the changed lots, or null when the balance is short.
+ * by lot id; `prefer` puts one mint state ahead of that order and `only`
+ * restricts to it. Returns the changed lots, or null when the balance is short.
  */
 export function planDebit(
   lots: readonly InventoryLotRow[],
@@ -79,16 +118,24 @@ export function planDebit(
   count: number,
   tick: number,
   nowMs: number,
+  options: DebitOptions = {},
 ): InventoryLotRow[] | null {
   if (!(count > 0)) return [];
+  const only = options.only ?? "any";
+  const rank = (lot: InventoryLotRow): number =>
+    options.prefer == null || lotMatches(lot, options.prefer) ? 0 : 1;
   const live = lots
     .filter(
       (lot) =>
         lot.accountId === accountId &&
         lot.itemSlug === slug &&
+        lotMatches(lot, only) &&
         lotLive(lot, tick),
     )
     .sort((a, b) => {
+      const ra = rank(a);
+      const rb = rank(b);
+      if (ra !== rb) return ra - rb;
       const sa = a.spoilsAtTick ?? Number.MAX_SAFE_INTEGER;
       const sb = b.spoilsAtTick ?? Number.MAX_SAFE_INTEGER;
       return sa !== sb ? sa - sb : a.id - b.id;
@@ -128,8 +175,9 @@ export function nextLotId(lots: readonly InventoryLotRow[]): number {
 }
 
 /**
- * Craft one `output`: debit every input, then add a fresh lot keyed
- * `craft:<lotId>`. Null when the recipe is unknown or inputs are short.
+ * Craft one `output`: debit every input (off-chain units first unless `debit`
+ * says otherwise), then add a fresh unminted lot keyed `craft:<lotId>` (or
+ * `sourceKey`). Null when the recipe is unknown or inputs are short.
  */
 export function planCraft(input: {
   lots: readonly InventoryLotRow[];
@@ -139,6 +187,8 @@ export function planCraft(input: {
   tick: number;
   ticksPerDay: number;
   nowMs: number;
+  debit?: DebitOptions;
+  sourceKey?: string;
 }): InventoryLotRow[] | null {
   const recipe = recipeFor(input.output);
   if (recipe == null) return null;
@@ -152,6 +202,7 @@ export function planCraft(input: {
       need.count,
       input.tick,
       input.nowMs,
+      input.debit ?? { prefer: "unminted" },
     );
     if (debit == null) return null;
     working = mergeLots(working, debit);
@@ -166,12 +217,13 @@ export function planCraft(input: {
     id,
     worldId: input.worldId,
     accountId: input.accountId,
-    sourceKey: `craft:${id}`,
+    sourceKey: input.sourceKey ?? `craft:${id}`,
     itemSlug: recipe.output,
     amount: 1,
     remaining: 1,
     gainedTick: input.tick,
     spoilsAtTick: spoilTick(recipe.output, input.tick, input.ticksPerDay),
+    minted: false,
     createdAtMs: input.nowMs,
     updatedAtMs: input.nowMs,
   });

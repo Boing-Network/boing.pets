@@ -43,6 +43,7 @@ import type { AssetMintLinkRow } from "../boing/asset-mint-link";
 import type {
   InfluenceAccountRow,
   InventoryLotRow,
+  ItemAutonomyRow,
   ItemChange,
 } from "../items/types";
 import type { CreatureNftLinkRow } from "../boing/nft-link";
@@ -511,7 +512,21 @@ export class PrismaWorldRepository implements WorldRepository {
       remaining: row.remaining,
       gainedTick: Number(row.gainedTick),
       spoilsAtTick: row.spoilsAtTick == null ? null : Number(row.spoilsAtTick),
+      minted: row.minted,
       createdAtMs: row.createdAt.getTime(),
+      updatedAtMs: row.updatedAt.getTime(),
+    }));
+  }
+
+  async readItemAutonomy(worldId: number): Promise<ItemAutonomyRow[]> {
+    const rows = await this.#client.itemAutonomy.findMany({
+      where: { worldId: BigInt(worldId) },
+    });
+    return rows.map((row) => ({
+      worldId: Number(row.worldId),
+      accountId: row.accountId,
+      autoCraft: row.autoCraft,
+      autoUse: row.autoUse,
       updatedAtMs: row.updatedAt.getTime(),
     }));
   }
@@ -554,6 +569,7 @@ export class PrismaWorldRepository implements WorldRepository {
             gainedTick: BigInt(row.gainedTick),
             spoilsAtTick:
               row.spoilsAtTick == null ? null : BigInt(row.spoilsAtTick),
+            minted: row.minted === true,
             createdAt: new Date(row.createdAtMs),
             updatedAt: new Date(row.updatedAtMs),
           },
@@ -577,6 +593,28 @@ export class PrismaWorldRepository implements WorldRepository {
             acceptedAt: new Date(row.acceptedAtMs),
           })),
           skipDuplicates: true,
+        });
+      }
+      for (const row of change.upsertAutonomy ?? []) {
+        await tx.itemAutonomy.upsert({
+          where: {
+            worldId_accountId: {
+              worldId: BigInt(row.worldId),
+              accountId: row.accountId,
+            },
+          },
+          create: {
+            worldId: BigInt(row.worldId),
+            accountId: row.accountId,
+            autoCraft: row.autoCraft,
+            autoUse: row.autoUse,
+            updatedAt: new Date(row.updatedAtMs),
+          },
+          update: {
+            autoCraft: row.autoCraft,
+            autoUse: row.autoUse,
+            updatedAt: new Date(row.updatedAtMs),
+          },
         });
       }
     });

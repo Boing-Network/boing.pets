@@ -30,6 +30,19 @@ export function itemsUrl(
   return `${base}${MARKET_ITEMS_PATH}${q}`;
 }
 
+/** A market POST endpoint (mint on demand) on the same server as the catalog. */
+export function marketPostUrl(
+  search: string,
+  envMpUrl: string | undefined,
+  path: string,
+): string {
+  const base = catalogUrl(search, envMpUrl).slice(
+    0,
+    -MARKET_CATALOG_PATH.length,
+  );
+  return `${base}${path}`;
+}
+
 export function toHttpBase(raw: string | null | undefined): string | null {
   if (raw == null || raw.trim() === "") return null;
   let url: URL;

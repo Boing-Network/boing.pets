@@ -84,6 +84,10 @@ function assertSummaryMatchesEvents(
     summary.discoveries,
     events.filter((e) => e.kind === EventKind.DISCOVERY).length,
   );
+  assert.equal(
+    summary.items,
+    events.filter((e) => e.kind === EventKind.ITEM).length,
+  );
   assert.ok(summary.notable.length <= 10);
   for (const notable of summary.notable) {
     const match = events.find((event) => event.id === notable.eventId);
@@ -132,7 +136,8 @@ test("CatchupSummary counts match gap events and notable stays at most 10", () =
       summary.deaths +
       summary.matings +
       summary.migrations +
-      summary.discoveries,
+      summary.discoveries +
+      (summary.items ?? 0),
     events.length,
   );
 });

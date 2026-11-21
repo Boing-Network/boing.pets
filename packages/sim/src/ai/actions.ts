@@ -13,6 +13,7 @@ import {
 import { discoveryEvent, matingEvent, migrationEvent } from "../history/events";
 import { ageDays, die } from "../kernel/death";
 import type { TerritoryTick } from "../kernel/needs";
+import { lootAfterForage } from "../kernel/autonomy";
 import { settleScore } from "../kernel/territories";
 import {
   biologyFor,
@@ -983,7 +984,7 @@ export function resolveForage(
   actor: CreatureRow,
   tick: number,
   territories: ReadonlyMap<number, TerritoryTick>,
-): void {
+): boolean {
   const rules = snapshot.ruleset;
   const territory = territories.get(actor.territoryId);
   if (!territory) throw new Error("territory");
@@ -1025,10 +1026,11 @@ export function resolveForage(
       [MemoryTag.FOOD_INSECURITY],
       "threat.food.v1",
     );
-    return;
+    return false;
   }
 
   maybeGiftAfterForage(snapshot, actor, tick, hungerBefore);
+  return true;
 }
 
 function pairHasRecentGift(
@@ -1415,8 +1417,9 @@ export function resolveFinishedAction(
     case Action.COURT:
       return resolveCourt(snapshot, creature, tick);
     case Action.FORAGE:
-      resolveForage(snapshot, creature, tick, territories);
-      return [];
+      return resolveForage(snapshot, creature, tick, territories)
+        ? lootAfterForage(snapshot, creature, tick, territories)
+        : [];
     case Action.DRINK:
       resolveDrink(snapshot, creature);
       return [];

@@ -205,6 +205,7 @@ function lpitLot(
     remaining,
     gainedTick: 0,
     spoilsAtTick: null,
+    minted: true,
     createdAtMs: 0,
     updatedAtMs: 0,
   };
@@ -325,6 +326,23 @@ test("reconcile: a listing seen only after it closed applies lock, fills and ret
   // Unknown item ids are ignored.
   const c = run(start, [listing({ itemId: 42 })]);
   assert.equal(c.changed.length, 0);
+});
+
+test("reconcile: only minted units back a listing; unminted ones stay in the bag", () => {
+  const calm = ItemSlug.POTION_CALM;
+  const start = [
+    { ...lpitLot(1, SELLER, calm, 3), minted: false, sourceKey: "loot:1" },
+    lpitLot(2, SELLER, calm, 1),
+  ];
+  const a = run(start, [listing({ itemId: 2, listed: 3, remaining: 3 })]);
+  assert.equal(a.status.get(1)?.backed, 1, "one minted unit backs it");
+  assert.equal(balanceOf(a.lots, SELLER, calm, 10, "unminted"), 3);
+  assert.equal(balanceOf(a.lots, SELLER, calm, 10, "minted"), 0);
+  assert.ok(
+    a.changed
+      .filter((row) => row.sourceKey.startsWith("ilist:"))
+      .every((row) => row.minted === true),
+  );
 });
 
 // -- runtime + index -----------------------------------------------------------------

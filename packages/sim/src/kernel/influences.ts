@@ -6,6 +6,8 @@ import {
   InfluenceKind,
   ModifierKind,
   type CalmTerritoryPayload,
+  type CreatureCraftPayload,
+  type CreatureUseItemPayload,
   type EnrichTerritoryPayload,
   type FavorBloodlinePayload,
   type GatherResourcePayload,
@@ -14,10 +16,12 @@ import {
   type UseItemPayload,
 } from "@boing-pets/contract";
 import { harvestModifierSpec, itemDef, resourceStock } from "./items";
+import { applyCreatureCraft, applyCreatureUse } from "./autonomy";
 import { assertInteger, clamp } from "../math";
 import type {
   PlayerInfluenceRow,
   TerritoryModifierRow,
+  WorldEvent,
   WorldSnapshot,
 } from "../types";
 
@@ -196,7 +200,8 @@ function applyOne(
   snapshot: WorldSnapshot,
   influence: PlayerInfluenceRow,
   tick: number,
-): void {
+): WorldEvent[] {
+  const events: WorldEvent[] = [];
   switch (influence.kind) {
     case InfluenceKind.NAME_CREATURE:
       applyNameCreature(snapshot, influence);
@@ -219,12 +224,53 @@ function applyOne(
     case InfluenceKind.USE_ITEM:
       applyUseItem(snapshot, influence, tick);
       break;
+    case InfluenceKind.CREATURE_USE_ITEM: {
+      const payload = influence.payload as CreatureUseItemPayload;
+      events.push(
+        ...applyCreatureUse(
+          snapshot,
+          {
+            creatureId: payload.creatureId,
+            item: payload.item,
+            influenceId: influence.id,
+          },
+          tick,
+          (territoryId, kind, amount, durationTicks) =>
+            appendModifier(
+              snapshot,
+              influence,
+              territoryId,
+              kind,
+              amount,
+              tick,
+              durationTicks,
+            ),
+        ),
+      );
+      break;
+    }
+    case InfluenceKind.CREATURE_CRAFT: {
+      const payload = influence.payload as CreatureCraftPayload;
+      events.push(
+        ...applyCreatureCraft(
+          snapshot,
+          {
+            creatureId: payload.creatureId,
+            output: payload.output,
+            influenceId: influence.id,
+          },
+          tick,
+        ),
+      );
+      break;
+    }
     default: {
       const never: never = influence.kind;
       throw new Error(`influence ${String(never)}`);
     }
   }
   influence.applied = true;
+  return events;
 }
 
 /**
@@ -254,11 +300,16 @@ export function decayLineageFavor(
  * Favor only touches lineage.playerFavor — never health, genes, or needs;
  * its effect is the forage bonus in `resolveForage` (see favorForageBonus).
  */
-export function applyInfluences(snapshot: WorldSnapshot, tick: number): void {
+export function applyInfluences(
+  snapshot: WorldSnapshot,
+  tick: number,
+): WorldEvent[] {
   const pending = [...snapshot.pendingInfluences]
     .filter((row) => !row.applied && row.issuedAtTick === tick)
     .sort((a, b) => a.id - b.id);
+  const events: WorldEvent[] = [];
   for (const influence of pending) {
-    applyOne(snapshot, influence, tick);
+    events.push(...applyOne(snapshot, influence, tick));
   }
+  return events;
 }

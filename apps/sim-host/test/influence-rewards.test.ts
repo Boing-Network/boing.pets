@@ -8,6 +8,7 @@ import {
   InfluenceKind,
   type HostToClient,
   type InfluenceSubmit,
+  type InventoryView,
 } from "@boing-pets/contract";
 import {
   artifactSerial,
@@ -149,6 +150,7 @@ test("each influence kind maps to one reward with a stable mint key", () => {
 async function startRuntime(
   mintEdge: ReturnType<typeof createMintEdge>,
   repository = new MemoryWorldRepository(),
+  itemRewardMode: "offchain" | "automint" = "automint",
 ) {
   const messages: HostToClient[] = [];
   const runtime = createHostRuntime({
@@ -157,6 +159,7 @@ async function startRuntime(
     nowMs: () => 9_000_000,
     autoFrame: false,
     mintEdge,
+    itemRewardMode,
     emit: (message) => messages.push(message),
   });
   await runtime.start();
@@ -177,7 +180,7 @@ async function submit(
   await new Promise((resolve) => setTimeout(resolve, 20));
 }
 
-test("landed influences mint to the player's wallet, never the operator", async () => {
+test("automint mode: landed influences mint to the player's wallet, never the operator", async () => {
   const client = recordingClient();
   const repository = new MemoryWorldRepository();
   const edge = createMintEdge(
@@ -253,5 +256,81 @@ test("minting off (the default): influences land and nothing is queued", async (
     `w:${"ab".repeat(32)}`,
   );
   assert.equal((await edge.listAssetLinks()).length, 0);
+  await runtime.quit();
+});
+
+test("off-chain first (the default): item rewards land unminted; the keeper mints on demand, once", async () => {
+  const client = recordingClient();
+  const repository = new MemoryWorldRepository();
+  const edge = createMintEdge(
+    config(),
+    client,
+    undefined,
+    createRepositoryAssetMintLinkStore(repository),
+  );
+  const { runtime } = await startRuntime(edge, repository, "offchain");
+  const snapshot = runtime.session.snapshot;
+  const territoryId = snapshot.territories[0]!.id;
+  const lineageId = snapshot.lineages[0]!.id;
+  const wallet = `w:${"ab".repeat(32)}`;
+  for (const kind of [
+    InfluenceKind.ENRICH_TERRITORY,
+    InfluenceKind.ENRICH_TERRITORY,
+  ] as const) {
+    await submit(runtime, { kind, payload: { territoryId } }, wallet);
+  }
+  await submit(
+    runtime,
+    { kind: InfluenceKind.NAME_LINEAGE, payload: { lineageId, name: "Ember" } },
+    wallet,
+  );
+  assert.equal(client.items.length, 0, "no item minted on reward");
+  assert.equal(client.artifacts.length, 1, "the keepsake still mints");
+
+  const items = runtime.items!;
+  const worldId = snapshot.world.id;
+  const rations = async () => {
+    const r = await runtime.handleQuery(
+      { message: "query.inventory", body: {} },
+      { accountId: wallet },
+    );
+    return (r.body as InventoryView).items.find(
+      (i) => i.slug === CompressedItemKind.RATIONS_PACK.slug,
+    );
+  };
+  assert.deepEqual(
+    { count: (await rations())?.count, minted: (await rations())?.minted },
+    { count: 2, minted: 0 },
+  );
+
+  const request = (qty: number) =>
+    items.requestMint({
+      worldId,
+      walletHex: WALLET,
+      slug: CompressedItemKind.RATIONS_PACK.slug,
+      qty,
+      tick: snapshot.world.lastTick,
+      nowMs: 9_000_000,
+    });
+  assert.equal((await request(3)).ok, false, "cannot mint more than held");
+  assert.equal((await request(0)).ok, false, "at least one");
+  const first = await request(2);
+  assert.equal(first.ok, true);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(client.items.length, 1, "one LPIT mint for the claim");
+  assert.equal(client.items[0]!.toHex.toLowerCase(), WALLET);
+  assert.equal(client.items[0]!.amount, 2);
+  assert.deepEqual(
+    { count: (await rations())?.count, minted: (await rations())?.minted },
+    { count: 2, minted: 2 },
+    "same units, now minted",
+  );
+  assert.equal((await request(1)).ok, false, "nothing unminted is left");
+  // The reward mirror never double-counts the claim.
+  await items.syncRewardLots(worldId, snapshot.world.lastTick, 9_000_000);
+  assert.equal((await rations())?.count, 2);
+  const info = await items.mintInfo(worldId, WALLET, 9_000_000);
+  assert.equal(info.enabled, true);
+  assert.equal(info.requestsLeft, 2);
   await runtime.quit();
 });

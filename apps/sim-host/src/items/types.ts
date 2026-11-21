@@ -7,14 +7,33 @@ export type InventoryLotRow = {
   id: number;
   worldId: number;
   accountId: string;
-  /** Idempotency key within the world (gather:<id>, craft:<lotId>, mint:<key>). */
+  /**
+   * Idempotency key within the world: gather:<influenceId>, craft:<lotId>,
+   * mint:<assetMintKey>, reward:<assetMintKey>, loot:<eventId>,
+   * acraft:<influenceId>, ilist / ibuy / iret (item escrow).
+   */
   sourceKey: string;
   itemSlug: string;
   amount: number;
   remaining: number;
   gainedTick: number;
   spoilsAtTick: number | null;
+  /**
+   * The units exist as LPIT on chain (reward mint, mint on demand, or item
+   * escrow lock / fill / return). Creatures never use minted units. Absent
+   * means false. Set when the lot is created; never changes.
+   */
+  minted?: boolean;
   createdAtMs: number;
+  updatedAtMs: number;
+};
+
+/** Per keeper autonomy toggles (no row: both on). */
+export type ItemAutonomyRow = {
+  worldId: number;
+  accountId: string;
+  autoCraft: boolean;
+  autoUse: boolean;
   updatedAtMs: number;
 };
 
@@ -34,12 +53,15 @@ export type ItemChange = {
   upsertLots: InventoryLotRow[];
   /** Insert-if-absent by influenceId. */
   insertInfluenceAccounts: InfluenceAccountRow[];
+  /** Upsert by (worldId, accountId). */
+  upsertAutonomy?: ItemAutonomyRow[];
 };
 
 /** Optional repository seam (memory, browser, Prisma). */
 export type ItemStore = {
   readInventoryLots(worldId: number): Promise<InventoryLotRow[]>;
   readInfluenceAccounts(worldId: number): Promise<InfluenceAccountRow[]>;
+  readItemAutonomy?(worldId: number): Promise<ItemAutonomyRow[]>;
   /** One transaction. */
   commitItems(change: ItemChange): Promise<void>;
 };

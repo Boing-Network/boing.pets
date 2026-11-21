@@ -12,19 +12,38 @@
  *   burned (see docs/DESIGN.md "Items"): usage is tracked in the DB.
  * - Relics are LPAR NFTs, never lots. Honoring one needs the account's wallet
  *   to hold it and is limited to once per 7 days per relic.
+ * - Creature autonomy (items/autonomy.ts): creatures loot, craft and use on
+ *   their own. Loot lots are credited after the tick commits; crafts and uses
+ *   are CREATURE_* influences that cost the keeper no budget and only ever
+ *   take unminted, unlisted units.
+ * - Mint on demand: items live off chain until the keeper mints them from
+ *   the marketplace (`requestMint`); minted lots back item listings.
  */
 import {
+  AUTONOMY_RULES,
+  DEFAULT_ITEM_AUTONOMY,
   GATHER_RULES,
   InfluenceKind,
   ItemCategory,
+  MINT_RULES,
   isItemSlug,
   itemDef,
+  lpitItemId,
   type InfluenceSubmit,
   type InventoryView,
+  type ItemAutonomyCommand,
+  type ItemAutonomySettings,
   type ItemSlug,
+  type MarketMintInfo,
   type RelicHolding,
+  type SystemInfluence,
+  type WorldEventView,
 } from "@boing-pets/contract";
-import { gatherYield, resourceStock } from "@boing-pets/sim";
+import {
+  gatherYield,
+  planCreatureAutonomy,
+  resourceStock,
+} from "@boing-pets/sim";
 import type { AssetMintLinkRow } from "../boing/asset-mint-link";
 import { walletFromAccountId } from "../boing/influence-rewards";
 import { AssetMintClass } from "../boing/taxonomy";
@@ -39,6 +58,7 @@ import {
   planCraft,
   planDebit,
   spoilTick,
+  type MintFilter,
 } from "./inventory";
 import {
   ARTIFACT_RELIC_SLUG,
@@ -50,7 +70,20 @@ import {
   type ChainItemListing,
   type ItemListingStatus,
 } from "./escrow-reconcile";
-import type { InfluenceAccountRow, InventoryLotRow } from "./types";
+import {
+  autonomyBags,
+  planAutonomyInventory,
+  planLootCredits,
+  usesLast24h,
+  type AppliedIntent,
+  type CreatureOwnerOf,
+} from "./autonomy";
+import type { CompressedItemMintJob } from "../boing/types";
+import type {
+  InfluenceAccountRow,
+  InventoryLotRow,
+  ItemAutonomyRow,
+} from "./types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -59,6 +92,12 @@ export type ItemCheck =
 
 export type CraftResult =
   { ok: true; lotId: number } | { ok: false; detail: string };
+
+export type MintRequestResult =
+  { ok: true; mintKey: string; qty: number } | { ok: false; detail: string };
+
+/** Mint key prefix for mint-on-demand claims (`claim:<lotId>`). */
+export const CLAIM_MINT_PREFIX = "claim:";
 
 export function canHoldItems(accountId: string): boolean {
   return (
@@ -78,6 +117,14 @@ export function createItemService(options: {
   assetLinks: () => Promise<readonly AssetMintLinkRow[]>;
   /** On-chain owner reads for relics; null trusts the mint recipient. */
   chain?: RelicChain | null;
+  /**
+   * Queue an LPIT mint through the operator's nonce queue (mint on demand).
+   * Absent or disabled: minting is unavailable.
+   */
+  mint?: {
+    enabled: boolean;
+    queue: (job: CompressedItemMintJob) => Promise<void>;
+  } | null;
 }) {
   const repo = options.repository;
   const enabled =
@@ -102,6 +149,37 @@ export function createItemService(options: {
     return repo.readInfluenceAccounts
       ? repo.readInfluenceAccounts(worldId)
       : [];
+  }
+
+  async function autonomyRows(worldId: number): Promise<ItemAutonomyRow[]> {
+    return repo.readItemAutonomy ? repo.readItemAutonomy(worldId) : [];
+  }
+
+  function settingsFrom(
+    rows: readonly ItemAutonomyRow[],
+    accountId: string,
+  ): ItemAutonomySettings {
+    const row = rows.find((r) => r.accountId === accountId);
+    return row == null
+      ? { ...DEFAULT_ITEM_AUTONOMY }
+      : { autoCraft: row.autoCraft, autoUse: row.autoUse };
+  }
+
+  /** Recent mint-on-demand claims by one wallet (rate limit). */
+  async function recentClaims(
+    worldId: number,
+    walletHex: string,
+    nowMs: number,
+  ): Promise<number> {
+    let n = 0;
+    for (const link of await options.assetLinks()) {
+      if (link.worldId !== worldId) continue;
+      if (link.tokenClass !== AssetMintClass.COMPRESSED_ITEM) continue;
+      if (!link.mintKey.startsWith(CLAIM_MINT_PREFIX)) continue;
+      if (!sameHex(link.recipientHex, walletHex)) continue;
+      if (nowMs - link.createdAtMs < DAY_MS) n += 1;
+    }
+    return n;
   }
 
   /** Relic artifacts currently held by the account's wallet. */
@@ -182,6 +260,7 @@ export function createItemService(options: {
         remaining: amount,
         gainedTick: tick,
         spoilsAtTick: null,
+        minted: true,
         createdAtMs: nowMs,
         updatedAtMs: nowMs,
       });
@@ -239,14 +318,72 @@ export function createItemService(options: {
       });
     },
 
-    /** Usable (unused, unspoiled) units of one item for an account. */
+    /**
+     * Usable (unused, unspoiled) units of one item for an account; `which`
+     * narrows to minted (the market backing) or unminted units.
+     */
     async usableUnits(
       worldId: number,
       accountId: string,
       slug: string,
       tick: number,
+      which: MintFilter = "any",
     ): Promise<number> {
-      return balanceOf(await lots(worldId), accountId, slug, tick);
+      return balanceOf(await lots(worldId), accountId, slug, tick, which);
+    },
+
+    /** Unminted units a wallet can mint, and units it is minting now. */
+    async offchainUnits(
+      worldId: number,
+      walletHex: string,
+      slug: string,
+      tick: number,
+    ): Promise<{ unminted: number; minting: number }> {
+      const accountId = `w:${walletHex.replace(/^0x/i, "").toLowerCase()}`;
+      const unminted = balanceOf(
+        await lots(worldId),
+        accountId,
+        slug,
+        tick,
+        "unminted",
+      );
+      let minting = 0;
+      for (const link of await options.assetLinks()) {
+        if (link.worldId !== worldId) continue;
+        if (link.tokenClass !== AssetMintClass.COMPRESSED_ITEM) continue;
+        if (!link.mintKey.startsWith(CLAIM_MINT_PREFIX)) continue;
+        if (link.itemSlug !== slug || !sameHex(link.recipientHex, walletHex)) {
+          continue;
+        }
+        if (link.status !== "CONFIRMED") minting += link.amount ?? 0;
+      }
+      return { unminted, minting };
+    },
+
+    /** Mint-on-demand terms and this wallet's requests left today. */
+    async mintInfo(
+      worldId: number,
+      walletHex: string | null,
+      nowMs: number,
+    ): Promise<MarketMintInfo> {
+      const on = enabled && options.mint?.enabled === true;
+      return {
+        enabled: on,
+        minQty: MINT_RULES.minQty,
+        maxQty: MINT_RULES.maxQty,
+        maxRequestsPerDay: MINT_RULES.maxRequestsPerDay,
+        requestsLeft:
+          walletHex == null
+            ? null
+            : Math.max(
+                0,
+                MINT_RULES.maxRequestsPerDay -
+                  (await recentClaims(worldId, walletHex, nowMs)),
+              ),
+        note: on
+          ? "Items stay in your world bag until you mint them. Minting sends them to your wallet as LPIT tokens (the operator pays the gas); minted items can be listed but your creatures will no longer use them."
+          : "Minting is not enabled on this server.",
+      };
     },
 
     /**
@@ -401,6 +538,7 @@ export function createItemService(options: {
               issuedAtTick,
               snapshot.ruleset.ticksPerDay,
             ),
+            minted: false,
             createdAtMs: nowMs,
             updatedAtMs: nowMs,
           });
@@ -418,6 +556,8 @@ export function createItemService(options: {
             1,
             issuedAtTick,
             nowMs,
+            // Burn off-chain units before ones that exist as LPIT.
+            { prefer: "unminted" },
           );
           if (debit != null) upsertLots.push(...debit);
         }
@@ -459,6 +599,306 @@ export function createItemService(options: {
       });
       const made = changed[changed.length - 1];
       return { ok: true, lotId: made?.id ?? 0 };
+    },
+
+    /**
+     * Credit loot events (after their tick is durable) to each creature's
+     * keeper or pouch. Idempotent by `loot:<eventId>`. Returns lots added.
+     */
+    async creditLootNow(
+      session: HostSession,
+      events: readonly WorldEventView[],
+      ownerOf: CreatureOwnerOf,
+      nowMs: number,
+    ): Promise<number> {
+      if (!enabled || repo.commitItems == null || events.length === 0) {
+        return 0;
+      }
+      const snapshot = session.snapshot;
+      const add = planLootCredits({
+        lots: await lots(snapshot.world.id),
+        events,
+        worldId: snapshot.world.id,
+        ownerOf: (id) => {
+          const owner = ownerOf(id);
+          return owner != null && canHoldItems(owner) ? owner : null;
+        },
+        ticksPerDay: snapshot.ruleset.ticksPerDay,
+        nowMs,
+      });
+      if (add.length > 0) {
+        await repo.commitItems({
+          upsertLots: add,
+          insertInfluenceAccounts: [],
+        });
+      }
+      return add.length;
+    },
+
+    /**
+     * One creature autonomy pass: plan crafts and uses, persist them as
+     * CREATURE_* influences (`persist`), then debit the bags keyed by those
+     * influence ids. Runs inside the item lock, so no other inventory write
+     * (gather, craft, escrow reconcile, mint) interleaves.
+     */
+    async runAutonomyNow(
+      session: HostSession,
+      deps: {
+        ownerOf: CreatureOwnerOf;
+        lastUseTick: Map<number, number>;
+        persist: (
+          records: readonly SystemInfluence[],
+        ) => Promise<readonly { id: number }[]>;
+        nowMs: number;
+      },
+    ): Promise<AppliedIntent[]> {
+      if (!enabled || repo.commitItems == null) return [];
+      const snapshot = session.snapshot;
+      const worldId = snapshot.world.id;
+      const tick = snapshot.world.lastTick;
+      const current = await lots(worldId);
+      const history = await accounts(worldId);
+      const settings = await autonomyRows(worldId);
+      const intents = planCreatureAutonomy({
+        snapshot,
+        tick,
+        bagsFor: autonomyBags({
+          lots: current,
+          tick,
+          ownerOf: deps.ownerOf,
+          settingsOf: (accountId) => settingsFrom(settings, accountId),
+          usesToday: usesLast24h(history, deps.nowMs),
+          canHold: canHoldItems,
+        }),
+        lastUseTick: deps.lastUseTick,
+        useCooldownTicks: AUTONOMY_RULES.useCooldownTicks,
+        maxCraftsPerBag: AUTONOMY_RULES.maxCraftsPerBagPerPass,
+      });
+      if (intents.length === 0) return [];
+      const records: SystemInfluence[] = intents.map((intent) =>
+        intent.kind === "CRAFT"
+          ? {
+              kind: InfluenceKind.CREATURE_CRAFT,
+              payload: { creatureId: intent.creatureId, output: intent.output },
+            }
+          : {
+              kind: InfluenceKind.CREATURE_USE_ITEM,
+              payload: {
+                creatureId: intent.creatureId,
+                item: intent.item,
+                territoryId: intent.territoryId,
+              },
+            },
+      );
+      const ids = await deps.persist(records);
+      if (ids.length !== intents.length) return [];
+      const applied: AppliedIntent[] = intents.map((intent, i) => ({
+        ...intent,
+        influenceId: ids[i]!.id,
+      }));
+      const lineage = new Map(
+        snapshot.creatures.map((row) => [row.id, row.lineageId]),
+      );
+      const plan = planAutonomyInventory({
+        lots: current,
+        accounts: history,
+        intents: applied,
+        worldId,
+        tick,
+        ticksPerDay: snapshot.ruleset.ticksPerDay,
+        lineageOf: (id) => lineage.get(id) ?? null,
+        nowMs: deps.nowMs,
+      });
+      await repo.commitItems({
+        upsertLots: plan.upsertLots,
+        insertInfluenceAccounts: plan.accounts,
+      });
+      for (const intent of applied) {
+        if (intent.kind === "USE") {
+          deps.lastUseTick.set(intent.creatureId, tick + 1);
+        }
+      }
+      return applied;
+    },
+
+    async autonomySettings(
+      worldId: number,
+      accountId: string,
+    ): Promise<ItemAutonomySettings> {
+      return settingsFrom(await autonomyRows(worldId), accountId);
+    },
+
+    async setAutonomyNow(
+      worldId: number,
+      accountId: string,
+      change: ItemAutonomyCommand,
+      nowMs: number,
+    ): Promise<{ ok: true } | { ok: false; detail: string }> {
+      if (!enabled || repo.commitItems == null) {
+        return { ok: false, detail: "items are not available here" };
+      }
+      if (!canHoldItems(accountId)) {
+        return { ok: false, detail: "connect a wallet to keep a bag" };
+      }
+      const current = settingsFrom(await autonomyRows(worldId), accountId);
+      const next: ItemAutonomySettings = {
+        autoCraft:
+          typeof change.autoCraft === "boolean"
+            ? change.autoCraft
+            : current.autoCraft,
+        autoUse:
+          typeof change.autoUse === "boolean"
+            ? change.autoUse
+            : current.autoUse,
+      };
+      await repo.commitItems({
+        upsertLots: [],
+        insertInfluenceAccounts: [],
+        upsertAutonomy: [{ worldId, accountId, ...next, updatedAtMs: nowMs }],
+      });
+      return { ok: true };
+    },
+
+    /**
+     * Mint on demand: move `qty` unminted units of `slug` from the wallet's
+     * bag into a minted lot `mint:claim:<lotId>` and return the LPIT mint job
+     * keyed `claim:<lotId>` (unique per world, so it can never mint twice).
+     * The caller queues the job outside the lock.
+     */
+    async requestMintNow(input: {
+      worldId: number;
+      walletHex: string;
+      slug: string;
+      qty: number;
+      tick: number;
+      nowMs: number;
+    }): Promise<
+      { ok: true; job: CompressedItemMintJob } | { ok: false; detail: string }
+    > {
+      if (!enabled || repo.commitItems == null) {
+        return { ok: false, detail: "items are not available here" };
+      }
+      if (options.mint == null || !options.mint.enabled) {
+        return { ok: false, detail: "minting is not enabled on this host" };
+      }
+      const def = itemDef(input.slug);
+      const itemKindId = def == null ? null : lpitItemId(def.slug);
+      if (def == null || itemKindId == null) {
+        return { ok: false, detail: "that item cannot be minted" };
+      }
+      if (
+        !Number.isSafeInteger(input.qty) ||
+        input.qty < MINT_RULES.minQty ||
+        input.qty > MINT_RULES.maxQty
+      ) {
+        return {
+          ok: false,
+          detail: `mint ${MINT_RULES.minQty}–${MINT_RULES.maxQty} at a time`,
+        };
+      }
+      const wallet = `0x${input.walletHex.replace(/^0x/i, "").toLowerCase()}`;
+      const accountId = `w:${wallet.slice(2)}`;
+      if (
+        (await recentClaims(input.worldId, wallet, input.nowMs)) >=
+        MINT_RULES.maxRequestsPerDay
+      ) {
+        return {
+          ok: false,
+          detail: `${MINT_RULES.maxRequestsPerDay} mints per day; try again tomorrow`,
+        };
+      }
+      const current = await lots(input.worldId);
+      const debit = planDebit(
+        current,
+        accountId,
+        def.slug,
+        input.qty,
+        input.tick,
+        input.nowMs,
+        { only: "unminted" },
+      );
+      if (debit == null) {
+        return { ok: false, detail: `not enough unminted ${def.displayName}` };
+      }
+      const id = nextLotId(current);
+      const mintKey = `${CLAIM_MINT_PREFIX}${id}`;
+      const claimed: InventoryLotRow = {
+        id,
+        worldId: input.worldId,
+        accountId,
+        // syncRewardLots mirrors `mint:<mintKey>`; this lot is that mirror.
+        sourceKey: `mint:${mintKey}`,
+        itemSlug: def.slug,
+        amount: input.qty,
+        remaining: input.qty,
+        gainedTick: input.tick,
+        // On-chain units do not spoil.
+        spoilsAtTick: null,
+        minted: true,
+        createdAtMs: input.nowMs,
+        updatedAtMs: input.nowMs,
+      };
+      await repo.commitItems({
+        upsertLots: [...debit, claimed],
+        insertInfluenceAccounts: [],
+      });
+      return {
+        ok: true,
+        job: {
+          worldId: input.worldId,
+          mintKey,
+          itemKindId,
+          amount: input.qty,
+          itemSlug: def.slug,
+          metadataHashHex: null,
+          recipientHex: wallet,
+        },
+      };
+    },
+
+    /**
+     * Off-chain-first rewards: an influence reward becomes an unminted lot
+     * `reward:<mintKey>` instead of an LPIT mint. Idempotent.
+     */
+    async creditRewardLotsNow(
+      worldId: number,
+      jobs: readonly CompressedItemMintJob[],
+      tick: number,
+      nowMs: number,
+    ): Promise<number> {
+      if (!enabled || repo.commitItems == null || jobs.length === 0) return 0;
+      const current = await lots(worldId);
+      const have = new Set(current.map((lot) => lot.sourceKey));
+      const add: InventoryLotRow[] = [];
+      let id = nextLotId(current);
+      for (const job of jobs) {
+        if (job.recipientHex == null || !isItemSlug(job.itemSlug)) continue;
+        const sourceKey = `reward:${job.mintKey}`;
+        if (have.has(sourceKey)) continue;
+        have.add(sourceKey);
+        add.push({
+          id,
+          worldId,
+          accountId: `w:${job.recipientHex.replace(/^0x/i, "").toLowerCase()}`,
+          sourceKey,
+          itemSlug: job.itemSlug,
+          amount: job.amount,
+          remaining: job.amount,
+          gainedTick: tick,
+          spoilsAtTick: null,
+          minted: false,
+          createdAtMs: nowMs,
+          updatedAtMs: nowMs,
+        });
+        id += 1;
+      }
+      if (add.length > 0) {
+        await repo.commitItems({
+          upsertLots: add,
+          insertInfluenceAccounts: [],
+        });
+      }
+      return add.length;
     },
 
     async inventory(
@@ -507,13 +947,52 @@ export function createItemService(options: {
         relics,
         craftable: craftableOutputs(current, accountId, tick) as ItemSlug[],
         stocks,
+        autonomy: settingsFrom(await autonomyRows(worldId), accountId),
       };
     },
   };
 
-  const { afterAcceptNow, craftNow, ...rest } = service;
+  const {
+    afterAcceptNow,
+    craftNow,
+    creditLootNow,
+    runAutonomyNow,
+    setAutonomyNow,
+    requestMintNow,
+    creditRewardLotsNow,
+    ...rest
+  } = service;
   return {
     ...rest,
+    /** True when this host can mint on demand. */
+    get mintEnabled() {
+      return options.mint?.enabled === true;
+    },
+    creditLoot: (...args: Parameters<typeof creditLootNow>) =>
+      serial(() => creditLootNow(...args)),
+    runAutonomy: (...args: Parameters<typeof runAutonomyNow>) =>
+      serial(() => runAutonomyNow(...args)),
+    setAutonomy: (...args: Parameters<typeof setAutonomyNow>) =>
+      serial(() => setAutonomyNow(...args)),
+    creditRewardLots: (...args: Parameters<typeof creditRewardLotsNow>) =>
+      serial(() => creditRewardLotsNow(...args)),
+    /**
+     * Mint on demand (see requestMintNow). The inventory move is under the
+     * lock; the LPIT mint is queued after it, through the nonce queue.
+     */
+    async requestMint(
+      input: Parameters<typeof requestMintNow>[0],
+    ): Promise<MintRequestResult> {
+      const result = await serial(() => requestMintNow(input));
+      if (!result.ok) return result;
+      const queue = options.mint?.queue;
+      if (queue != null) {
+        void queue(result.job).catch(() => {
+          // Recorded on the asset link row; drain retries it.
+        });
+      }
+      return { ok: true, mintKey: result.job.mintKey, qty: result.job.amount };
+    },
     /**
      * After the influence row is durable: record the account, credit a
      * gather, debit a used item. Idempotent by influence id.

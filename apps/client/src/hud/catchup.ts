@@ -33,6 +33,7 @@ export function catchupLines(report: CatchupReport): CatchupLine[] {
     { label: "matings", count: s.matings },
     { label: "migrations", count: s.migrations },
     { label: "discoveries", count: s.discoveries },
+    { label: "item finds and uses", count: s.items ?? 0 },
   ].filter((line) => line.count > 0);
 }
 

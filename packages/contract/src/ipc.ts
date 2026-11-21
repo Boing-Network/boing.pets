@@ -9,7 +9,7 @@ import type {
   WorldView,
 } from "./dto";
 import type { TimeScale } from "./enums";
-import type { InventoryView, ItemCraft } from "./items";
+import type { InventoryView, ItemAutonomyCommand, ItemCraft } from "./items";
 
 export type WorldClock = {
   tick: number;
@@ -76,6 +76,7 @@ export type ClientToHost =
   | { message: "clock.setScale"; body: { scale: TimeScale } }
   | { message: "influence.submit"; body: InfluenceSubmit }
   | { message: "item.craft"; body: ItemCraft }
+  | { message: "item.autonomy"; body: ItemAutonomyCommand }
   | { message: "query.inventory"; body: Record<string, never> }
   | { message: "query.family"; body: QueryFamily }
   | { message: "query.creature"; body: QueryCreature }

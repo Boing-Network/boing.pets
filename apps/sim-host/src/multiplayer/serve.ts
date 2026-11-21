@@ -56,6 +56,12 @@ import {
 } from "../market/item-listings";
 import { walletAccountId } from "../items/escrow-reconcile";
 import { createWalletChallenges, normalizeWalletAddress } from "./wallet-auth";
+import {
+  MARKET_ITEMS_MINT_CHALLENGE_PATH,
+  MARKET_ITEMS_MINT_PATH,
+} from "@boing-pets/contract";
+import { createCreatureOwners } from "../market/creature-owners";
+import { createItemMintEndpoints } from "../market/item-mint";
 import { listenSharedWorldWs } from "./ws-server";
 
 const { values } = parseArgs({
@@ -183,6 +189,19 @@ const host = createSharedWorldHost({
   initialScale: config.scale,
   mintEdge,
   relicChain,
+  // Creature autonomy: loot goes to the wallet that holds the creature NFT
+  // (adopted creatures); anyone else's finds stay in the creature's pouch.
+  creatureOwners: createCreatureOwners({
+    links: () => creatureLinks.list(),
+    chain: () => listingIndex?.snapshot() ?? null,
+    operatorHex: marketConfig.operatorHex,
+    escrowHex: marketConfig.escrowHex,
+  }),
+  // Off-chain-first item rewards unless explicitly asked to mint at once.
+  itemRewardMode:
+    process.env.LIVING_PETS_ITEM_REWARD_AUTOMINT === "1"
+      ? "automint"
+      : "offchain",
 });
 await host.start();
 // LPIT item market: read the item escrow every 30 s and reconcile listings,
@@ -211,11 +230,37 @@ const itemIndex = (() => {
         walletAccountId(wallet),
         slug,
         worldNow().lastTick,
+        "minted",
       ),
+    offchain: (wallet, slug) =>
+      items.offchainUnits(worldNow().id, wallet, slug, worldNow().lastTick),
+    mintInfo: (wallet) => items.mintInfo(worldNow().id, wallet, Date.now()),
     log,
   });
 })();
 itemIndex?.start();
+// Mint on demand: wallet-signed POSTs; the operator mints through its queue.
+const itemMint = (() => {
+  const items = host.runtime.items;
+  if (itemIndex == null || items == null || !items.enabled) return null;
+  return createItemMintEndpoints({
+    chainId: config.chainId,
+    enabled: () => items.mintEnabled,
+    request: async ({ walletHex, slug, qty }) => {
+      const world = host.runtime.session.snapshot.world;
+      const result = await items.requestMint({
+        worldId: world.id,
+        walletHex,
+        slug,
+        qty,
+        tick: world.lastTick,
+        nowMs: Date.now(),
+      });
+      if (result.ok) itemIndex.forget(walletHex);
+      return result;
+    },
+  });
+})();
 const server = await listenSharedWorldWs({
   host,
   hostname: config.hostname,
@@ -235,6 +280,15 @@ const server = await listenSharedWorldWs({
   }),
   ...(listingIndex != null
     ? { marketListings: async () => listingIndex.response() }
+    : {}),
+  ...(itemMint != null
+    ? {
+        marketPost: {
+          [MARKET_ITEMS_MINT_CHALLENGE_PATH]: (body, origin) =>
+            itemMint.challenge(body, origin),
+          [MARKET_ITEMS_MINT_PATH]: (body) => itemMint.mint(body),
+        },
+      }
     : {}),
   marketItems: async (query) => {
     if (itemIndex == null) {

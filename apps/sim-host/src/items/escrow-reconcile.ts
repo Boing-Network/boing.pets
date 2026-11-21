@@ -7,18 +7,21 @@
  * what is *usable*, and every unit is conserved inside `inventory_lot`:
  *
  * - **Lock** (`ilist:<escrow>:<id>`): when a listing first appears, up to
- *   `listed` units are debited from the seller's lots into a lot held by the
- *   pseudo-account `escrow:<escrow>:<id>`. Listed units can no longer be used
- *   in the world. If the seller had fewer usable units than they listed (they
- *   listed tokens they had already used), the lock is smaller and the listing
- *   is only partly *backed*; the market does not offer it.
+ *   `listed` units are debited from the seller's *minted* lots (units that
+ *   exist as LPIT) into a lot held by the pseudo-account
+ *   `escrow:<escrow>:<id>`. Listed units can no longer be used in the world.
+ *   If the seller had fewer minted unused units than they listed (they listed
+ *   tokens they had already used), the lock is smaller and the listing is
+ *   only partly *backed*; the market does not offer it. Unminted units never
+ *   back a listing: they are minted on demand first.
  * - **Fill** (`ibuy:<escrow>:<id>:<k>`): each on-chain fill credits the buyer
  *   with up to its quantity, taken from the lock.
  * - **Return** (`iret:<escrow>:<id>`): a cancelled listing credits the seller
  *   with up to the returned units, taken from the lock.
  *
  * Every step is keyed by its source key, so replaying the same chain state is
- * a no-op, and steps apply in order (lock, fills by index, return).
+ * a no-op, and steps apply in order (lock, fills by index, return). Every lot
+ * created here is minted: it mirrors LPIT units that exist on chain.
  */
 import { lpitItemSlug } from "@boing-pets/contract";
 import { balanceOf, mergeLots, nextLotId, planDebit } from "./inventory";
@@ -100,6 +103,7 @@ export function planItemEscrowReconcile(input: {
       remaining: amount,
       gainedTick: tick,
       spoilsAtTick: null,
+      minted: true,
       createdAtMs: nowMs,
       updatedAtMs: nowMs,
     };
@@ -116,10 +120,14 @@ export function planItemEscrowReconcile(input: {
     const seller = walletAccountId(l.sellerHex);
     let lock = find(itemLockKey(escrowHex, l.id));
     if (lock == null) {
-      const usable = balanceOf(working, seller, slug, tick);
+      const usable = balanceOf(working, seller, slug, tick, "minted");
       const amount = Math.max(0, Math.min(l.listed, usable));
       const debit =
-        amount > 0 ? planDebit(working, seller, slug, amount, tick, nowMs) : [];
+        amount > 0
+          ? planDebit(working, seller, slug, amount, tick, nowMs, {
+              only: "minted",
+            })
+          : [];
       if (debit == null) {
         status.set(l.id, { backed: 0, reconciled: false });
         continue;

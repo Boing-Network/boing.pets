@@ -44,9 +44,20 @@ export function spoilText(
   return `spoils in ${Math.floor(days)}d`;
 }
 
+/** "2 minted" when some units of a stack exist as LPIT (creatures skip them). */
+export function mintedText(entry: { count: number; minted?: number }): string {
+  const minted = entry.minted ?? 0;
+  if (minted <= 0) return "";
+  return minted >= entry.count ? "all minted" : `${minted} minted`;
+}
+
 /**
  * M22 bag: gather here, craft, use tools and potions, honor relics. Every
  * world action is an influence (shares the 3-per-day budget); crafting is not.
+ *
+ * Creatures also loot, craft and use items on their own (no budget). The two
+ * toggles let a keeper stop them drawing on this bag; the buttons stay for
+ * doing it yourself. Minted units are never used by creatures.
  */
 export function ItemsSection({
   ipc,
@@ -131,6 +142,45 @@ export function ItemsSection({
             </span>
           </div>
 
+          {inventory.autonomy != null ? (
+            <div className="items-autonomy" aria-label="Creature autonomy">
+              <label
+                className="items-toggle"
+                title="Your creatures craft Rations, Calm and tools from what you gather or they find. No influence used."
+              >
+                <input
+                  type="checkbox"
+                  checked={inventory.autonomy.autoCraft}
+                  onChange={(event) => {
+                    ipc.send({
+                      message: "item.autonomy",
+                      body: { autoCraft: event.target.checked },
+                    });
+                    after();
+                  }}
+                />
+                Creatures craft from my bag
+              </label>
+              <label
+                className="items-toggle"
+                title="A hungry, hurt or frightened creature eats or drinks from your bag (up to 6 a day). Minted and listed items are never used."
+              >
+                <input
+                  type="checkbox"
+                  checked={inventory.autonomy.autoUse}
+                  onChange={(event) => {
+                    ipc.send({
+                      message: "item.autonomy",
+                      body: { autoUse: event.target.checked },
+                    });
+                    after();
+                  }}
+                />
+                Creatures use items from my bag
+              </label>
+            </div>
+          ) : null}
+
           {inventory.items.length === 0 ? (
             <p className="influence-hint">Your bag is empty.</p>
           ) : (
@@ -146,7 +196,12 @@ export function ItemsSection({
                       {itemName(entry.slug)} ×{entry.count}
                     </span>
                     <span className="items-meta">
-                      {spoilText(entry.nextSpoilTick, tick, ticksPerDay)}
+                      {[
+                        spoilText(entry.nextSpoilTick, tick, ticksPerDay),
+                        mintedText(entry),
+                      ]
+                        .filter((part) => part !== "")
+                        .join(" · ")}
                     </span>
                     {usable ? (
                       <button

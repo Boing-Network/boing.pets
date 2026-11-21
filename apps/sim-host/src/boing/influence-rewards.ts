@@ -13,6 +13,12 @@
  *
  * Mint keys are derived from the influence id (or lineage id), so a retried
  * submit or a host restart never mints twice. Never called from the sim.
+ *
+ * Items are off-chain-first: by default an item reward is *not* minted here;
+ * the host credits it as an unminted inventory lot and the keeper mints it on
+ * demand from the marketplace. `mintItems: true` (env
+ * LIVING_PETS_ITEM_REWARD_AUTOMINT=1) restores the old mint-on-reward path.
+ * Keepsakes (unique artifacts) always mint.
  */
 import { InfluenceKind, type InfluenceSubmit } from "@boing-pets/contract";
 import type { MintEdge } from "./mint-edge";
@@ -111,7 +117,9 @@ export function influenceRewardJobs(
 
 /**
  * Queue the reward for an accepted influence. Never throws into the command
- * path; failures are recorded on the asset link rows by the edge.
+ * path; failures are recorded on the asset link rows by the edge. Item jobs
+ * are only minted with `mintItems: true`; otherwise they are returned for the
+ * caller to credit off chain.
  */
 export async function enqueueInfluenceRewardMints(
   mintEdge: MintEdge,
@@ -120,12 +128,14 @@ export async function enqueueInfluenceRewardMints(
   submit: InfluenceSubmit,
   accountId: string | null | undefined,
   nowMs: number = Date.now(),
+  options: { mintItems?: boolean } = {},
 ): Promise<InfluenceRewardJobs | null> {
   if (!mintEdge.enabled) return null;
   const wallet = walletFromAccountId(accountId);
   if (wallet == null) return null;
   const jobs = influenceRewardJobs(worldId, influenceId, submit, wallet);
-  for (const job of jobs.items) {
+  const mintItems = options.mintItems ?? true;
+  for (const job of mintItems ? jobs.items : []) {
     try {
       await mintEdge.queueCompressedItemMint(job, nowMs);
     } catch {

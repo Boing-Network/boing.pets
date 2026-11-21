@@ -246,6 +246,11 @@ export class BrowserWorldRepository implements WorldRepository {
     return this.#memory.readInfluenceAccounts(worldId);
   }
 
+  async readItemAutonomy(worldId: number) {
+    await this.#ready;
+    return this.#memory.readItemAutonomy(worldId);
+  }
+
   async commitItems(change: ItemChange) {
     await this.#ready;
     await this.#memory.commitItems(change);

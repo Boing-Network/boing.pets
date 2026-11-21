@@ -51,6 +51,9 @@ export function catchupEventRank(
       return RANK_MATING;
     case EventKind.MIGRATION:
       return RANK_MIGRATION;
+    case EventKind.ITEM:
+      // Creature loot / craft / use: everyday activity, never "notable".
+      return 0;
     default: {
       const never: never = event.kind;
       return never;
@@ -106,6 +109,7 @@ export function buildCatchupSummary(
     matings: countKind(events, EventKind.MATING),
     migrations: countKind(events, EventKind.MIGRATION),
     discoveries: countKind(events, EventKind.DISCOVERY),
+    items: countKind(events, EventKind.ITEM),
     notable: selectNotable(events, byId),
   };
 }

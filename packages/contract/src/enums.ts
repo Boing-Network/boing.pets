@@ -105,6 +105,8 @@ export const EventKind = {
   MATING: "MATING",
   DISCOVERY: "DISCOVERY",
   MIGRATION: "MIGRATION",
+  /** A creature looted, crafted or used an item on its own (autonomy). */
+  ITEM: "ITEM",
 } as const;
 export type EventKind = (typeof EventKind)[keyof typeof EventKind];
 
@@ -127,6 +129,13 @@ export const InfluenceKind = {
   GATHER_RESOURCE: "GATHER_RESOURCE",
   /** M22: spend a tool, consumable or relic for its effect. */
   USE_ITEM: "USE_ITEM",
+  /**
+   * Host-issued (never from a client, no player budget): a creature uses an
+   * item from its pouch or its keeper's bag. The host debits the lot.
+   */
+  CREATURE_USE_ITEM: "CREATURE_USE_ITEM",
+  /** Host-issued: a creature crafted from its pouch or keeper's bag (log only). */
+  CREATURE_CRAFT: "CREATURE_CRAFT",
 } as const;
 export type InfluenceKind = (typeof InfluenceKind)[keyof typeof InfluenceKind];
 
@@ -161,6 +170,9 @@ export const EventTemplate = {
   MATING: "mating.v1",
   DISCOVERY: "discovery.v1",
   MIGRATION: "migration.v1",
+  ITEM_LOOT: "item.loot.v1",
+  ITEM_CRAFT: "item.craft.v1",
+  ITEM_USE: "item.use.v1",
 } as const;
 export type EventTemplate = (typeof EventTemplate)[keyof typeof EventTemplate];
 

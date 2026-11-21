@@ -7,9 +7,13 @@
  * PlayerInfluence rows.
  */
 import {
+  CreatureStatus,
   InfluenceKind,
+  creatureUseRule,
   itemDef,
+  recipeFor,
   type InfluenceSubmit,
+  type SystemInfluence,
 } from "@boing-pets/contract";
 import type { PlayerInfluenceRow } from "@boing-pets/sim";
 import { LOCAL_ACCOUNT_ID } from "./multiplayer/account";
@@ -203,6 +207,68 @@ export async function submitInfluence(
         ),
   );
   return { ok: true, id, issuedAtTick };
+}
+
+/**
+ * Queue host-issued creature influences (creature autonomy: a creature crafts
+ * or uses an item) for `lastTick + 1`, in one commit. They are not player
+ * actions: no rate-limit gate, and the accept-time logs are left untouched.
+ * Returns nothing while catch-up runs. Clients can never submit these kinds
+ * (see multiplayer/validate.ts and assertValidSubmit).
+ */
+export async function submitSystemInfluences(
+  session: HostSession,
+  records: readonly SystemInfluence[],
+): Promise<InfluenceSubmitOk[]> {
+  if (session.catchingUp || records.length === 0) return [];
+  const issuedAtTick = session.snapshot.world.lastTick + 1;
+  const rows: PlayerInfluenceRow[] = [];
+  for (const record of records) {
+    const creature = session.snapshot.creatures.find(
+      (row) => row.id === record.payload.creatureId,
+    );
+    if (creature == null || creature.status !== CreatureStatus.ALIVE) {
+      throw new Error("creature");
+    }
+    if (record.kind === InfluenceKind.CREATURE_USE_ITEM) {
+      if (creatureUseRule(record.payload.item) == null) throw new Error("item");
+    } else if (record.kind === InfluenceKind.CREATURE_CRAFT) {
+      if (recipeFor(record.payload.output) == null) throw new Error("recipe");
+    } else {
+      const never: never = record;
+      throw new Error(`kind ${String(never)}`);
+    }
+    const id = session.snapshot.world.nextInfluenceId + rows.length;
+    rows.push({
+      id,
+      worldId: session.snapshot.world.id,
+      kind: record.kind,
+      issuedAtTick,
+      payload: record.payload,
+      applied: false,
+    });
+  }
+  session.snapshot.world.nextInfluenceId += rows.length;
+  session.snapshot.pendingInfluences.push(...rows);
+  await session.repository.commit({
+    world: clone(session.snapshot.world),
+    ruleset: clone(session.snapshot.ruleset),
+    insertCreatures: [],
+    updateCreatures: [],
+    insertRelationships: [],
+    updateRelationships: [],
+    insertMemories: [],
+    archiveMemoryIds: [],
+    insertModifiers: [],
+    upsertLineages: [],
+    insertEvents: [],
+    insertInfluences: rows.map(clone),
+    appliedInfluenceIds: [],
+    influenceAcceptedAtMs: null,
+    influenceAcceptedByAccount: null,
+    insertCatchup: null,
+  });
+  return rows.map((row) => ({ ok: true, id: row.id, issuedAtTick }));
 }
 
 function clone<T>(value: T): T {

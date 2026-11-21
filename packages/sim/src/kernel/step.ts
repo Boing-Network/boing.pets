@@ -84,11 +84,13 @@ function stepCreatures(
 /**
  * Simulate the next tick in place.
  * Influences apply first, then aggregates, creatures, births, and decay.
+ * Creature item uses and crafts (host-issued influences) apply with them;
+ * creature loot happens when a FORAGE resolves.
  */
 export function step(snapshot: WorldSnapshot): StepResult {
   const tick = snapshot.world.lastTick + 1;
   const events: WorldEvent[] = [];
-  applyInfluences(snapshot, tick);
+  events.push(...applyInfluences(snapshot, tick));
   const territories = aggregateTerritories(snapshot, tick);
   stepCreatures(snapshot, tick, territories, events);
   resolveBirths(snapshot, tick, events);

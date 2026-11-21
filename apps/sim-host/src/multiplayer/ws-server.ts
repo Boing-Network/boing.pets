@@ -99,7 +99,21 @@ export type SharedWorldWsServerOptions = {
   marketListings?: () => Promise<unknown>;
   /** LPIT item market (`GET /market/v1/items[?wallet=0x…]`). */
   marketItems?: (query: URLSearchParams) => Promise<unknown>;
+  /**
+   * Wallet-signed POST endpoints by path (mint on demand). Each gets the
+   * parsed JSON body and the request origin; CORS as for the GET endpoints.
+   */
+  marketPost?: Record<
+    string,
+    (
+      body: unknown,
+      origin: string,
+    ) => Promise<{ status: number; body: unknown }>
+  >;
 };
+
+/** Largest JSON body a market POST may send. */
+const MAX_POST_BYTES = 4 * 1024;
 
 /**
  * CORS for the read-only HTTP endpoints. A request without `Origin` (curl,
@@ -235,6 +249,71 @@ export async function listenSharedWorldWs(
         "cache-control": "no-store",
       });
       res.end(`${JSON.stringify(body)}\n`);
+      return;
+    }
+    const post = options.marketPost?.[pathname];
+    if (post != null) {
+      const cors = readOnlyCors(req.headers.origin, allowOrigin);
+      if (!cors.allowed) {
+        res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+        res.end("origin not allowed\n");
+        return;
+      }
+      const headers = {
+        ...cors.headers,
+        ...(cors.headers["access-control-allow-origin"] != null
+          ? {
+              "access-control-allow-methods": "POST, OPTIONS",
+              "access-control-allow-headers": "content-type",
+            }
+          : {}),
+      };
+      if (req.method === "OPTIONS") {
+        res.writeHead(204, headers);
+        res.end();
+        return;
+      }
+      if (req.method !== "POST") {
+        res.writeHead(405, { allow: "POST, OPTIONS", ...headers });
+        res.end();
+        return;
+      }
+      const reply = (status: number, body: unknown) => {
+        res.writeHead(status, {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          ...headers,
+        });
+        res.end(JSON.stringify(body));
+      };
+      const chunks: Buffer[] = [];
+      let size = 0;
+      let tooBig = false;
+      req.on("data", (chunk: Buffer) => {
+        size += chunk.length;
+        if (size > MAX_POST_BYTES) {
+          tooBig = true;
+          req.destroy();
+          return;
+        }
+        chunks.push(chunk);
+      });
+      req.on("end", () => {
+        if (tooBig) return;
+        let body: unknown;
+        try {
+          body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+        } catch {
+          reply(400, { ok: false, error: "json" });
+          return;
+        }
+        post(body, req.headers.origin ?? "")
+          .then((out) => reply(out.status, out.body))
+          .catch(() => reply(500, { ok: false, error: "unavailable" }));
+      });
+      req.on("error", () => {
+        if (!res.headersSent) reply(400, { ok: false, error: "body" });
+      });
       return;
     }
     const marketJson:
