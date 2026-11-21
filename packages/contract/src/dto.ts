@@ -13,6 +13,7 @@ import type {
   MigrationReason,
   RelationshipLabel,
 } from "./enums";
+import type { GatherResourcePayload, UseItemPayload } from "./items";
 
 export type GeneticProfile = {
   strength: number;
@@ -346,6 +347,14 @@ export type InfluenceSubmit =
   | {
       kind: typeof InfluenceKind.CALM_TERRITORY;
       payload: CalmTerritoryPayload;
+    }
+  | {
+      kind: typeof InfluenceKind.GATHER_RESOURCE;
+      payload: GatherResourcePayload;
+    }
+  | {
+      kind: typeof InfluenceKind.USE_ITEM;
+      payload: UseItemPayload;
     };
 
 export type InfluencePayload = InfluenceSubmit["payload"];

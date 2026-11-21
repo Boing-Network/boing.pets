@@ -108,6 +108,11 @@ function assertValidSubmit(
       if (!territory) throw new Error("territory");
       break;
     }
+    case InfluenceKind.GATHER_RESOURCE:
+    case InfluenceKind.USE_ITEM:
+      // Inventory lands with the DB/server item PR; until then the kernel
+      // supports these verbs but the host does not accept them.
+      throw new Error("items not enabled");
     default: {
       const never: never = submit;
       throw new Error(`kind ${String(never)}`);

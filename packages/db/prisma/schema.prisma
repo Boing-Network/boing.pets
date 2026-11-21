@@ -94,11 +94,15 @@ enum InfluenceKind {
   FAVOR_BLOODLINE
   ENRICH_TERRITORY
   CALM_TERRITORY
+  GATHER_RESOURCE
+  USE_ITEM
 }
 
 enum ModifierKind {
   FOOD
   DANGER
+  HARVEST
+  COMFORT
 }
 
 /// Host-edge mint status for creature ↔ Boing NFT links (M19 schema-ready; M20 writes).

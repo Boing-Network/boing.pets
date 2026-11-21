@@ -16,6 +16,8 @@ export type TerritoryTick = {
   danger: number;
   population: number;
   capacity: number;
+  /** M22 salt lick: per-tick thirst and discomfort relief (0..3). */
+  comfort?: number;
 };
 
 function score(value: number, label: string): number {
@@ -87,6 +89,11 @@ export function applyNeedDrift(
     discomfort += rules.discomfortDangerPerTick;
   }
   if (resting) discomfort -= rules.discomfortRestPerTick;
+  const comfort = territory.comfort ?? 0;
+  if (comfort > 0) {
+    thirst -= comfort;
+    discomfort -= comfort;
+  }
 
   const targetDanger = resting ? Math.floor(danger / 2) : danger;
   if (unsafety < targetDanger) unsafety += rules.unsafetyApproachPerTick;

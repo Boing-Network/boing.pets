@@ -1,6 +1,7 @@
 import { CreatureStatus, ModifierKind } from "@boing-pets/contract";
 import { assertInteger, clamp } from "../math";
 import type { WorldSnapshot } from "../types";
+import { comfortRelief } from "./items";
 import type { TerritoryTick } from "./needs";
 
 function addBonus(
@@ -24,6 +25,7 @@ export function aggregateTerritories(
 
   const foodBonus = new Map<number, number>();
   const dangerBonus = new Map<number, number>();
+  const comfortBonus = new Map<number, number>();
   for (const modifier of snapshot.modifiers) {
     if (modifier.startTick > tick || tick >= modifier.endTick) continue;
     switch (modifier.kind) {
@@ -32,6 +34,13 @@ export function aggregateTerritories(
         break;
       case ModifierKind.DANGER:
         addBonus(dangerBonus, modifier.territoryId, modifier.amount);
+        break;
+      case ModifierKind.HARVEST:
+        // Gathered stock is eaten out of the same pool creatures forage from.
+        addBonus(foodBonus, modifier.territoryId, modifier.amount);
+        break;
+      case ModifierKind.COMFORT:
+        addBonus(comfortBonus, modifier.territoryId, modifier.amount);
         break;
       default: {
         const never: never = modifier.kind;
@@ -62,6 +71,7 @@ export function aggregateTerritories(
         "population",
       ),
       capacity: territory.capacity,
+      comfort: comfortRelief(comfortBonus.get(territory.id) ?? 0),
     });
   }
   return stats;
