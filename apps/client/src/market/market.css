@@ -63,6 +63,19 @@ nav a {
   color: var(--muted);
   text-decoration: none;
 }
+nav a:hover,
+nav a[aria-current="page"] {
+  color: var(--text);
+}
+@media (max-width: 560px) {
+  nav {
+    gap: 0.6rem;
+    font-size: 0.85rem;
+  }
+  .brand span {
+    display: none;
+  }
+}
 button {
   font: inherit;
   cursor: pointer;

@@ -12,9 +12,10 @@
   <body>
     <header class="top">
       <a class="brand" href="/market/">Living Pets <span>Marketplace</span></a>
-      <nav>
-        <a href="/welcome/">About</a>
-        <a href="/">Play</a>
+      <nav aria-label="Site">
+        <a href="/">Home</a>
+        <a href="/world/">Play</a>
+        <a href="/market/" aria-current="page">Marketplace</a>
         <button type="button" class="wallet" id="wallet">Connect wallet</button>
       </nav>
     </header>
@@ -87,7 +88,7 @@
     </dialog>
     <footer>
       <span id="source"></span>
-      <a href="/">Enter the world</a>
+      <a href="/world/">Enter the world</a>
     </footer>
     <script type="module" src="../src/market/main.ts"></script>
   </body>

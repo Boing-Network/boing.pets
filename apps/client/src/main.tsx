@@ -80,7 +80,8 @@ function bootGame(rootElement: HTMLElement) {
     import.meta.env.VITE_LIVING_PETS_MP_URL as string | undefined,
   );
 
-  const ipc = isElectronBridgeAvailable()
+  const desktop = isElectronBridgeAvailable();
+  const ipc = desktop
     ? (() => {
         const client = createElectronIpc();
         bindIpcToStores(client);
@@ -92,7 +93,7 @@ function bootGame(rootElement: HTMLElement) {
 
   createRoot(rootElement).render(
     <StrictMode>
-      <App ipc={ipc} />
+      <App ipc={ipc} siteNav={!desktop} />
     </StrictMode>,
   );
 }

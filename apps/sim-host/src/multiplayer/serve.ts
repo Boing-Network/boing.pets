@@ -220,10 +220,10 @@ if (!config.production) {
   lines.push(
     "",
     "Open the client (npm run dev -w @boing-pets/client) with:",
-    `  player: http://127.0.0.1:5173/?mp=${server.url}`,
+    `  player: http://127.0.0.1:5173/world/?mp=${server.url}`,
     ownerKeyFromEnv != null
       ? "  owner:  add &owner=<LIVING_PETS_MP_OWNER_KEY> to the player link"
-      : `  owner:  http://127.0.0.1:5173/?mp=${server.url}&owner=${ownerKey}`,
+      : `  owner:  http://127.0.0.1:5173/world/?mp=${server.url}&owner=${ownerKey}`,
     "Only the owner can pause or change the speed. Ctrl+C saves and exits.",
   );
   if (config.hostname !== "127.0.0.1" && config.hostname !== "localhost") {

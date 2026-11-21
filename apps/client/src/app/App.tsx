@@ -5,6 +5,7 @@ import { CatchupPanel } from "../hud/CatchupPanel";
 import { ClockControls } from "../hud/ClockControls";
 import { InfluencePanel } from "../hud/InfluencePanel";
 import { InspectionPanel } from "../hud/InspectionPanel";
+import { SiteNav } from "../hud/SiteNav";
 import { useWorldViewStore } from "../state/worldViewStore";
 import "../hud/controls.css";
 import "./shell.css";
@@ -18,9 +19,11 @@ const WorldCanvas = lazy(() =>
 type Props = {
   /** IPC handle for HUD queries (family / creature). Bound at boot. */
   ipc: IpcClient;
+  /** Site links (Home · Play · Marketplace); off in the desktop app. */
+  siteNav?: boolean;
 };
 
-export function App({ ipc }: Props) {
+export function App({ ipc, siteNav = true }: Props) {
   const view = useWorldViewStore((s) => s.view);
   const clock = useWorldViewStore((s) => s.clock);
 
@@ -44,6 +47,7 @@ export function App({ ipc }: Props) {
               : "Waiting for host snapshot…"}
           </p>
         </div>
+        {siteNav ? <SiteNav current="play" /> : null}
         <ClockControls ipc={ipc} />
       </header>
       <main className="map-stage">

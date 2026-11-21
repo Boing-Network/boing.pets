@@ -109,3 +109,43 @@ body {
   font-family: "Segoe UI", "Helvetica Neue", sans-serif;
   font-size: 0.9rem;
 }
+
+/* Site links in the header band: never over the 3D view or the panels. */
+.site-nav {
+  display: flex;
+  gap: 0.25rem;
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+  font-size: 0.8rem;
+}
+
+.site-nav a {
+  color: var(--ink-muted);
+  text-decoration: none;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid transparent;
+}
+
+.site-nav a:hover {
+  color: var(--brand);
+  border-color: var(--line);
+}
+
+.site-nav a[aria-current="page"] {
+  color: var(--brand);
+  border-color: color-mix(in srgb, var(--glow) 40%, var(--line));
+}
+
+@media (max-width: 720px) {
+  .app-header {
+    padding: 0.55rem 0.75rem;
+    gap: 0.5rem;
+  }
+  .site-nav {
+    order: 3;
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .site-nav a {
+    padding: 0.2rem 0.45rem;
+  }
+}
