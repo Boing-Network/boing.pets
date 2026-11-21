@@ -102,6 +102,9 @@ export function buildCommitBatch(
     ...(dirty.compatibility.length > 0
       ? { insertCompatibility: clone(dirty.compatibility) }
       : {}),
+    ...(dirty.territories.length > 0
+      ? { updateTerritories: clone(dirty.territories) }
+      : {}),
   };
 }
 
