@@ -211,7 +211,9 @@ Newborns start with `NURSE`. A losing `CONTEST` can kill with cause `INJURY`.
   their ids, names, genes, and traits because founders are generated in
   ascending species id, which matches the old slug order for ids 1–3. It
   changed again in the bestiary pass: 21 species with 2 founders each (42
-  founders, born mature) instead of 7 × 4, plus per-species biology.
+  founders, born mature) instead of 7 × 4, plus per-species biology. The
+  second bestiary pass added species 22–35 (founders 43–70) and larger
+  territory capacities; founders 1–42 kept their ids, names, and genes.
   `catchup-equivalence.test.ts` checks that catch-up equals live stepping.
 
 ## World and species
@@ -222,21 +224,21 @@ Territory ids follow catalog order, so the original three keep ids 1–3.
 
 | Territory (id, slug) | Name          | Food | Danger | Capacity | Client biome            |
 | -------------------- | ------------- | ---- | ------ | -------- | ----------------------- |
-| 1 `meadow`           | Meadow        | 700  | 200    | 40       | meadow (pond)           |
-| 2 `thicket`          | Thicket       | 500  | 450    | 30       | thicket (swamp)         |
-| 3 `ridge`            | Ridge         | 350  | 700    | 20       | ridge (tarn, peak)      |
-| 4 `glade`            | Moonlit Glade | 650  | 250    | 35       | glade (pond)            |
-| 5 `fen`              | Glowfen       | 600  | 350    | 30       | fen (swamp, low)        |
-| 6 `grove`            | Elder Grove   | 550  | 400    | 28       | grove (pond, dark wood) |
-| 7 `crags`            | High Crags    | 300  | 600    | 18       | crags (tarn, peak)      |
+| 1 `meadow`           | Meadow        | 700  | 200    | 64       | meadow (pond)           |
+| 2 `thicket`          | Thicket       | 500  | 450    | 50       | thicket (swamp)         |
+| 3 `ridge`            | Ridge         | 350  | 700    | 34       | ridge (tarn, peak)      |
+| 4 `glade`            | Moonlit Glade | 650  | 250    | 58       | glade (pond)            |
+| 5 `fen`              | Glowfen       | 600  | 350    | 50       | fen (swamp, low)        |
+| 6 `grove`            | Elder Grove   | 550  | 400    | 46       | grove (pond, dark wood) |
+| 7 `crags`            | High Crags    | 300  | 600    | 30       | crags (tarn, peak)      |
 
 Links (two-way, travel ticks): meadow–thicket 6, thicket–ridge 8,
 meadow–glade 5, glade–grove 6, grove–thicket 6, thicket–fen 7,
 ridge–crags 7. The graph is connected, and the meadow–glade–grove–thicket
 loop gives creatures a second route between the lowlands.
 
-There are 21 species, three per territory, and 2 founders per species (one
-female, one male), for 42 total. Each founder starts its own lineage in its
+There are 35 species, five per territory, and 2 founders per species (one
+female, one male), for 70 total. Each founder starts its own lineage in its
 species' home territory. Founders are born mature: their `birthTick` is
 `-maturityDays × ticksPerDay`, so they can court from day one (stored ticks may
 therefore be negative for founders; the DB mapper reads `birth_tick` signed).
@@ -264,8 +266,24 @@ therefore be negative for founders; the DB mapper reads `birth_tick` signed).
 | 19 `ash-wolf` Ash Wolf               | grove   | thicket, glade | CARNIVORE   | trot / canid      | 130 / 1200 / 22 / 24                              | 70           |
 | 20 `stone-pika` Stone Pika           | crags   | ridge          | HERBIVORE   | hop / lagomorph   | 60 / 600 / 12 / 10                                | 60           |
 | 21 `crag-owl` Crag Owl               | crags   | ridge          | CARNIVORE   | fly / owl         | 120 / 1400 / 24 / 22                              | 70           |
+| 22 `clover-vole` Clover Vole         | meadow  | glade          | HERBIVORE   | scurry / rodent   | 50 / 500 / 10 / 8                                 | 70           |
+| 23 `amber-kestrel` Amber Kestrel     | meadow  | glade, ridge   | CARNIVORE   | fly / raptor      | 90 / 1100 / 20 / 18                               | 70           |
+| 24 `thorn-porcupine` Thorn Porcupine | thicket | grove          | HERBIVORE   | waddle / rodent   | 100 / 1000 / 20 / 18                              | 40           |
+| 25 `briar-weasel` Briar Weasel       | thicket | meadow, grove  | CARNIVORE   | bound / mustelid  | 70 / 700 / 14 / 12                                | 80           |
+| 26 `ledge-goat` Ledge Goat           | ridge   | crags          | HERBIVORE   | walk / bovid      | 110 / 1100 / 22 / 20                              | 70           |
+| 27 `mist-swift` Mist Swift           | ridge   | crags, glade   | INSECTIVORE | fly / swift       | 50 / 600 / 11 / 9                                 | 60           |
+| 28 `opal-dormouse` Opal Dormouse     | glade   | grove, meadow  | OMNIVORE    | bound / rodent    | 55 / 550 / 11 / 9                                 | 70           |
+| 29 `hush-owl` Hush Owl               | glade   | grove, thicket | INSECTIVORE | fly / owl         | 80 / 1000 / 18 / 16                               | 60           |
+| 30 `lumen-frog` Lumen Frog           | fen     | thicket        | INSECTIVORE | hop / anuran      | 60 / 700 / 12 / 10                                | 60           |
+| 31 `reed-muskrat` Reed Muskrat       | fen     | thicket        | HERBIVORE   | waddle / rodent   | 70 / 750 / 14 / 12                                | 50           |
+| 32 `elder-bear` Elder Bear           | grove   | thicket, glade | OMNIVORE    | walk / ursid      | 180 / 2000 / 30 / 28                              | 60           |
+| 33 `acorn-jay` Acorn Jay             | grove   | thicket, glade | OMNIVORE    | fly / corvid      | 50 / 600 / 12 / 10                                | 70           |
+| 34 `rime-cat` Rime Cat               | crags   | ridge          | CARNIVORE   | walk / felid      | 120 / 1000 / 22 / 20                              | 80           |
+| 35 `gale-chough` Gale Chough         | crags   | ridge          | OMNIVORE    | fly / corvid      | 60 / 800 / 14 / 12                                | 70           |
 
 Ids 1–7 are the original seven and never change; new species are appended.
+Ids 8–21 are the first bestiary pass and 22–35 the second (see
+`docs/BESTIARY-PASS-2.md` for the design notes and the glow palette).
 
 ### Biology
 
@@ -290,8 +308,8 @@ without new columns:
   or the species' kin fill more than half of it.
 
 `packages/sim/test/ecology.test.ts` runs seeds 1 and 7 for 150 days: every
-species must end with ≥ 2 alive and peak at ≤ 24, there must be ≥ 42 births,
-the population must grow but stay at or under the summed capacity (201), and
+species must end with ≥ 2 alive and peak at ≤ 24, there must be at least one birth per founder (70),
+the population must grow but stay at or under the summed capacity (332), and
 thirst plus starvation deaths must stay ≤ 3. Longer runs (365 days) keep all
 21 species alive on both seeds (193 and 213 alive; deaths are illness and old
 age).
@@ -670,7 +688,7 @@ click for every ration. Nothing here spends a player's influence budget.
   (forage, drink, rest, social, court, and so on) and to waypoints from
   deterministic anchors. Creatures free-roam visually across regions, while
   their sim location stays the territory id.
-- `view/creatures/*`: procedural creatures for all 21 species (see
+- `view/creatures/*`: procedural creatures for all 35 species (see
   [Creature rendering](#creature-rendering)). The repo has no model or
   texture assets.
 - HUD: `InspectionPanel` (creature, family, top memories), `InfluencePanel`

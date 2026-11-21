@@ -148,7 +148,7 @@ test("a flee from ridge arrives in thicket and a second visit is not a discovery
   assert.ok(migration);
   assert.ok(discovery);
   assert.equal(migration.kind, "MIGRATION");
-  assert.equal(migration.id, 85);
+  assert.equal(migration.id, 141);
   assert.equal(migration.tick, 16);
   assert.equal(migration.actorId, hare.id);
   assert.equal(migration.subjectId, null);
@@ -163,7 +163,7 @@ test("a flee from ridge arrives in thicket and a second visit is not a discovery
     reason: "FLEE",
   });
   assert.equal(discovery.kind, "DISCOVERY");
-  assert.equal(discovery.id, 86);
+  assert.equal(discovery.id, 142);
   assert.equal(discovery.tick, 16);
   assert.equal(discovery.actorId, hare.id);
   assert.equal(discovery.territoryId, thicket.id);
@@ -178,7 +178,7 @@ test("a flee from ridge arrives in thicket and a second visit is not a discovery
     territoryId: thicket.id,
     lineageId: hare.lineageId,
   });
-  assert.equal(snapshot.world.nextEventId, 87);
+  assert.equal(snapshot.world.nextEventId, 143);
   assert.equal(snapshot.memories.length, 2);
   const migrationMemory = snapshot.memories[0];
   const discoveryMemory = snapshot.memories[1];
@@ -265,7 +265,7 @@ test("a flee from ridge arrives in thicket and a second visit is not a discovery
   // Return-trip MIGRATION memory is still hot, so the revisit is throttled.
   assert.equal(snapshot.memories.length, 1);
   assert.equal(snapshot.world.nextMemoryId, 4);
-  assert.equal(snapshot.world.nextEventId, 89);
+  assert.equal(snapshot.world.nextEventId, 145);
   assert.equal(
     snapshot.discoveries.filter(
       (row) =>
@@ -325,9 +325,9 @@ test("death during travel writes no migration and stays on the origin", () => {
   assert.equal(result.events.length, 1);
   assert.equal(result.events[0]?.kind, "DEATH");
   assert.equal(result.events[0]?.territoryId, ridge.id);
-  assert.equal(snapshot.discoveries.length, 42);
+  assert.equal(snapshot.discoveries.length, 70);
   assert.equal(snapshot.memories.length, 0);
-  assert.equal(snapshot.world.nextEventId, 86);
+  assert.equal(snapshot.world.nextEventId, 142);
 });
 
 test("a traveler still counts toward the origin", () => {
@@ -350,11 +350,11 @@ test("a traveler still counts toward the origin", () => {
   assert.equal(hare.territoryId, ridge.id);
   assert.equal(hare.currentAction, "RELOCATE");
   assert.equal(neighbor.territoryId, ridge.id);
-  // 100 + base 1 + 5 over capacity × 2 (ridge holds 6 founders now: moth,
-  // marmot, bat). Ridge is moth habitat, so its danger reads 350: no
+  // 100 + base 1 + 9 over capacity × 2 (ridge holds 10 founders now: moth,
+  // marmot, bat, goat, swift). Ridge is moth habitat, so its danger reads 350: no
   // danger discomfort.
-  assert.equal(hare.discomfort, 111);
-  assert.equal(neighbor.discomfort, 111);
+  assert.equal(hare.discomfort, 119);
+  assert.equal(neighbor.discomfort, 119);
 });
 
 test("flee uses effective danger, then settle, then territory id", () => {
@@ -575,5 +575,5 @@ test("a finished forage clears so utility can choose again", () => {
   assert.ok(founder.currentAction != null);
   assert.ok(founder.actionEndsTick != null && founder.actionEndsTick > 1);
   assert.deepEqual(result.events, []);
-  assert.equal(snapshot.discoveries.length, 42);
+  assert.equal(snapshot.discoveries.length, 70);
 });

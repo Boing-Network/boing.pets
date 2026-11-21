@@ -157,13 +157,18 @@ function Clock() {
 }
 
 /** Species whose heads (or antlers) stand well above their backs. */
-const TALL = new Set(["moss-stag", "silver-deer", "reed-heron"]);
+const TALL = new Set(["moss-stag", "silver-deer", "reed-heron", "elder-bear"]);
 /** Fliers hover about 0.9 world units up; frame them in the air. */
 const FLIERS = new Set([
   "lantern-moth",
   "field-nightjar",
   "gloam-bat",
   "crag-owl",
+  "amber-kestrel",
+  "mist-swift",
+  "hush-owl",
+  "acorn-jay",
+  "gale-chough",
 ]);
 
 export function Bestiary() {

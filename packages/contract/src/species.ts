@@ -40,7 +40,12 @@ export type SpeciesBodyPlan =
   | "bat"
   | "owl"
   | "nightjar"
-  | "heron";
+  | "heron"
+  | "raptor"
+  | "swift"
+  | "corvid"
+  | "ursid"
+  | "anuran";
 
 export type SpeciesKey = {
   id: number;
@@ -56,7 +61,8 @@ export type SpeciesKey = {
 /**
  * Ids 1–7 are the original seven and keep their ids and founder order.
  * Ids 8–21 were added by the bestiary expansion: two per territory, so every
- * territory hosts three species. Never renumber; append only.
+ * territory hosts three species. Ids 22–35 are the second expansion: two more
+ * per territory, so every territory now hosts five. Never renumber; append only.
  */
 export const SPECIES_CATALOG = [
   {
@@ -247,6 +253,132 @@ export const SPECIES_CATALOG = [
     diet: Diet.CARNIVORE,
     gait: "fly",
     bodyPlan: "owl",
+  },
+  {
+    id: 22,
+    slug: "clover-vole",
+    displayName: "Clover Vole",
+    home: "meadow",
+    diet: Diet.HERBIVORE,
+    gait: "scurry",
+    bodyPlan: "rodent",
+  },
+  {
+    id: 23,
+    slug: "amber-kestrel",
+    displayName: "Amber Kestrel",
+    home: "meadow",
+    diet: Diet.CARNIVORE,
+    gait: "fly",
+    bodyPlan: "raptor",
+  },
+  {
+    id: 24,
+    slug: "thorn-porcupine",
+    displayName: "Thorn Porcupine",
+    home: "thicket",
+    diet: Diet.HERBIVORE,
+    gait: "waddle",
+    bodyPlan: "rodent",
+  },
+  {
+    id: 25,
+    slug: "briar-weasel",
+    displayName: "Briar Weasel",
+    home: "thicket",
+    diet: Diet.CARNIVORE,
+    gait: "bound",
+    bodyPlan: "mustelid",
+  },
+  {
+    id: 26,
+    slug: "ledge-goat",
+    displayName: "Ledge Goat",
+    home: "ridge",
+    diet: Diet.HERBIVORE,
+    gait: "walk",
+    bodyPlan: "bovid",
+  },
+  {
+    id: 27,
+    slug: "mist-swift",
+    displayName: "Mist Swift",
+    home: "ridge",
+    diet: Diet.INSECTIVORE,
+    gait: "fly",
+    bodyPlan: "swift",
+  },
+  {
+    id: 28,
+    slug: "opal-dormouse",
+    displayName: "Opal Dormouse",
+    home: "glade",
+    diet: Diet.OMNIVORE,
+    gait: "bound",
+    bodyPlan: "rodent",
+  },
+  {
+    id: 29,
+    slug: "hush-owl",
+    displayName: "Hush Owl",
+    home: "glade",
+    diet: Diet.INSECTIVORE,
+    gait: "fly",
+    bodyPlan: "owl",
+  },
+  {
+    id: 30,
+    slug: "lumen-frog",
+    displayName: "Lumen Frog",
+    home: "fen",
+    diet: Diet.INSECTIVORE,
+    gait: "hop",
+    bodyPlan: "anuran",
+  },
+  {
+    id: 31,
+    slug: "reed-muskrat",
+    displayName: "Reed Muskrat",
+    home: "fen",
+    diet: Diet.HERBIVORE,
+    gait: "waddle",
+    bodyPlan: "rodent",
+  },
+  {
+    id: 32,
+    slug: "elder-bear",
+    displayName: "Elder Bear",
+    home: "grove",
+    diet: Diet.OMNIVORE,
+    gait: "walk",
+    bodyPlan: "ursid",
+  },
+  {
+    id: 33,
+    slug: "acorn-jay",
+    displayName: "Acorn Jay",
+    home: "grove",
+    diet: Diet.OMNIVORE,
+    gait: "fly",
+    bodyPlan: "corvid",
+  },
+  {
+    id: 34,
+    slug: "rime-cat",
+    displayName: "Rime Cat",
+    home: "crags",
+    diet: Diet.CARNIVORE,
+    gait: "walk",
+    bodyPlan: "felid",
+  },
+  {
+    id: 35,
+    slug: "gale-chough",
+    displayName: "Gale Chough",
+    home: "crags",
+    diet: Diet.OMNIVORE,
+    gait: "fly",
+    bodyPlan: "corvid",
   },
 ] as const satisfies readonly SpeciesKey[];
 

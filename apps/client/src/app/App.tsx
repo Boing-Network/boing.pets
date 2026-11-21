@@ -4,6 +4,7 @@ import type { IpcClient } from "../api/ipc";
 import { CatchupPanel } from "../hud/CatchupPanel";
 import { ClockControls } from "../hud/ClockControls";
 import { InfluencePanel } from "../hud/InfluencePanel";
+import { IntroTip } from "../hud/IntroTip";
 import { InspectionPanel } from "../hud/InspectionPanel";
 import { SiteNav } from "../hud/SiteNav";
 import { useWorldViewStore } from "../state/worldViewStore";
@@ -59,6 +60,7 @@ export function App({ ipc, siteNav = true }: Props) {
         <InfluencePanel ipc={ipc} />
         <InspectionPanel ipc={ipc} />
         <CatchupPanel />
+        <IntroTip />
         <div className="status-chip">
           {view
             ? `${territoryCount} territories · seed ${view.world.seed}`

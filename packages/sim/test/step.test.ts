@@ -63,10 +63,10 @@ test("a starved founder emits one DEATH and stays dead", () => {
   assert.equal(first.snapshot, snapshot);
   assert.equal(snapshot.world.lastTick, 1);
   assert.equal(snapshot.world.clockAtMs, 0);
-  assert.equal(snapshot.world.nextEventId, 86);
+  assert.equal(snapshot.world.nextEventId, 142);
   assert.equal(snapshot.world.nextMemoryId, 1);
-  assert.equal(snapshot.world.nextCreatureId, 43);
-  assert.equal(snapshot.creatures.length, 42);
+  assert.equal(snapshot.world.nextCreatureId, 71);
+  assert.equal(snapshot.creatures.length, 70);
   assert.equal(
     snapshot.creatures.filter((creature) => creature.status === "DEAD").length,
     1,
@@ -82,7 +82,7 @@ test("a starved founder emits one DEATH and stays dead", () => {
   assert.equal(neighbor.hunger, 304);
   assert.deepEqual(first.events, [
     {
-      id: 85,
+      id: 141,
       worldId: 1,
       tick: 1,
       kind: "DEATH",
@@ -104,7 +104,7 @@ test("a starved founder emits one DEATH and stays dead", () => {
   const second = step(snapshot);
   assert.deepEqual(second.events, []);
   assert.equal(snapshot.world.lastTick, 2);
-  assert.equal(snapshot.world.nextEventId, 86);
+  assert.equal(snapshot.world.nextEventId, 142);
   assert.equal(founder.status, "DEAD");
   assert.equal(founder.deathTick, 1);
   assert.equal(founder.deathCause, "STARVATION");
@@ -243,7 +243,7 @@ test("rest, nurse, and approach change only their drift terms", () => {
   assert.equal(alone.hunger, 302);
   assert.equal(approaching.loneliness, 200);
   assert.equal(approaching.hunger, 304);
-  assert.equal(snapshot.world.nextEventId, 85);
+  assert.equal(snapshot.world.nextEventId, 141);
 });
 
 test("health penalties follow the ruleset thresholds", () => {
@@ -348,8 +348,8 @@ test("population and modifiers are fixed before deaths", () => {
   assert.ok(meadow);
   meadow.capacity = 1;
   step(crowded);
-  // Meadow holds 6 founders (fox, badger, nightjar): 5 over capacity × 2.
-  assert.equal(byId(crowded, 2).discomfort, 111);
+  // Meadow holds 10 founders (five species): 9 over capacity × 2.
+  assert.equal(byId(crowded, 2).discomfort, 119);
 
   const counted = world();
   const countedMeadow = counted.territories.find(
@@ -360,14 +360,15 @@ test("population and modifiers are fixed before deaths", () => {
   byId(counted, 1).hunger = 996;
   step(counted);
   assert.equal(byId(counted, 1).status, "DEAD");
-  assert.equal(byId(counted, 1).discomfort, 111);
-  assert.equal(byId(counted, 2).discomfort, 111);
+  assert.equal(byId(counted, 1).discomfort, 119);
+  assert.equal(byId(counted, 2).discomfort, 119);
 
   const quiet = world();
   const quietMeadow = quiet.territories.find((row) => row.slug === "meadow");
   assert.ok(quietMeadow);
   quietMeadow.capacity = 1;
-  for (const id of [2, 15, 16, 17, 18]) {
+  // The other nine meadow founders (fox, badger, nightjar, vole, kestrel).
+  for (const id of [2, 15, 16, 17, 18, 43, 44, 45, 46]) {
     const creature = byId(quiet, id);
     creature.status = "DEAD";
     creature.hunger = 300;
@@ -378,7 +379,7 @@ test("population and modifiers are fixed before deaths", () => {
   assert.equal(byId(quiet, 2).hunger, 300);
   assert.equal(
     quiet.creatures.filter((creature) => creature.status === "DEAD").length,
-    5,
+    9,
   );
 
   const calmed = world();
@@ -613,8 +614,8 @@ test("influences for other ticks stay pending; births need matching endTick", ()
   step(snapshot);
 
   assert.equal(snapshot.world.lastTick, 144);
-  assert.equal(snapshot.creatures.length, 42);
-  assert.equal(snapshot.world.nextCreatureId, 43);
+  assert.equal(snapshot.creatures.length, 70);
+  assert.equal(snapshot.world.nextCreatureId, 71);
   assert.equal(mother.gestationEndTick, 1);
   assert.equal(mother.currentAction, "FORAGE");
   assert.equal(mother.actionEndsTick, 200);
@@ -624,5 +625,5 @@ test("influences for other ticks stay pending; births need matching endTick", ()
   assert.equal(snapshot.pendingInfluences[0]?.applied, false);
   assert.equal(snapshot.relationships[0]?.friendship, 50);
   assert.equal(snapshot.relationships[0]?.score, 100);
-  assert.equal(snapshot.world.nextEventId, 85);
+  assert.equal(snapshot.world.nextEventId, 141);
 });

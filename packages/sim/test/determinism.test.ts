@@ -65,9 +65,37 @@ const FOUNDERS = [
   ["stone-pika", "MALE", "crags", "Kaeluntor"],
   ["crag-owl", "FEMALE", "crags", "Elionimabri"],
   ["crag-owl", "MALE", "crags", "Lunvesskae"],
+  ["clover-vole", "FEMALE", "meadow", "Quillnimapel"],
+  ["clover-vole", "MALE", "meadow", "Aritorsol"],
+  ["amber-kestrel", "FEMALE", "meadow", "Ithtortor"],
+  ["amber-kestrel", "MALE", "meadow", "Paxoaksol"],
+  ["thorn-porcupine", "FEMALE", "thicket", "Torpelsol"],
+  ["thorn-porcupine", "MALE", "thicket", "Fenkaevess"],
+  ["briar-weasel", "FEMALE", "thicket", "Moslunith"],
+  ["briar-weasel", "MALE", "thicket", "Saetorith"],
+  ["ledge-goat", "FEMALE", "ridge", "Quillquillfen"],
+  ["ledge-goat", "MALE", "ridge", "Dorreliosol"],
+  ["mist-swift", "FEMALE", "ridge", "Lunwrenmira"],
+  ["mist-swift", "MALE", "ridge", "Quillarikae"],
+  ["opal-dormouse", "FEMALE", "glade", "Briwrenoak"],
+  ["opal-dormouse", "MALE", "glade", "Nimaquillsae"],
+  ["hush-owl", "FEMALE", "glade", "Pelquillmira"],
+  ["hush-owl", "MALE", "glade", "Quillmoswren"],
+  ["lumen-frog", "FEMALE", "fen", "Mirawrenwren"],
+  ["lumen-frog", "MALE", "fen", "Fenkaeari"],
+  ["reed-muskrat", "FEMALE", "fen", "Dorrbripax"],
+  ["reed-muskrat", "MALE", "fen", "Quillkaesae"],
+  ["elder-bear", "FEMALE", "grove", "Mosoakith"],
+  ["elder-bear", "MALE", "grove", "Dorroakbri"],
+  ["acorn-jay", "FEMALE", "grove", "Mirasaesol"],
+  ["acorn-jay", "MALE", "grove", "Kaefenmira"],
+  ["rime-cat", "FEMALE", "crags", "Quillmospax"],
+  ["rime-cat", "MALE", "crags", "Ithquilldorr"],
+  ["gale-chough", "FEMALE", "crags", "Torwrenpax"],
+  ["gale-chough", "MALE", "crags", "Lunithoak"],
 ] as const;
 
-const SPECIES_IDS = Array.from({ length: 21 }, (_, index) => index + 1);
+const SPECIES_IDS = Array.from({ length: 35 }, (_, index) => index + 1);
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -140,7 +168,11 @@ test("seed 1 twice produces the same founders", () => {
     // genes centred on each species' catalog genes instead of 500.
     // (before: d928f32a…, favor pass; c7ad0ed0…, movement pass;
     // 4a81cc1c…, species/map pass).
-    "523b3f7ea8edf15e8566517f98bfc83571769135e7fe6f161b4e6fdcfd9877db",
+    // Changed again intentionally with the second bestiary pass: species
+    // 22–35 (14 more, two founders each, so founders 43–70 are new) and
+    // larger territory capacities. Founders 1–42 keep their ids, names and
+    // genes (523b3f7e…, the 21-species world).
+    "8c883e95b6306c16f24230ec4368c77d17b7db6295c575dead6a5c44c2cdbb69",
   );
   assert.notEqual(
     canonicalHash(first.snapshot),
@@ -152,9 +184,9 @@ test("seed 1 twice produces the same founders", () => {
   assert.equal(snapshot.world.lastTick, 0);
   assert.equal(snapshot.world.schemaVersion, 2);
   assert.equal(snapshot.world.rulesetVersion, 1);
-  assert.equal(snapshot.world.nextCreatureId, 43);
-  assert.equal(snapshot.world.nextLineageId, 43);
-  assert.equal(snapshot.world.nextEventId, 85);
+  assert.equal(snapshot.world.nextCreatureId, 71);
+  assert.equal(snapshot.world.nextLineageId, 71);
+  assert.equal(snapshot.world.nextEventId, 141);
   assert.equal(snapshot.world.nextTerritoryId, 8);
   assert.equal(snapshot.world.nextMemoryId, 1);
   assert.equal(snapshot.world.nextRelationshipId, 1);
@@ -163,10 +195,10 @@ test("seed 1 twice produces the same founders", () => {
   snapshot.ruleset.hungerPerTick = 99;
   assert.equal(RULESET_V1.hungerPerTick, 4);
 
-  assert.equal(snapshot.creatures.length, 42);
-  assert.equal(snapshot.lineages.length, 42);
-  assert.equal(snapshot.discoveries.length, 42);
-  assert.equal(events.length, 84);
+  assert.equal(snapshot.creatures.length, 70);
+  assert.equal(snapshot.lineages.length, 70);
+  assert.equal(snapshot.discoveries.length, 70);
+  assert.equal(events.length, 140);
   assert.deepEqual(
     snapshot.compatibility.map((row) => [
       row.speciesLowId,
