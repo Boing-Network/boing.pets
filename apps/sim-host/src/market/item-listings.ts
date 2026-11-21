@@ -7,7 +7,8 @@
  * items/escrow-reconcile.ts). Nothing is signed or submitted.
  *
  * Served at `GET /market/v1/items`; `?wallet=0x…` adds that wallet's LPIT
- * balances (chain), usable units (world inventory) and open listings.
+ * balances (chain), minted unused units (world inventory, the backing),
+ * unminted units it can mint on demand, mints in flight, and open listings.
  */
 import {
   MARKET_API_VERSION,
@@ -25,6 +26,7 @@ import {
   type MarketItemHolding,
   type MarketItemListing,
   type MarketItemsResponse,
+  type MarketMintInfo,
 } from "@boing-pets/contract";
 import type {
   ChainItemListing,
@@ -37,6 +39,8 @@ export type ItemListingIndex = {
   /** Open listings and fee config from the last good refresh. */
   snapshot(): ItemIndexSnapshot;
   response(wallet: string | null): Promise<MarketItemsResponse>;
+  /** Drop a wallet's cached holdings (after a mint request). */
+  forget(wallet: string): void;
   start(): void;
   stop(): void;
 };
@@ -64,8 +68,15 @@ export function createItemListingIndex(input: {
   reconcile: (
     listings: readonly ChainItemListing[],
   ) => Promise<ReadonlyMap<number, ItemListingStatus>>;
-  /** Usable world-inventory units of `slug` for a wallet. */
+  /** Minted, unused world-inventory units of `slug` for a wallet. */
   usable: (walletHex: string, slug: string) => Promise<number>;
+  /** Unminted units and mints in flight (mint on demand); absent: zero. */
+  offchain?: (
+    walletHex: string,
+    slug: string,
+  ) => Promise<{ unminted: number; minting: number }>;
+  /** Mint-on-demand terms for the response; absent: no mint section. */
+  mintInfo?: (walletHex: string | null) => Promise<MarketMintInfo>;
   intervalMs?: number;
   nowMs?: () => number;
   log?: (line: string) => void;
@@ -197,6 +208,10 @@ export function createItemListingIndex(input: {
       const raw = hex != null ? decodeMultiTokenBalance(hex) : null;
       const chain = raw == null ? null : Number(raw);
       const usable = await input.usable(wallet, slug);
+      const off = (await input.offchain?.(wallet, slug)) ?? {
+        unminted: 0,
+        minting: 0,
+      };
       let listed = 0;
       for (const l of state.listings.values()) {
         if (l.itemId === itemId && l.sellerHex === wallet)
@@ -210,6 +225,8 @@ export function createItemListingIndex(input: {
         usable,
         tradable: Math.max(0, Math.min(chain ?? 0, usable)),
         listed,
+        unminted: off.unminted,
+        minting: off.minting,
       });
     }
     return out;
@@ -229,6 +246,9 @@ export function createItemListingIndex(input: {
   return {
     refresh,
     snapshot: () => state,
+    forget: (wallet: string) => {
+      holdingsCache.delete(wallet.toLowerCase());
+    },
     response: async (walletRaw) => {
       const wallet = walletRaw?.toLowerCase() ?? null;
       const listings: MarketItemListing[] = [...state.listings.values()]
@@ -271,6 +291,9 @@ export function createItemListingIndex(input: {
           wallet == null
             ? null
             : { hex: wallet, holdings: await holdings(wallet) },
+        ...(input.mintInfo == null
+          ? {}
+          : { mint: await input.mintInfo(wallet) }),
       };
     },
     start: () => {

@@ -273,9 +273,147 @@ export type UseItemPayload = {
 export type InventoryEntry = {
   slug: ItemSlug;
   count: number;
+  /**
+   * Units of `count` already minted to LPIT (on chain). Creatures never use
+   * minted units; they are kept for the market.
+   */
+  minted: number;
   /** Earliest tick at which part of this stack spoils; null never spoils. */
   nextSpoilTick: number | null;
 };
+
+/**
+ * Creature autonomy (loot, craft, use). Code catalog, not ruleset: live
+ * worlds pick it up without a ruleset migration.
+ *
+ * LOOT happens inside the deterministic kernel: a creature that finishes a
+ * successful FORAGE in a territory where a resource grows may pick up one
+ * unit. It draws from the same regrowing stock as player gathers (a HARVEST
+ * modifier), so creature loot never adds supply beyond `GATHER_RULES`:
+ *
+ * - `chancePerMille`: roll per successful forage (seeded, replay-safe).
+ * - `reserve`: creatures only loot while more than this many units are free,
+ *   so players can always gather the last `reserve` units.
+ * - `perTerritoryPerDay`: at most this many creature loots per territory in
+ *   any rolling sim day (counted from the HARVEST rows themselves).
+ *
+ * Crafting and using are decided by the pure planner in `@boing-pets/sim`
+ * (`planCreatureAutonomy`) from the creature's needs and what it may use;
+ * the host turns each decision into a recorded CREATURE_* influence, so
+ * replaying the influence log reproduces the world exactly. They never spend
+ * the player's 3-per-day influence budget.
+ */
+export const LOOT_RULES = {
+  chancePerMille: 300,
+  units: 1,
+  reserve: 6,
+  perTerritoryPerDay: 3,
+} as const;
+
+export const AUTONOMY_RULES = {
+  /** The host plans crafts and uses once per this many ticks (1 sim hour). */
+  everyTicks: 6,
+  /** A creature uses at most one item per this many ticks (6 sim hours). */
+  useCooldownTicks: 36,
+  /** At most this many uses per keeper's bag per sim day (pouches: no cap). */
+  maxUsesPerBagPerDay: 6,
+  /** At most one craft per bag per planning pass. */
+  maxCraftsPerBagPerPass: 1,
+} as const;
+
+/** What a creature does with an item it uses on itself (or its territory). */
+export type CreatureUseRule = {
+  item: ItemSlug;
+  /** Past-tense verb for the activity line ("Meadow ate a Rations Pack."). */
+  verb: string;
+  /**
+   * Direct relief on the creature's needs and health. Null means the item's
+   * catalog territory effect is applied to the creature's current territory.
+   */
+  relief: {
+    hunger?: number;
+    thirst?: number;
+    discomfort?: number;
+    unsafety?: number;
+    health?: number;
+  } | null;
+};
+
+/**
+ * Items a creature may use on its own, in priority order. Raw resources are
+ * never eaten: they are only crafted. Thresholds live in the planner.
+ */
+export const CREATURE_USE_RULES: readonly CreatureUseRule[] = [
+  { item: ItemSlug.POTION_VITALITY, verb: "drank", relief: { health: 250 } },
+  { item: ItemSlug.RATIONS, verb: "ate", relief: { hunger: 350 } },
+  {
+    item: ItemSlug.POTION_CALM,
+    verb: "drank",
+    relief: { unsafety: 400, discomfort: 100 },
+  },
+  { item: ItemSlug.SEED_BUNDLE, verb: "planted", relief: null },
+  { item: ItemSlug.SALT_LICK, verb: "set out", relief: null },
+];
+
+export function creatureUseRule(slug: string): CreatureUseRule | undefined {
+  return CREATURE_USE_RULES.find((rule) => rule.item === slug);
+}
+
+/** When the planner reaches for each item (0..1000 need scale). */
+export const CREATURE_USE_THRESHOLDS = {
+  vitalityHealthAtMost: 450,
+  rationsHungerAtLeast: 650,
+  calmUnsafetyAtLeast: 650,
+  seedHungerAtLeast: 550,
+  seedTerritoryFoodBelow: 300,
+  saltThirstOrDiscomfortAtLeast: 650,
+} as const;
+
+/** Host-issued payloads (never accepted from a client). */
+export type CreatureUseItemPayload = {
+  creatureId: number;
+  item: ItemSlug;
+  /** Territory for SEED_BUNDLE / SALT_LICK (the creature's own). */
+  territoryId?: number;
+};
+
+export type CreatureCraftPayload = {
+  creatureId: number;
+  output: ItemSlug;
+};
+
+/** Per keeper: may their creatures craft from / use their (unminted) bag? */
+export type ItemAutonomySettings = {
+  autoCraft: boolean;
+  autoUse: boolean;
+};
+
+export const DEFAULT_ITEM_AUTONOMY: ItemAutonomySettings = {
+  autoCraft: true,
+  autoUse: true,
+};
+
+/**
+ * Mint on demand: items stay off chain (DB inventory) until their keeper
+ * chooses Mint in the marketplace; the operator then mints them as LPIT to
+ * the keeper's wallet through the serial nonce queue. The operator pays the
+ * gas (about 0.0004 BOING per mint transaction, any quantity), so requests
+ * are limited per wallet.
+ */
+export const MINT_RULES = {
+  minQty: 1,
+  maxQty: 20,
+  /** Mint requests per wallet per rolling 24 hours. */
+  maxRequestsPerDay: 3,
+  /**
+   * Default player fee per mint request, in base units: 0.0005 BOING. One
+   * LPIT mint costs the operator ~42.8k gas (~0.00043 BOING); the rest is
+   * margin. Hosts override it with LIVING_PETS_ITEM_MINT_FEE (in BOING).
+   */
+  defaultFeeWei: "500000000000000",
+  /** A fee transfer older than this cannot pay for a mint. */
+  paymentMaxAgeMs: 24 * 60 * 60 * 1000,
+} as const;
 
 /** A lineage relic (LPAR unique NFT) this account holds. */
 export type RelicHolding = {
@@ -297,6 +435,8 @@ export type InventoryView = {
   relics: RelicHolding[];
   /** Recipes whose inputs are all on hand. */
   craftable: ItemSlug[];
+  /** May this keeper's creatures craft from / use their bag on their own? */
+  autonomy: ItemAutonomySettings;
   /** Free gather stock per resource territory. */
   stocks: {
     territoryId: number;
@@ -307,3 +447,4 @@ export type InventoryView = {
 };
 
 export type ItemCraft = { output: ItemSlug };
+export type ItemAutonomyCommand = Partial<ItemAutonomySettings>;

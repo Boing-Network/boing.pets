@@ -23,15 +23,33 @@ import {
   type MarketItemHolding,
   type MarketItemListing,
   type MarketItemsResponse,
+  type MarketMintChallenge,
+  type MarketMintResult,
+  type MarketMintRetryable,
   type MarketOwnership,
+  MARKET_ITEMS_MINT_CHALLENGE_PATH,
+  MARKET_ITEMS_MINT_PATH,
+  MARKET_ITEMS_MINT_RETRY_PATH,
 } from "@boing-pets/contract";
 import {
   prepareBoingWallet,
   resolveBoingProvider,
   walletErrorText,
 } from "../wallet/boing-wallet";
-import { catalogUrl, itemsUrl } from "./catalog-source";
-import { holdingBlock, itemListingOffer, parseQty } from "./item-market";
+import { catalogUrl, itemsUrl, marketPostUrl } from "./catalog-source";
+import {
+  holdingBlock,
+  itemListingOffer,
+  mintFeeText,
+  mintOffer,
+  mintReplyAction,
+  parseQty,
+  readyToList,
+  savedMintPayment,
+  saveMintPayment,
+  visibleHoldings,
+  type MintPaymentStorage,
+} from "./item-market";
 import "./market.css";
 
 const $ = <T extends HTMLElement>(id: string) =>
@@ -219,6 +237,18 @@ type Action = {
     priceText: string,
     qtyText: string,
   ) => EscrowWalletTx;
+  /**
+   * A multi-step flow instead of one transaction (mint on demand: sign a
+   * message, then maybe list). Reports progress through `status`.
+   */
+  run?: (
+    wallet: string,
+    priceText: string,
+    qtyText: string,
+    status: (text: string | Node[]) => void,
+  ) => Promise<void>;
+  /** Sign button text (default "Sign in Boing Express"). */
+  signLabel?: string;
 };
 
 const boing = (wei: bigint | string) => `${weiToBoing(wei)} BOING`;
@@ -445,19 +475,38 @@ function openTrade(title: string, action: Action): void {
   qtyInput.oninput = updatePreview;
   updatePreview();
   sign.hidden = !action.trade;
+  sign.dataset.label ??= (sign.textContent ?? "").trim();
+  sign.textContent = action.signLabel ?? sign.dataset.label;
   sign.disabled =
-    action.build == null || state.wallet == null || action.blocked != null;
+    (action.build == null && action.run == null) ||
+    state.wallet == null ||
+    action.blocked != null;
   $("trade-note").textContent = !action.trade
     ? ""
-    : escrow?.mode !== "CONTRACT"
+    : action.run == null && escrow?.mode !== "CONTRACT"
       ? (escrow?.note ?? "Trading is not available on this server yet.")
       : action.blocked != null
         ? action.blocked
         : state.wallet == null
           ? "Connect your wallet to sign."
-          : "Boing Express shows the full transaction before you approve it.";
+          : action.run != null
+            ? "Boing Express shows exactly what you sign before you approve it."
+            : "Boing Express shows the full transaction before you approve it.";
   sign.onclick = async () => {
     const wallet = state.wallet;
+    if (action.run != null && wallet != null) {
+      sign.disabled = true;
+      try {
+        await action.run(wallet, priceInput.value, qtyInput.value, (text) => {
+          if (typeof text === "string") status.textContent = text;
+          else status.replaceChildren(...text);
+        });
+      } catch (error) {
+        status.textContent = tradeError(error);
+        sign.disabled = false;
+      }
+      return;
+    }
     if (action.build == null || wallet == null) return;
     sign.disabled = true;
     try {
@@ -717,6 +766,282 @@ function itemListAction(h: MarketItemHolding): Action {
   };
 }
 
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const url = marketPostUrl(
+    window.location.search,
+    import.meta.env.VITE_LIVING_PETS_MP_URL as string | undefined,
+    path,
+  );
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify(body),
+  });
+  const json = (await res.json().catch(() => null)) as
+    (T & { error?: string }) | null;
+  if (!res.ok || json == null) {
+    throw new Error(json?.error ?? `HTTP ${res.status}`);
+  }
+  return json;
+}
+
+async function postMint(
+  path: string,
+  body: unknown,
+): Promise<{
+  status: number;
+  body: (MarketMintResult & Record<string, unknown>) | null;
+}> {
+  const url = marketPostUrl(
+    window.location.search,
+    import.meta.env.VITE_LIVING_PETS_MP_URL as string | undefined,
+    path,
+  );
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    const json = (await res.json().catch(() => null)) as
+      (MarketMintResult & Record<string, unknown>) | null;
+    return { status: res.status, body: json };
+  } catch {
+    return { status: 0, body: null };
+  }
+}
+
+const browserStorage = (): MintPaymentStorage | null => {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Player-paid mint: get a challenge (names item, qty, fee and pay-to), sign
+ * it, pay the fee with one BOING transfer (or reuse an unused earlier fee),
+ * then ask the server to mint. The server checks the payment on chain; while
+ * it is not included yet the same request is repeated.
+ */
+async function requestMint(
+  wallet: string,
+  h: MarketItemHolding,
+  qty: number,
+  status: (text: string) => void,
+): Promise<void> {
+  status(`Mint ${qty} × ${h.name}: asking the server for a challenge…`);
+  const challenge = await postJson<MarketMintChallenge>(
+    MARKET_ITEMS_MINT_CHALLENGE_PATH,
+    { wallet, itemSlug: h.itemSlug, qty },
+  );
+  status(`Mint ${qty} × ${h.name}: sign the request in Boing Express…`);
+  await prepareBoingWallet();
+  const provider = resolveBoingProvider();
+  if (provider == null) throw new Error("Boing Express is not available");
+  const signature = await provider.request({
+    method: "boing_signMessage",
+    params: [challenge.message, wallet],
+  });
+  if (typeof signature !== "string" || signature.length < 64) {
+    throw new Error("Boing Express did not return a signature");
+  }
+  const storage = browserStorage();
+  let paymentTx = savedMintPayment(storage, wallet);
+  if (paymentTx == null) {
+    status(
+      `Mint ${qty} × ${h.name}: approve the ${challenge.feeBoing} BOING mint fee in Boing Express…`,
+    );
+    const sent = await provider.request({
+      method: "boing_sendTransaction",
+      params: [
+        {
+          type: "transfer",
+          to: challenge.payToHex,
+          amount: challenge.feeWei,
+        },
+      ],
+    });
+    paymentTx = txIdOf(sent);
+    if (paymentTx == null) {
+      throw new Error("Boing Express did not return the fee tx id");
+    }
+    // Remember it before anything else can fail: it pays for a retry.
+    saveMintPayment(storage, wallet, paymentTx);
+  } else {
+    status(
+      `Mint ${qty} × ${h.name}: using your unused fee ${short(paymentTx)}…`,
+    );
+  }
+  for (let i = 0; i < 40; i += 1) {
+    const reply = await postMint(MARKET_ITEMS_MINT_PATH, {
+      wallet,
+      nonce: challenge.nonce,
+      signature,
+      paymentTx,
+    });
+    const next = mintReplyAction(reply.status, reply.body);
+    const error =
+      reply.body != null && !reply.body.ok
+        ? reply.body.error
+        : `HTTP ${reply.status}`;
+    if (next === "done") {
+      saveMintPayment(storage, wallet, null);
+      return;
+    }
+    if (next === "reused") {
+      saveMintPayment(storage, wallet, null);
+      throw new Error(
+        "Your saved fee had already paid for an earlier mint (that mint was re-checked). Press Mint again to pay a new fee.",
+      );
+    }
+    if (next === "keep") {
+      throw new Error(
+        `${error}. Your ${challenge.feeBoing} BOING fee (${short(paymentTx)}) is unused and will pay for your next mint.`,
+      );
+    }
+    if (next === "drop") {
+      saveMintPayment(storage, wallet, null);
+      throw new Error(error);
+    }
+    status(
+      `Mint ${qty} × ${h.name}: waiting for the fee ${short(paymentTx)} to land on chain… (${i * 3}s)`,
+    );
+    await sleep(3_000);
+  }
+  throw new Error(
+    `The fee ${short(paymentTx)} is not on chain yet. Press Mint again in a minute; it will not charge you twice.`,
+  );
+}
+
+function mintSteps(h: MarketItemHolding, max: number): string[] {
+  const mint = state.items?.mint;
+  const fee = mintFeeText(mint) ?? "a small";
+  const saved =
+    state.wallet != null &&
+    savedMintPayment(browserStorage(), state.wallet) != null;
+  return [
+    `${h.unminted ?? 0} × ${h.name} in your world bag aren't on chain yet; you can mint up to ${max} now.`,
+    `Mint fee: ${fee} per request (any quantity), paid to the game operator (${short(mint?.payToHex ?? null)}), which pays the mint gas. ${saved ? "You have an unused fee from an earlier try, so you won't be charged again." : "Boing Express asks you to sign the request, then to approve the fee transfer (plus its network gas)."} If the mint then fails, you can retry it without paying again.`,
+    `Minted units are yours to list or keep, but your creatures won't eat or use them any more.${mint != null ? ` Up to ${mint.maxRequestsPerDay} mints a day${mint.requestsLeft != null ? ` (${mint.requestsLeft} left today)` : ""}.` : ""}`,
+  ];
+}
+
+/** Re-queue a paid mint whose operator tx failed (no new fee). */
+function retryMintButton(r: MarketMintRetryable): HTMLElement {
+  const button = el("button", { type: "button", className: "secondary" }, [
+    "Retry (already paid)",
+  ]) as HTMLButtonElement;
+  button.addEventListener("click", () => {
+    button.disabled = true;
+    void postMint(MARKET_ITEMS_MINT_RETRY_PATH, {
+      paymentTx: r.paymentTx,
+    }).then((reply) => {
+      button.textContent = reply.body?.ok === true ? "Retrying…" : "Try later";
+      window.setTimeout(() => void loadItems(), 20_000);
+    });
+  });
+  return button;
+}
+
+function itemMintAction(h: MarketItemHolding, max: number): Action {
+  return {
+    label: "Mint",
+    trade: true,
+    signLabel: `Sign, pay ${mintFeeText(state.items?.mint) ?? "fee"} & mint`,
+    needsQty: { max, label: `Quantity (1–${max})` },
+    steps: mintSteps(h, max),
+    run: async (w, _p, q, status) => {
+      const n = parseQty(q, max);
+      if (n == null) throw new Error(`Enter a quantity from 1 to ${max}`);
+      await requestMint(w, h, n, status);
+      status(
+        `Minting ${n} × ${h.name} to your wallet. It lands within a minute or two; then List it here.`,
+      );
+      window.setTimeout(() => void loadItems(), 2_000);
+      window.setTimeout(() => void loadItems(), 30_000);
+    },
+  };
+}
+
+function itemMintListAction(h: MarketItemHolding, max: number): Action {
+  const items = state.items!;
+  const { bps, fee } = itemFeeText();
+  return {
+    label: "Mint & List",
+    trade: true,
+    signLabel: `Sign, pay ${mintFeeText(state.items?.mint) ?? "fee"}, mint & list`,
+    needsPrice: true,
+    priceLabel: "Price per unit (BOING)",
+    needsQty: { max, label: `Quantity (1–${max})` },
+    steps: [
+      ...mintSteps(h, max).slice(0, 2),
+      `Once the units are in your wallet, Boing Express asks you to approve the listing: one transaction moves them into the item escrow (${short(items.itemEscrowHex)}) at your price. You receive each sale minus the ${fee} fee.`,
+    ],
+    preview: (p, q) => {
+      const n = parseQty(q, max);
+      const unit = boingToWei(p);
+      if (n == null) return `Enter a whole number from 1 to ${max}.`;
+      if (unit == null || unit === 0n) return "Set a price per unit in BOING.";
+      const split = escrowSplit(itemTotalWei(unit, n), bps);
+      return `If all ${n} sell: you receive ${boing(split.sellerWei)}.`;
+    },
+    run: async (w, p, q, status) => {
+      const n = parseQty(q, max);
+      if (n == null) throw new Error(`Enter a quantity from 1 to ${max}`);
+      const unit = boingToWei(p);
+      if (unit == null || unit === 0n) {
+        throw new Error("Enter a price per unit in BOING, like 0.5");
+      }
+      await requestMint(w, h, n, status);
+      // Wait for the mint to land and the server to see it (up to 4 min).
+      let ready: MarketItemHolding | null = null;
+      for (let i = 0; i < 48 && ready == null; i += 1) {
+        status(
+          `Minting ${n} × ${h.name}… (${i * 5}s) Keep this open; you'll be asked to approve the listing next.`,
+        );
+        await sleep(5_000);
+        await loadItems();
+        ready = readyToList(state.items, h.itemId, n);
+      }
+      if (ready == null) {
+        status(
+          "The mint is still settling. Your units will appear under Your items; list them from there.",
+        );
+        return;
+      }
+      const { summary, ...request } = buildItemListTx({
+        itemEscrowHex: items.itemEscrowHex!,
+        collectionHex: items.collectionHex!,
+        sellerHex: w,
+        itemId: h.itemId,
+        qty: n,
+        unitPriceWei: unit,
+        itemName: h.name,
+      });
+      status(`${summary}: waiting for Boing Express…`);
+      const provider = resolveBoingProvider();
+      if (provider == null) throw new Error("Boing Express is not available");
+      const result = await provider.request({
+        method: "boing_sendTransaction",
+        params: [request],
+      });
+      const id = txIdOf(result);
+      status(
+        `Minted and listed ${n} × ${h.name}${id != null ? ` (tx ${short(id)})` : ""}. The listing appears within about 30 seconds.`,
+      );
+      window.setTimeout(() => void loadItems(), 8_000);
+    },
+  };
+}
+
 function actionButton(
   label: string,
   action: Action | null,
@@ -829,29 +1154,80 @@ function renderItemMarket(): void {
         ]),
       );
     } else {
-      const mine = (items.wallet?.holdings ?? []).map((h) => {
+      const mintInfo = items.mint;
+      const mine = visibleHoldings(items.wallet?.holdings ?? []).map((h) => {
         const block = holdingBlock(h);
+        const offer = mintOffer(h, mintInfo);
+        const buttons: HTMLElement[] = [
+          block == null
+            ? actionButton("List", itemListAction(h), { subject: h.name })
+            : actionButton("List", null, { hover: block }),
+        ];
+        if (offer.kind === "MINT") {
+          buttons.push(
+            actionButton("Mint", itemMintAction(h, offer.max), {
+              subject: h.name,
+              hover: `Mint to your wallet as LPIT (fee ${mintFeeText(mintInfo) ?? "shown next"}).`,
+            }),
+            actionButton("Mint & List", itemMintListAction(h, offer.max), {
+              subject: h.name,
+            }),
+          );
+        } else if (offer.kind === "BLOCKED") {
+          buttons.push(actionButton("Mint", null, { hover: offer.reason }));
+        }
+        const notMinted = h.unminted == null ? "—" : String(h.unminted);
         return el("tr", {}, [
           el("td", {}, [h.name]),
           el("td", {}, [h.chain == null ? "?" : String(h.chain)]),
           el("td", {}, [String(h.usable)]),
+          el("td", {}, [
+            (h.minting ?? 0) > 0
+              ? `${notMinted} (+${h.minting} minting)`
+              : notMinted,
+          ]),
           el("td", {}, [String(h.tradable)]),
           el("td", {}, [String(h.listed)]),
-          el("td", {}, [
-            block == null
-              ? actionButton("List", itemListAction(h), { subject: h.name })
-              : actionButton("List", null, { hover: block }),
-          ]),
+          el("td", { className: "im-actions" }, buttons),
         ]);
       });
       parts.push(
         el("h3", {}, ["Your items"]),
+        ...(mintInfo != null
+          ? [el("p", { className: "sub" }, [mintInfo.note])]
+          : []),
         table(
-          ["Item", "In wallet", "Unused in world", "Tradable", "Listed", ""],
+          [
+            "Item",
+            "In wallet",
+            "Minted, unused",
+            "Not minted",
+            "Tradable",
+            "Listed",
+            "",
+          ],
           mine,
-          "Loading your balances…",
+          items.wallet == null
+            ? "Loading your balances…"
+            : "Nothing in your bag or wallet yet. Your creatures find items as they forage.",
         ),
       );
+      const retryable = mintInfo?.retryable ?? [];
+      if (retryable.length > 0) {
+        parts.push(
+          el("h3", {}, ["Paid mints to retry"]),
+          el(
+            "ul",
+            { className: "im-retry" },
+            retryable.map((r) =>
+              el("li", {}, [
+                `${r.qty} × ${r.itemSlug} (fee ${short(r.paymentTx)}) did not mint${r.error != null ? `: ${r.error}` : ""}. `,
+                retryMintButton(r),
+              ]),
+            ),
+          ),
+        );
+      }
     }
   }
   box.replaceChildren(...parts);

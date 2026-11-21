@@ -238,13 +238,33 @@ export class SdkBoingNftClient implements BoingNftClient {
     }
     const senderHex = await senderHexFromSecretKey(secretKey32);
     const usedNonce = await fetchNextNonce(this.rpc, senderHex);
-    const result = await submitContractCallWithSimulationRetry({
-      client: this.rpc,
-      secretKey32,
-      senderHex,
-      contractHex: collectionHex,
-      calldata: calldataBytes,
-    });
+    let result: { tx_hash: string };
+    try {
+      result = await submitContractCallWithSimulationRetry({
+        client: this.rpc,
+        secretKey32,
+        senderHex,
+        contractHex: collectionHex,
+        calldata: calldataBytes,
+      });
+    } catch (error) {
+      // The node can take a tx even when the call errors (a dropped reply).
+      // Operator txs are serial, so if the account nonce moves past the one
+      // this mint was signed with, this mint landed: report it as done
+      // instead of letting a retry sign a second mint (paid mints must never
+      // double-mint). A real failure leaves the nonce where it was.
+      const landed = await waitForNonceAfter(
+        () => fetchNextNonce(this.rpc, senderHex),
+        usedNonce,
+        { timeoutMs: 15_000 },
+      );
+      if (!landed) throw error;
+      return {
+        txHash: `nonce:${usedNonce}`,
+        collectionHex,
+        tokenIdHex,
+      };
+    }
     // The SDK reads the committed nonce, which ignores pending txs. Hold the
     // (serial) mint queue until this one is included so the next mint does
     // not sign with the same nonce.

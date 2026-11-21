@@ -7,6 +7,7 @@ import type { CreatureNftLinkRow } from "../boing/nft-link";
 import type {
   InfluenceAccountRow,
   InventoryLotRow,
+  ItemAutonomyRow,
   ItemChange,
 } from "../items/types";
 import type {
@@ -46,6 +47,11 @@ export class MemoryWorldRepository implements WorldRepository {
   #tables: DurableTables | null = null;
   #lots: InventoryLotRow[] = [];
   #influenceAccounts: InfluenceAccountRow[] = [];
+  #autonomy: ItemAutonomyRow[] = [];
+
+  async readItemAutonomy(worldId: number): Promise<ItemAutonomyRow[]> {
+    return clone(this.#autonomy.filter((row) => row.worldId === worldId));
+  }
 
   async readInventoryLots(worldId: number): Promise<InventoryLotRow[]> {
     return clone(this.#lots.filter((row) => row.worldId === worldId)).sort(
@@ -71,7 +77,12 @@ export class MemoryWorldRepository implements WorldRepository {
       if (idx >= 0) {
         const existing = lots[idx];
         if (existing == null) throw new Error("lot");
-        lots[idx] = { ...clone(row), id: existing.id };
+        // Like the SQL upsert: only `remaining` (and the time) change.
+        lots[idx] = {
+          ...existing,
+          remaining: row.remaining,
+          updatedAtMs: row.updatedAtMs,
+        };
       } else {
         if (lots.some((lot) => lot.id === row.id)) {
           throw new Error(`duplicate lot id ${row.id}`);
@@ -84,24 +95,40 @@ export class MemoryWorldRepository implements WorldRepository {
       if (accounts.some((a) => a.influenceId === row.influenceId)) continue;
       accounts.push(clone(row));
     }
+    const autonomy = clone(this.#autonomy);
+    for (const row of change.upsertAutonomy ?? []) {
+      const idx = autonomy.findIndex(
+        (a) => a.worldId === row.worldId && a.accountId === row.accountId,
+      );
+      if (idx >= 0) autonomy[idx] = clone(row);
+      else autonomy.push(clone(row));
+    }
     this.#lots = lots;
     this.#influenceAccounts = accounts;
+    this.#autonomy = autonomy;
   }
 
   /** Browser persistence: export and restore the item side tables. */
-  exportItems(): { lots: InventoryLotRow[]; accounts: InfluenceAccountRow[] } {
+  exportItems(): {
+    lots: InventoryLotRow[];
+    accounts: InfluenceAccountRow[];
+    autonomy: ItemAutonomyRow[];
+  } {
     return {
       lots: clone(this.#lots),
       accounts: clone(this.#influenceAccounts),
+      autonomy: clone(this.#autonomy),
     };
   }
 
   importItems(data: {
     lots?: InventoryLotRow[];
     accounts?: InfluenceAccountRow[];
+    autonomy?: ItemAutonomyRow[];
   }): void {
     this.#lots = clone(data.lots ?? []);
     this.#influenceAccounts = clone(data.accounts ?? []);
+    this.#autonomy = clone(data.autonomy ?? []);
   }
 
   async readTables(): Promise<DurableTables | null> {

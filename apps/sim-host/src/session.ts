@@ -8,6 +8,7 @@ import {
   introduceSpecies,
   step,
   type IntroduceSpeciesResult,
+  type WorldEvent,
   type WorldSnapshot,
 } from "@boing-pets/sim";
 import {
@@ -41,6 +42,11 @@ export type HostSession = {
   mintEdge: MintEdge;
   /** M22: on-chain owner reads for relic recipients (null: no chain). */
   relicChain?: RelicChain | null;
+  /**
+   * Creature autonomy: called with the ITEM events of each window right
+   * after it is durable (the item service credits loot). Never throws.
+   */
+  onItemEvents?: ((events: readonly WorldEvent[]) => Promise<void>) | null;
   /**
    * What the introduce-species migration did on this boot (already
    * committed), or null when the world was up to date / freshly created.
@@ -156,6 +162,9 @@ export async function commitSession(
   const relicEvents = session.dirty.events.filter(
     (event) => event.kind === EventKind.BIRTH || event.kind === EventKind.DEATH,
   );
+  const itemEvents = session.dirty.events.filter(
+    (event) => event.kind === EventKind.ITEM,
+  );
   await saveDirty(
     session.repository,
     session.snapshot,
@@ -184,6 +193,14 @@ export async function commitSession(
       chain: session.relicChain ?? null,
       nowMs: session.snapshot.world.clockAtMs,
     });
+  }
+  // Creature loot: credit keepers / pouches after the same commit.
+  if (itemEvents.length > 0 && session.onItemEvents != null) {
+    try {
+      await session.onItemEvents(itemEvents);
+    } catch {
+      // The world history is durable; crediting loot is best effort.
+    }
   }
   pruneHotSnapshot(session.snapshot);
   clearDirty(session.dirty);

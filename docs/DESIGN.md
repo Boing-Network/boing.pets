@@ -504,6 +504,100 @@ min(chain, unused)`, which is what the List form offers.
   `LIVING_PETS_ITEM_ESCROW_HEX` on Fly. Without it the endpoint answers browse
   only and the market UI says so.
 
+### Creature autonomy and mint on demand
+
+Creatures loot, craft and use items on their own; keepers no longer have to
+click for every ration. Nothing here spends a player's influence budget.
+
+- **Loot (kernel, `packages/sim/src/kernel/autonomy.ts`)**: after a
+  successful FORAGE in a territory where a resource grows (meadow: clover,
+  fen: glowmoss, ridge/crags: crystal shard, glade: moonpetal), a seeded roll
+  (`rng` domain `loot`, 300‰) may let the creature pick up 1 unit. It is taken
+  from the same regrowing stock as player gathers (a HARVEST modifier with no
+  source influence), so there is no new supply: at most
+  `LOOT_RULES.perTerritoryPerDay` = 3 per resource territory per sim day
+  (≤ 15 a day for the whole world) and creatures leave the last
+  `LOOT_RULES.reserve` = 6 units of the 12-unit stock to players. The tick
+  emits an `ITEM` event (`item.loot.v1`, "Meadow found 1 Clover in …").
+  Deterministic and replay-safe; offline catch-up loots too.
+- **Who gets it**: after the window commits, the host credits each loot event
+  once (`loot:<eventId>`) to the creature's keeper (the wallet holding its NFT
+  per the ownership rule; the local player in single player), or else to the
+  creature's **pouch** (`pouch:<creatureId>`). The pouch travels with the
+  creature: whoever adopts it later gets it, and creatures use their pouch
+  first.
+- **Craft and use (host plans, kernel applies)**: every 6 ticks (1 sim hour),
+  after a live commit, `planCreatureAutonomy` (pure) looks at each living
+  creature's needs and the units it may draw on (pouch, then keeper bag):
+  - crafts first, at most 1 per bag per pass (first matching recipe);
+  - then at most one use per creature, with a 36-tick (6 sim hour) cooldown
+    and at most 6 uses per keeper bag per rolling 24 h (pouches: no cap).
+    Vitality at health ≤ 450 (+250 health), Rations at hunger ≥ 650 (−350),
+    Calm at unsafety ≥ 650 (−400 unsafety, −100 discomfort), Seed Bundle
+    when hunger ≥ 550 and territory food < 300 (food +100 for 7 days), Salt
+    Lick when thirst or discomfort ≥ 650 and the territory has no comfort
+    bonus (comfort 2 for 3 days), territory items once per territory per pass.
+    Each decision is recorded as a host-only `CREATURE_USE_ITEM` /
+    `CREATURE_CRAFT` influence (not budgeted, rejected from clients) that the
+    kernel applies next tick, so replaying the influence log reproduces the
+    world. The bag is debited under the item lock, keyed by influence id.
+    The kernel logs "Meadow ate a Rations Pack." (`item.use.v1`) and
+    "Meadow crafted a …" (`item.craft.v1`); the inspector shows them under
+    Activity.
+- **What creatures never touch**: minted units (they exist as LPIT and are
+  the keeper's to trade) and listed units (already locked in the escrow
+  pseudo-account). Only live, unminted lots count.
+- **Keeper toggles**: "Creatures craft from my bag" and "Creatures use items
+  from my bag" (`item_autonomy`, default on, `item.autonomy` command). The
+  manual Gather / Use / Craft buttons stay (they still cost influence where
+  they did before).
+- **Off-chain first**: items now live in the world inventory until the
+  keeper mints them. Influence item rewards become unminted lots
+  (`reward:influence:<id>`) instead of LPIT mints;
+  `LIVING_PETS_ITEM_REWARD_AUTOMINT=1` restores mint-on-reward. Keepsakes and
+  relics (unique artifacts) still mint at once.
+- **Mint on demand (player-paid)**: `inventory_lot.minted` marks units that
+  exist on chain (reward mints, claims, escrow locks / fills / returns;
+  backfilled by source-key prefix). In the market Items tab:
+  1. `POST /market/v1/items/mint/challenge` {wallet, itemSlug, qty}. The host
+     refuses up front if the wallet is at its daily cap or lacks the unminted
+     units, so nobody pays for a request that cannot succeed. The reply names
+     the fee (`feeWei`, `feeBoing`) and `payToHex` (the operator wallet); the
+     signed message includes them (single-use nonce, 15 min expiry).
+  2. The wallet signs the message (Ed25519 over BLAKE3, like sign-in) and
+     sends one plain BOING transfer of the fee to the operator.
+  3. `POST /market/v1/items/mint` {wallet, nonce, signature, paymentTx}. The
+     host verifies the payment read-only (`market/mint-payment.ts`):
+     `boing_getTransactionReceipt` (included, success), then the tx at
+     `tx_index` in `boing_getBlockByHeight`: sender = wallet, `Transfer` to
+     the operator, amount >= fee, block under 24 h old. Not included yet:
+     202 `pending` and the challenge stays open, so the client repeats the
+     same request (every 3 s, up to 2 min).
+  4. Verified: the units move into a minted lot `mint:claim:<tx>` and an
+     LPIT mint is queued with key `claim:<tx>` through the operator's nonce
+     queue. Both keys are unique per world, so **one payment backs at most
+     one claim and one mint**. Re-sending a used payment re-queues its own
+     claim (never a new one); another wallet cannot use it.
+  - **Fee**: `LIVING_PETS_ITEM_MINT_FEE` (BOING per request, any quantity),
+    default **0.0005 BOING**: one multi-token mint is ~42.8k gas
+    (~0.00043 BOING) for the operator; the rest is margin. Zero or invalid
+    falls back to the default. Without an operator wallet
+    (`LIVING_PETS_OPERATOR_HEX`) mint on demand is off.
+  - **Retry without paying again**: a payment refused after verification
+    (e.g. a creature ate the units meanwhile) is not consumed; the client
+    keeps the tx id and the next Mint reuses it. A claim whose operator tx
+    failed shows under "Paid mints to retry" (`MarketMintInfo.retryable`);
+    `POST /market/v1/items/mint/retry` {paymentTx} re-queues it. The mint
+    edge only submits PENDING/FAILED rows, and if an operator submit errors
+    after the node took the tx, the account nonce has moved, so the row is
+    recorded as landed instead of being signed again: no double mint.
+  - Limits (`MINT_RULES`): 1–20 units per request, 3 requests per wallet per
+    rolling 24 h (failed claims count). **Mint & List** mints, waits for the
+    units to show as tradable, then opens the usual item-escrow listing.
+    Listings are backed only by minted unused units. LPIT ids 4–9 (clover,
+    glowmoss, crystal shard, moonpetal, seed bundle, salt lick) are new; the
+    item escrow already allows the whole LPIT collection.
+
 ## Time controls (`apps/sim-host/src/clock.ts`, `hud/ClockControls.tsx`)
 
 - **Pause:** freezes stepping. While paused, `clockAt` snaps forward (at most

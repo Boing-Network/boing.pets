@@ -56,6 +56,14 @@ import {
 } from "../market/item-listings";
 import { walletAccountId } from "../items/escrow-reconcile";
 import { createWalletChallenges, normalizeWalletAddress } from "./wallet-auth";
+import {
+  MARKET_ITEMS_MINT_CHALLENGE_PATH,
+  MARKET_ITEMS_MINT_PATH,
+  MARKET_ITEMS_MINT_RETRY_PATH,
+} from "@boing-pets/contract";
+import { createCreatureOwners } from "../market/creature-owners";
+import { createItemMintEndpoints } from "../market/item-mint";
+import { mintFeeFromEnv, verifyMintPayment } from "../market/mint-payment";
 import { listenSharedWorldWs } from "./ws-server";
 
 const { values } = parseArgs({
@@ -146,6 +154,12 @@ const marketRead = rpcReadBatch(
     maxRetries: 2,
   }),
 );
+// Mint-on-demand fee checks read receipts and blocks (no key).
+const paymentChain = createClient({
+  baseUrl: process.env.BOING_RPC_URL?.trim() || DEFAULT_BOING_RPC_URL,
+  maxRetries: 2,
+});
+const itemMintFeeWei = mintFeeFromEnv(process.env);
 const listingIndex =
   marketConfig.escrowHex == null
     ? null
@@ -183,6 +197,22 @@ const host = createSharedWorldHost({
   initialScale: config.scale,
   mintEdge,
   relicChain,
+  // Creature autonomy: loot goes to the wallet that holds the creature NFT
+  // (adopted creatures); anyone else's finds stay in the creature's pouch.
+  creatureOwners: createCreatureOwners({
+    links: () => creatureLinks.list(),
+    chain: () => listingIndex?.snapshot() ?? null,
+    operatorHex: marketConfig.operatorHex,
+    escrowHex: marketConfig.escrowHex,
+  }),
+  // Off-chain-first item rewards unless explicitly asked to mint at once.
+  itemRewardMode:
+    process.env.LIVING_PETS_ITEM_REWARD_AUTOMINT === "1"
+      ? "automint"
+      : "offchain",
+  // Mint on demand is player-paid: LIVING_PETS_ITEM_MINT_FEE BOING per
+  // request, sent to the operator wallet (which pays the mint gas).
+  itemMintFee: { feeWei: itemMintFeeWei, payToHex: marketConfig.operatorHex },
 });
 await host.start();
 // LPIT item market: read the item escrow every 30 s and reconcile listings,
@@ -211,11 +241,72 @@ const itemIndex = (() => {
         walletAccountId(wallet),
         slug,
         worldNow().lastTick,
+        "minted",
       ),
+    offchain: (wallet, slug) =>
+      items.offchainUnits(worldNow().id, wallet, slug, worldNow().lastTick),
+    mintInfo: (wallet) => items.mintInfo(worldNow().id, wallet, Date.now()),
     log,
   });
 })();
 itemIndex?.start();
+// Mint on demand: wallet-signed, player-paid POSTs; the operator mints
+// through its nonce queue.
+const itemMint = (() => {
+  const items = host.runtime.items;
+  const payToHex = marketConfig.operatorHex;
+  if (itemIndex == null || items == null || !items.enabled) return null;
+  if (payToHex == null) return null;
+  return createItemMintEndpoints({
+    chainId: config.chainId,
+    enabled: () => items.mintEnabled,
+    feeWei: itemMintFeeWei,
+    payToHex,
+    verifyPayment: (paymentTx, walletHex) =>
+      verifyMintPayment({
+        chain: paymentChain,
+        txId: paymentTx,
+        walletHex,
+        payToHex,
+        feeWei: itemMintFeeWei,
+        nowMs: Date.now(),
+      }),
+    precheck: async ({ walletHex, slug, qty }) => {
+      const world = host.runtime.session.snapshot.world;
+      const info = await items.mintInfo(world.id, walletHex, Date.now());
+      if (info.requestsLeft === 0) {
+        return `${info.maxRequestsPerDay} mints per day; try again tomorrow`;
+      }
+      const off = await items.offchainUnits(
+        world.id,
+        walletHex,
+        slug,
+        world.lastTick,
+      );
+      return off.unminted < qty
+        ? `only ${off.unminted} unminted to mint`
+        : null;
+    },
+    request: async ({ walletHex, slug, qty, paymentTx }) => {
+      const world = host.runtime.session.snapshot.world;
+      const result = await items.requestMint({
+        worldId: world.id,
+        walletHex,
+        slug,
+        qty,
+        paymentTx,
+        tick: world.lastTick,
+        nowMs: Date.now(),
+      });
+      if (result.ok) itemIndex.forget(walletHex);
+      return result;
+    },
+    retry: async (paymentTx) => {
+      const world = host.runtime.session.snapshot.world;
+      return items.retryPaidMint({ worldId: world.id, paymentTx });
+    },
+  });
+})();
 const server = await listenSharedWorldWs({
   host,
   hostname: config.hostname,
@@ -235,6 +326,16 @@ const server = await listenSharedWorldWs({
   }),
   ...(listingIndex != null
     ? { marketListings: async () => listingIndex.response() }
+    : {}),
+  ...(itemMint != null
+    ? {
+        marketPost: {
+          [MARKET_ITEMS_MINT_CHALLENGE_PATH]: (body, origin) =>
+            itemMint.challenge(body, origin),
+          [MARKET_ITEMS_MINT_PATH]: (body) => itemMint.mint(body),
+          [MARKET_ITEMS_MINT_RETRY_PATH]: (body) => itemMint.retry(body),
+        },
+      }
     : {}),
   marketItems: async (query) => {
     if (itemIndex == null) {

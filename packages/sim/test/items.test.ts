@@ -287,13 +287,18 @@ test("item influences replay to the same canonical hash", () => {
   assert.equal(run(), run());
 });
 
-test("a world with no item influences is untouched by the item slice", () => {
+test("a world with no item influences only gains creature loot harvests", () => {
   const a = world(3);
   const b = world(3);
   for (let t = 0; t < 200; t += 1) step(a);
   for (let t = 0; t < 200; t += 1) step(b);
   assert.equal(canonicalHash(a), canonicalHash(b));
-  assert.equal(a.modifiers.length, 0);
+  // No player influences: every modifier is a creature loot (HARVEST with no
+  // source influence), and none of them are food or danger bonuses.
+  for (const modifier of a.modifiers) {
+    assert.equal(modifier.kind, ModifierKind.HARVEST);
+    assert.equal(modifier.sourceInfluenceId, null);
+  }
 });
 
 test("relicTriggers maps non-founder births and deaths to relic candidates", () => {

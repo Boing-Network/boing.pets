@@ -9,6 +9,15 @@ export {
   type RelicTrigger,
   type ResourceStock,
 } from "./kernel/items";
+export {
+  creatureLootsToday,
+  lootCheck,
+  planCreatureAutonomy,
+  wantedItems,
+  type AutonomyBag,
+  type AutonomyIntent,
+  type LootCheck,
+} from "./kernel/autonomy";
 export { createWorld } from "./worldgen/create-world";
 export {
   INTRODUCED_FOUNDERS_PER_SPECIES,

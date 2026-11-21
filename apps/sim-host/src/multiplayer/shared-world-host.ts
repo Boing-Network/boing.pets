@@ -31,6 +31,7 @@ import {
   type ClientRegistry,
 } from "./client-registry";
 import type { RelicChain } from "../items/relics";
+import type { CreatureOwnerOf } from "../items/autonomy";
 
 export type SharedWorldHostOptions = {
   repository: WorldRepository;
@@ -46,6 +47,12 @@ export type SharedWorldHostOptions = {
   onBroadcast?: (message: HostToClient) => void;
   /** Scale for a world with no saved clock preference. */
   initialScale?: TimeScale;
+  /** Creature keepers (adoption index); default: nobody (pouches). */
+  creatureOwners?: () => Promise<CreatureOwnerOf>;
+  /** See HostRuntimeOptions.itemRewardMode. */
+  itemRewardMode?: "offchain" | "automint";
+  /** See HostRuntimeOptions.itemMintFee. */
+  itemMintFee?: { feeWei: bigint; payToHex: string | null };
 };
 
 export type SharedWorldHost = {
@@ -95,6 +102,13 @@ export function createSharedWorldHost(
     autoFrame: options.autoFrame,
     mintEdge: options.mintEdge,
     relicChain: options.relicChain ?? null,
+    // Shared worlds have no single local player: a creature nobody adopted
+    // keeps its finds in its own pouch.
+    creatureOwners:
+      options.creatureOwners ??
+      (async (): Promise<CreatureOwnerOf> => () => null),
+    itemRewardMode: options.itemRewardMode,
+    itemMintFee: options.itemMintFee,
     preferPatches: true,
     initialScale: options.initialScale,
     emit(message) {

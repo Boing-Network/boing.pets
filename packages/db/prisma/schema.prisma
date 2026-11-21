@@ -78,6 +78,7 @@ enum EventKind {
   MATING
   DISCOVERY
   MIGRATION
+  ITEM
 }
 
 enum DeathCause {
@@ -96,6 +97,8 @@ enum InfluenceKind {
   CALM_TERRITORY
   GATHER_RESOURCE
   USE_ITEM
+  CREATURE_USE_ITEM
+  CREATURE_CRAFT
 }
 
 enum ModifierKind {
@@ -156,6 +159,7 @@ model World {
   assetMintLinks    AssetMintLink[]
   inventoryLots     InventoryLot[]
   influenceAccounts InfluenceAccount[]
+  itemAutonomy      ItemAutonomy[]
 
   @@map("world")
 }
@@ -519,6 +523,10 @@ model InventoryLot {
   remaining    Int
   gainedTick   BigInt   @map("gained_tick")
   spoilsAtTick BigInt?  @map("spoils_at_tick")
+  /// Units of this lot exist as LPIT on chain (a reward mint, a mint on
+  /// demand, or bought / returned through the item escrow). Creatures never
+  /// use minted units; the item market backs listings with them.
+  minted       Boolean  @default(false)
   createdAt    DateTime @map("created_at")
   updatedAt    DateTime @map("updated_at")
   world        World    @relation(fields: [worldId], references: [id])
@@ -544,4 +552,18 @@ model InfluenceAccount {
   @@index([worldId, accountId])
   @@index([worldId, kind, lineageId])
   @@map("influence_account")
+}
+
+/// Per keeper: may their creatures craft from and use their unminted bag on
+/// their own? No row means both on. Host edge only; step() never reads it.
+model ItemAutonomy {
+  worldId   BigInt   @map("world_id")
+  accountId String   @map("account_id")
+  autoCraft Boolean  @default(true) @map("auto_craft")
+  autoUse   Boolean  @default(true) @map("auto_use")
+  updatedAt DateTime @map("updated_at")
+  world     World    @relation(fields: [worldId], references: [id])
+
+  @@id([worldId, accountId])
+  @@map("item_autonomy")
 }

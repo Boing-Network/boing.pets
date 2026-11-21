@@ -460,6 +460,12 @@ dialog .status a {
   margin: 0;
   padding: 0.3rem 0.8rem;
 }
+.itemmarket .im-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
 .itemmarket .act:disabled {
   opacity: 0.55;
   cursor: not-allowed;

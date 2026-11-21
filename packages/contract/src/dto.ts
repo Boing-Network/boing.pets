@@ -13,7 +13,13 @@ import type {
   MigrationReason,
   RelationshipLabel,
 } from "./enums";
-import type { GatherResourcePayload, UseItemPayload } from "./items";
+import type {
+  CreatureCraftPayload,
+  CreatureUseItemPayload,
+  GatherResourcePayload,
+  ItemSlug,
+  UseItemPayload,
+} from "./items";
 
 export type GeneticProfile = {
   strength: number;
@@ -167,12 +173,37 @@ export type MigrationEventPayload = {
   reason: MigrationReason;
 };
 
+/** A creature acted on its own with an item (EventKind.ITEM). */
+export type ItemEventPayload =
+  | {
+      template: typeof EventTemplate.ITEM_LOOT;
+      creatureId: number;
+      item: ItemSlug;
+      units: number;
+      territoryId: number;
+    }
+  | {
+      template: typeof EventTemplate.ITEM_CRAFT;
+      creatureId: number;
+      output: ItemSlug;
+      territoryId: number;
+      influenceId: number;
+    }
+  | {
+      template: typeof EventTemplate.ITEM_USE;
+      creatureId: number;
+      item: ItemSlug;
+      territoryId: number;
+      influenceId: number;
+    };
+
 export type EventPayload =
   | BirthEventPayload
   | DeathEventPayload
   | MatingEventPayload
   | DiscoveryEventPayload
-  | MigrationEventPayload;
+  | MigrationEventPayload
+  | ItemEventPayload;
 
 export type WorldEventView = {
   id: number;
@@ -320,6 +351,8 @@ export type CatchupSummary = {
   matings: number;
   migrations: number;
   discoveries: number;
+  /** Creature loot, crafts and item uses (absent on older reports). */
+  items?: number;
   notable: CatchupNotable[];
 };
 
@@ -368,7 +401,25 @@ export type InfluenceSubmit =
       payload: UseItemPayload;
     };
 
-export type InfluencePayload = InfluenceSubmit["payload"];
+/**
+ * Influences only the host issues (creature autonomy). They are recorded and
+ * applied exactly like player influences, but a client can never submit one
+ * and they never count against a player's budget.
+ */
+export type SystemInfluence =
+  | {
+      kind: typeof InfluenceKind.CREATURE_USE_ITEM;
+      payload: CreatureUseItemPayload;
+    }
+  | {
+      kind: typeof InfluenceKind.CREATURE_CRAFT;
+      payload: CreatureCraftPayload;
+    };
+
+/** Any recorded influence row: a player submit or a host system influence. */
+export type InfluenceRecord = InfluenceSubmit | SystemInfluence;
+
+export type InfluencePayload = InfluenceRecord["payload"];
 
 export type FamilyQueryResult = {
   children: CreatureView[];

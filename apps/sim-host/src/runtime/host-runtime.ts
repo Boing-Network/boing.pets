@@ -6,12 +6,13 @@
  * Multiplayer fan-out lives in SharedWorldHost — this runtime still has one
  * emit sink (local) or a broadcast sink (shared world).
  */
-import type {
-  CatchupReport,
-  ClientToHost,
-  HostToClient,
-  QueryResult,
-  TimeScale,
+import {
+  AUTONOMY_RULES,
+  type CatchupReport,
+  type ClientToHost,
+  type HostToClient,
+  type QueryResult,
+  type TimeScale,
 } from "@boing-pets/contract";
 import { catchupOnLaunch } from "../catchup";
 import {
@@ -27,7 +28,12 @@ import {
   tickWhilePaused,
   type HostClock,
 } from "../clock";
-import { submitInfluence, type InfluenceGate } from "../influence";
+import {
+  submitInfluence,
+  submitSystemInfluences,
+  type InfluenceGate,
+} from "../influence";
+import type { CreatureOwnerOf } from "../items/autonomy";
 import type { RelicChain } from "../items/relics";
 import { createItemService, type ItemService } from "../items/service";
 import { handleInspectionQuery } from "../ipc/queries";
@@ -104,6 +110,24 @@ export type HostRuntimeOptions = {
    * browser world). A saved scale always wins so reload keeps the speed.
    */
   initialScale?: TimeScale;
+  /**
+   * Who keeps each creature (creature autonomy: loot goes to the keeper,
+   * crafts and uses draw on their bag). Default: the local player keeps
+   * every creature (single player). Shared hosts pass the adoption index.
+   */
+  creatureOwners?: () => Promise<CreatureOwnerOf>;
+  /**
+   * Item rewards for landed influences: "offchain" (default) credits an
+   * unminted lot the keeper can mint on demand; "automint" mints LPIT at once.
+   */
+  itemRewardMode?: "offchain" | "automint";
+  /**
+   * Player-paid mint on demand: fee per request (base units) and the wallet
+   * it is paid to. Without a pay-to wallet, mint on demand stays off.
+   */
+  itemMintFee?: { feeWei: bigint; payToHex: string | null };
+  /** Run the creature autonomy pass (craft / use). Default true. */
+  creatureAutonomy?: boolean;
 };
 
 export type HostRuntime = {
@@ -158,7 +182,41 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
     repository: options.repository,
     assetLinks: () => options.repository.readAssetMintLinks(),
     chain: options.relicChain ?? null,
+    mint: {
+      enabled: mintEdge.enabled && options.itemMintFee?.payToHex != null,
+      queue: (job) => mintEdge.queueCompressedItemMint(job, nowMs()),
+      feeWei: options.itemMintFee?.feeWei,
+      payToHex: options.itemMintFee?.payToHex ?? null,
+    },
   });
+  const itemRewardMode = options.itemRewardMode ?? "offchain";
+  const creatureOwners =
+    options.creatureOwners ??
+    (async (): Promise<CreatureOwnerOf> => () => LOCAL_ACCOUNT_ID);
+  // Creature autonomy: last item use per creature (cooldown; host memory),
+  // and the tick of the last pass.
+  const lastUseTick = new Map<number, number>();
+  let lastAutonomyTick: number | null = null;
+
+  /** One autonomy pass, between ticks, after a durable commit. */
+  async function runAutonomyPass(active: HostSession): Promise<void> {
+    if (options.creatureAutonomy === false || active.catchingUp) return;
+    const tick = active.snapshot.world.lastTick;
+    if (lastAutonomyTick == null) lastAutonomyTick = tick;
+    if (tick - lastAutonomyTick < AUTONOMY_RULES.everyTicks) return;
+    lastAutonomyTick = tick;
+    try {
+      // Bags refresh on the client's own inventory poll.
+      await items.runAutonomy(active, {
+        ownerOf: await creatureOwners(),
+        lastUseTick,
+        persist: (records) => submitSystemInfluences(active, records),
+        nowMs: nowMs(),
+      });
+    } catch {
+      // Autonomy is a nicety; never break the frame loop.
+    }
+  }
 
   /**
    * Single-writer lock. Contended commands wait (multiplayer safe).
@@ -263,6 +321,10 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
         mintEdge,
       });
       session.relicChain = options.relicChain ?? null;
+      const booted = session;
+      booted.onItemEvents = async (events) => {
+        await items.creditLoot(booted, events, await creatureOwners(), nowMs());
+      };
       // M22: mirror LPIT reward rows into inventory, and retry any FAILED
       // mint rows (e.g. item rewards from before the LPIT collection existed).
       await items
@@ -396,6 +458,7 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
                 // The influence is durable; inventory bookkeeping is best effort.
               });
             const worldId = active.snapshot.world.id;
+            const mintItems = itemRewardMode === "automint";
             void enqueueInfluenceRewardMints(
               mintEdge,
               worldId,
@@ -403,11 +466,21 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
               submit,
               context.accountId,
               nowMs(),
+              { mintItems },
             )
               .then(async (jobs) => {
-                if (jobs != null && jobs.items.length > 0) {
+                if (jobs == null || jobs.items.length === 0) return;
+                if (mintItems) {
                   await items.syncRewardLots(
                     worldId,
+                    result.issuedAtTick,
+                    nowMs(),
+                  );
+                } else {
+                  // Off-chain first: the keeper mints it on demand.
+                  await items.creditRewardLots(
+                    worldId,
+                    jobs.items,
                     result.issuedAtTick,
                     nowMs(),
                   );
@@ -433,6 +506,20 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
             return crafted.ok
               ? { ok: true }
               : { ok: false, code: "item_rejected", detail: crafted.detail };
+          }
+          case "item.autonomy": {
+            const accountId = resolveAccountId(
+              context.accountId ?? LOCAL_ACCOUNT_ID,
+            );
+            const set = await items.setAutonomy(
+              active.snapshot.world.id,
+              accountId,
+              message.body,
+              nowMs(),
+            );
+            return set.ok
+              ? { ok: true }
+              : { ok: false, code: "item_rejected", detail: set.detail };
           }
           default:
             throw new Error(`not a command: ${message.message}`);
@@ -478,6 +565,8 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
         if (result.shouldCommit) {
           await commitSession(active);
           noteLiveCommit(activeClock);
+          // Between ticks, with the window durable: creatures craft and use.
+          await runAutonomyPass(active);
         }
       });
     },
