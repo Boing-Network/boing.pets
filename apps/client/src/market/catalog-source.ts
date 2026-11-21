@@ -3,7 +3,7 @@
  * read-only `GET /market/v1/catalog`. `?server=` overrides it (http/https
  * only); otherwise it follows the game's `VITE_LIVING_PETS_MP_URL`.
  */
-import { MARKET_CATALOG_PATH } from "@boing-pets/contract";
+import { MARKET_CATALOG_PATH, MARKET_ITEMS_PATH } from "@boing-pets/contract";
 
 export const DEFAULT_SERVER = "https://boing-living-pets.fly.dev";
 
@@ -14,6 +14,20 @@ export function catalogUrl(
   const override = new URLSearchParams(search).get("server");
   const base = toHttpBase(override) ?? toHttpBase(envMpUrl) ?? DEFAULT_SERVER;
   return `${base}${MARKET_CATALOG_PATH}`;
+}
+
+/** The LPIT item market endpoint, with the connected wallet if any. */
+export function itemsUrl(
+  search: string,
+  envMpUrl: string | undefined,
+  wallet: string | null,
+): string {
+  const base = catalogUrl(search, envMpUrl).slice(
+    0,
+    -MARKET_CATALOG_PATH.length,
+  );
+  const q = wallet != null ? `?wallet=${encodeURIComponent(wallet)}` : "";
+  return `${base}${MARKET_ITEMS_PATH}${q}`;
 }
 
 export function toHttpBase(raw: string | null | undefined): string | null {

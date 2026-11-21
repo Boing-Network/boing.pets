@@ -6,6 +6,10 @@
  */
 import {
   boingToWei,
+  buildItemBuyTx,
+  buildItemCancelTx,
+  buildItemListTx,
+  itemTotalWei,
   buildEscrowBuyTx,
   buildEscrowCancelTx,
   buildEscrowClaimTx,
@@ -16,6 +20,9 @@ import {
   type EscrowWalletTx,
   type MarketAsset,
   type MarketCatalog,
+  type MarketItemHolding,
+  type MarketItemListing,
+  type MarketItemsResponse,
   type MarketOwnership,
 } from "@boing-pets/contract";
 import {
@@ -23,7 +30,8 @@ import {
   resolveBoingProvider,
   walletErrorText,
 } from "../wallet/boing-wallet";
-import { catalogUrl } from "./catalog-source";
+import { catalogUrl, itemsUrl } from "./catalog-source";
+import { holdingBlock, itemListingOffer, parseQty } from "./item-market";
 import "./market.css";
 
 const $ = <T extends HTMLElement>(id: string) =>
@@ -65,6 +73,7 @@ const state = {
   catalog: null as MarketCatalog | null,
   kind: "CREATURE" as MarketAsset["kind"],
   wallet: null as string | null,
+  items: null as MarketItemsResponse | null,
 };
 
 const short = (hex: string | null) =>
@@ -116,7 +125,13 @@ function card(a: MarketAsset): HTMLLIElement {
       ? [el("span", { className: "relic" }, ["Relic · LPAR"])]
       : []),
     ...(a.itemCategory === "CONSUMABLE"
-      ? [el("span", { className: "lpit" }, ["LPIT · not tradable"])]
+      ? [
+          el("span", { className: "lpit" }, [
+            state.catalog?.escrow.itemEscrowHex != null
+              ? "LPIT · item market"
+              : "LPIT · not tradable",
+          ]),
+        ]
       : []),
   ]);
   const live = a.live;
@@ -156,7 +171,9 @@ function card(a: MarketAsset): HTMLLIElement {
   const button = el("button", { type: "button", className: "act" }, [
     action.label,
   ]);
-  button.addEventListener("click", () => openTrade(a, action));
+  button.addEventListener("click", () =>
+    openTrade(`${action.label}: ${a.name}`, action),
+  );
   const li = el(
     "li",
     { className: `card ${live && !live.alive ? "dead" : ""}` },
@@ -188,10 +205,20 @@ type Action = {
   trade: boolean;
   /** Ask for a price (listing). */
   needsPrice?: boolean;
+  /** Label of the price input (default "Price (BOING)"). */
+  priceLabel?: string;
+  /** Ask for a quantity, 1..max (item market). */
+  needsQty?: { max: number; label: string };
+  /** Live total under the inputs (item market). */
+  preview?: (priceText: string, qtyText: string) => string;
   /** Why the sign button is off even with a wallet connected. */
   blocked?: string;
   /** Builds the wallet transaction (escrow contract configured only). */
-  build?: (wallet: string, priceText: string) => EscrowWalletTx;
+  build?: (
+    wallet: string,
+    priceText: string,
+    qtyText: string,
+  ) => EscrowWalletTx;
 };
 
 const boing = (wei: bigint | string) => `${weiToBoing(wei)} BOING`;
@@ -210,6 +237,16 @@ function escrowTarget(a: MarketAsset): EscrowTarget | null {
 
 function actionFor(a: MarketAsset): Action {
   if (a.escrowListable === false) {
+    if (state.catalog?.escrow.itemEscrowHex != null) {
+      return {
+        label: "Item market",
+        trade: false,
+        steps: [
+          a.escrowNote ?? "LPIT items trade by quantity in the Item market.",
+          "Connect your wallet to see how many units you can list.",
+        ],
+      };
+    }
     return {
       label: "Not tradable",
       trade: false,
@@ -378,9 +415,9 @@ function tradeError(error: unknown): string {
   return walletErrorText(error);
 }
 
-function openTrade(a: MarketAsset, action: Action): void {
+function openTrade(title: string, action: Action): void {
   const dialog = $<HTMLDialogElement>("trade");
-  $("trade-title").textContent = `${action.label}: ${a.name}`;
+  $("trade-title").textContent = title;
   $("trade-steps").replaceChildren(
     ...action.steps.map((s) => el("li", {}, [s])),
   );
@@ -391,7 +428,22 @@ function openTrade(a: MarketAsset, action: Action): void {
   const status = $("trade-status");
   status.replaceChildren();
   priceRow.hidden = !action.needsPrice;
+  $("trade-price-label").textContent = action.priceLabel ?? "Price (BOING)";
   priceInput.value = "";
+  const qtyRow = $("trade-qty-row");
+  const qtyInput = $<HTMLInputElement>("trade-qty");
+  qtyRow.hidden = action.needsQty == null;
+  $("trade-qty-label").textContent = action.needsQty?.label ?? "Quantity";
+  qtyInput.value = action.needsQty != null ? "1" : "";
+  qtyInput.max = String(action.needsQty?.max ?? 1);
+  const preview = $("trade-preview");
+  const updatePreview = () => {
+    preview.textContent =
+      action.preview?.(priceInput.value, qtyInput.value) ?? "";
+  };
+  priceInput.oninput = updatePreview;
+  qtyInput.oninput = updatePreview;
+  updatePreview();
   sign.hidden = !action.trade;
   sign.disabled =
     action.build == null || state.wallet == null || action.blocked != null;
@@ -409,7 +461,11 @@ function openTrade(a: MarketAsset, action: Action): void {
     if (action.build == null || wallet == null) return;
     sign.disabled = true;
     try {
-      const { summary, ...request } = action.build(wallet, priceInput.value);
+      const { summary, ...request } = action.build(
+        wallet,
+        priceInput.value,
+        qtyInput.value,
+      );
       status.textContent = `${summary}: waiting for Boing Express…`;
       await prepareBoingWallet();
       const provider = resolveBoingProvider();
@@ -433,6 +489,7 @@ function openTrade(a: MarketAsset, action: Action): void {
         " The listing updates within about 30 seconds.",
       );
       window.setTimeout(() => void load(), 5_000);
+      window.setTimeout(() => void loadItems(), 8_000);
     } catch (error) {
       status.textContent = tradeError(error);
       sign.disabled = false;
@@ -494,6 +551,7 @@ function render(): void {
           .toLowerCase()
           .includes(q)),
   );
+  renderItemMarket();
   $("grid").replaceChildren(...shown.map(card));
   $("empty").hidden = shown.length > 0;
   if (state.kind === "ITEM" && shown.length === 0) {
@@ -528,6 +586,275 @@ function renderStats(c: MarketCatalog): void {
     c.escrow.mode === "CONTRACT"
       ? `${c.escrow.note} Escrow ${short(c.escrow.escrowHex)}, ${(c.escrow.feeBps ?? 250) / 100}% market fee to the operator ${short(c.escrow.feeToHex ?? c.escrow.operatorHex)}, chain ${c.escrow.chainId}.`
       : c.escrow.note;
+}
+
+// -- LPIT item market ---------------------------------------------------------
+
+async function loadItems(): Promise<void> {
+  const url = itemsUrl(
+    window.location.search,
+    import.meta.env.VITE_LIVING_PETS_MP_URL as string | undefined,
+    state.wallet,
+  );
+  try {
+    const res = await fetch(url, { headers: { accept: "application/json" } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    state.items = (await res.json()) as MarketItemsResponse;
+  } catch {
+    // Older servers have no item market; keep the last good view.
+  }
+  renderItemMarket();
+}
+
+function itemFeeText(): { bps: number; fee: string } {
+  const bps = state.items?.feeBps ?? 250;
+  return { bps, fee: `${bps / 100}%` };
+}
+
+function itemBuyAction(l: MarketItemListing, max: number): Action {
+  const items = state.items!;
+  const { bps, fee } = itemFeeText();
+  const unit = BigInt(l.unitPriceWei);
+  const feeTo = items.feeToHex;
+  return {
+    label: "Buy",
+    trade: true,
+    needsQty: { max, label: `Quantity (1–${max})` },
+    steps: [
+      `${l.remaining} × ${l.name} listed at ${boing(unit)} each by ${short(l.sellerHex)}.`,
+      `You pay quantity × ${boing(unit)} to the item escrow (${short(items.itemEscrowHex)}); it sends you the units in the same transaction and they appear in your item bag in the world.`,
+      `The seller receives the total minus the ${fee} market fee, which goes to the operator.`,
+    ],
+    preview: (_p, q) => {
+      const n = parseQty(q, max);
+      if (n == null) return `Enter a whole number from 1 to ${max}.`;
+      const total = itemTotalWei(unit, n);
+      const split = escrowSplit(total, bps);
+      return `Total ${boing(total)} (seller ${boing(split.sellerWei)}, fee ${boing(split.feeWei)}).`;
+    },
+    ...(feeTo == null
+      ? { blocked: "The item escrow fee account is not known yet." }
+      : {}),
+    build: (w, _p, q) => {
+      const n = parseQty(q, max);
+      if (n == null) throw new Error(`Enter a quantity from 1 to ${max}`);
+      return buildItemBuyTx({
+        itemEscrowHex: items.itemEscrowHex!,
+        collectionHex: items.collectionHex!,
+        buyerHex: w,
+        sellerHex: l.sellerHex,
+        feeToHex: feeTo!,
+        listingId: l.id,
+        qty: n,
+        unitPriceWei: unit,
+        itemName: l.name,
+      });
+    },
+  };
+}
+
+function itemCancelAction(l: MarketItemListing): Action {
+  const items = state.items!;
+  return {
+    label: "Cancel",
+    trade: true,
+    steps: [
+      `Your listing: ${l.remaining} of ${l.listed} × ${l.name} left at ${boing(BigInt(l.unitPriceWei))} each.`,
+      "Cancel returns the unsold units from escrow to your wallet in one transaction; they are usable in the world again after the next market refresh.",
+    ],
+    build: (w) =>
+      buildItemCancelTx({
+        itemEscrowHex: items.itemEscrowHex!,
+        collectionHex: items.collectionHex!,
+        senderHex: w,
+        sellerHex: l.sellerHex,
+        listingId: l.id,
+      }),
+  };
+}
+
+function itemListAction(h: MarketItemHolding): Action {
+  const items = state.items!;
+  const { bps, fee } = itemFeeText();
+  const max = h.tradable;
+  return {
+    label: "List",
+    trade: true,
+    needsPrice: true,
+    priceLabel: "Price per unit (BOING)",
+    needsQty: { max, label: `Quantity (1–${max})` },
+    steps: [
+      `You can list up to ${max} × ${h.name}: units in your wallet that are still unused in the world.`,
+      `One atomic transaction moves the units into the item escrow (${short(items.itemEscrowHex)}) and opens the listing at your price per unit. Listed units can't be used in the world.`,
+      `Buyers can take any quantity. You receive each sale minus the ${fee} market fee; cancel any time to take back what is left.`,
+    ],
+    preview: (p, q) => {
+      const n = parseQty(q, max);
+      const unit = boingToWei(p);
+      if (n == null) return `Enter a whole number from 1 to ${max}.`;
+      if (unit == null || unit === 0n) return "Set a price per unit in BOING.";
+      const total = itemTotalWei(unit, n);
+      const split = escrowSplit(total, bps);
+      return `If all ${n} sell: ${boing(total)}, you receive ${boing(split.sellerWei)}.`;
+    },
+    build: (w, p, q) => {
+      const n = parseQty(q, max);
+      if (n == null) throw new Error(`Enter a quantity from 1 to ${max}`);
+      const unit = boingToWei(p);
+      if (unit == null || unit === 0n) {
+        throw new Error("Enter a price per unit in BOING, like 0.5");
+      }
+      return buildItemListTx({
+        itemEscrowHex: items.itemEscrowHex!,
+        collectionHex: items.collectionHex!,
+        sellerHex: w,
+        itemId: h.itemId,
+        qty: n,
+        unitPriceWei: unit,
+        itemName: h.name,
+      });
+    },
+  };
+}
+
+function actionButton(
+  label: string,
+  action: Action | null,
+  opts: { hover?: string; subject?: string } = {},
+) {
+  const b = el(
+    "button",
+    { type: "button", className: "act", title: opts.hover ?? "" },
+    [label],
+  );
+  if (action == null) b.disabled = true;
+  else {
+    b.addEventListener("click", () =>
+      openTrade(
+        opts.subject ? `${action.label}: ${opts.subject}` : action.label,
+        action,
+      ),
+    );
+  }
+  return b;
+}
+
+function renderItemMarket(): void {
+  const box = $("item-market");
+  const items = state.items;
+  if (state.kind !== "ITEM" || items == null) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  const wallet = state.wallet;
+  const head = el("div", { className: "im-head" }, [
+    el("h2", {}, ["Item market"]),
+    el("p", { className: "sub" }, [
+      items.itemEscrowHex != null
+        ? `${items.note} Escrow ${short(items.itemEscrowHex)}, ${itemFeeText().fee} fee.`
+        : items.note,
+    ]),
+    ...(items.error != null
+      ? [el("p", { className: "note" }, [`Stale view: ${items.error}`])]
+      : []),
+  ]);
+  const rows = items.listings.map((l) => {
+    const offer = itemListingOffer(l, wallet);
+    const unit = BigInt(l.unitPriceWei);
+    let button: HTMLButtonElement;
+    switch (offer.kind) {
+      case "BUY":
+        button = actionButton("Buy", itemBuyAction(l, offer.max), {
+          subject: l.name,
+        });
+        break;
+      case "CANCEL":
+        button = actionButton("Cancel", itemCancelAction(l), {
+          subject: l.name,
+        });
+        break;
+      case "UNBACKED":
+        button = actionButton("Not backed", null, {
+          hover: `Only ${offer.backed} of ${l.remaining} units are unused in the world; the rest were already used. Not offered.`,
+        });
+        break;
+      case "PENDING":
+        button = actionButton("Settling…", null, {
+          hover:
+            "Waiting for the server to lock the seller's units (about 30 s).",
+        });
+        break;
+      case "CONNECT":
+        button = actionButton("Connect wallet", null);
+        break;
+    }
+    return el("tr", {}, [
+      el("td", {}, [l.name]),
+      el("td", {}, [`${l.remaining} / ${l.listed}`]),
+      el("td", {}, [boing(unit)]),
+      el("td", {}, [short(l.sellerHex)]),
+      el("td", {}, [button]),
+    ]);
+  });
+  const table = (headers: string[], body: HTMLElement[], empty: string) =>
+    body.length === 0
+      ? el("p", { className: "empty" }, [empty])
+      : el("table", {}, [
+          el("thead", {}, [
+            el(
+              "tr",
+              {},
+              headers.map((h) => el("th", {}, [h])),
+            ),
+          ]),
+          el("tbody", {}, body),
+        ]);
+  const parts: HTMLElement[] = [
+    head,
+    el("h3", {}, ["Open listings"]),
+    table(
+      ["Item", "Left / listed", "Price per unit", "Seller", ""],
+      rows,
+      items.itemEscrowHex != null
+        ? "No open item listings yet."
+        : "Item trading is not configured on this server.",
+    ),
+  ];
+  if (items.itemEscrowHex != null) {
+    if (wallet == null) {
+      parts.push(
+        el("p", { className: "sub" }, [
+          "Connect your wallet to list your potions and rations.",
+        ]),
+      );
+    } else {
+      const mine = (items.wallet?.holdings ?? []).map((h) => {
+        const block = holdingBlock(h);
+        return el("tr", {}, [
+          el("td", {}, [h.name]),
+          el("td", {}, [h.chain == null ? "?" : String(h.chain)]),
+          el("td", {}, [String(h.usable)]),
+          el("td", {}, [String(h.tradable)]),
+          el("td", {}, [String(h.listed)]),
+          el("td", {}, [
+            block == null
+              ? actionButton("List", itemListAction(h), { subject: h.name })
+              : actionButton("List", null, { hover: block }),
+          ]),
+        ]);
+      });
+      parts.push(
+        el("h3", {}, ["Your items"]),
+        table(
+          ["Item", "In wallet", "Unused in world", "Tradable", "Listed", ""],
+          mine,
+          "Loading your balances…",
+        ),
+      );
+    }
+  }
+  box.replaceChildren(...parts);
 }
 
 async function load(): Promise<void> {
@@ -570,6 +897,7 @@ async function connectWallet(): Promise<void> {
     button.textContent = `${state.wallet.slice(0, 8)}…${state.wallet.slice(-4)}`;
     $<HTMLInputElement>("mine").disabled = false;
     render();
+    void loadItems();
   } catch (error) {
     button.textContent = "Connect wallet";
     button.title = walletErrorText(error);
@@ -581,4 +909,6 @@ for (const id of ["q", "species", "ownership", "alive", "genesis", "mine"]) {
 }
 $("wallet").addEventListener("click", () => void connectWallet());
 void load();
+void loadItems();
 window.setInterval(() => void load(), 10_000);
+window.setInterval(() => void loadItems(), 15_000);

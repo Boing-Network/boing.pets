@@ -27,6 +27,7 @@ import {
   type SessionRole,
   type WalletProof,
   MARKET_CATALOG_PATH,
+  MARKET_ITEMS_PATH,
   MARKET_LISTINGS_PATH,
 } from "@boing-pets/contract";
 import type { ClientConnection, EmitMeta } from "./client-registry";
@@ -96,6 +97,8 @@ export type SharedWorldWsServerOptions = {
   marketCatalog?: () => Promise<unknown>;
   /** Open escrow listings from contract state (`GET /market/v1/listings`). */
   marketListings?: () => Promise<unknown>;
+  /** LPIT item market (`GET /market/v1/items[?wallet=0x…]`). */
+  marketItems?: (query: URLSearchParams) => Promise<unknown>;
 };
 
 /**
@@ -234,12 +237,15 @@ export async function listenSharedWorldWs(
       res.end(`${JSON.stringify(body)}\n`);
       return;
     }
-    const marketJson =
+    const marketJson:
+      ((query: URLSearchParams) => Promise<unknown>) | undefined =
       pathname === MARKET_CATALOG_PATH
         ? options.marketCatalog
         : pathname === MARKET_LISTINGS_PATH
           ? options.marketListings
-          : undefined;
+          : pathname === MARKET_ITEMS_PATH
+            ? options.marketItems
+            : undefined;
     if (marketJson != null) {
       const cors = readOnlyCors(req.headers.origin, allowOrigin);
       if (!cors.allowed) {
@@ -257,7 +263,7 @@ export async function listenSharedWorldWs(
         res.end();
         return;
       }
-      marketJson()
+      marketJson(new URLSearchParams((req.url ?? "").split("?")[1] ?? ""))
         .then((catalog) => {
           res.writeHead(200, {
             "content-type": "application/json; charset=utf-8",

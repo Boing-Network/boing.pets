@@ -60,6 +60,12 @@
           >
         </div>
       </section>
+      <section
+        class="itemmarket"
+        id="item-market"
+        aria-label="Item market"
+        hidden
+      ></section>
       <ul class="grid" id="grid" aria-live="polite"></ul>
       <p class="empty" id="empty" hidden>No matches.</p>
     </main>
@@ -69,7 +75,7 @@
         <ol id="trade-steps"></ol>
         <p class="note" id="trade-note"></p>
         <label id="trade-price-row" class="price" hidden>
-          Price (BOING)
+          <span id="trade-price-label">Price (BOING)</span>
           <input
             id="trade-price"
             inputmode="decimal"
@@ -77,6 +83,18 @@
             autocomplete="off"
           />
         </label>
+        <label id="trade-qty-row" class="price" hidden>
+          <span id="trade-qty-label">Quantity</span>
+          <input
+            id="trade-qty"
+            type="number"
+            inputmode="numeric"
+            min="1"
+            step="1"
+            autocomplete="off"
+          />
+        </label>
+        <p class="preview" id="trade-preview"></p>
         <p class="status" id="trade-status" role="status"></p>
         <menu>
           <button value="cancel">Close</button>

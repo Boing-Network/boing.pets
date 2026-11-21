@@ -464,10 +464,45 @@ no item influences step exactly as before. Schema migration
   the DB is the source of truth for "used". A later slice could ask the wallet
   to `transfer` the unit to a sink account when it is used.
 - **Market**: First Child and Remembrance relics (LPAR, already allow-listed
-  in the escrow) appear in the Items tab as listable. LPIT items appear there
-  too with `escrowListable: false` and a note: the escrow only holds single
-  reference NFTs (`owner_of`/`transfer_nft`), so multi-token balances cannot
-  be listed until a multi-token escrow exists.
+  in the escrow) appear in the Items tab as listable. LPIT reward cards keep
+  `escrowListable: false` (the NFT escrow only holds single reference NFTs);
+  LPIT quantities trade in the **item market** instead (below).
+
+### LPIT item market (item escrow, `contracts/escrow/src/items.rs`)
+
+- **Contract**: a second escrow, same assembler, fee rules and admin model as
+  the NFT escrow, for fungible quantities. Listing is one atomic batch
+  `[item_escrow.prepare(lpit, item), lpit.transfer(item_escrow, item, qty),
+item_escrow.list(lpit, item, qty, unit_price)]`: `prepare` snapshots the
+  escrow's own `balance_of(item)`, `list` requires the same caller and item and
+  a balance increase of exactly `qty`, so stray units can never be listed by
+  anyone. `buy(id, qty)` takes `qty × unit_price` as value (partial fills),
+  pays the 2.5% fee to the operator and the rest to the seller, and records
+  each fill (`fill(id, k)` → buyer, qty). `cancel(id)` (seller or admin)
+  returns the unsold units. Every transfer out is followed by a `balance_of`
+  check. LPIT `transfer` faults on an insufficient balance and moves only the
+  caller's own units, so no approve/operator mechanism is needed: the seller
+  signs the transfer inside the batch, and the escrow moves its own balance.
+- **Inventory (no burn)**: used LPIT units stay in the wallet on chain, so the
+  DB stays the source of truth for _usable_ units, and the server reconciles
+  the escrow into `inventory_lot` (no new table; `items/escrow-reconcile.ts`):
+  a new listing locks up to `listed` units from the seller's lots into a lot
+  owned by `escrow:<escrow>:<id>` (`ilist:` key) so they cannot be used; each
+  fill credits the buyer (`ibuy:<escrow>:<id>:<k>`) and a cancel credits the
+  seller (`iret:`), both taken from the lock. Units are conserved and every
+  step is idempotent by source key. If a seller lists tokens they already used
+  (only possible by hand-built transactions), the lock is smaller, the listing
+  shows as **not backed** and the market does not offer it; buyers of
+  unbacked units on chain get only the backed part in the world. The admin
+  can cancel such a listing. All item-service writes run one at a time.
+- **Index**: `GET /market/v1/items` reads `config`, open or unreconciled
+  listings and new fills every 30 s (read-only simulate calls, batches ≤ 32),
+  reconciles, and serves open listings with their backing. `?wallet=` adds the
+  wallet's LPIT balance (chain), unused units (DB) and `tradable =
+min(chain, unused)`, which is what the List form offers.
+- **Turning it on**: deploy the item escrow, `set_collection(LPIT, true)`, set
+  `LIVING_PETS_ITEM_ESCROW_HEX` on Fly. Without it the endpoint answers browse
+  only and the market UI says so.
 
 ## Time controls (`apps/sim-host/src/clock.ts`, `hud/ClockControls.tsx`)
 

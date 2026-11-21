@@ -42,7 +42,7 @@ import { createSharedWorldHost } from "./shared-world-host";
 import { generateOwnerKey, loadOrCreateSecret } from "./tokens";
 import { createClient } from "@boing-network/boing-sdk";
 import { DEFAULT_BOING_RPC_URL } from "../boing/config";
-import { readMarketConfig } from "../market/config";
+import { itemMarketEnabled, readMarketConfig } from "../market/config";
 import {
   createListingIndex,
   mintedTokens,
@@ -50,7 +50,12 @@ import {
 } from "../market/listings";
 import { createSdkGenesisChain, runGenesisMint } from "../boing/genesis-mint";
 import { createCatalogCache } from "../market/cache";
-import { createWalletChallenges } from "./wallet-auth";
+import {
+  createItemListingIndex,
+  disabledItemsResponse,
+} from "../market/item-listings";
+import { walletAccountId } from "../items/escrow-reconcile";
+import { createWalletChallenges, normalizeWalletAddress } from "./wallet-auth";
 import { listenSharedWorldWs } from "./ws-server";
 
 const { values } = parseArgs({
@@ -135,17 +140,18 @@ const mintEdge = createMintEdgeFromEnv(process.env, creatureLinks, assetLinks);
 const marketConfig = readMarketConfig(process.env);
 // With an escrow contract configured, read its listings (and on-chain owners)
 // with read-only simulated calls every 30 s. No key is involved.
+const marketRead = rpcReadBatch(
+  createClient({
+    baseUrl: process.env.BOING_RPC_URL?.trim() || DEFAULT_BOING_RPC_URL,
+    maxRetries: 2,
+  }),
+);
 const listingIndex =
   marketConfig.escrowHex == null
     ? null
     : createListingIndex({
         escrowHex: marketConfig.escrowHex,
-        read: rpcReadBatch(
-          createClient({
-            baseUrl: process.env.BOING_RPC_URL?.trim() || DEFAULT_BOING_RPC_URL,
-            maxRetries: 2,
-          }),
-        ),
+        read: marketRead,
         tokens: async () => {
           const [c, a] = await Promise.all([
             creatureLinks.list(),
@@ -179,6 +185,37 @@ const host = createSharedWorldHost({
   relicChain,
 });
 await host.start();
+// LPIT item market: read the item escrow every 30 s and reconcile listings,
+// fills and cancels into the world inventory (read-only calls, no key).
+const itemIndex = (() => {
+  const items = host.runtime.items;
+  if (!itemMarketEnabled(marketConfig) || items == null || !items.enabled) {
+    return null;
+  }
+  const worldNow = () => host.runtime.session.snapshot.world;
+  return createItemListingIndex({
+    itemEscrowHex: marketConfig.itemEscrowHex!,
+    collectionHex: marketConfig.itemCollectionHex!,
+    read: marketRead,
+    reconcile: (listings) =>
+      items.reconcileItemEscrow({
+        worldId: worldNow().id,
+        tick: worldNow().lastTick,
+        escrowHex: marketConfig.itemEscrowHex!,
+        listings,
+        nowMs: Date.now(),
+      }),
+    usable: (wallet, slug) =>
+      items.usableUnits(
+        worldNow().id,
+        walletAccountId(wallet),
+        slug,
+        worldNow().lastTick,
+      ),
+    log,
+  });
+})();
+itemIndex?.start();
 const server = await listenSharedWorldWs({
   host,
   hostname: config.hostname,
@@ -199,6 +236,15 @@ const server = await listenSharedWorldWs({
   ...(listingIndex != null
     ? { marketListings: async () => listingIndex.response() }
     : {}),
+  marketItems: async (query) => {
+    if (itemIndex == null) {
+      return disabledItemsResponse(
+        "Browse only: no item escrow is configured on this server.",
+      );
+    }
+    const wallet = normalizeWalletAddress(query.get("wallet") ?? "");
+    return itemIndex.response(wallet);
+  },
   health: () => {
     const snapshot = host.runtime.session.snapshot;
     const clock = host.runtime.clock;

@@ -45,6 +45,11 @@ import {
   RELIC_ARTIFACT_KIND,
   type RelicChain,
 } from "./relics";
+import {
+  planItemEscrowReconcile,
+  type ChainItemListing,
+  type ItemListingStatus,
+} from "./escrow-reconcile";
 import type { InfluenceAccountRow, InventoryLotRow } from "./types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -79,6 +84,15 @@ export function createItemService(options: {
     repo.readInventoryLots != null &&
     repo.readInfluenceAccounts != null &&
     repo.commitItems != null;
+
+  // Every read-modify-write of the lots runs one at a time: lot ids come from
+  // the current max, so two interleaved writers could pick the same id.
+  let chain: Promise<unknown> = Promise.resolve();
+  function serial<T>(run: () => Promise<T>): Promise<T> {
+    const next = chain.then(run, run);
+    chain = next.catch(() => undefined);
+    return next;
+  }
 
   async function lots(worldId: number): Promise<InventoryLotRow[]> {
     return repo.readInventoryLots ? repo.readInventoryLots(worldId) : [];
@@ -136,50 +150,103 @@ export function createItemService(options: {
     return last;
   }
 
-  return {
+  /**
+   * Mirror LPIT reward rows into inventory lots. Idempotent by
+   * `mint:<mintKey>`; runs at boot and after a reward is queued.
+   */
+  async function syncRewardLotsNow(
+    worldId: number,
+    tick: number,
+    nowMs: number,
+  ): Promise<number> {
+    if (!enabled || repo.commitItems == null) return 0;
+    const current = await lots(worldId);
+    const have = new Set(current.map((lot) => lot.sourceKey));
+    const add: InventoryLotRow[] = [];
+    let id = nextLotId(current);
+    for (const link of await options.assetLinks()) {
+      if (link.worldId !== worldId) continue;
+      if (link.tokenClass !== AssetMintClass.COMPRESSED_ITEM) continue;
+      if (link.itemSlug == null || !isItemSlug(link.itemSlug)) continue;
+      if (link.recipientHex == null) continue;
+      const sourceKey = `mint:${link.mintKey}`;
+      if (have.has(sourceKey)) continue;
+      const amount = Math.max(1, link.amount ?? 1);
+      add.push({
+        id,
+        worldId,
+        accountId: `w:${link.recipientHex.replace(/^0x/, "").toLowerCase()}`,
+        sourceKey,
+        itemSlug: link.itemSlug,
+        amount,
+        remaining: amount,
+        gainedTick: tick,
+        spoilsAtTick: null,
+        createdAtMs: nowMs,
+        updatedAtMs: nowMs,
+      });
+      id += 1;
+      have.add(sourceKey);
+    }
+    if (add.length > 0) {
+      await repo.commitItems({
+        upsertLots: add,
+        insertInfluenceAccounts: [],
+      });
+    }
+    return add.length;
+  }
+
+  const service = {
     enabled,
 
     /**
      * Mirror LPIT reward rows into inventory lots. Idempotent by
      * `mint:<mintKey>`; runs at boot and after a reward is queued.
      */
-    async syncRewardLots(worldId: number, tick: number, nowMs: number) {
-      if (!enabled || repo.commitItems == null) return 0;
-      const current = await lots(worldId);
-      const have = new Set(current.map((lot) => lot.sourceKey));
-      const add: InventoryLotRow[] = [];
-      let id = nextLotId(current);
-      for (const link of await options.assetLinks()) {
-        if (link.worldId !== worldId) continue;
-        if (link.tokenClass !== AssetMintClass.COMPRESSED_ITEM) continue;
-        if (link.itemSlug == null || !isItemSlug(link.itemSlug)) continue;
-        if (link.recipientHex == null) continue;
-        const sourceKey = `mint:${link.mintKey}`;
-        if (have.has(sourceKey)) continue;
-        const amount = Math.max(1, link.amount ?? 1);
-        add.push({
-          id,
-          worldId,
-          accountId: `w:${link.recipientHex.replace(/^0x/, "").toLowerCase()}`,
-          sourceKey,
-          itemSlug: link.itemSlug,
-          amount,
-          remaining: amount,
-          gainedTick: tick,
-          spoilsAtTick: null,
-          createdAtMs: nowMs,
-          updatedAtMs: nowMs,
+    syncRewardLots(worldId: number, tick: number, nowMs: number) {
+      return serial(() => syncRewardLotsNow(worldId, tick, nowMs));
+    },
+
+    /**
+     * Apply item-escrow listings, fills and cancels to the inventory (see
+     * escrow-reconcile.ts). Idempotent; returns each listing's backing.
+     */
+    reconcileItemEscrow(input: {
+      worldId: number;
+      tick: number;
+      escrowHex: string;
+      listings: readonly ChainItemListing[];
+      nowMs: number;
+    }): Promise<Map<number, ItemListingStatus>> {
+      return serial(async () => {
+        if (!enabled || repo.commitItems == null) return new Map();
+        const plan = planItemEscrowReconcile({
+          lots: await lots(input.worldId),
+          worldId: input.worldId,
+          escrowHex: input.escrowHex,
+          listings: input.listings,
+          tick: input.tick,
+          nowMs: input.nowMs,
         });
-        id += 1;
-        have.add(sourceKey);
-      }
-      if (add.length > 0) {
-        await repo.commitItems({
-          upsertLots: add,
-          insertInfluenceAccounts: [],
-        });
-      }
-      return add.length;
+        if (plan.changed.length > 0) {
+          await repo.commitItems({
+            upsertLots: plan.changed,
+            insertInfluenceAccounts: [],
+          });
+        }
+        return plan.status;
+      });
+    },
+
+    /** Usable (unused, unspoiled) units of one item for an account. */
+    async usableUnits(
+      worldId: number,
+      accountId: string,
+      slug: string,
+      tick: number,
+    ): Promise<number> {
+      return balanceOf(await lots(worldId), accountId, slug, tick);
     },
 
     /**
@@ -286,7 +353,7 @@ export function createItemService(options: {
      * After the influence row is durable: record the account, credit a
      * gather, debit a used item. Idempotent by influence id.
      */
-    async afterAccept(
+    async afterAcceptNow(
       session: HostSession,
       accountId: string,
       submit: InfluenceSubmit,
@@ -361,7 +428,7 @@ export function createItemService(options: {
       });
     },
 
-    async craft(
+    async craftNow(
       session: HostSession,
       accountId: string,
       output: string,
@@ -442,5 +509,18 @@ export function createItemService(options: {
         stocks,
       };
     },
+  };
+
+  const { afterAcceptNow, craftNow, ...rest } = service;
+  return {
+    ...rest,
+    /**
+     * After the influence row is durable: record the account, credit a
+     * gather, debit a used item. Idempotent by influence id.
+     */
+    afterAccept: (...args: Parameters<typeof afterAcceptNow>) =>
+      serial(() => afterAcceptNow(...args)),
+    craft: (...args: Parameters<typeof craftNow>) =>
+      serial(() => craftNow(...args)),
   };
 }

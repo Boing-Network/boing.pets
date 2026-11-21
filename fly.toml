@@ -33,6 +33,8 @@ kill_timeout = "30s"
   # LPIT item multi-token (Vitality, Calm, Rations), deployed by the operator
   # on Nov 20 2026 (tx 0x3543e7f8…6c42, block 150288). Admin = operator.
   LIVING_PETS_BOING_ITEM_COLLECTION_HEX = "0x4877b234f3c3449f8acdafb3181502eca2d5c88466c6d15e4ec66850c4fa3f96"
+  # LPIT item market: the item escrow address (contracts/escrow/src/items.rs)
+  # goes in the LIVING_PETS_ITEM_ESCROW_HEX Fly secret once it is deployed.
   # Mint the founders as the genesis set on boot (idempotent; safe to leave on).
   LIVING_PETS_BOING_GENESIS_MINT = "1"
   # Browser origins allowed to open the WebSocket. `*` = letters/digits/dashes.

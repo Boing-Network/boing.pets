@@ -10,6 +10,11 @@ export const MARKET_API_VERSION = 1;
 export const MARKET_CATALOG_PATH = "/market/v1/catalog";
 /** Open escrow listings read from the escrow contract's state. */
 export const MARKET_LISTINGS_PATH = "/market/v1/listings";
+/**
+ * LPIT item market: open item-escrow listings, and with `?wallet=0x…` that
+ * wallet's tradable balances and its own listings.
+ */
+export const MARKET_ITEMS_PATH = "/market/v1/items";
 
 export type MarketAssetKind = "CREATURE" | "LINEAGE" | "ITEM";
 
@@ -86,6 +91,10 @@ export type MarketAsset = {
 export const LPIT_NOT_LISTABLE_NOTE =
   "Not tradable on the market: LPIT items are multi-token balances and the escrow only holds single NFTs.";
 
+/** Shown on LPIT reward cards when the item escrow is configured. */
+export const LPIT_ITEM_MARKET_NOTE =
+  "LPIT items trade by quantity in the Item market above: list any number of units at a price per unit.";
+
 export type MarketEscrowMode =
   /** No escrow account configured: browse only. */
   | "DISABLED"
@@ -108,6 +117,8 @@ export type MarketEscrowInfo = {
   listingsAtMs: number | null;
   /** Why trading is off, or a note about how it settles. */
   note: string;
+  /** Item escrow for LPIT quantities (`contracts/escrow/src/items.rs`). */
+  itemEscrowHex?: string | null;
 };
 
 export type MarketListingsResponse = {
@@ -128,4 +139,55 @@ export type MarketCatalog = {
   generatedAtMs: number;
   escrow: MarketEscrowInfo;
   assets: MarketAsset[];
+};
+
+/** One open listing in the item escrow, as the item market serves it. */
+export type MarketItemListing = {
+  /** On-chain listing id. */
+  id: number;
+  sellerHex: string;
+  itemId: number;
+  itemSlug: string | null;
+  name: string;
+  /** Price per unit in base units, as a decimal string. */
+  unitPriceWei: string;
+  listed: number;
+  remaining: number;
+  /**
+   * Units of this listing still backed by the seller's in-game inventory.
+   * Units that were already used in the world stay on chain (LPIT has no
+   * burn) but are not usable; the market only offers fully backed listings.
+   */
+  backed: number;
+  /** False until the server has locked the seller's in-game units. */
+  reconciled: boolean;
+};
+
+/** A wallet's LPIT stack: on chain, usable in the world, and tradable now. */
+export type MarketItemHolding = {
+  itemId: number;
+  itemSlug: string;
+  name: string;
+  /** LPIT balance in the wallet (chain). */
+  chain: number | null;
+  /** Unused units in the world inventory (DB). */
+  usable: number;
+  /** min(chain, usable): what can be listed. */
+  tradable: number;
+  /** Units in this wallet's open listings. */
+  listed: number;
+};
+
+export type MarketItemsResponse = {
+  v: typeof MARKET_API_VERSION;
+  /** Null when no item escrow is configured (browse only). */
+  itemEscrowHex: string | null;
+  collectionHex: string | null;
+  feeBps: number | null;
+  feeToHex: string | null;
+  refreshedAtMs: number | null;
+  error: string | null;
+  note: string;
+  listings: MarketItemListing[];
+  wallet: { hex: string; holdings: MarketItemHolding[] } | null;
 };

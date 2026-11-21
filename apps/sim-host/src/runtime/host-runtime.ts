@@ -29,7 +29,7 @@ import {
 } from "../clock";
 import { submitInfluence, type InfluenceGate } from "../influence";
 import type { RelicChain } from "../items/relics";
-import { createItemService } from "../items/service";
+import { createItemService, type ItemService } from "../items/service";
 import { handleInspectionQuery } from "../ipc/queries";
 import { LOCAL_ACCOUNT_ID, resolveAccountId } from "../multiplayer/account";
 import {
@@ -113,6 +113,8 @@ export type HostRuntime = {
   mintEdge: MintEdge;
   /** Per-account influence gates (includes `"local"`). */
   influenceBook: InfluenceGateBook;
+  /** M22 item service (inventory, item escrow reconcile). */
+  items?: ItemService;
   start(): Promise<void>;
   handleCommand(
     message: ClientToHost,
@@ -244,6 +246,7 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
       return requireClock();
     },
     mintEdge,
+    items,
     get influenceBook() {
       return requireBook();
     },
