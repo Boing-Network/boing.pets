@@ -63,7 +63,7 @@ npm run db:generate   # Prisma client, needed before typecheck/tests
 ### Web client (browser host, no database)
 
 ```sh
-npm run dev -w @boing-pets/client     # Vite on http://127.0.0.1:5173
+npm run dev -w @boing-pets/client     # Vite: http://127.0.0.1:5173/world/ (game)
 ```
 
 Without an Electron bridge, `apps/client/src/main.tsx` starts the sim host in a
@@ -72,14 +72,27 @@ Web Worker (`apps/client/host-worker.ts` →
 scale `64×` and persists to IndexedDB (`BrowserWorldRepository`), so the world
 survives refresh.
 
-### Marketing page
+### Site pages
 
-`/welcome/` is a static page (no 3D) with the world, a species gallery built
-from `SPECIES_CATALOG`, how the game works, and Play now links to `/`. Its
-source is `apps/client/welcome/index.html` and `apps/client/src/welcome/`; the
+The site has three pages, each with the same Home · Play · Marketplace nav:
+
+| Path       | Page                                                | Source                                         |
+| ---------- | --------------------------------------------------- | ---------------------------------------------- |
+| `/`        | Marketing page (static, no 3D)                      | `apps/client/index.html`, `src/welcome/`       |
+| `/world/`  | The game (shared world by default; `?mp=off` local) | `apps/client/world/index.html`, `src/main.tsx` |
+| `/market/` | Marketplace                                         | `apps/client/market/index.html`, `src/market/` |
+
+Redirects (`vercel.json`, mirrored by an inline script on `/`): `/welcome` →
+`/`, `/game` and `/world` → `/world/`, and old game links on `/` with a game
+param (`mp`, `owner`, `name`, `debug`, `bestiary`, `pose`) → `/world/` with
+the same query, so `/?owner=<key>` still works.
+
+The marketing page shows the world, a species gallery built
+from `SPECIES_CATALOG`, how the game works, and Play now links to `/world/`. Its
+source is `apps/client/index.html` and `apps/client/src/welcome/`; the
 renders live in `apps/client/public/media/` (WebP, about 400 kB in total). A
 new species needs a render at `public/media/species/<slug>.webp`, for example
-cropped from the dev bestiary (`/?bestiary=<slug>`).
+cropped from the dev bestiary (`/world/?bestiary=<slug>`).
 
 ### Desktop (Electron + local Postgres)
 
@@ -89,7 +102,7 @@ npm run desktop:start   # client:build → desktop:build → electron .
 
 `apps/desktop/src/main.ts` starts an embedded Postgres under Electron
 `userData/living-pets/postgres`, runs `prisma migrate deploy`, boots the host,
-and loads `apps/client/dist/index.html`. Set `LIVING_PETS_DEV_URL` to load a
+and loads `apps/client/dist/world/index.html`. Set `LIVING_PETS_DEV_URL` to load a
 running Vite dev server instead. The main process resolves the repo root from
 its own path, so it expects to run from a repo checkout. No packaged installer
 is configured.
@@ -116,7 +129,7 @@ npm run dev -w @boing-pets/client
 
 The server prints two links:
 
-- **player:** `http://127.0.0.1:5173/?mp=ws://127.0.0.1:8787`. Open it in as
+- **player:** `http://127.0.0.1:5173/world/?mp=ws://127.0.0.1:8787`. Open it in as
   many tabs, browsers or machines as you like. Add `&name=Ada` to set a
   display name.
 - **owner:** the same link plus `&owner=<key>`. Only the owner can pause or
@@ -163,8 +176,8 @@ world lighting, open the dev bestiary:
 
 ```sh
 npm run dev -w @boing-pets/client
-# http://127.0.0.1:5173/?bestiary              all species
-# http://127.0.0.1:5173/?bestiary=fire-fox     one species, close up
+# http://127.0.0.1:5173/world/?bestiary        all species
+# http://127.0.0.1:5173/world/?bestiary=fire-fox one species, close up
 ```
 
 See [Creature rendering in the design doc](docs/DESIGN.md#creature-rendering)
@@ -255,7 +268,7 @@ Secrets the server requires in production (it exits at boot if any is
 missing):
 
 - `LIVING_PETS_MP_OWNER_KEY`: owner key (≥24 chars). Keep a copy outside the
-  repo; the owner link is `https://boing-pets.vercel.app/?owner=<key>`.
+  repo; the owner link is `https://boing-pets.vercel.app/world/?owner=<key>`.
 - `LIVING_PETS_MP_SECRET`: HMAC key for session tokens (≥32 chars). Rotating
   it signs everyone out (they rejoin as new guests).
 - `DATABASE_URL`: set by `fly postgres attach`.

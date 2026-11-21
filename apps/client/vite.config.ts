@@ -7,12 +7,12 @@ import { defineConfig } from "vite";
 const root = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(root, "../..");
 
-// The game at `/`, plus static pages beside it (`/welcome/`, `/market/`).
-// Each page is built only when its HTML exists.
-const PAGES = ["index.html", "welcome/index.html", "market/index.html"];
+// The marketing page at `/`, the game at `/world/` and the marketplace at
+// `/market/`. Each page is built only when its HTML exists.
+const PAGES = ["index.html", "world/index.html", "market/index.html"];
 const input = Object.fromEntries(
   PAGES.filter((page) => existsSync(path.resolve(root, page))).map((page) => [
-    page === "index.html" ? "main" : path.dirname(page),
+    page === "index.html" ? "home" : path.dirname(page),
     path.resolve(root, page),
   ]),
 );

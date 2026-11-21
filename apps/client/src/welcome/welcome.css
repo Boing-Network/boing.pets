@@ -59,7 +59,8 @@ nav a {
   text-decoration: none;
   color: var(--muted);
 }
-nav a:hover {
+nav a:hover,
+nav a[aria-current="page"] {
   color: var(--text);
 }
 .cta,
@@ -281,8 +282,13 @@ footer {
   font-size: 0.9rem;
 }
 @media (max-width: 640px) {
-  nav a:not(.cta) {
+  /* Keep Home and Marketplace; the Play now button stands in for Play. */
+  nav a[data-play]:not(.cta) {
     display: none;
+  }
+  nav {
+    gap: 0.7rem;
+    font-size: 0.9rem;
   }
 }
 @media (prefers-reduced-motion: reduce) {

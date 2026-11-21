@@ -7,12 +7,98 @@
   "redirects": [
     {
       "source": "/welcome",
-      "destination": "/welcome/",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/welcome/",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/game",
+      "destination": "/world/",
+      "permanent": false
+    },
+    {
+      "source": "/game/",
+      "destination": "/world/",
+      "permanent": false
+    },
+    {
+      "source": "/world",
+      "destination": "/world/",
       "permanent": false
     },
     {
       "source": "/market",
       "destination": "/market/",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "query",
+          "key": "mp"
+        }
+      ],
+      "destination": "/world/",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "query",
+          "key": "owner"
+        }
+      ],
+      "destination": "/world/",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "query",
+          "key": "name"
+        }
+      ],
+      "destination": "/world/",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "query",
+          "key": "debug"
+        }
+      ],
+      "destination": "/world/",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "query",
+          "key": "bestiary"
+        }
+      ],
+      "destination": "/world/",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "query",
+          "key": "pose"
+        }
+      ],
+      "destination": "/world/",
       "permanent": false
     }
   ]
