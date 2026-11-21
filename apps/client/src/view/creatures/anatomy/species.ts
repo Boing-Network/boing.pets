@@ -1,16 +1,21 @@
 /**
- * The 21 species as anatomy parameter sets. Muted night coats (they live
+ * Species 1–21 as anatomy parameter sets (22–35 live in `species-b.ts`). Muted night coats (they live
  * under moonlight), natural proportions, and one restrained glow each, the
  * world's bioluminescent thread, instead of toy neon.
  */
 import type { SpeciesSlug } from "@boing-pets/contract";
+import { GRAIN, type Vec3, type CreatureBuilder } from "./builder";
+import { ANATOMY_B } from "./species-b";
 import {
-  GRAIN,
-  type PatternFn,
-  type PatternResult,
-  type Vec3,
-  type CreatureBuilder,
-} from "./builder";
+  add,
+  cheekRuff,
+  combine,
+  glowSpeckle,
+  glowSpot,
+  patterns,
+  tailTipGlow,
+  valueish,
+} from "./patterns";
 import {
   bat,
   bird,
@@ -21,35 +26,6 @@ import {
   type Anatomy,
   type QuadFrame,
 } from "./plans";
-
-const add = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
-
-/** A soft glow patch: `glow` within `r` of `at` (creature-local). */
-function glowSpot(
-  at: Vec3,
-  r: number,
-  glow: string,
-  strength: number,
-  parts?: string[],
-): PatternFn {
-  return (p, _n, part) => {
-    if (parts && !parts.includes(part)) return null;
-    const d = Math.hypot(p.x - at[0], p.y - at[1], p.z - at[2]);
-    if (d > r) return null;
-    return { glow, glowStrength: strength * (1 - d / r) };
-  };
-}
-
-function patterns(...fns: PatternFn[]): PatternFn {
-  return (p, n, part) => {
-    let out: PatternResult | null = null;
-    for (const fn of fns) {
-      const r = fn(p, n, part);
-      if (r) out = { ...(out ?? {}), ...r };
-    }
-    return out;
-  };
-}
 
 /** Branching antlers from the crown, mossy tips with a faint glow. */
 function antlers(size: number, color: string, glow: string | null) {
@@ -121,8 +97,8 @@ function curlHorns(size: number, color: string, glint: string) {
           {
             color,
             grain: GRAIN.scale,
-            glow: i === 4 ? glint : undefined,
-            glowStrength: 0.2,
+            glow: i % 2 === 1 ? glint : undefined,
+            glowStrength: 0.3,
           },
           10,
         );
@@ -153,12 +129,16 @@ const QUAD_SPECIES = {
     },
     ears: { kind: "pointed", len: 0.075, w: 0.028, tilt: 0.3 },
     tail: { kind: "bushy", len: 0.3, r: 0.042, lift: -0.55, tip: "#e2d8c6" },
+    extras: cheekRuff(0.02),
     pattern: patterns(
       (p, n, part) =>
         part === "head" && n.z > 0.2 && p.y < 0.36
           ? { color: "#e2d6c2", mix: 0.7 }
           : null,
       glowSpot([0, 0.2, 0.2], 0.05, "#e08a3c", 0.32, ["body"]),
+      // The pale tail tip burns like a coal, and a few embers drift in the coat.
+      tailTipGlow(-0.3, "#e89040", 0.4),
+      glowSpeckle(["body"], "#e89040", 0.14, 1.2, 0.55, 0.3),
     ),
   }),
   "moss-stag": quadruped({
@@ -183,11 +163,29 @@ const QUAD_SPECIES = {
     },
     ears: { kind: "long", len: 0.075, w: 0.028, tilt: 1.15 },
     tail: { kind: "short", len: 0.06, r: 0.028, lift: 0.4, tip: "#d8d0c0" },
-    extras: antlers(0.24, "#6a5a44", "#6bc8d8"),
-    pattern: (p, n, part) =>
-      part === "body" && n.y > 0.55 && valueish(p) > 0.62
-        ? { color: "#4e6a46", mix: 0.55 }
-        : null,
+    extras: combine(antlers(0.24, "#6a5a44", "#6bc8d8"), (b) => {
+      // Shaggy neck, thicker than the neck tube, as on a rutting stag.
+      b.part("body");
+      b.ellipsoid(
+        [0, 0.5, 0.237],
+        [0.048, 0.085, 0.052],
+        "coat",
+        [0.62, 0, 0],
+        14,
+      );
+    }),
+    pattern: patterns(
+      // Lichen patches on the back: green, and faintly cyan-lit.
+      (p, n, part) =>
+        part === "body" && n.y > 0.55 && valueish(p) > 0.62
+          ? { color: "#4e6a46", mix: 0.55, glow: "#6bc8d8", glowStrength: 0.2 }
+          : null,
+      // Pale rump patch.
+      (p, n, part) =>
+        part === "body" && p.z < -0.2 && n.z < -0.3
+          ? { color: "#d8d0c0", mix: 0.7 }
+          : null,
+    ),
   }),
   "moon-hare": quadruped({
     coat: { back: "#8b857b", belly: "#dcd6cb", dark: "#2b2722" },
@@ -212,10 +210,18 @@ const QUAD_SPECIES = {
     },
     ears: { kind: "long", len: 0.15, w: 0.022, tilt: 0.12 },
     tail: { kind: "short", len: 0.045, r: 0.025, lift: 0.9, tip: "#ece6da" },
-    pattern: (p, _n, part) =>
-      part === "head" && p.y > 0.33
-        ? { color: "#3a3630", mix: 0.6, glow: "#b8d4ff", glowStrength: 0.18 }
-        : null,
+    pattern: patterns(
+      // Black-tipped ears that catch the moon.
+      (p, _n, part) =>
+        part === "head" && p.y > 0.33
+          ? { color: "#3a3630", mix: 0.6, glow: "#b8d4ff", glowStrength: 0.34 }
+          : null,
+      // Grizzled back, the way a hare's coat is ticked with pale hairs.
+      (p, n, part) =>
+        part === "body" && n.y > 0.4 && valueish(p) > 0.6
+          ? { color: "#a29b8f", mix: 0.4 }
+          : null,
+    ),
   }),
   "crag-ram": quadruped({
     coat: { back: "#7d7366", belly: "#c4baa8", dark: "#2f2a25" },
@@ -263,6 +269,19 @@ const QUAD_SPECIES = {
     ears: { kind: "pointed", len: 0.04, w: 0.022, tilt: 0.6 },
     tail: { kind: "thin", len: 0.08, r: 0.008, lift: -0.8 },
     extras: (b, at) => {
+      // Short tusks curving up from the lower jaw.
+      b.part("head", at.headPivot);
+      for (const side of [1, -1]) {
+        const base = add(at.headPivot, [side * 0.026, -0.018, 0.1]);
+        b.cone(
+          base,
+          add(base, [side * 0.006, 0.03, 0.012]),
+          0.006,
+          { color: "#e8e0cc", grain: GRAIN.smooth },
+          1,
+          6,
+        );
+      }
       // Bristle crest along the spine, thistle-violet tips.
       b.part("body");
       for (let i = 0; i < 9; i += 1) {
@@ -277,7 +296,7 @@ const QUAD_SPECIES = {
             color: "#2c241e",
             grain: GRAIN.fur,
             glow: "#d070c0",
-            glowStrength: 0.12,
+            glowStrength: 0.3,
           },
           0.45,
           6,
@@ -307,10 +326,24 @@ const QUAD_SPECIES = {
     ears: { kind: "round", len: 0.022, w: 0.016 },
     tail: { kind: "short", len: 0.05, r: 0.022, lift: -0.2 },
     pattern: (p, n, part) => {
+      if (part === "body") {
+        // Grizzled grey back.
+        return n.y > 0.3 && valueish(p) > 0.5
+          ? { color: "#a39e94", mix: 0.35 }
+          : null;
+      }
       if (part !== "head") return null;
       const stripe = Math.abs(Math.abs(p.x) - 0.022);
       if (stripe < 0.011 && n.y > -0.2) return { color: "#1b1a18", mix: 0.95 };
-      if (n.y > -0.3) return { color: "#ddd8cd", mix: 0.85 };
+      // The pale face stripes hold a lamp-amber light.
+      if (n.y > -0.3) {
+        return {
+          color: "#ddd8cd",
+          mix: 0.85,
+          glow: "#c9b27a",
+          glowStrength: 0.2,
+        };
+      }
       return null;
     },
   }),
@@ -335,12 +368,20 @@ const QUAD_SPECIES = {
     },
     ears: { kind: "tufted", len: 0.055, w: 0.024, tilt: 0.25 },
     tail: { kind: "short", len: 0.08, r: 0.02, lift: -0.3, tip: "#24211d" },
-    pattern: (p, n, part) =>
-      part === "body" &&
-      n.y > -0.2 &&
-      Math.sin(p.x * 120) * Math.sin(p.z * 110) > 0.75
-        ? { color: "#4a4238", mix: 0.5 }
-        : null,
+    extras: cheekRuff(0.026),
+    pattern: patterns(
+      (p, n, part) =>
+        part === "body" &&
+        n.y > -0.2 &&
+        Math.sin(p.x * 120) * Math.sin(p.z * 110) > 0.75
+          ? { color: "#4a4238", mix: 0.5 }
+          : null,
+      // Ear tufts catch a cold teal glint.
+      (p, _n, part) =>
+        part === "head" && p.y > 0.4
+          ? { glow: "#9fd0c8", glowStrength: 0.4 }
+          : null,
+    ),
   }),
   "dusk-raccoon": quadruped({
     coat: { back: "#6d6862", belly: "#a39d94", dark: "#1f1d1b" },
@@ -366,6 +407,11 @@ const QUAD_SPECIES = {
     pattern: (p, n, part) => {
       if (part !== "head") return null;
       const mask = p.y > 0.2 && p.y < 0.245 && n.z > -0.2;
+      // A lavender shimmer rims the mask, top and bottom.
+      const rim =
+        n.z > -0.2 &&
+        ((p.y >= 0.245 && p.y < 0.256) || (p.y > 0.19 && p.y <= 0.2));
+      if (rim) return { glow: "#b7a5e0", glowStrength: 0.32 };
       if (mask) return { color: "#1a1817", mix: 0.92 };
       if (n.z > 0.3) return { color: "#d8d2c6", mix: 0.65 };
       return null;
@@ -393,6 +439,20 @@ const QUAD_SPECIES = {
     },
     ears: { kind: "round", len: 0.018, w: 0.013 },
     tail: { kind: "bushy", len: 0.08, r: 0.02, lift: -0.2, tip: "#3a2f25" },
+    pattern: patterns(
+      // Slate-grey grizzle over a warm brown coat.
+      (p, n, part) =>
+        part === "body" && n.y > 0.2 && valueish(p) > 0.55
+          ? { color: "#8f8a80", mix: 0.4 }
+          : null,
+      (p, n, part) =>
+        part === "head" && n.z > 0.5 && p.y < 0.17
+          ? { color: "#cdbfa5", mix: 0.5 }
+          : null,
+      // Warm amber whisker pads.
+      glowSpot([0.012, 0.165, 0.2], 0.026, "#e0b070", 0.36, ["head"]),
+      glowSpot([-0.012, 0.165, 0.2], 0.026, "#e0b070", 0.36, ["head"]),
+    ),
   }),
   "silver-deer": quadruped({
     coat: { back: "#868176", belly: "#e0dbd0", dark: "#3c352d" },
@@ -420,8 +480,10 @@ const QUAD_SPECIES = {
       n.y > 0.1 &&
       n.y < 0.8 &&
       Math.sin(p.x * 140 + p.z * 60) * Math.sin(p.z * 130) > 0.82
-        ? { color: "#c9cdd2", mix: 0.6, glow: "#c6d8f2", glowStrength: 0.12 }
-        : null,
+        ? { color: "#c9cdd2", mix: 0.6, glow: "#c6d8f2", glowStrength: 0.26 }
+        : part === "body" && p.z < -0.17 && n.z < -0.3
+          ? { color: "#ece8de", mix: 0.7 }
+          : null,
   }),
   "dew-shrew": quadruped({
     coat: { back: "#584c42", belly: "#a2968a", dark: "#231e1a" },
@@ -443,7 +505,11 @@ const QUAD_SPECIES = {
     ears: { kind: "round", len: 0.012, w: 0.01 },
     tail: { kind: "thin", len: 0.1, r: 0.007, lift: -0.1 },
     info: { breathRate: 2.2 },
-    pattern: glowSpot([0, 0.075, 0.16], 0.025, "#9ee0c8", 0.5, ["head"]),
+    pattern: patterns(
+      glowSpot([0, 0.075, 0.16], 0.025, "#9ee0c8", 0.5, ["head"]),
+      // Dew beads on its back.
+      glowSpeckle(["body"], "#b8f0e0", 0.3, 1.4, 0.5, 0.3),
+    ),
   }),
   "hollow-squirrel": quadruped({
     coat: { back: "#77583f", belly: "#d0bda2", dark: "#2e2219" },
@@ -467,7 +533,14 @@ const QUAD_SPECIES = {
     },
     ears: { kind: "tufted", len: 0.03, w: 0.012, tilt: 0.15 },
     tail: { kind: "plume", len: 0.22, r: 0.034, lift: 0.5 },
-    pattern: glowSpot([0, 0.3, -0.12], 0.04, "#e0a860", 0.18, ["tail"]),
+    // The plume of the tail warms toward its tip.
+    pattern: (p, _n, part) =>
+      part === "tail" && p.y > 0.18
+        ? {
+            glow: "#e0a860",
+            glowStrength: 0.15 + Math.min(0.25, (p.y - 0.18) * 2.5),
+          }
+        : null,
   }),
   "ash-wolf": quadruped({
     coat: { back: "#67635c", belly: "#c4beb2", dark: "#26231f" },
@@ -502,10 +575,19 @@ const QUAD_SPECIES = {
         16,
       );
     },
-    pattern: (p, n, part) =>
-      part === "head" && n.z > 0.3 && p.y < 0.5
-        ? { color: "#d6d0c4", mix: 0.5 }
-        : null,
+    pattern: patterns(
+      (p, n, part) =>
+        part === "head" && n.z > 0.3 && p.y < 0.5
+          ? { color: "#d6d0c4", mix: 0.5 }
+          : null,
+      // A darker saddle across the back.
+      (p, n, part) =>
+        part === "body" && n.y > 0.45
+          ? { color: "#3b3834", mix: 0.25 + 0.3 * valueish(p) }
+          : null,
+      // Ash-gold embers caught in the coat.
+      glowSpeckle(["body", "tail"], "#d8a050", 0.22, 1.1, 0.5, 0.3),
+    ),
   }),
   "stone-pika": quadruped({
     coat: { back: "#83786a", belly: "#cdc1ae", dark: "#3a332b" },
@@ -529,20 +611,14 @@ const QUAD_SPECIES = {
     info: { breathRate: 1.6 },
     pattern: (p, _n, part) =>
       part === "head" && p.y > 0.12
-        ? { color: "#d8d0c0", mix: 0.3, glow: "#bfd8ff", glowStrength: 0.12 }
+        ? { color: "#d8d0c0", mix: 0.3, glow: "#bfd8ff", glowStrength: 0.26 }
         : null,
   }),
 } satisfies Partial<Record<SpeciesSlug, Anatomy>>;
 
-/** Smooth 0–1 mottle from position, for coat patches. */
-function valueish(p: { x: number; y: number; z: number }): number {
-  return (
-    (Math.sin(p.x * 31 + p.z * 17) * Math.sin(p.y * 23 - p.z * 29) + 1) / 2
-  );
-}
-
 export const ANATOMY: Record<SpeciesSlug, Anatomy> = {
   ...QUAD_SPECIES,
+  ...ANATOMY_B,
   "lantern-moth": moth({
     coat: { back: "#b5ae9f", belly: "#e2dccd", dark: "#3a3530" },
     wing: "#a49d8e",
@@ -558,9 +634,11 @@ export const ANATOMY: Record<SpeciesSlug, Anatomy> = {
           color: "#d8c890",
           mix: 0.9,
           glow: "#e8b860",
-          glowStrength: 0.25,
+          glowStrength: 0.5,
         };
       if (d < 0.04) return { color: "#4a4238", mix: 0.8 };
+      // A thin lantern-light rim along the outer wing edge.
+      if (Math.abs(p.x) > 0.255) return { glow: "#e8b860", glowStrength: 0.2 };
       return null;
     },
   }),
@@ -595,8 +673,11 @@ export const ANATOMY: Record<SpeciesSlug, Anatomy> = {
           color: "#d8ccb0",
           mix: 0.85,
           glow: "#e8d49a",
-          glowStrength: 0.12,
+          glowStrength: 0.3,
         };
+      }
+      if (part === "head" && n.y < -0.2 && n.z > 0) {
+        return { color: "#e8e0cc", mix: 0.8 };
       }
       return n.y > -0.2 &&
         valueish({ x: p.x * 3, y: p.y * 3, z: p.z * 3 }) > 0.7
@@ -630,7 +711,7 @@ export const ANATOMY: Record<SpeciesSlug, Anatomy> = {
     tail: { len: 0.08, w: 0.05 },
     pattern: (p, _n, part) =>
       part === "head" && p.z < -0.02
-        ? { glow: "#a8d8f0", glowStrength: 0.15 }
+        ? { glow: "#a8d8f0", glowStrength: 0.3 }
         : null,
   }),
   "ember-newt": newt({
@@ -652,6 +733,7 @@ export const ANATOMY: Record<SpeciesSlug, Anatomy> = {
       eyeColor: "#c89038",
       eyeshine: "#f0c060",
       disc: "#b4a68e",
+      discGlow: "#f0c060",
       tufts: 0.045,
     },
     legs: { len: 0.06, r: 0.012, color: "#a89a82" },

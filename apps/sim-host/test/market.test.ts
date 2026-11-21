@@ -116,12 +116,12 @@ test("catalog: every creature and lineage with live status and genesis flag", ()
   const lineages = catalog.assets.filter((a) => a.kind === "LINEAGE");
   assert.equal(creatures.length, snapshot.creatures.length);
   assert.equal(lineages.length, snapshot.lineages.length);
-  assert.equal(creatures.length, 42);
+  assert.equal(creatures.length, 70);
   assert.ok(
     creatures.every((a) => a.genesis),
     "fresh world: all founders",
   );
-  assert.equal(new Set(creatures.map((a) => a.speciesSlug)).size, 21);
+  assert.equal(new Set(creatures.map((a) => a.speciesSlug)).size, 35);
   const minted = creatures.find((a) => a.key === `creature:${first.id}`)!;
   assert.equal(minted.ownership, "OPERATOR");
   assert.equal(minted.ownerHex, OPERATOR);

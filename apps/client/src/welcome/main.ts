@@ -3,8 +3,14 @@
  * The species gallery is generated from the shared catalog, so a new species
  * shows up here as soon as it has a render in `public/media/species/`.
  */
-import { Diet, SPECIES_CATALOG, type SpeciesKey } from "@boing-pets/contract";
+import {
+  Diet,
+  SPECIES_CATALOG,
+  type SpeciesKey,
+  type SpeciesSlug,
+} from "@boing-pets/contract";
 import { playHref } from "../site/routes";
+import { skinForSkinId } from "../view/species-skins";
 import "./welcome.css";
 
 const TERRITORIES: Record<string, string> = {
@@ -57,6 +63,18 @@ function speciesCard(s: SpeciesKey): HTMLLIElement {
     loading: "lazy",
     width: 480,
     height: 327,
+  });
+  // A species can ship before its render does: show a glow-tinted
+  // placeholder instead of a broken image.
+  img.addEventListener("error", () => {
+    const skin = skinForSkinId(s.slug as SpeciesSlug);
+    const ph = el("div", { className: "placeholder", role: "img" }, [
+      el("span", {}, [s.displayName]),
+    ]);
+    ph.setAttribute("aria-label", `${s.displayName} (render coming soon)`);
+    ph.style.setProperty("--glow", skin.emissive);
+    ph.style.setProperty("--coat", skin.primary);
+    img.replaceWith(ph);
   });
   const meta = el("p", { className: "meta" }, [
     `${DIET_LABEL[s.diet]} · ${GAIT_LABEL[s.gait]} · ${territoryName(s.home)}`,

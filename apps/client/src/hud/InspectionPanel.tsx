@@ -12,13 +12,15 @@ import { speciesLabel } from "../view/species-skins";
 import { useUiStore } from "../state/uiStore";
 import { useWorldViewStore } from "../state/worldViewStore";
 import { topMemories } from "./topMemories";
+import { CreatureFinder } from "./CreatureFinder";
+import { needLevel, type NeedName } from "./needs";
 import "./inspection.css";
 
 type Props = {
   ipc: IpcClient;
 };
 
-function needRows(creature: CreatureView): Array<[string, number]> {
+function needRows(creature: CreatureView): Array<[NeedName, number]> {
   return [
     ["hunger", creature.needs.hunger],
     ["thirst", creature.needs.thirst],
@@ -27,6 +29,34 @@ function needRows(creature: CreatureView): Array<[string, number]> {
     ["unsafety", creature.needs.unsafety],
     ["loneliness", creature.needs.loneliness],
   ];
+}
+
+/** Needs as a word and a meter; the raw 0–1000 value is the tooltip. */
+function NeedMeters({ rows }: { rows: Array<[NeedName, number]> }) {
+  return (
+    <ul className="inspect-need-list">
+      {rows.map(([name, value]) => {
+        const level = needLevel(name, value);
+        return (
+          <li key={name} title={`${name} ${value} / 1000`}>
+            <span className="inspect-need-name">{name}</span>
+            <span
+              className={`inspect-need-bar inspect-need-bar--${level.tone}`}
+              role="meter"
+              aria-label={name}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={level.percent}
+              aria-valuetext={level.label}
+            >
+              <span style={{ width: `${Math.max(3, level.percent)}%` }} />
+            </span>
+            <strong className="inspect-need-label">{level.label}</strong>
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
 
 function geneRows(creature: CreatureView): Array<[string, number]> {
@@ -156,27 +186,24 @@ export function InspectionPanel({ ipc }: Props) {
   if (selectedCreatureId == null || !creature) {
     return (
       <aside className="inspect-panel inspect-panel--empty" aria-live="polite">
-        <p className="inspect-hint">Select a creature to inspect.</p>
+        <p className="inspect-hint">
+          Select a creature to inspect: tap one in the world, or find it here.
+        </p>
         {living.length > 0 ? (
-          <ul className="inspect-picker">
-            {living.map((row) => (
-              <li key={row.id}>
-                <button
-                  type="button"
-                  className="inspect-picker-btn"
-                  title={speciesLabel(row.speciesId)}
-                  onClick={() => selectCreature(row.id)}
-                >
-                  {row.name}
-                </button>
-              </li>
-            ))}
-          </ul>
+          <CreatureFinder
+            creatures={living}
+            selectedId={null}
+            onSelect={selectCreature}
+          />
         ) : null}
       </aside>
     );
   }
 
+  const nameOf = new Map<number, string>(
+    (view?.creatures ?? []).map((row): [number, string] => [row.id, row.name]),
+  );
+  const labelFor = (id: number): string => nameOf.get(id) ?? `#${id}`;
   const memories = topMemories(creature.memories, 5);
   const pairs = creature.relationships;
 
@@ -202,26 +229,14 @@ export function InspectionPanel({ ipc }: Props) {
       </header>
 
       {living.length > 1 ? (
-        <ul
-          className="inspect-picker inspect-picker--compact"
-          aria-label="Switch creature"
-        >
-          {living.map((row) => (
-            <li key={row.id}>
-              <button
-                type="button"
-                className={
-                  row.id === creature.id
-                    ? "inspect-picker-btn inspect-picker-btn--active"
-                    : "inspect-picker-btn"
-                }
-                onClick={() => selectCreature(row.id)}
-              >
-                {row.name}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <details className="inspect-switch">
+          <summary>Switch creature ({living.length} alive)</summary>
+          <CreatureFinder
+            creatures={living}
+            selectedId={creature.id}
+            onSelect={selectCreature}
+          />
+        </details>
       ) : null}
 
       <section className="inspect-section">
@@ -249,7 +264,7 @@ export function InspectionPanel({ ipc }: Props) {
 
       <section className="inspect-section">
         <h3>Needs</h3>
-        <StatList rows={needRows(creature)} />
+        <NeedMeters rows={needRows(creature)} />
       </section>
 
       <section className="inspect-section">
@@ -286,7 +301,7 @@ export function InspectionPanel({ ipc }: Props) {
           <ul className="inspect-pair-list">
             {pairs.map((rel) => (
               <li key={rel.id}>
-                <span>#{pairOtherId(rel, creature.id)}</span>
+                <span>{labelFor(pairOtherId(rel, creature.id))}</span>
                 <span className="inspect-labels">
                   {rel.labels.length > 0 ? rel.labels.join(", ") : "unlabeled"}
                 </span>
@@ -308,12 +323,12 @@ export function InspectionPanel({ ipc }: Props) {
               mother{" "}
               {creature.family.motherId == null
                 ? "—"
-                : `#${creature.family.motherId}`}
+                : labelFor(creature.family.motherId)}
               {" · "}
               father{" "}
               {creature.family.fatherId == null
                 ? "—"
-                : `#${creature.family.fatherId}`}
+                : labelFor(creature.family.fatherId)}
             </p>
             <ul className="inspect-ancestor-list">
               {family.ancestors.length === 0 ? (

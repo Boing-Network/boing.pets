@@ -10,6 +10,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { SPECIES_CATALOG } from "@boing-pets/contract";
 import {
   bootSession,
   buildWorldView,
@@ -59,9 +60,12 @@ try {
   if (view.territories.length !== 7) {
     throw new Error(`expected 7 territories, got ${view.territories.length}`);
   }
-  // 21 species × 2 founders (born mature, so their birth ticks are negative).
-  if (view.creatures.length !== 42) {
-    throw new Error(`expected 42 founders, got ${view.creatures.length}`);
+  // Catalog species × 2 founders (born mature, so their birth ticks are negative).
+  const founders = SPECIES_CATALOG.length * 2;
+  if (view.creatures.length !== founders) {
+    throw new Error(
+      `expected ${founders} founders, got ${view.creatures.length}`,
+    );
   }
 
   // Second boot must load the persisted world, not create another.

@@ -25,6 +25,20 @@ export const SPECIES_WORLD_SCALE: Record<string, number> = {
   "ash-wolf": 3.0,
   "stone-pika": 1.8,
   "crag-owl": 2.2,
+  "clover-vole": 1.7,
+  "amber-kestrel": 2.3,
+  "thorn-porcupine": 2.4,
+  "briar-weasel": 2.4,
+  "ledge-goat": 3.0,
+  "mist-swift": 1.9,
+  "opal-dormouse": 1.8,
+  "hush-owl": 2.1,
+  "lumen-frog": 1.8,
+  "reed-muskrat": 2.3,
+  "elder-bear": 3.4,
+  "acorn-jay": 2.1,
+  "rime-cat": 3.0,
+  "gale-chough": 2.2,
 };
 
 export function worldScaleForSkin(skinId: string, selected: boolean): number {

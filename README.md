@@ -7,13 +7,15 @@ watches, inspects, and nudges the world through five rate-limited _influences_
 (naming, favoring a bloodline, enriching or calming a territory).
 
 The world has seven territories (Meadow, Thicket, Ridge, Moonlit Glade,
-Glowfen, Elder Grove, High Crags) and 21 species, three per territory, each
-starting from two founders (one female, one male): Fire Fox, Barrow Badger
-and Field Nightjar (Meadow); Moss Stag, Shade Lynx and Dusk Raccoon
-(Thicket); Lantern Moth, Slate Marmot and Gloam Bat (Ridge); Moon Hare,
-Silver Deer and Dew Shrew (Moonlit Glade); Glow Tortoise, Reed Heron and
-Ember Newt (Glowfen); Thistle Hog, Hollow Squirrel and Ash Wolf (Elder
-Grove); Crag Ram, Stone Pika and Crag Owl (High Crags). Each has its own
+Glowfen, Elder Grove, High Crags) and 35 species, five per territory, each
+starting from two founders (one female, one male): Fire Fox, Barrow Badger,
+Field Nightjar, Clover Vole and Amber Kestrel (Meadow); Moss Stag, Shade
+Lynx, Dusk Raccoon, Thorn Porcupine and Briar Weasel (Thicket); Lantern Moth,
+Slate Marmot, Gloam Bat, Ledge Goat and Mist Swift (Ridge); Moon Hare, Silver
+Deer, Dew Shrew, Opal Dormouse and Hush Owl (Moonlit Glade); Glow Tortoise,
+Reed Heron, Ember Newt, Lumen Frog and Reed Muskrat (Glowfen); Thistle Hog,
+Hollow Squirrel, Ash Wolf, Elder Bear and Acorn Jay (Elder Grove); Crag Ram,
+Stone Pika, Crag Owl, Rime Cat and Gale Chough (High Crags). Each has its own
 diet, needs, habitat and gait. The species table lives in
 `packages/contract/src/species.ts`; see
 [`docs/DESIGN.md`](docs/DESIGN.md#world-and-species) for biology, balance, the
@@ -167,7 +169,7 @@ below; point one at your own server with `?mp=wss://…` (browsers block
 
 ## Creature rendering
 
-Creatures are procedural: no model or texture files. Each of the 21 species
+Creatures are procedural: no model or texture files. Each of the 35 species
 has its own body built from code (`apps/client/src/view/creatures/anatomy/`).
 They share one material, lit by the world's moonlight and fog, have soft
 ground contact shadows and breathing, gait and look-at animation. Far away,

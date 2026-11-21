@@ -8,7 +8,7 @@
  * - a soft cool rim on fur, the way moonlight catches the edge of a coat,
  * - subtle bioluminescence (`glow.rgb`) that breathes slowly over time.
  *
- * One shader program for all 21 species, and no per-creature lights.
+ * One shader program for all species, and no per-creature lights.
  */
 import { DoubleSide, FrontSide, MeshStandardMaterial } from "three";
 
