@@ -221,6 +221,26 @@ figcaption {
   aspect-ratio: 480 / 327;
   object-fit: cover;
 }
+.card .placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 480 / 327;
+  background:
+    radial-gradient(
+      circle at 50% 58%,
+      color-mix(in srgb, var(--glow, #6bc8d8) 38%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at 50% 70%,
+      color-mix(in srgb, var(--coat, #5a8260) 55%, #0b1320),
+      #0b1320 70%
+    );
+  color: var(--muted);
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+}
 .card h3 {
   margin: 0.7rem 0.9rem 0.1rem;
   font-size: 1.05rem;

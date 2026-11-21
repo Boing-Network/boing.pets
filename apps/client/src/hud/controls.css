@@ -301,3 +301,40 @@
 .items-toggle input {
   margin: 0;
 }
+
+/* Influence feedback and first-visit tip. */
+.influence-reason,
+.influence-target,
+.influence-notice {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+.influence-reason {
+  color: #d8c060;
+}
+.influence-target,
+.influence-notice {
+  color: var(--ink-muted);
+}
+.influence-notice {
+  min-height: 1em;
+}
+.intro-panel {
+  top: auto;
+  bottom: 4.5rem;
+  z-index: 5;
+}
+.influence-btn:focus-visible,
+.influence-input:focus-visible,
+.influence-select:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .intro-panel,
+  .catchup-panel {
+    transition: none;
+    animation: none;
+  }
+}

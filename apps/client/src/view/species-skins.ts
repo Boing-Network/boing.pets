@@ -63,7 +63,7 @@ const SKIN_PALETTES: Record<CreatureSkinId, PaletteBody> = {
     accent: "#5FC4B8",
     emissive: "#E8C060",
     // Warm lantern core through soft down.
-    emissiveIntensity: 0.85,
+    emissiveIntensity: 0.9,
     locomotion: "fly",
   },
   "glow-tortoise": {
@@ -72,7 +72,7 @@ const SKIN_PALETTES: Record<CreatureSkinId, PaletteBody> = {
     accent: "#3B3328",
     emissive: "#7FE0B0",
     // Mint fen-moss runes along the shell seams.
-    emissiveIntensity: 0.6,
+    emissiveIntensity: 0.75,
     locomotion: "walk",
   },
   "moon-hare": {
@@ -81,7 +81,7 @@ const SKIN_PALETTES: Record<CreatureSkinId, PaletteBody> = {
     accent: "#4A4E63",
     emissive: "#B8D4FF",
     // Pale moonlight caught in the ear tips.
-    emissiveIntensity: 0.62,
+    emissiveIntensity: 0.7,
     locomotion: "trot",
   },
   "crag-ram": {
@@ -117,7 +117,7 @@ const SKIN_PALETTES: Record<CreatureSkinId, PaletteBody> = {
     accent: "#2E261E",
     emissive: "#E8D49A",
     // Pale wing-bar flash.
-    emissiveIntensity: 0.38,
+    emissiveIntensity: 0.5,
     locomotion: "fly",
   },
   "shade-lynx": {
@@ -153,7 +153,7 @@ const SKIN_PALETTES: Record<CreatureSkinId, PaletteBody> = {
     accent: "#1A1715",
     emissive: "#8FB8E8",
     // Blue membrane veins.
-    emissiveIntensity: 0.42,
+    emissiveIntensity: 0.55,
     locomotion: "fly",
   },
   "silver-deer": {
@@ -162,7 +162,7 @@ const SKIN_PALETTES: Record<CreatureSkinId, PaletteBody> = {
     accent: "#3C352D",
     emissive: "#C6D8F2",
     // Moon-silver flank dapples.
-    emissiveIntensity: 0.42,
+    emissiveIntensity: 0.5,
     locomotion: "walk",
   },
   "dew-shrew": {
@@ -180,7 +180,7 @@ const SKIN_PALETTES: Record<CreatureSkinId, PaletteBody> = {
     accent: "#2C3238",
     emissive: "#A8D8F0",
     // Pale crest plume glow.
-    emissiveIntensity: 0.38,
+    emissiveIntensity: 0.46,
     locomotion: "walk",
   },
   "ember-newt": {
@@ -216,7 +216,7 @@ const SKIN_PALETTES: Record<CreatureSkinId, PaletteBody> = {
     accent: "#3A332B",
     emissive: "#BFD8FF",
     // Cold quartz ear rims.
-    emissiveIntensity: 0.34,
+    emissiveIntensity: 0.45,
     locomotion: "trot",
   },
   "crag-owl": {
@@ -226,6 +226,132 @@ const SKIN_PALETTES: Record<CreatureSkinId, PaletteBody> = {
     emissive: "#F0C060",
     // Amber eyes and facial-disc rim.
     emissiveIntensity: 0.5,
+    locomotion: "fly",
+  },
+  "clover-vole": {
+    primary: "#8C7A58",
+    secondary: "#C9BDA0",
+    accent: "#2F271E",
+    emissive: "#C6E87A",
+    // Pollen-gold flecks dusted on the back.
+    emissiveIntensity: 0.4,
+    locomotion: "trot",
+  },
+  "amber-kestrel": {
+    primary: "#A4663A",
+    secondary: "#D9C3A0",
+    accent: "#2B211A",
+    emissive: "#F0A850",
+    // Amber wing bar and lit underparts.
+    emissiveIntensity: 0.5,
+    locomotion: "fly",
+  },
+  "thorn-porcupine": {
+    primary: "#5A4E44",
+    secondary: "#8C7F70",
+    accent: "#1F1915",
+    emissive: "#DCEE8A",
+    // Lime-gold quill tips.
+    emissiveIntensity: 0.48,
+    locomotion: "walk",
+  },
+  "briar-weasel": {
+    primary: "#8A6240",
+    secondary: "#EADFC8",
+    accent: "#2A1D14",
+    emissive: "#E0604F",
+    // Bramble-berry crimson bib.
+    emissiveIntensity: 0.42,
+    locomotion: "trot",
+  },
+  "ledge-goat": {
+    primary: "#BDB5A5",
+    secondary: "#E6DFD0",
+    accent: "#3A322B",
+    emissive: "#E8CF7A",
+    // Lantern-lichen rings on the horns and beard.
+    emissiveIntensity: 0.5,
+    locomotion: "walk",
+  },
+  "mist-swift": {
+    primary: "#4A525C",
+    secondary: "#8D959C",
+    accent: "#1C2024",
+    emissive: "#A8D8FF",
+    // A trail of fog-blue light on the wing tips.
+    emissiveIntensity: 0.5,
+    locomotion: "fly",
+  },
+  "opal-dormouse": {
+    primary: "#B58F62",
+    secondary: "#E8DCC4",
+    accent: "#4A3828",
+    emissive: "#F0B8E8",
+    // Opal sheen: pink, cyan and gold across back and tail.
+    emissiveIntensity: 0.55,
+    locomotion: "trot",
+  },
+  "hush-owl": {
+    primary: "#8C7F6E",
+    secondary: "#D4C9B6",
+    accent: "#2C251D",
+    emissive: "#F2F0D0",
+    // Moon-milk facial disc and wing speckles.
+    emissiveIntensity: 0.5,
+    locomotion: "fly",
+  },
+  "lumen-frog": {
+    primary: "#4F6B4A",
+    secondary: "#CFD9B8",
+    accent: "#1F2C1D",
+    emissive: "#6DFFBE",
+    // Mint-cyan lumen spots and a lantern throat sac. The brightest in the world.
+    emissiveIntensity: 0.8,
+    locomotion: "trot",
+  },
+  "reed-muskrat": {
+    primary: "#6B5640",
+    secondary: "#A8957A",
+    accent: "#2A1F18",
+    emissive: "#DFE89A",
+    // Sedge-gold sheen on wet fur.
+    emissiveIntensity: 0.4,
+    locomotion: "walk",
+  },
+  "elder-bear": {
+    primary: "#4C3F35",
+    secondary: "#6E5F52",
+    accent: "#1D1713",
+    emissive: "#B8E08A",
+    // Glowing bracket fungi grown along the spine.
+    emissiveIntensity: 0.55,
+    locomotion: "walk",
+  },
+  "acorn-jay": {
+    primary: "#9A7A74",
+    secondary: "#D8C6BC",
+    accent: "#1E1A1C",
+    emissive: "#5FA0FF",
+    // Cobalt glow in the barred wing patch.
+    emissiveIntensity: 0.55,
+    locomotion: "fly",
+  },
+  "rime-cat": {
+    primary: "#A9AEB4",
+    secondary: "#E2E5E8",
+    accent: "#2C3036",
+    emissive: "#CFEAFF",
+    // Frost crystals sparkling in the coat.
+    emissiveIntensity: 0.5,
+    locomotion: "walk",
+  },
+  "gale-chough": {
+    primary: "#2F3036",
+    secondary: "#45464E",
+    accent: "#141417",
+    emissive: "#8AA0FF",
+    // Violet sheen on glossy black wings.
+    emissiveIntensity: 0.4,
     locomotion: "fly",
   },
 };

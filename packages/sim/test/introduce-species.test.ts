@@ -61,13 +61,17 @@ test("introduceSpecies adds every missing species with two founders at home", ()
       ["thistle-hog", "OMNIVORE"],
     ],
   );
-  assert.equal(snapshot.species.length, 21);
-  assert.equal(snapshot.compatibility.length, (21 * 22) / 2);
+  assert.equal(snapshot.species.length, SPECIES_CATALOG.length);
+  const total = SPECIES_CATALOG.length;
+  assert.equal(snapshot.compatibility.length, (total * (total + 1)) / 2);
   const fertile = snapshot.compatibility.filter((row) => row.fertility > 0);
-  assert.equal(fertile.length, 21);
+  assert.equal(fertile.length, total);
   assert.ok(fertile.every((row) => row.speciesLowId === row.speciesHighId));
 
-  assert.equal(result.creatures.length, 14 * INTRODUCED_FOUNDERS_PER_SPECIES);
+  assert.equal(
+    result.creatures.length,
+    (total - 7) * INTRODUCED_FOUNDERS_PER_SPECIES,
+  );
   assert.equal(result.lineages.length, result.creatures.length);
   assert.equal(result.events.length, result.creatures.length * 2);
   assert.equal(result.creatures[0]?.id, before.world.nextCreatureId);

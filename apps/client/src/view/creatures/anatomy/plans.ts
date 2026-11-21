@@ -505,6 +505,8 @@ export type BirdSpec = {
     eyeshine?: string;
     /** Owl facial disc colour. */
     disc?: string;
+    /** Soft glow along the facial disc (owls). */
+    discGlow?: string;
     crest?: number;
     tufts?: number;
   };
@@ -587,7 +589,12 @@ export function bird(spec: BirdSpec): Anatomy {
         b.ellipsoid(
           H([0, hr[1] * 0.3, hr[2] * 0.72]),
           [hr[0] * 0.92, hr[1] * 0.82, hr[2] * 0.3],
-          { color: spec.head.disc, grain: GRAIN.feather },
+          {
+            color: spec.head.disc,
+            grain: GRAIN.feather,
+            glow: spec.head.discGlow,
+            glowStrength: spec.head.discGlow ? 0.22 : 0,
+          },
           [0, 0, 0],
           16,
         );
@@ -750,6 +757,14 @@ export function bat(spec: BatSpec): Anatomy {
   const hr = spec.body[0] * 0.78;
   return {
     coat: spec.coat,
+    // Wing veins fan out from the arm and glow faintly, like a lit hand.
+    pattern: (p, _n, part) => {
+      if (part !== "wingL" && part !== "wingR") return null;
+      const fan = Math.atan2(-(p.z + 0.02), Math.abs(p.x) - 0.03);
+      return Math.sin(fan * 16) > 0.88
+        ? { glow: spec.glow, glowStrength: 0.5 }
+        : null;
+    },
     info: {
       gait: "fly",
       stride: 0,
@@ -820,7 +835,8 @@ export function bat(spec: BatSpec): Anatomy {
           color: spec.membrane,
           grain: GRAIN.smooth,
           glow: spec.glow,
-          glowStrength: 0.07,
+          glowStrength: 0.14,
+          pattern: true,
         });
         const wrist = add(shoulder, [side * s * 0.33, 0.004, 0.05]);
         b.tube(shoulder, wrist, 0.014, 0.01, "dark", 6);
@@ -969,6 +985,11 @@ export type TortoiseSpec = {
   glow: string;
 };
 
+/** Slow 0–1 swell across the shell, for scute crowns. */
+function valueNoiseCrown(x: number, z: number): number {
+  return (Math.sin(x * 19 + z * 13) * Math.sin(z * 17 - x * 11) + 1) / 2;
+}
+
 export function tortoise(spec: TortoiseSpec): Anatomy {
   const shellY = 0.12;
   const pattern: PatternFn = (p, n, part) => {
@@ -985,10 +1006,13 @@ export function tortoise(spec: TortoiseSpec): Anatomy {
         color: spec.seam,
         mix: 0.8,
         glow: spec.glow,
-        glowStrength: 0.09,
+        glowStrength: 0.4,
       };
     }
-    return { color: spec.shell, mix: 0.85 };
+    // A faint wash on each scute's crown so the runes sit in a lit shell.
+    return n.y > 0.5 && valueNoiseCrown(p.x, p.z) > 0.7
+      ? { color: spec.shell, mix: 0.85, glow: spec.glow, glowStrength: 0.06 }
+      : { color: spec.shell, mix: 0.85 };
   };
   return {
     coat: spec.coat,
