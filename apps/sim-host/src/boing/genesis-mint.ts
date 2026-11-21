@@ -22,6 +22,7 @@ import {
 } from "@boing-network/boing-sdk";
 import type { CreatureRow, WorldSnapshot } from "@boing-pets/sim";
 import type { BoingNftConfig } from "./config";
+import { operatorTxQueue } from "./serial-queue";
 import {
   NftMintStatus,
   tokenIdHexForCreature,
@@ -228,31 +229,41 @@ export function createSdkGenesisChain(
       const word = ensure0xHex(sim.return_data ?? ZERO_ACCOUNT).toLowerCase();
       return /^0x0*$/.test(word) ? null : word;
     },
-    async mint({ collectionHex, toHex, tokenIdHex, metadataHashHex }) {
-      const senderHex = await operatorHex();
-      const sent = await submitContractCallWithSimulationRetry({
-        client,
-        secretKey32,
-        senderHex,
-        contractHex: collectionHex,
-        calldata: encodeReferenceMintBatchCalldata(
-          toHex,
-          [tokenIdHex],
-          [metadataHashHex],
-        ),
-      });
-      const deadline = Date.now() + timeoutMs;
-      while (Date.now() < deadline) {
-        const receipt = await client.getTransactionReceipt(sent.tx_hash);
-        if (receipt != null) {
-          if (!receipt.success) {
-            throw new Error(`mint reverted: ${receipt.error ?? "unknown"}`);
-          }
-          return sent.tx_hash;
-        }
-        await new Promise((r) => setTimeout(r, pollMs));
-      }
-      throw new Error(`no receipt for ${sent.tx_hash} after ${timeoutMs} ms`);
+    mint(input) {
+      // Same queue as the mint edge: one operator nonce at a time.
+      return operatorTxQueue.run(() => mintNow(input));
     },
   };
+
+  async function mintNow({
+    collectionHex,
+    toHex,
+    tokenIdHex,
+    metadataHashHex,
+  }: Parameters<GenesisChain["mint"]>[0]): Promise<string> {
+    const senderHex = await operatorHex();
+    const sent = await submitContractCallWithSimulationRetry({
+      client,
+      secretKey32,
+      senderHex,
+      contractHex: collectionHex,
+      calldata: encodeReferenceMintBatchCalldata(
+        toHex,
+        [tokenIdHex],
+        [metadataHashHex],
+      ),
+    });
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const receipt = await client.getTransactionReceipt(sent.tx_hash);
+      if (receipt != null) {
+        if (!receipt.success) {
+          throw new Error(`mint reverted: ${receipt.error ?? "unknown"}`);
+        }
+        return sent.tx_hash;
+      }
+      await new Promise((r) => setTimeout(r, pollMs));
+    }
+    throw new Error(`no receipt for ${sent.tx_hash} after ${timeoutMs} ms`);
+  }
 }

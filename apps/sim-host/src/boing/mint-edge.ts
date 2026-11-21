@@ -19,6 +19,7 @@ import {
   type AssetMintLinkStore,
 } from "./asset-mint-link";
 import { resolveArtifactCollectionHex, type BoingNftConfig } from "./config";
+import { operatorTxQueue, type SerialQueue } from "./serial-queue";
 import {
   isRetryableMintStatus,
   isTerminalMintStatus,
@@ -102,11 +103,14 @@ export function createMintEdge(
   client: BoingNftClient,
   linkStore: CreatureNftLinkStore = new MemoryCreatureNftLinkStore(),
   assetLinkStore: AssetMintLinkStore = new MemoryAssetMintLinkStore(),
+  submitQueue: SerialQueue = operatorTxQueue,
 ): MintEdge {
   const pending: QueuedCreatureMint[] = [];
   const pendingArtifacts: QueuedLineageArtifactMint[] = [];
   const pendingItems: QueuedCompressedItemMint[] = [];
   const inFlightCreatures = new Set<number>();
+  // Every submit (new mints and drain retries) shares one operator nonce.
+  const submits = submitQueue;
   const inFlightAssets = new Set<string>();
 
   function assetFlightKey(
@@ -224,7 +228,7 @@ export function createMintEdge(
           creatureId,
           metadataHashHex,
         });
-        const result = await client.submitCreatureMint(plan);
+        const result = await submits.run(() => client.submitCreatureMint(plan));
         await linkStore.upsert({
           ...link,
           collectionHex: result.collectionHex,
@@ -347,7 +351,9 @@ export function createMintEdge(
             itemKindId: link.itemKindId,
             amount: link.amount,
           });
-          const result = await client.submitCompressedItemMint(plan);
+          const result = await submits.run(() =>
+            client.submitCompressedItemMint(plan),
+          );
           await assetLinkStore.upsert({
             ...link,
             collectionHex: result.collectionHex,
@@ -368,7 +374,9 @@ export function createMintEdge(
             tokenSerial: link.tokenSerial,
             metadataHashHex,
           });
-          const result = await client.submitLineageArtifactMint(plan);
+          const result = await submits.run(() =>
+            client.submitLineageArtifactMint(plan),
+          );
           await assetLinkStore.upsert({
             ...link,
             collectionHex: result.collectionHex,
