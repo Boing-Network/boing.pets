@@ -82,7 +82,10 @@ export type SharedWorldWsServerOptions = {
    * Default: accept every origin (tests, local tools).
    */
   allowOrigin?: (origin: string | undefined) => boolean;
-  /** Extra fields for `GET /healthz` (e.g. world tick). */
+  /**
+   * Extra fields for `GET /healthz` (e.g. world tick). Include `ok: false`
+   * to report unhealthy (503).
+   */
   health?: () => Record<string, unknown>;
   /** Wallet addresses (`0x` + 64 hex) that join as owner when signed in. */
   ownerWallets?: readonly string[];
@@ -238,13 +241,16 @@ export async function listenSharedWorldWs(
       } catch {
         extra = { healthError: true };
       }
+      // `extra.ok === false` (e.g. world saves failing for a long time) also
+      // reports unhealthy; anything else degraded stays 200 with detail.
+      const healthy = !closing && extra.ok !== false;
       const body = {
-        ok: !closing,
         clients: states.size,
         uptimeS: Math.round((Date.now() - startedAtMs) / 1000),
         ...extra,
+        ok: healthy,
       };
-      res.writeHead(closing ? 503 : 200, {
+      res.writeHead(healthy ? 200 : 503, {
         "content-type": "application/json; charset=utf-8",
         "cache-control": "no-store",
       });

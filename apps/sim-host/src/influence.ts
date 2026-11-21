@@ -191,21 +191,31 @@ export async function submitInfluence(
   gate.acceptedAtMs.push(nowMs);
 
   const byAccount = options.influenceAcceptedByAccount;
-  await persistInfluenceSubmit(
-    session,
-    row,
-    byAccount == null
-      ? [...gate.acceptedAtMs]
-      : [...(byAccount[LOCAL_ACCOUNT_ID] ?? gate.acceptedAtMs)],
-    byAccount == null
-      ? null
-      : Object.fromEntries(
-          Object.entries(byAccount).map(([accountId, times]) => [
-            accountId,
-            [...times],
-          ]),
-        ),
-  );
+  try {
+    await persistInfluenceSubmit(
+      session,
+      row,
+      byAccount == null
+        ? [...gate.acceptedAtMs]
+        : [...(byAccount[LOCAL_ACCOUNT_ID] ?? gate.acceptedAtMs)],
+      byAccount == null
+        ? null
+        : Object.fromEntries(
+            Object.entries(byAccount).map(([accountId, times]) => [
+              accountId,
+              [...times],
+            ]),
+          ),
+    );
+  } catch (error) {
+    // Not saved: un-accept it so it never applies from memory alone. The id
+    // stays consumed (a gap is harmless; reusing it could collide with a
+    // commit that landed after reporting an error).
+    dropPending(session, [row.id]);
+    const at = gate.acceptedAtMs.lastIndexOf(nowMs);
+    if (at >= 0) gate.acceptedAtMs.splice(at, 1);
+    throw error;
+  }
   return { ok: true, id, issuedAtTick };
 }
 
@@ -250,6 +260,28 @@ export async function submitSystemInfluences(
   }
   session.snapshot.world.nextInfluenceId += rows.length;
   session.snapshot.pendingInfluences.push(...rows);
+  try {
+    await commitInfluenceRows(session, rows);
+  } catch (error) {
+    dropPending(
+      session,
+      rows.map((row) => row.id),
+    );
+    throw error;
+  }
+  return rows.map((row) => ({ ok: true, id: row.id, issuedAtTick }));
+}
+
+function dropPending(session: HostSession, ids: readonly number[]): void {
+  const drop = new Set(ids);
+  session.snapshot.pendingInfluences =
+    session.snapshot.pendingInfluences.filter((row) => !drop.has(row.id));
+}
+
+async function commitInfluenceRows(
+  session: HostSession,
+  rows: readonly PlayerInfluenceRow[],
+): Promise<void> {
   await session.repository.commit({
     world: clone(session.snapshot.world),
     ruleset: clone(session.snapshot.ruleset),
@@ -268,7 +300,6 @@ export async function submitSystemInfluences(
     influenceAcceptedByAccount: null,
     insertCatchup: null,
   });
-  return rows.map((row) => ({ ok: true, id: row.id, issuedAtTick }));
 }
 
 function clone<T>(value: T): T {

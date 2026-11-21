@@ -21,8 +21,7 @@ import {
   createHostClock,
   noteLiveCommit,
   pauseClock,
-  persistPauseSnap,
-  quitAndPersist,
+  quitStamp,
   resumeClock,
   setClockScale,
   tickWhilePaused,
@@ -58,6 +57,12 @@ import {
   resetPatchBaseline,
 } from "../view/world-patch";
 import { buildWorldView } from "../view/world-view";
+import {
+  createSaveTracker,
+  describeError,
+  type PersistenceStatus,
+  type SaveTrackerOptions,
+} from "./save-tracker";
 
 export type HostRuntimeEmit = (message: HostToClient) => void;
 
@@ -128,7 +133,17 @@ export type HostRuntimeOptions = {
   itemMintFee?: { feeWei: bigint; payToHex: string | null };
   /** Run the creature autonomy pass (craft / use). Default true. */
   creatureAutonomy?: boolean;
+  /** Live-save retry backoff and the "down" threshold (see save-tracker). */
+  saveRetry?: SaveTrackerOptions;
+  /** Quit: keep retrying the final save this long (wall ms). Default 15s. */
+  quitSaveBudgetMs?: number;
+  /** Operator log line (save failures / recoveries). Default console.error. */
+  log?: (line: string) => void;
 };
+
+/** Players see this while the database is not taking saves. */
+export const SAVES_BLOCKED_DETAIL =
+  "the world can't save right now; try again in a minute";
 
 export type HostRuntime = {
   session: HostSession;
@@ -148,8 +163,18 @@ export type HostRuntime = {
     message: ClientToHost,
     context?: CommandContext,
   ): Promise<QueryResult>;
+  /**
+   * Step the live clock. Never rejects: a failed save keeps the dirty window,
+   * keeps ticking in memory, and retries with backoff.
+   */
   tickFrame(frameDeltaMs: number): Promise<void>;
+  /**
+   * Stamp quit and save, retrying for `quitSaveBudgetMs`. Rejects only when
+   * the final save could not be made (the last durable tick is in the error).
+   */
   quit(): Promise<void>;
+  /** Live-save health (for `/healthz`). */
+  persistenceStatus(): PersistenceStatus;
   /** Push a full snapshot + clock to the emit sink (join handshake). */
   pushViewToEmit(): void;
   /**
@@ -176,7 +201,13 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
   const exclusiveWaiters: Array<() => void> = [];
   let frameTimer: ReturnType<typeof setInterval> | null = null;
   let lastFrameMs = 0;
+  // Frame time that arrived while the runtime was busy (a slow commit or a
+  // command); added to the next frame so wall time is never dropped.
+  let owedFrameMs = 0;
   let started = false;
+  const log =
+    options.log ?? ((line: string) => console.error(`[sim-host] ${line}`));
+  let saves = createSaveTracker(0, nowMs(), options.saveRetry);
   let lastCatchup: CatchupReport | null = null;
   const items = createItemService({
     repository: options.repository,
@@ -216,6 +247,39 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
     } catch {
       // Autonomy is a nicety; never break the frame loop.
     }
+  }
+
+  /**
+   * Commit the dirty window. On failure the window stays dirty (nothing is
+   * lost) and the next attempt is a replay (nothing is duplicated if the
+   * failed attempt landed after all). Never throws.
+   */
+  async function trySave(active: HostSession): Promise<boolean> {
+    const replay = saves.failing();
+    try {
+      await commitSession(active, { replay });
+    } catch (error) {
+      noteSaveFailure(error);
+      return false;
+    }
+    const tick = active.snapshot.world.lastTick;
+    if (replay) {
+      const before = saves.status(tick, nowMs());
+      log(
+        `world save recovered at tick ${tick} after ${before.saveFailures} failed attempt(s)`,
+      );
+    }
+    saves.succeeded(tick, nowMs());
+    return true;
+  }
+
+  function noteSaveFailure(error: unknown): void {
+    saves.failed(error, nowMs());
+    const status = saves.status(session?.snapshot.world.lastTick ?? 0, nowMs());
+    log(
+      `world save failed (attempt ${status.saveFailures}, ${status.unsavedTicks} tick(s) unsaved since tick ${status.lastSavedTick}; ` +
+        `still ticking in memory, retry in ${status.nextRetryInS}s): ${status.lastError}`,
+    );
   }
 
   /**
@@ -293,6 +357,50 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
     pushClock();
   }
 
+  /** Boot the session, clock, and influence book (one start attempt). */
+  async function startSession(): Promise<void> {
+    session = await bootSession(options.repository, seed, {
+      nowMs: nowMs(),
+      mintEdge,
+    });
+    session.relicChain = options.relicChain ?? null;
+    const booted = session;
+    booted.onItemEvents = async (events) => {
+      await items.creditLoot(booted, events, await creatureOwners(), nowMs());
+    };
+    // M22: mirror LPIT reward rows into inventory, and retry any FAILED
+    // mint rows (e.g. item rewards from before the LPIT collection existed).
+    await items
+      .syncRewardLots(
+        session.snapshot.world.id,
+        session.snapshot.world.lastTick,
+        nowMs(),
+      )
+      .catch(() => 0);
+    if (mintEdge.enabled) {
+      void mintEdge.drain(nowMs()).catch(() => {
+        // Recorded on link rows.
+      });
+    }
+    const savedClock = (await options.repository.readHostClock?.()) ?? null;
+    clock = createHostClock({
+      scale: savedClock?.scale ?? options.initialScale ?? 1,
+    });
+    const tables = await options.repository.readTables();
+    book = hydrateInfluenceBook({
+      influenceAcceptedAtMs: tables?.influenceAcceptedAtMs,
+      influenceAcceptedByAccount: tables?.influenceAcceptedByAccount,
+    });
+
+    const report = await catchupOnLaunch(session, nowMs());
+    lastCatchup = report;
+    pushSnapshot();
+    if (report != null) {
+      options.emit({ message: "world.catchup", body: report });
+    }
+    pushClock();
+  }
+
   const runtime: HostRuntime = {
     get lastCatchup() {
       return lastCatchup;
@@ -315,53 +423,31 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
     async start() {
       if (started) throw new Error("already started");
       started = true;
-
-      session = await bootSession(options.repository, seed, {
-        nowMs: nowMs(),
-        mintEdge,
-      });
-      session.relicChain = options.relicChain ?? null;
-      const booted = session;
-      booted.onItemEvents = async (events) => {
-        await items.creditLoot(booted, events, await creatureOwners(), nowMs());
-      };
-      // M22: mirror LPIT reward rows into inventory, and retry any FAILED
-      // mint rows (e.g. item rewards from before the LPIT collection existed).
-      await items
-        .syncRewardLots(
-          session.snapshot.world.id,
-          session.snapshot.world.lastTick,
-          nowMs(),
-        )
-        .catch(() => 0);
-      if (mintEdge.enabled) {
-        void mintEdge.drain(nowMs()).catch(() => {
-          // Recorded on link rows.
-        });
+      try {
+        await startSession();
+      } catch (error) {
+        // Leave the runtime re-startable (boot retries on a database blip).
+        started = false;
+        session = null;
+        clock = null;
+        book = null;
+        throw error;
       }
-      const savedClock = (await options.repository.readHostClock?.()) ?? null;
-      clock = createHostClock({
-        scale: savedClock?.scale ?? options.initialScale ?? 1,
-      });
-      const tables = await options.repository.readTables();
-      book = hydrateInfluenceBook({
-        influenceAcceptedAtMs: tables?.influenceAcceptedAtMs,
-        influenceAcceptedByAccount: tables?.influenceAcceptedByAccount,
-      });
-
-      const report = await catchupOnLaunch(session, nowMs());
-      lastCatchup = report;
-      pushSnapshot();
-      if (report != null) {
-        options.emit({ message: "world.catchup", body: report });
-      }
-      pushClock();
-
+      saves = createSaveTracker(
+        requireSession().snapshot.world.lastTick,
+        nowMs(),
+        options.saveRetry,
+      );
       lastFrameMs = nowMs();
+      owedFrameMs = 0;
       if (options.autoFrame !== false) {
         frameTimer = setInterval(() => {
-          void runtime.tickFrame(Math.max(0, nowMs() - lastFrameMs));
-          lastFrameMs = nowMs();
+          const at = nowMs();
+          const delta = Math.max(0, at - lastFrameMs);
+          lastFrameMs = at;
+          runtime.tickFrame(delta).catch((error: unknown) => {
+            log(`frame failed: ${describeError(error)}`);
+          });
         }, FRAME_MS);
       }
     },
@@ -395,6 +481,15 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
             pushClock();
             return { ok: true };
           case "influence.submit": {
+            // Influence commits write the world header; while live saves are
+            // failing that header would get ahead of the unsaved window.
+            if (saves.failing()) {
+              return {
+                ok: false,
+                code: "influence_rejected",
+                detail: SAVES_BLOCKED_DETAIL,
+              };
+            }
             const accountId = resolveAccountId(
               context.accountId ?? LOCAL_ACCOUNT_ID,
             );
@@ -416,18 +511,23 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
               };
             }
             const submit = prepared.submit;
-            const result = await submitInfluence(
-              active,
-              gate,
-              submit,
-              nowMs(),
-              {
+            let result: Awaited<ReturnType<typeof submitInfluence>>;
+            try {
+              result = await submitInfluence(active, gate, submit, nowMs(), {
                 influenceAcceptedByAccount: serializeInfluenceBook(
                   requireBook(),
                   nowMs(),
                 ),
-              },
-            );
+              });
+            } catch (error) {
+              // Rolled back in memory; the live loop retries the database.
+              noteSaveFailure(error);
+              return {
+                ok: false,
+                code: "influence_rejected",
+                detail: SAVES_BLOCKED_DETAIL,
+              };
+            }
             if (!result.ok) {
               // Local play stays silent (the influence simply does not land);
               // shared hosts relay this to the sender as a notice.
@@ -545,30 +645,49 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
     },
 
     async tickFrame(frameDeltaMs) {
-      if (!started || busy) return;
-      await withExclusive(async () => {
-        const active = requireSession();
-        const activeClock = requireClock();
-        if (activeClock.paused) {
-          const pause = tickWhilePaused(activeClock, active, nowMs());
-          if (pause.snapped) {
-            await persistPauseSnap(active);
-            pushClock();
+      if (!started) return;
+      if (busy) {
+        owedFrameMs += Math.max(0, frameDeltaMs);
+        return;
+      }
+      const deltaMs = Math.max(0, frameDeltaMs) + owedFrameMs;
+      owedFrameMs = 0;
+      try {
+        await withExclusive(async () => {
+          const active = requireSession();
+          const activeClock = requireClock();
+          if (activeClock.paused) {
+            const pause = tickWhilePaused(activeClock, active, nowMs());
+            const retry = saves.failing() && saves.due(nowMs());
+            if ((pause.snapped && !saves.failing()) || retry) {
+              await trySave(active);
+            }
+            if (pause.snapped) pushClock();
+            return;
           }
-          return;
-        }
 
-        const result = advanceClock(activeClock, active, frameDeltaMs);
-        if (result.ticksStepped > 0) {
-          pushLiveView();
-        }
-        if (result.shouldCommit) {
-          await commitSession(active);
-          noteLiveCommit(activeClock);
-          // Between ticks, with the window durable: creatures craft and use.
-          await runAutonomyPass(active);
-        }
-      });
+          const result = advanceClock(activeClock, active, deltaMs);
+          if (result.ticksStepped > 0) {
+            pushLiveView();
+          }
+          // While saves fail, the commit counters keep running (shouldCommit
+          // stays true) and the backoff decides when to try again.
+          if (result.shouldCommit && saves.due(nowMs())) {
+            if (await trySave(active)) {
+              noteLiveCommit(activeClock);
+              // Between ticks, with the window durable: creatures craft and use.
+              await runAutonomyPass(active);
+            }
+          }
+        });
+      } catch (error) {
+        // Never let a frame reject (the frame timer does not await it).
+        log(`frame failed: ${describeError(error)}`);
+      }
+    },
+
+    persistenceStatus() {
+      return saves.status(session?.snapshot.world.lastTick ?? 0, nowMs());
     },
 
     async quit() {
@@ -585,7 +704,33 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
         await new Promise((resolve) => setTimeout(resolve, 10));
       }
       await withExclusive(async () => {
-        await quitAndPersist(requireClock(), requireSession(), nowMs());
+        const active = requireSession();
+        const activeClock = requireClock();
+        quitStamp(activeClock, active, nowMs());
+        // Wall clock on purpose: the budget must hold even with a test clock.
+        const budgetEnd = Date.now() + (options.quitSaveBudgetMs ?? 15_000);
+        for (;;) {
+          if (await trySave(active)) {
+            noteLiveCommit(activeClock);
+            return;
+          }
+          const waitMs = Math.min(
+            saves.retryDelayMs(),
+            Math.max(0, budgetEnd - Date.now()),
+          );
+          if (waitMs <= 0 || Date.now() + waitMs >= budgetEnd) {
+            const status = saves.status(
+              active.snapshot.world.lastTick,
+              nowMs(),
+            );
+            throw new Error(
+              `world not saved on quit after ${status.saveFailures} attempt(s): ` +
+                `last durable tick ${status.lastSavedTick} (${status.unsavedTicks} tick(s) in memory not saved; ` +
+                `the next launch catches up from tick ${status.lastSavedTick}): ${status.lastError}`,
+            );
+          }
+          await new Promise((resolve) => setTimeout(resolve, waitMs));
+        }
       });
     },
   };

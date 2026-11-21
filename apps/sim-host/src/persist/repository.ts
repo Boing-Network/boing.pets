@@ -101,6 +101,15 @@ export type CommitBatch = {
   upsertSpecies?: SpeciesRow[];
   /** Introduce-species migration only: compatibility rows for new species. */
   insertCompatibility?: CompatibilityRow[];
+  /**
+   * Set when re-sending a dirty window after a failed commit. The earlier
+   * attempt may have landed even though it reported an error (a timeout after
+   * COMMIT), so inserts must be idempotent: mutable rows (creatures,
+   * relationships) are written as upserts with the current values, and
+   * append-only rows (memories, modifiers, events, influences, compatibility,
+   * catch-up) skip ids that already exist. Nothing is lost or duplicated.
+   */
+  replay?: boolean;
 };
 
 export type WorldRepository = {

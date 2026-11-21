@@ -21,6 +21,13 @@
  *                                       Boing (default off; see README)
  *   NODE_ENV=production                 require the secrets, DATABASE_URL and
  *                                       an origin list from the environment
+ *   LIVING_PETS_SAVE_DOWN_AFTER_S       report /healthz unhealthy (503) once
+ *                                       world saves have failed this long
+ *                                       (default 600)
+ *
+ * Database trouble (timeouts, dropped connections) never exits the process:
+ * boot retries with backoff, live saves retry with backoff while the world
+ * keeps ticking in memory, and `/healthz` reports `db` / `save` status.
  */
 import path from "node:path";
 import { parseArgs } from "node:util";
@@ -32,6 +39,7 @@ import {
 import { BrowserWorldRepository } from "../persist/browser-repository";
 import { createFileStringStore } from "../persist/file-string-store";
 import type { WorldRepository } from "../persist/repository";
+import { describeError } from "../runtime/save-tracker";
 import {
   ServerConfigError,
   compileOriginMatcher,
@@ -79,6 +87,21 @@ const { values } = parseArgs({
 
 function log(line: string): void {
   console.log(`[${new Date().toISOString()}] ${line}`);
+}
+
+// Last line of defense: a stray rejected promise (e.g. a database call in
+// a fire-and-forget path) is logged, never fatal. Saves have their own retry.
+let unhandledRejections = 0;
+process.on("unhandledRejection", (reason) => {
+  unhandledRejections += 1;
+  log(`unhandled rejection #${unhandledRejections}: ${describeError(reason)}`);
+});
+
+function saveDownAfterMs(): number | undefined {
+  const raw = process.env.LIVING_PETS_SAVE_DOWN_AFTER_S;
+  if (raw == null || raw.trim() === "") return undefined;
+  const seconds = Number(raw);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : undefined;
 }
 
 function loadConfig(): ServerConfig {
@@ -213,8 +236,24 @@ const host = createSharedWorldHost({
   // Mint on demand is player-paid: LIVING_PETS_ITEM_MINT_FEE BOING per
   // request, sent to the operator wallet (which pays the mint gas).
   itemMintFee: { feeWei: itemMintFeeWei, payToHex: marketConfig.operatorHex },
+  saveRetry: { downAfterMs: saveDownAfterMs() },
+  log,
 });
-await host.start();
+// Boot: a database that is restarting or slow must not crash-loop the
+// machine. Retry with backoff (1 s .. 60 s) until the world loads.
+for (let attempt = 1; ; attempt += 1) {
+  try {
+    await host.start();
+    if (attempt > 1) log(`world loaded on attempt ${attempt}`);
+    break;
+  } catch (error) {
+    const waitMs = Math.min(60_000, 1_000 * 2 ** Math.min(attempt - 1, 6));
+    log(
+      `boot: world load failed (attempt ${attempt}), retrying in ${Math.round(waitMs / 1000)}s: ${describeError(error)}`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+}
 // LPIT item market: read the item escrow every 30 s and reconcile listings,
 // fills and cancels into the world inventory (read-only calls, no key).
 const itemIndex = (() => {
@@ -349,10 +388,17 @@ const server = await listenSharedWorldWs({
   health: () => {
     const snapshot = host.runtime.session.snapshot;
     const clock = host.runtime.clock;
+    const save = host.runtime.persistenceStatus();
     return {
       tick: snapshot.world.lastTick,
       paused: clock.paused,
       scale: clock.scale,
+      // "ok" | "retrying" (world ticking in memory, saves backing off) |
+      // "down" (saves failing past LIVING_PETS_SAVE_DOWN_AFTER_S: 503).
+      db: save.db,
+      save,
+      unhandledRejections,
+      ...(save.db === "down" ? { ok: false } : {}),
     };
   },
 });
@@ -428,7 +474,9 @@ async function shutdown(signal: string): Promise<void> {
     log(`saved at tick ${host.runtime.session.snapshot.world.lastTick}. bye.`);
     process.exit(0);
   } catch (error) {
-    console.error(error);
+    // e.g. "world not saved on quit ...: last durable tick N" — never claim
+    // a save that did not happen.
+    log(`shutdown: ${describeError(error)}`);
     process.exit(1);
   }
 }
