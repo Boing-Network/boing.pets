@@ -16,10 +16,12 @@ import {
   multiTokenItemIdWord,
   referenceNftTokenIdWordFromU64,
   senderHexFromSecretKey,
+  fetchNextNonce,
   submitContractCallWithSimulationRetry,
   type BoingClient,
 } from "@boing-network/boing-sdk";
 import type { BoingNftConfig } from "./config";
+import { waitForNonceAfter } from "./serial-queue";
 import { AssetMintClass } from "./taxonomy";
 import type {
   BoingCollectionDeployPlan,
@@ -235,6 +237,7 @@ export class SdkBoingNftClient implements BoingNftClient {
       throw new Error("BOING_SECRET_HEX must be 32 bytes");
     }
     const senderHex = await senderHexFromSecretKey(secretKey32);
+    const usedNonce = await fetchNextNonce(this.rpc, senderHex);
     const result = await submitContractCallWithSimulationRetry({
       client: this.rpc,
       secretKey32,
@@ -242,6 +245,13 @@ export class SdkBoingNftClient implements BoingNftClient {
       contractHex: collectionHex,
       calldata: calldataBytes,
     });
+    // The SDK reads the committed nonce, which ignores pending txs. Hold the
+    // (serial) mint queue until this one is included so the next mint does
+    // not sign with the same nonce.
+    await waitForNonceAfter(
+      () => fetchNextNonce(this.rpc, senderHex),
+      usedNonce,
+    );
     return {
       txHash: result.tx_hash,
       collectionHex,

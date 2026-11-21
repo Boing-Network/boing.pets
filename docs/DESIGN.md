@@ -429,6 +429,18 @@ no item influences step exactly as before. Schema migration
   (favor ranking, relic cooldowns, item-use audit). It starts empty on the
   live world; earlier favors are not attributed.
 
+### Operator transactions are serial
+
+- Every operator-signed tx (mint-edge mints, `drain()` retries and the
+  genesis mint) goes through one process-wide queue
+  (`apps/sim-host/src/boing/serial-queue.ts`). The SDK reads the committed
+  account nonce, which ignores pending txs, so after each mint the queue also
+  waits (up to 60 s) for the committed nonce to move past the one it used.
+- Why: on Nov 20 2026 the boot drain retried three FAILED LPIT rows at once;
+  two signed the same nonce and one failed with "underpriced replacement".
+  It minted on the next restart. A timeout keeps the tx hash (the tx may still
+  land), so a slow block never causes a second mint.
+
 ### Items on chain (M22, slice 3)
 
 - **LPIT** ("Living Pets Items", reference multi-token
