@@ -23,7 +23,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../../..");
 const CLIENT_DIST_INDEX = path.resolve(
   REPO_ROOT,
-  "apps/client/dist/index.html",
+  "apps/client/dist/world/index.html",
 );
 
 const PG_PASSWORD = "living-pets-local";

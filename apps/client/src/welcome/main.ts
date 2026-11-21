@@ -1,9 +1,10 @@
 /**
- * Marketing page (`/welcome/`): a static page with no 3D, so it loads fast.
+ * Marketing page (`/`): a static page with no 3D, so it loads fast.
  * The species gallery is generated from the shared catalog, so a new species
  * shows up here as soon as it has a render in `public/media/species/`.
  */
 import { Diet, SPECIES_CATALOG, type SpeciesKey } from "@boing-pets/contract";
+import { playHref } from "../site/routes";
 import "./welcome.css";
 
 const TERRITORIES: Record<string, string> = {
@@ -96,12 +97,11 @@ function renderGallery(): void {
   filters.replaceChildren(...buttons);
 }
 
-/** Keep `?mp=` etc. when a visitor arrives with them and presses Play. */
+/** Play goes to `/world/`, keeping game params a visitor arrived with. */
 function wirePlayLinks(): void {
-  const search = window.location.search;
-  if (!search) return;
+  const href = playHref(window.location.search);
   for (const a of document.querySelectorAll<HTMLAnchorElement>("[data-play]")) {
-    a.href = `/${search}`;
+    a.href = href;
   }
 }
 
