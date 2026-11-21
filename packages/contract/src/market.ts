@@ -71,7 +71,20 @@ export type MarketAsset = {
   /** Items only. */
   itemSlug?: string | null;
   amount?: number | null;
+  /** Items only (M22): RELIC (LPAR unique NFT) or CONSUMABLE (LPIT balance). */
+  itemCategory?: "RELIC" | "CONSUMABLE" | null;
+  /**
+   * False when the escrow cannot hold this token (LPIT multi-token balances);
+   * the market shows it but offers no list/buy. Absent means listable.
+   */
+  escrowListable?: boolean;
+  /** Why it cannot be listed, shown next to the item. */
+  escrowNote?: string | null;
 };
+
+/** Shown on LPIT items: the escrow only moves single (reference) NFTs. */
+export const LPIT_NOT_LISTABLE_NOTE =
+  "Not tradable on the market: LPIT items are multi-token balances and the escrow only holds single NFTs.";
 
 export type MarketEscrowMode =
   /** No escrow account configured: browse only. */

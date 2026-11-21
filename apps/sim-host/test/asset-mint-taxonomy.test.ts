@@ -439,3 +439,56 @@ test("packages/sim has no Boing or asset-mint taxonomy imports", () => {
     }
   }
 });
+
+test("M22: item rewards FAILED before LPIT existed retry and mint once it is configured", async () => {
+  const store = new MemoryAssetMintLinkStore();
+  const before = createMintEdge(
+    enabledConfig({ LIVING_PETS_BOING_ITEM_COLLECTION_HEX: "" }),
+    createFakeClient(),
+    undefined,
+    store,
+  );
+  await before.queueCompressedItemMint({
+    worldId: 1,
+    mintKey: "influence:41",
+    itemKindId: CompressedItemKind.POTION_CALM.itemKindId,
+    amount: 1,
+    itemSlug: CompressedItemKind.POTION_CALM.slug,
+    metadataHashHex: null,
+    recipientHex: RECIPIENT,
+  });
+  await before.drain();
+  const failed = await store.list();
+  assert.equal(failed.length, 1);
+  assert.equal(failed[0]?.status, NftMintStatus.FAILED);
+  assert.match(failed[0]?.lastError ?? "", /ITEM_COLLECTION_HEX required/);
+
+  // Same rows, new boot with LPIT set: the drain retries and mints once.
+  const client = createFakeClient();
+  const after = createMintEdge(enabledConfig(), client, undefined, store);
+  await after.drain();
+  await after.drain();
+  assert.equal(client.itemSubmits.length, 1);
+  const [row] = await store.list();
+  assert.equal(row?.status, NftMintStatus.CONFIRMED);
+  assert.equal(row?.recipientHex, RECIPIENT);
+});
+
+test("M22: the LPIT template has no burn entry point, so item use is tracked off-chain", () => {
+  const selectors = [
+    0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29,
+  ];
+  // Every selector the template decodes is one of the known non-burn calls…
+  for (let s = 0; s < 0x40; s += 1) {
+    const calldata = `0x${s.toString(16).padStart(2, "0")}${"00".repeat(159)}`;
+    const decoded = decodeMultiTokenCalldata(calldata);
+    if (decoded != null) {
+      assert.ok(selectors.includes(decoded.selector), `selector ${s}`);
+      assert.ok(!/burn/i.test(decoded.kind));
+    }
+  }
+  // …and the deploy plan is the pinned multi-token artifact.
+  const plan = createBoingNftClient(enabledConfig()).planItemCollectionDeploy();
+  assert.equal(plan.templateArtifactId, REFERENCE_MULTI_TOKEN_ARTIFACT_ID);
+  assert.equal(plan.deployMeta.asset_symbol, "LPIT");
+});

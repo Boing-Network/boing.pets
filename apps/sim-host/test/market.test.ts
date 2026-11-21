@@ -308,3 +308,80 @@ test("rpc read batch: chunks to the RPC's 32-call limit, keeps order", async () 
   assert.equal(out[5], null, "failed call reads as null");
   assert.equal(out[69], "0x45");
 });
+
+test("catalog (M22): relics are listable Items; LPIT items are shown but not listable", () => {
+  const { snapshot } = createWorld(1);
+  const lineage = snapshot.lineages[0]!;
+  const base = {
+    worldId: snapshot.world.id,
+    lineageId: null as number | null,
+    artifactKind: null as string | null,
+    tokenSerial: null as number | null,
+    itemKindId: null as number | null,
+    amount: null as number | null,
+    itemSlug: null as string | null,
+    recipientHex: PLAYER,
+    chainId: "6913",
+    templateArtifact: "t",
+    templateVersion: "1",
+    mintTxHex: null,
+    status: NftMintStatus.CONFIRMED,
+    lastError: null,
+    createdAtMs: 0,
+    updatedAtMs: 0,
+  };
+  const catalog = buildMarketCatalog({
+    snapshot,
+    creatureLinks: [],
+    assetLinks: [
+      {
+        ...base,
+        id: 1,
+        tokenClass: "UNIQUE_LINEAGE_ARTIFACT",
+        mintKey: `relic:first-child:${lineage.id}`,
+        lineageId: lineage.id,
+        artifactKind: "FIRST_CHILD_COMMEMORATIVE",
+        tokenSerial: lineage.id * 4 + 2,
+        collectionHex: COLLECTION,
+        tokenIdHex: `0x${"00".repeat(31)}0a`,
+      },
+      {
+        ...base,
+        id: 2,
+        tokenClass: "COMPRESSED_ITEM",
+        mintKey: "influence:5",
+        itemKindId: 2,
+        amount: 1,
+        itemSlug: "potion.calm",
+        status: NftMintStatus.FAILED,
+        collectionHex: `0x${"00".repeat(32)}`,
+        tokenIdHex: `0x${"00".repeat(31)}02`,
+      },
+    ],
+    config: readMarketConfig({
+      LIVING_PETS_OPERATOR_HEX: OPERATOR,
+      LIVING_PETS_ESCROW_HEX: ESCROW,
+    }),
+    nowMs: 1,
+  });
+  const items = catalog.assets.filter((a) => a.kind === "ITEM");
+  assert.deepEqual(
+    items.map((a) => [a.key, a.name, a.itemCategory, a.escrowListable]),
+    [
+      [
+        `item:relic:first-child:${lineage.id}`,
+        `First Child relic of ${lineage.name}`,
+        "RELIC",
+        true,
+      ],
+      ["item:influence:5", "Calm Potion", "CONSUMABLE", false],
+    ],
+  );
+  assert.match(items[1]!.escrowNote ?? "", /not tradable/i);
+  // The relic is not duplicated as a lineage asset.
+  assert.ok(
+    !catalog.assets.some(
+      (a) => a.kind === "LINEAGE" && a.key.includes("relic:"),
+    ),
+  );
+});

@@ -4,7 +4,9 @@
  * and never writes anything.
  */
 import {
+  LPIT_NOT_LISTABLE_NOTE,
   MARKET_API_VERSION,
+  itemDef,
   type MarketAsset,
   type MarketCatalog,
   type MarketListing,
@@ -14,7 +16,14 @@ import {
 import type { CreatureRow, WorldSnapshot } from "@boing-pets/sim";
 import type { AssetMintLinkRow } from "../boing/asset-mint-link";
 import type { CreatureNftLinkRow } from "../boing/nft-link";
-import { AssetMintClass } from "../boing/taxonomy";
+import { AssetMintClass, LineageArtifactKind } from "../boing/taxonomy";
+import { ARTIFACT_RELIC_SLUG } from "../items/relics";
+
+/** M22 relics shown in the Items tab (the Keepsake stays the lineage asset). */
+const ITEM_TAB_RELICS = new Set<string>([
+  LineageArtifactKind.FIRST_CHILD_COMMEMORATIVE,
+  LineageArtifactKind.GRIEF_COMMEMORATIVE,
+]);
 import { escrowInfo, type EscrowChainState, type MarketConfig } from "./config";
 import { marketTokenKey } from "./listings";
 import { resolveOwnership } from "./ownership";
@@ -130,6 +139,9 @@ export function buildMarketCatalog(input: CatalogInputs): MarketCatalog {
   for (const row of input.assetLinks) {
     if (row.tokenClass !== AssetMintClass.UNIQUE_LINEAGE_ARTIFACT) continue;
     if (row.lineageId == null) continue;
+    if (row.artifactKind != null && ITEM_TAB_RELICS.has(row.artifactKind)) {
+      continue;
+    }
     const list = artifactsByLineage.get(row.lineageId) ?? [];
     list.push(row);
     artifactsByLineage.set(row.lineageId, list);
@@ -183,12 +195,51 @@ export function buildMarketCatalog(input: CatalogInputs): MarketCatalog {
   }
 
   for (const row of input.assetLinks) {
+    if (
+      row.tokenClass !== AssetMintClass.UNIQUE_LINEAGE_ARTIFACT ||
+      row.artifactKind == null ||
+      !ITEM_TAB_RELICS.has(row.artifactKind)
+    ) {
+      continue;
+    }
+    const slug = ARTIFACT_RELIC_SLUG[row.artifactKind] ?? null;
+    const lineageName =
+      row.lineageId != null ? (lineage.get(row.lineageId)?.name ?? null) : null;
+    const sp =
+      row.lineageId != null
+        ? species.get(lineage.get(row.lineageId)?.speciesId ?? -1)
+        : undefined;
+    assets.push({
+      key: `item:${row.mintKey}`,
+      kind: "ITEM",
+      name: `${itemDef(slug ?? "")?.displayName ?? "Relic"}${lineageName ? ` of ${lineageName}` : ""}`,
+      speciesSlug: sp?.slug ?? null,
+      speciesName: sp?.displayName ?? null,
+      lineageId: row.lineageId,
+      lineageName,
+      genesis: false,
+      collectionHex: row.collectionHex,
+      tokenIdHex: row.tokenIdHex,
+      live: null,
+      itemSlug: slug,
+      amount: 1,
+      itemCategory: "RELIC",
+      escrowListable: true,
+      escrowNote: null,
+      ...owned(row),
+    });
+  }
+
+  for (const row of input.assetLinks) {
     if (row.tokenClass !== AssetMintClass.COMPRESSED_ITEM) continue;
     const key = `item:${row.mintKey}`;
     assets.push({
       key,
       kind: "ITEM",
-      name: row.itemSlug ?? `Item #${row.itemKindId ?? "?"}`,
+      name:
+        itemDef(row.itemSlug ?? "")?.displayName ??
+        row.itemSlug ??
+        `Item #${row.itemKindId ?? "?"}`,
       speciesSlug: null,
       speciesName: null,
       lineageId: row.lineageId,
@@ -202,6 +253,9 @@ export function buildMarketCatalog(input: CatalogInputs): MarketCatalog {
       live: null,
       itemSlug: row.itemSlug,
       amount: row.amount,
+      itemCategory: "CONSUMABLE",
+      escrowListable: false,
+      escrowNote: LPIT_NOT_LISTABLE_NOTE,
       ...owned(row),
     });
   }
