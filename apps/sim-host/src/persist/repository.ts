@@ -110,6 +110,11 @@ export type CommitBatch = {
    * catch-up) skip ids that already exist. Nothing is lost or duplicated.
    */
   replay?: boolean;
+  /**
+   * Territory capacity upgrade only: existing rows whose capacity rose.
+   * Repositories must update `capacity` alone.
+   */
+  updateTerritories?: TerritoryRow[];
 };
 
 export type WorldRepository = {

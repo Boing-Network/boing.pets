@@ -212,6 +212,17 @@ export class MemoryWorldRepository implements WorldRepository {
           : a.speciesHighId - b.speciesHighId,
       );
     }
+    if (batch.updateTerritories && batch.updateTerritories.length > 0) {
+      const territories = indexById(next.territories);
+      for (const row of batch.updateTerritories) {
+        const existing = territories.get(row.id);
+        if (!existing) {
+          throw new Error(`territory id ${row.id} missing for update`);
+        }
+        territories.set(row.id, { ...existing, capacity: row.capacity });
+      }
+      next.territories = [...territories.values()].sort((a, b) => a.id - b.id);
+    }
 
     assertExplicitIds(batch.insertCreatures, "creature");
     assertExplicitIds(batch.insertRelationships, "relationship");

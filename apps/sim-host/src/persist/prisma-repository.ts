@@ -289,6 +289,12 @@ export class PrismaWorldRepository implements WorldRepository {
           skipDuplicates: replay,
         });
       }
+      for (const row of batch.updateTerritories ?? []) {
+        await tx.territory.update({
+          where: { id: toBigInt(row.id) },
+          data: { capacity: row.capacity },
+        });
+      }
       const newLineageIds = new Set(
         batch.insertCreatures.map((row) => row.lineageId),
       );

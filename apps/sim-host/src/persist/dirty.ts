@@ -16,6 +16,7 @@ import type {
   RelationshipRow,
   SpeciesRow,
   TerritoryModifierRow,
+  TerritoryRow,
   WorldEvent,
   WorldSnapshot,
 } from "@boing-pets/sim";
@@ -25,6 +26,8 @@ export type DirtySet = {
   species: SpeciesRow[];
   /** Introduce-species migration: new compatibility rows. */
   compatibility: CompatibilityRow[];
+  /** Capacity upgrade: existing territories whose capacity rose. */
+  territories: TerritoryRow[];
   creatureIds: Set<number>;
   newCreatureIds: Set<number>;
   relationshipIds: Set<number>;
@@ -51,6 +54,7 @@ export function createDirtySet(): DirtySet {
   return {
     species: [],
     compatibility: [],
+    territories: [],
     creatureIds: new Set(),
     newCreatureIds: new Set(),
     relationshipIds: new Set(),
@@ -67,6 +71,7 @@ export function createDirtySet(): DirtySet {
 export function clearDirty(dirty: DirtySet): void {
   dirty.species.length = 0;
   dirty.compatibility.length = 0;
+  dirty.territories.length = 0;
   dirty.creatureIds.clear();
   dirty.newCreatureIds.clear();
   dirty.relationshipIds.clear();
