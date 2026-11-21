@@ -21,7 +21,8 @@ export function InfluencePanel({ ipc }: Props) {
   const [lineageName, setLineageName] = useState("");
   const [territoryId, setTerritoryId] = useState<number | "">("");
   const [notice, setNotice] = useState<string | null>(null);
-  const needCreature = "Select a creature first (list on the right or tap one).";
+  const needCreature =
+    "Select a creature first (list on the right or tap one).";
 
   const creature =
     view?.creatures.find((row) => row.id === selectedCreatureId) ?? null;
@@ -84,7 +85,10 @@ export function InfluencePanel({ ipc }: Props) {
             const name = creatureName.trim();
             if (!name) return;
             submit(
-              { kind: InfluenceKind.NAME_CREATURE, payload: { creatureId: creature.id, name } },
+              {
+                kind: InfluenceKind.NAME_CREATURE,
+                payload: { creatureId: creature.id, name },
+              },
               "Name sent. It appears on the creature shortly.",
             );
             setCreatureName("");
@@ -125,7 +129,10 @@ export function InfluencePanel({ ipc }: Props) {
             const name = lineageName.trim();
             if (!name) return;
             submit(
-              { kind: InfluenceKind.NAME_LINEAGE, payload: { lineageId: creature.family.lineageId, name } },
+              {
+                kind: InfluenceKind.NAME_LINEAGE,
+                payload: { lineageId: creature.family.lineageId, name },
+              },
               "Lineage name sent.",
             );
             setLineageName("");
@@ -148,7 +155,10 @@ export function InfluencePanel({ ipc }: Props) {
           onClick={() => {
             if (creature == null) return;
             submit(
-              { kind: InfluenceKind.FAVOR_BLOODLINE, payload: { lineageId: creature.family.lineageId } },
+              {
+                kind: InfluenceKind.FAVOR_BLOODLINE,
+                payload: { lineageId: creature.family.lineageId },
+              },
               "Bloodline favored. It fades over a few days.",
             );
           }}
@@ -186,7 +196,10 @@ export function InfluencePanel({ ipc }: Props) {
           onClick={() => {
             if (effectiveTerritoryId == null) return;
             submit(
-              { kind: InfluenceKind.ENRICH_TERRITORY, payload: { territoryId: effectiveTerritoryId } },
+              {
+                kind: InfluenceKind.ENRICH_TERRITORY,
+                payload: { territoryId: effectiveTerritoryId },
+              },
               "Territory enriched: more food for a while.",
             );
           }}
@@ -200,7 +213,10 @@ export function InfluencePanel({ ipc }: Props) {
           onClick={() => {
             if (effectiveTerritoryId == null) return;
             submit(
-              { kind: InfluenceKind.CALM_TERRITORY, payload: { territoryId: effectiveTerritoryId } },
+              {
+                kind: InfluenceKind.CALM_TERRITORY,
+                payload: { territoryId: effectiveTerritoryId },
+              },
               "Territory calmed: less danger for a while.",
             );
           }}

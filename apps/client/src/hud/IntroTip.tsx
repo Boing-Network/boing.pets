@@ -47,8 +47,8 @@ export function IntroTip() {
           see what it wants, who it loves and where it came from.
         </li>
         <li>
-          <strong>Nudge.</strong> You cannot command them, but a few times a
-          day you can name a creature, favor a bloodline, or enrich or calm a
+          <strong>Nudge.</strong> You cannot command them, but a few times a day
+          you can name a creature, favor a bloodline, or enrich or calm a
           territory.
         </li>
         <li>

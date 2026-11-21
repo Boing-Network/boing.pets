@@ -6,15 +6,15 @@
 now hosts five. Appended only; ids 1–21 are untouched, and founders 1–42 of
 the seed-1 world keep their ids, names, and genes.
 
-| Territory | New species |
-| --- | --- |
-| Meadow | Clover Vole, Amber Kestrel |
-| Thicket | Thorn Porcupine, Briar Weasel |
-| Ridge | Ledge Goat, Mist Swift |
-| Moonlit Glade | Opal Dormouse, Hush Owl |
-| Glowfen | Lumen Frog, Reed Muskrat |
-| Elder Grove | Elder Bear, Acorn Jay |
-| High Crags | Rime Cat, Gale Chough |
+| Territory     | New species                   |
+| ------------- | ----------------------------- |
+| Meadow        | Clover Vole, Amber Kestrel    |
+| Thicket       | Thorn Porcupine, Briar Weasel |
+| Ridge         | Ledge Goat, Mist Swift        |
+| Moonlit Glade | Opal Dormouse, Hush Owl       |
+| Glowfen       | Lumen Frog, Reed Muskrat      |
+| Elder Grove   | Elder Bear, Acorn Jay         |
+| High Crags    | Rime Cat, Gale Chough         |
 
 They fill real gaps: the first 21 had no frog, no bear, no corvid, no raptor
 other than owls, no swift, no porcupine, and only one species of goat-like
@@ -31,21 +31,21 @@ ridge 34, glade 58, fen 50, grove 46, crags 30; sum 332, was 201) because
 Each species has one restrained glow that says something about the animal.
 Neighbours in a territory use different hues.
 
-| Glow | Species and where |
-| --- | --- |
-| Clover green-gold | Clover Vole: pollen flecks on the back |
-| Amber | Amber Kestrel: wing bar, lit underparts. Ledge Goat: lichen rings on horns and beard |
-| Lime-gold | Thorn Porcupine: quill tips |
-| Crimson | Briar Weasel: bramble-berry bib |
-| Fog blue | Mist Swift: trailing wing tips |
-| Opal shimmer | Opal Dormouse: pink, cyan and gold wash across back and tail |
-| Moon-milk white | Hush Owl: facial disc and wing speckles |
-| Mint-cyan | Lumen Frog: lumen spots and a lantern throat sac (brightest in the world) |
-| Sedge gold | Reed Muskrat: sheen on wet fur |
-| Fungal green | Elder Bear: bracket fungi along the spine |
-| Cobalt | Acorn Jay: barred wing patch |
-| Ice blue | Rime Cat: frost crystals in the coat |
-| Violet | Gale Chough: sheen on glossy black wings |
+| Glow              | Species and where                                                                    |
+| ----------------- | ------------------------------------------------------------------------------------ |
+| Clover green-gold | Clover Vole: pollen flecks on the back                                               |
+| Amber             | Amber Kestrel: wing bar, lit underparts. Ledge Goat: lichen rings on horns and beard |
+| Lime-gold         | Thorn Porcupine: quill tips                                                          |
+| Crimson           | Briar Weasel: bramble-berry bib                                                      |
+| Fog blue          | Mist Swift: trailing wing tips                                                       |
+| Opal shimmer      | Opal Dormouse: pink, cyan and gold wash across back and tail                         |
+| Moon-milk white   | Hush Owl: facial disc and wing speckles                                              |
+| Mint-cyan         | Lumen Frog: lumen spots and a lantern throat sac (brightest in the world)            |
+| Sedge gold        | Reed Muskrat: sheen on wet fur                                                       |
+| Fungal green      | Elder Bear: bracket fungi along the spine                                            |
+| Cobalt            | Acorn Jay: barred wing patch                                                         |
+| Ice blue          | Rime Cat: frost crystals in the coat                                                 |
+| Violet            | Gale Chough: sheen on glossy black wings                                             |
 
 ## Realism and glow pass on species 1–21
 

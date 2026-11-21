@@ -4,12 +4,7 @@
  * shows a word and a meter, with the raw number kept as a tooltip.
  */
 export type NeedName =
-  | "hunger"
-  | "thirst"
-  | "fatigue"
-  | "discomfort"
-  | "unsafety"
-  | "loneliness";
+  "hunger" | "thirst" | "fatigue" | "discomfort" | "unsafety" | "loneliness";
 
 export type NeedLevel = {
   label: string;

@@ -345,9 +345,7 @@ export const ANATOMY_B = {
     tail: { len: 0.06, w: 0.03 },
     pattern: patterns(
       (_p, n, part) =>
-        part === "head" && n.y < -0.3
-          ? { color: "#cfd6dc", mix: 0.7 }
-          : null,
+        part === "head" && n.y < -0.3 ? { color: "#cfd6dc", mix: 0.7 } : null,
       // The outer wing trails a faint blue light, like a streak of fog.
       (p, _n, part) => {
         if (part !== "wingL" && part !== "wingR") return null;
@@ -531,9 +529,7 @@ export const ANATOMY_B = {
           : null,
       // Tan muzzle.
       (_p, n, part) =>
-        part === "head" && n.z > 0.5
-          ? { color: "#9a8468", mix: 0.5 }
-          : null,
+        part === "head" && n.z > 0.5 ? { color: "#9a8468", mix: 0.5 } : null,
     ),
   }),
   "acorn-jay": bird({
@@ -628,7 +624,8 @@ export const ANATOMY_B = {
         return x > 0.1
           ? {
               glow: "#8aa0ff",
-              glowStrength: 0.12 + 0.1 * valueish({ x: p.x * 4, y: 0, z: p.z * 4 }),
+              glowStrength:
+                0.12 + 0.1 * valueish({ x: p.x * 4, y: 0, z: p.z * 4 }),
             }
           : null;
       }

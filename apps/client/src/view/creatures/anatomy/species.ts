@@ -4,11 +4,7 @@
  * world's bioluminescent thread, instead of toy neon.
  */
 import type { SpeciesSlug } from "@boing-pets/contract";
-import {
-  GRAIN,
-  type Vec3,
-  type CreatureBuilder,
-} from "./builder";
+import { GRAIN, type Vec3, type CreatureBuilder } from "./builder";
 import { ANATOMY_B } from "./species-b";
 import {
   add,

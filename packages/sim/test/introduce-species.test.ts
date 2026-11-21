@@ -68,7 +68,8 @@ test("introduceSpecies adds every missing species with two founders at home", ()
   assert.equal(fertile.length, total);
   assert.ok(fertile.every((row) => row.speciesLowId === row.speciesHighId));
 
-  assert.equal(result.creatures.length,
+  assert.equal(
+    result.creatures.length,
     (total - 7) * INTRODUCED_FOUNDERS_PER_SPECIES,
   );
   assert.equal(result.lineages.length, result.creatures.length);

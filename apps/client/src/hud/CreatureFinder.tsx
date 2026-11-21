@@ -42,7 +42,9 @@ export function CreatureFinder({ creatures, selectedId, onSelect }: Props) {
           aria-label="Filter by species"
           value={speciesId ?? ""}
           onChange={(event) =>
-            setSpeciesId(event.target.value === "" ? null : Number(event.target.value))
+            setSpeciesId(
+              event.target.value === "" ? null : Number(event.target.value),
+            )
           }
         >
           <option value="">All species ({species.length})</option>
@@ -61,7 +63,9 @@ export function CreatureFinder({ creatures, selectedId, onSelect }: Props) {
           <section key={group.speciesId} className="finder-group">
             <h4
               className="finder-group-title"
-              style={{ ["--dot" as string]: skinForSpecies(group.speciesId).emissive }}
+              style={{
+                ["--dot" as string]: skinForSpecies(group.speciesId).emissive,
+              }}
             >
               {group.label}
               <span>{group.creatures.length}</span>

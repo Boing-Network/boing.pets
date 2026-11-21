@@ -4,7 +4,12 @@ import { CreatureStatus } from "@boing-pets/contract";
 import { needLevel } from "../src/hud/needs";
 import { groupCreatures, livingSpecies } from "../src/hud/creatureFinder";
 
-const row = (id: number, name: string, speciesId: number, status = CreatureStatus.ALIVE) => ({
+const row = (
+  id: number,
+  name: string,
+  speciesId: number,
+  status = CreatureStatus.ALIVE,
+) => ({
   id,
   name,
   speciesId,
@@ -38,7 +43,9 @@ test("search matches a creature name or its species, case-insensitively", () => 
     ["Clover Vole", "Moss Stag"],
   );
   assert.deepEqual(
-    groupCreatures(CREATURES, "fox", null).flatMap((g) => g.creatures.map((c) => c.id)),
+    groupCreatures(CREATURES, "fox", null).flatMap((g) =>
+      g.creatures.map((c) => c.id),
+    ),
     [2, 1],
   );
   assert.equal(groupCreatures(CREATURES, "zzz", null).length, 0);
@@ -60,10 +67,18 @@ test("species filter narrows to one species; counts ignore the dead", () => {
 });
 
 test("needs read as words and a meter, clamped to 0–1000", () => {
-  assert.deepEqual(needLevel("hunger", 0), { label: "well fed", tone: 0, percent: 0 });
+  assert.deepEqual(needLevel("hunger", 0), {
+    label: "well fed",
+    tone: 0,
+    percent: 0,
+  });
   assert.equal(needLevel("hunger", 300).label, "peckish");
   assert.equal(needLevel("thirst", 600).label, "thirsty");
   assert.equal(needLevel("loneliness", 900).label, "isolated");
-  assert.deepEqual(needLevel("fatigue", 5000), { label: "exhausted", tone: 3, percent: 100 });
+  assert.deepEqual(needLevel("fatigue", 5000), {
+    label: "exhausted",
+    tone: 3,
+    percent: 100,
+  });
   assert.equal(needLevel("unsafety", -40).tone, 0);
 });
