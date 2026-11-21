@@ -52,6 +52,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
+  max-height: calc(100% - 2rem);
+  overflow: auto;
 }
 
 .influence-title {
@@ -234,4 +236,49 @@
 
 .catchup-close {
   align-self: flex-end;
+}
+
+.items-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.55rem;
+}
+
+.items-stock,
+.items-meta,
+.items-recipe {
+  font-size: 0.7rem;
+  color: var(--ink-muted);
+}
+
+.items-recipe {
+  display: block;
+}
+
+.items-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.items-entry {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.15rem 0.4rem;
+  align-items: center;
+  font-size: 0.78rem;
+}
+
+.items-entry .items-use {
+  grid-column: 1 / -1;
+}
+
+.items-craft {
+  display: grid;
+  gap: 0.35rem;
 }

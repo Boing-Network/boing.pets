@@ -19,7 +19,8 @@ type QueryRequest =
   | { message: "query.family"; body: QueryFamily }
   | { message: "query.creature"; body: QueryCreature }
   | { message: "query.lineage"; body: QueryLineage }
-  | { message: "query.events"; body: QueryEvents };
+  | { message: "query.events"; body: QueryEvents }
+  | { message: "query.inventory"; body: Record<string, never> };
 
 export type IpcClient = {
   /** Send a command or query to the host. */

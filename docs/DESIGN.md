@@ -767,3 +767,22 @@ From the Nov 20, 2026 local audit:
 10. Clean leftovers from the old game in local checkouts. `.gitignore` covers
     `playtest-artifacts/`, root `/scripts/`, `.dev.vars` and `.env*` again;
     deleting the local copies is still a manual step.
+
+### Items in the client (M22, slice 4)
+
+- The influence panel gains an **Items** section: _Gather here_ for the
+  selected territory (shows the free stock, e.g. `Clover 9/12`), the bag with
+  counts and spoil times, _Use here_ / _Use on lineage_ for tools and LPIT
+  consumables, craft buttons for Seed bundle and Salt lick, and relics with
+  _Honor (+25 favor)_ that greys out for the week after use. Gathering and
+  using items share the 3-per-day influence budget; crafting does not.
+  Guests see a "connect a wallet" hint. Inventory comes from
+  `query.inventory`, polled every 5 s and after each action.
+- `TerritoryView` carries optional `effects` (active modifiers summed by kind,
+  with the latest end tick) and `resource` (`{ slug, free, cap }`). The world
+  scene draws them as a line under each territory name, e.g.
+  `food +100 · 7d   Clover 9/12`. Both fields are omitted when empty, so older
+  clients and snapshots are unaffected.
+- The market's Items tab shows relics (badge _Relic · LPAR_, listable through
+  escrow) and LPIT consumables (badge _LPIT · not tradable_, with the escrow
+  note and a _Not tradable_ action instead of list/buy steps).

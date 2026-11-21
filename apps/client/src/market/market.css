@@ -389,3 +389,17 @@ dialog .status {
 dialog .status a {
   color: inherit;
 }
+
+.badges .relic {
+  background: #3b2a5c;
+  color: #e6d7ff;
+}
+.badges .lpit {
+  background: #4a3a1c;
+  color: #ffe2a6;
+}
+.card .note {
+  font-size: 0.78rem;
+  opacity: 0.8;
+  margin: 0.25rem 0;
+}

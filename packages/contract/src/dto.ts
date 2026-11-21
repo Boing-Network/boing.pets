@@ -198,6 +198,17 @@ export type TerritoryView = {
   food: number;
   effectiveDanger: number;
   population: number;
+  /** M22: active timed effects (omitted when none). */
+  effects?: TerritoryEffectView[];
+  /** M22: gatherable resource and its free stock (omitted when none grows). */
+  resource?: { slug: string; free: number; cap: number };
+};
+
+/** One kind of active territory effect, summed, with the latest end tick. */
+export type TerritoryEffectView = {
+  kind: "FOOD" | "DANGER" | "HARVEST" | "COMFORT";
+  amount: number;
+  endTick: number;
 };
 
 export type TerritoryLinkView = {

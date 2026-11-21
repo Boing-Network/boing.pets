@@ -104,12 +104,20 @@ function card(a: MarketAsset): HTMLLIElement {
         width: 480,
         height: 327,
       })
-    : el("div", { className: "noimg" }, [a.kind === "ITEM" ? "Item" : "?"]);
+    : el("div", { className: "noimg" }, [
+        a.itemCategory === "RELIC" ? "Relic" : a.kind === "ITEM" ? "Item" : "?",
+      ]);
   const badges = el("div", { className: "badges" }, [
     el("span", { className: `own ${a.ownership.toLowerCase()}` }, [
       OWNERSHIP_LABEL[a.ownership],
     ]),
     ...(a.genesis ? [el("span", { className: "genesis" }, ["Genesis"])] : []),
+    ...(a.itemCategory === "RELIC"
+      ? [el("span", { className: "relic" }, ["Relic · LPAR"])]
+      : []),
+    ...(a.itemCategory === "CONSUMABLE"
+      ? [el("span", { className: "lpit" }, ["LPIT · not tradable"])]
+      : []),
   ]);
   const live = a.live;
   const health =
@@ -163,6 +171,9 @@ function card(a: MarketAsset): HTMLLIElement {
         ]),
         health,
         meta,
+        ...(a.escrowListable === false && a.escrowNote
+          ? [el("p", { className: "note" }, [a.escrowNote])]
+          : []),
         button,
       ]),
     ],
@@ -198,6 +209,17 @@ function escrowTarget(a: MarketAsset): EscrowTarget | null {
 }
 
 function actionFor(a: MarketAsset): Action {
+  if (a.escrowListable === false) {
+    return {
+      label: "Not tradable",
+      trade: false,
+      steps: [
+        a.escrowNote ??
+          "This item cannot be listed: the escrow only holds single NFTs.",
+        "It stays in the holder's wallet and is used in the world from the item bag.",
+      ],
+    };
+  }
   const escrow = state.catalog?.escrow;
   const esc = short(escrow?.escrowHex ?? null);
   const feeBps = escrow?.feeBps ?? 250;
@@ -475,7 +497,8 @@ function render(): void {
   $("grid").replaceChildren(...shown.map(card));
   $("empty").hidden = shown.length > 0;
   if (state.kind === "ITEM" && shown.length === 0) {
-    $("empty").textContent = "No item NFTs have been minted in this world yet.";
+    $("empty").textContent =
+      "No relics or item rewards in this world yet. Relics appear when a lineage has its first child or first loss.";
   } else {
     $("empty").textContent = "No matches.";
   }

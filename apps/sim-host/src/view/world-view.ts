@@ -11,12 +11,14 @@ import {
   type MemoryView,
   type RelationshipView,
   type Ruleset,
+  type TerritoryEffectView,
   type TerritoryView,
   type WorldEventView,
   type WorldView,
 } from "@boing-pets/contract";
 import {
   aggregateTerritories,
+  resourceStock,
   memoryStrength,
   type CreatureRow,
   type LineageRow,
@@ -179,6 +181,41 @@ function toLineageView(
   };
 }
 
+/** M22 overlays: active effects by kind and the gather stock, when present. */
+function territoryItemExtras(
+  snapshot: WorldSnapshot,
+  territoryId: number,
+  tick: number,
+): Pick<TerritoryView, "effects" | "resource"> {
+  const byKind = new Map<TerritoryEffectView["kind"], TerritoryEffectView>();
+  for (const modifier of snapshot.modifiers) {
+    if (modifier.territoryId !== territoryId) continue;
+    if (modifier.startTick > tick || tick >= modifier.endTick) continue;
+    const kind = modifier.kind as TerritoryEffectView["kind"];
+    const row = byKind.get(kind) ?? { kind, amount: 0, endTick: 0 };
+    row.amount += modifier.amount;
+    row.endTick = Math.max(row.endTick, modifier.endTick);
+    byKind.set(kind, row);
+  }
+  const order: TerritoryEffectView["kind"][] = [
+    "FOOD",
+    "DANGER",
+    "COMFORT",
+    "HARVEST",
+  ];
+  const effects = order.flatMap((kind) => {
+    const row = byKind.get(kind);
+    return row ? [row] : [];
+  });
+  const stock = resourceStock(snapshot, territoryId, tick + 1);
+  return {
+    ...(effects.length > 0 ? { effects } : {}),
+    ...(stock
+      ? { resource: { slug: stock.resource, free: stock.free, cap: stock.cap } }
+      : {}),
+  };
+}
+
 function toTerritoryViews(snapshot: WorldSnapshot): TerritoryView[] {
   const tick = snapshot.world.lastTick;
   const stats = aggregateTerritories(snapshot, tick);
@@ -200,6 +237,7 @@ function toTerritoryViews(snapshot: WorldSnapshot): TerritoryView[] {
         food: effective.food,
         effectiveDanger: effective.danger,
         population: effective.population,
+        ...territoryItemExtras(snapshot, territory.id, tick),
       };
     });
 }
