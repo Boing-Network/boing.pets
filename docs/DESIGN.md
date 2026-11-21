@@ -230,7 +230,7 @@ Territory ids follow catalog order, so the original three keep ids 1–3.
 | 4 `glade`            | Moonlit Glade | 650  | 250    | 58       | glade (pond)            |
 | 5 `fen`              | Glowfen       | 600  | 350    | 50       | fen (swamp, low)        |
 | 6 `grove`            | Elder Grove   | 550  | 400    | 46       | grove (pond, dark wood) |
-| 7 `crags`            | High Crags    | 300  | 600    | 30       | crags (tarn, peak)      |
+| 7 `crags`            | High Crags    | 300  | 600    | 36       | crags (tarn, peak)      |
 
 Links (two-way, travel ticks): meadow–thicket 6, thicket–ridge 8,
 meadow–glade 5, glade–grove 6, grove–thicket 6, thicket–fen 7,
@@ -309,7 +309,7 @@ without new columns:
 
 `packages/sim/test/ecology.test.ts` runs seeds 1 and 7 for 150 days: every
 species must end with ≥ 2 alive and peak at ≤ 24, there must be at least one birth per founder (70),
-the population must grow but stay at or under the summed capacity (332), and
+the population must grow but stay at or under the summed capacity (338), and
 thirst plus starvation deaths must stay ≤ 3. Longer runs (365 days) keep all
 21 species alive on both seeds (193 and 213 alive; deaths are illness and old
 age).

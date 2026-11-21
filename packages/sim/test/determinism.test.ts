@@ -171,8 +171,9 @@ test("seed 1 twice produces the same founders", () => {
     // Changed again intentionally with the second bestiary pass: species
     // 22–35 (14 more, two founders each, so founders 43–70 are new) and
     // larger territory capacities. Founders 1–42 keep their ids, names and
-    // genes (523b3f7e…, the 21-species world).
-    "8c883e95b6306c16f24230ec4368c77d17b7db6295c575dead6a5c44c2cdbb69",
+    // genes (523b3f7e…, the 21-species world). High Crags capacity was then
+    // raised 30 → 36 so slate-marmot stays at ≥2 on seed 1 (8c883e95… at 30).
+    "5b7b6663af134554eb1d5a4c697b1df721b28acde24762fb446a7adaa0fa416f",
   );
   assert.notEqual(
     canonicalHash(first.snapshot),

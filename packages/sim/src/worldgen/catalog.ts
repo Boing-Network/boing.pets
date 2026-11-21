@@ -1007,7 +1007,7 @@ export const TERRITORY_CATALOG: readonly TerritoryCatalogRow[] = [
     name: "High Crags",
     foodAbundance: 300,
     danger: 600,
-    capacity: 30,
+    capacity: 36,
   },
 ];
 

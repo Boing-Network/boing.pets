@@ -23,7 +23,7 @@ mustelid, bovid, felid, owl); new plan names are `raptor`, `swift`, `corvid`,
 `ursid`, `anuran`, built from the existing `quadruped` and `bird` builders.
 
 **Territory capacities were raised for new worlds** (meadow 64, thicket 50,
-ridge 34, glade 58, fen 50, grove 46, crags 30; sum 332, was 201) because
+ridge 34, glade 58, fen 50, grove 46, crags 36; sum 338, was 201) because
 70 founders do not fit where 42 did.
 
 ### Glow palette
