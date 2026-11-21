@@ -8,7 +8,7 @@ const row = (
   id: number,
   name: string,
   speciesId: number,
-  status = CreatureStatus.ALIVE,
+  status: CreatureStatus = CreatureStatus.ALIVE,
 ) => ({
   id,
   name,
