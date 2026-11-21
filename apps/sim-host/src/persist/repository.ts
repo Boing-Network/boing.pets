@@ -101,6 +101,11 @@ export type CommitBatch = {
   upsertSpecies?: SpeciesRow[];
   /** Introduce-species migration only: compatibility rows for new species. */
   insertCompatibility?: CompatibilityRow[];
+  /**
+   * Territory capacity upgrade only: existing rows whose capacity rose.
+   * Repositories must update `capacity` alone.
+   */
+  updateTerritories?: TerritoryRow[];
 };
 
 export type WorldRepository = {

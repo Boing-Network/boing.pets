@@ -26,6 +26,15 @@ export {
 } from "./worldgen/introduce-species";
 export type { IntroduceSpeciesResult } from "./worldgen/introduce-species";
 export {
+  TERRITORY_CAPACITY_VERSION,
+  territoryCapacitiesUpToDate,
+  upgradeTerritoryCapacities,
+} from "./worldgen/upgrade-territory-capacities";
+export type {
+  TerritoryCapacityChange,
+  UpgradeTerritoryCapacitiesResult,
+} from "./worldgen/upgrade-territory-capacities";
+export {
   biologyFor,
   dietFoodBase,
   perceivedDanger,

@@ -7,7 +7,9 @@ import {
   createWorld,
   introduceSpecies,
   step,
+  upgradeTerritoryCapacities,
   type IntroduceSpeciesResult,
+  type TerritoryCapacityChange,
   type WorldEvent,
   type WorldSnapshot,
 } from "@boing-pets/sim";
@@ -52,6 +54,17 @@ export type HostSession = {
    * committed), or null when the world was up to date / freshly created.
    */
   introduced: IntroducedSpecies | null;
+  /**
+   * Territory capacity upgrade on this boot (already committed), or null
+   * when capacities were already at the catalog (or the world is not the
+   * standard seven-territory map).
+   */
+  capacityUpgrade: TerritoryCapacityUpgrade | null;
+};
+
+export type TerritoryCapacityUpgrade = {
+  version: number;
+  changes: TerritoryCapacityChange[];
 };
 
 export type IntroducedSpecies = {
@@ -103,22 +116,38 @@ export async function bootSession(
       catchingUp: false,
       mintEdge,
       introduced: null,
+      capacityUpgrade: null,
     };
-    // Introduce-species migration: a world saved by an older build gains the
-    // species this build's catalog adds (two founders each, at lastTick).
-    // Deterministic and idempotent, and committed at once (before any tick or
-    // catch-up) so a crash before this commit simply re-derives the same rows
-    // on the next boot. Existing creatures and history are never touched.
+    // Capacity upgrade first, then introduce-species, in one commit before
+    // any tick or catch-up. Capacities rise to the catalog so the 28 new
+    // founders land in homes that are not already at the old cap. Both
+    // steps are deterministic and idempotent: a crash before the commit
+    // re-derives the same rows on the next boot. Existing creatures,
+    // lineages and history are never touched.
+    const capacity = upgradeTerritoryCapacities(loaded.snapshot);
+    if (capacity.updated.length > 0) {
+      dirty.territories.push(...capacity.updated);
+    }
     const result = introduceSpecies(loaded.snapshot);
-    if (result.addedSpecies.length > 0 || result.updatedSpecies.length > 0) {
-      markIntroduced(dirty, result);
+    const speciesChanged =
+      result.addedSpecies.length > 0 || result.updatedSpecies.length > 0;
+    if (speciesChanged) markIntroduced(dirty, result);
+    if (capacity.updated.length > 0 || speciesChanged) {
       await commitSession(session);
-      session.introduced = {
-        atTick: loaded.snapshot.world.lastTick,
-        species: result.addedSpecies.map((row) => row.slug),
-        dietUpdates: result.updatedSpecies.map((row) => row.slug),
-        founders: result.creatures.length,
-      };
+      if (capacity.updated.length > 0) {
+        session.capacityUpgrade = {
+          version: capacity.version,
+          changes: capacity.changes,
+        };
+      }
+      if (speciesChanged) {
+        session.introduced = {
+          atTick: loaded.snapshot.world.lastTick,
+          species: result.addedSpecies.map((row) => row.slug),
+          dietUpdates: result.updatedSpecies.map((row) => row.slug),
+          founders: result.creatures.length,
+        };
+      }
     }
     return session;
   }
@@ -141,6 +170,7 @@ export async function bootSession(
     catchingUp: false,
     mintEdge,
     introduced: null,
+    capacityUpgrade: null,
   };
 }
 

@@ -316,24 +316,29 @@ age).
 
 ### Introducing species into an existing world
 
-`worldgen/introduce-species.ts` (`introduceSpecies`) runs at every host boot
-on a loaded world (`apps/sim-host/src/session.ts`):
+`worldgen/introduce-species.ts` (`introduceSpecies`) and
+`worldgen/upgrade-territory-capacities.ts` (`upgradeTerritoryCapacities`)
+run at every host boot on a loaded world (`apps/sim-host/src/session.ts`),
+in that order, and share one commit before any tick or catch-up:
 
-1. Species already stored get their catalog diet refreshed (fire-fox and
+1. **Capacities first.** On a standard seven-territory world, any territory
+   whose stored capacity is below the catalog is raised to the catalog value
+   (`TERRITORY_CAPACITY_VERSION` 2, sum 338). Capacities are never lowered,
+   and food, danger, names and links are never touched. Scale-rehearsal
+   worlds (fewer territories) are ineligible and left alone. "Already at
+   catalog capacity" is the version flag; there is no extra DB column.
+2. Species already stored get their catalog diet refreshed (fire-fox and
    thistle-hog become `OMNIVORE`). Nothing else on them changes.
-2. Each catalog species missing from the world is added with its
+3. Each catalog species missing from the world is added with its
    compatibility rows and **two founders** (female, male) in its home
    territory at the world's `lastTick`, with BIRTH/DISCOVERY events, using the
    world's id cursors and names unique against every existing creature.
-3. The result is committed at once, before any tick or catch-up. It is
-   deterministic, so a crash before that commit re-derives the same rows on
-   the next boot, and idempotent: a world that is up to date changes nothing.
 
-It never deletes, resets or rewrites existing creatures, lineages, memories or
-history. On deploy, `prisma migrate deploy` first adds the new `Diet` enum
-values (`20261122090000_bestiary_diets`); the first host boot then adds the 14
-new species × 2 founders to the live world. Founder BIRTH events go through the
-same after-commit mint queue as worldgen founders (they only mint if the mint
+The result is deterministic, so a crash before that commit re-derives the
+same rows on the next boot, and idempotent: a world that is up to date
+changes nothing. It never deletes, resets or rewrites existing creatures,
+lineages, memories or history. Founder BIRTH events go through the same
+after-commit mint queue as worldgen founders (they only mint if the mint
 edge is enabled). Stored rulesets keep their own `founderCountPerSpecies`,
 which only matters at world creation.
 
