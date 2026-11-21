@@ -37,6 +37,9 @@ use boing_execution::Opcode as O;
 use boing_primitives::AccountId;
 use std::collections::HashMap;
 
+pub mod items;
+pub use items::*;
+
 pub const SEL_LIST: u8 = 0x40;
 pub const SEL_CANCEL: u8 = 0x41;
 pub const SEL_BUY: u8 = 0x42;
@@ -150,6 +153,9 @@ struct Asm {
     labels: HashMap<String, usize>,
     fixups: Vec<(usize, String)>,
     n: usize,
+    /// Encode constants below 256 as `PUSH1` (item escrow only; the NFT
+    /// escrow keeps its deployed `PUSH32`-only encoding).
+    compact: bool,
 }
 
 impl Asm {
@@ -159,6 +165,7 @@ impl Asm {
             labels: HashMap::new(),
             fixups: Vec::new(),
             n: 0,
+            compact: false,
         }
     }
     fn op(&mut self, o: O) {
@@ -169,6 +176,11 @@ impl Asm {
         self.code.extend_from_slice(&w);
     }
     fn push_u(&mut self, n: u128) {
+        if self.compact && n < 256 {
+            self.code.push(O::Push1 as u8);
+            self.code.push(n as u8);
+            return;
+        }
         self.push(word_u128(n));
     }
     fn push_label(&mut self, l: &str) {

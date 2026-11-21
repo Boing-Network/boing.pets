@@ -2,8 +2,12 @@
 
 Boing VM bytecode for the marketplace escrow, built by a small Rust assembler
 (`src/lib.rs`) and tested on the `boing-execution` interpreter pinned to
-`Boing-Network/boing.network@f55e602`. **Not deployed.** Deploying needs
-Nico's sign-off.
+`Boing-Network/boing.network@f55e602`. **Deployed** Nov 20 2026 at
+`0x344dbd05…622a` (the `LIVING_PETS_ESCROW_HEX` Fly secret).
+
+The crate also builds the **item escrow** for LPIT multi-token quantities
+(`src/items.rs`, see [below](#item-escrow-lpit-quantities)). **Not deployed**;
+deploying needs Nico's sign-off.
 
 ## Interface
 
@@ -70,3 +74,59 @@ against) are committed; tests fail if either drifts from the builder.
    (`0x95cf…dcea`) collections.
 3. Set `LIVING_PETS_ESCROW_HEX` on Fly (stdin), redeploy; the listing index
    and the market's Adopt/List/Buy/Cancel turn on.
+
+## Item escrow (LPIT quantities)
+
+A second contract from the same crate (`src/items.rs`, tests in
+`tests/items.rs`): list N units of a reference multi-token item at a price per
+unit, buy any quantity up to what is left, cancel returns the rest. Same fee
+(250 bps to the operator, `set_fee` ≤ 10%), same baked-in admin. Constants
+below 256 are encoded as `PUSH1` (the NFT escrow keeps its `PUSH32`-only
+bytes), so the item escrow is 20,491 bytes, under the 24 KiB QA cap.
+
+| Sel  | Name             | Words                                                                     | Who                   |
+| ---- | ---------------- | ------------------------------------------------------------------------- | --------------------- |
+| 0x60 | `prepare`        | collection, item                                                          | seller (batched)      |
+| 0x61 | `list`           | collection, item, qty, unit price                                         | same seller (batched) |
+| 0x62 | `buy`            | id, qty (+ value = qty × unit price)                                      | anyone                |
+| 0x63 | `cancel`         | id                                                                        | seller or admin       |
+| 0x64 | `listing`        | id → seller, collection, item, unit price, listed, remaining, open, fills | read                  |
+| 0x65 | `fill`           | id, k → buyer, qty                                                        | read                  |
+| 0x66 | `set_fee`        | bps (≤ 1000), fee account                                                 | admin                 |
+| 0x67 | `rescue`         | collection, item, qty, to                                                 | admin, unheld units   |
+| 0x68 | `set_collection` | collection, allowed                                                       | admin                 |
+| 0x69 | `config`         | → admin, fee bps, fee account, last listing id                            | read                  |
+| 0x6a | `set_admin`      | admin                                                                     | admin                 |
+| 0x6b | `held`           | collection, item → allowed, units held for open listings                  | read                  |
+
+Listing is one atomic batch:
+`[item_escrow.prepare(c, item), c.transfer(item_escrow, item, qty),
+item_escrow.list(c, item, qty, unit_price)]`. `prepare` stores the caller and
+the escrow's own `balance_of(item)`; `list` requires the same caller, the same
+item and a balance increase of exactly `qty`. Units sent any other way can
+never be listed (only `rescue` returns them, and never units a listing holds).
+Listing ids start at 1. After a cancel, `remaining` is the number of units
+returned; a sold-out listing has `open = 0, remaining = 0`.
+
+```sh
+cargo run --manifest-path contracts/escrow/Cargo.toml --bin dump-escrow item > contracts/escrow/item-escrow.bytecode.json
+cargo run --manifest-path contracts/escrow/Cargo.toml --bin dump-escrow item-vectors > contracts/escrow/item-abi-vectors.json
+```
+
+| Step (interpreter)  | Gas     | Fee (BOING) |
+| ------------------- | ------- | ----------- |
+| deploy              | 200,000 | 0.002       |
+| `set_collection`    | 61,093  | ~0.0006     |
+| list (3-step batch) | 453,214 | ~0.0045     |
+| buy (any quantity)  | 185,589 | ~0.0019     |
+| cancel              | 91,303  | ~0.0009     |
+
+### Deploy (after sign-off only)
+
+1. Deploy `item-escrow.bytecode.json` from the operator key, purpose `dapp`
+   (QA check first with `boing_qaCheck`).
+2. From the operator: `set_collection(LPIT 0x4877…3f96, true)`.
+3. Back up the DB, set `LIVING_PETS_ITEM_ESCROW_HEX` on Fly (stdin) and
+   redeploy from a clean export. `GET /market/v1/items` and the Items tab's
+   item market turn on; the server starts reconciling listings into
+   `inventory_lot` (no migration needed).

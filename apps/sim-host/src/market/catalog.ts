@@ -4,6 +4,7 @@
  * and never writes anything.
  */
 import {
+  LPIT_ITEM_MARKET_NOTE,
   LPIT_NOT_LISTABLE_NOTE,
   MARKET_API_VERSION,
   itemDef,
@@ -24,7 +25,12 @@ const ITEM_TAB_RELICS = new Set<string>([
   LineageArtifactKind.FIRST_CHILD_COMMEMORATIVE,
   LineageArtifactKind.GRIEF_COMMEMORATIVE,
 ]);
-import { escrowInfo, type EscrowChainState, type MarketConfig } from "./config";
+import {
+  escrowInfo,
+  itemMarketEnabled,
+  type EscrowChainState,
+  type MarketConfig,
+} from "./config";
 import { marketTokenKey } from "./listings";
 import { resolveOwnership } from "./ownership";
 
@@ -255,7 +261,9 @@ export function buildMarketCatalog(input: CatalogInputs): MarketCatalog {
       amount: row.amount,
       itemCategory: "CONSUMABLE",
       escrowListable: false,
-      escrowNote: LPIT_NOT_LISTABLE_NOTE,
+      escrowNote: itemMarketEnabled(config)
+        ? LPIT_ITEM_MARKET_NOTE
+        : LPIT_NOT_LISTABLE_NOTE,
       ...owned(row),
     });
   }

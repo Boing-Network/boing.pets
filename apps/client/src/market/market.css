@@ -416,3 +416,63 @@ dialog .status a {
   opacity: 0.8;
   margin: 0.25rem 0;
 }
+
+.itemmarket {
+  margin: 0 0 1.5rem;
+  padding: 1rem 1.2rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.itemmarket[hidden] {
+  display: none;
+}
+.itemmarket h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+}
+.itemmarket h3 {
+  margin: 1rem 0 0.4rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+.itemmarket table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.itemmarket th,
+.itemmarket td {
+  text-align: left;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+}
+.itemmarket th {
+  color: var(--muted);
+  font-weight: 500;
+}
+.itemmarket td:last-child {
+  text-align: right;
+}
+.itemmarket .act {
+  width: auto;
+  margin: 0;
+  padding: 0.3rem 0.8rem;
+}
+.itemmarket .act:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.itemmarket .empty {
+  margin: 0.4rem 0;
+  text-align: left;
+}
+.itemmarket .note {
+  color: var(--warn);
+}
+dialog .preview {
+  min-height: 1.2em;
+  color: var(--glow);
+  font-size: 0.9rem;
+}
