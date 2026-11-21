@@ -29,6 +29,7 @@ export {
   MARKET_ITEMS_PATH,
   MARKET_ITEMS_MINT_CHALLENGE_PATH,
   MARKET_ITEMS_MINT_PATH,
+  MARKET_ITEMS_MINT_RETRY_PATH,
   LPIT_ITEM_MARKET_NOTE,
   LPIT_NOT_LISTABLE_NOTE,
   type MarketAsset,
@@ -47,6 +48,8 @@ export {
   type MarketMintInfo,
   type MarketMintRequest,
   type MarketMintResult,
+  type MarketMintRetryable,
+  type MarketMintRetryRequest,
   type MarketMintState,
   type MarketOwnership,
 } from "./market";

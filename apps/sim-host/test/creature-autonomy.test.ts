@@ -16,6 +16,7 @@ import {
   InfluenceKind,
   ItemSlug,
   type InventoryView,
+  type MarketMintChallenge,
   type WorldEventView,
 } from "@boing-pets/contract";
 import { step } from "@boing-pets/sim";
@@ -34,6 +35,15 @@ import {
   itemMintMessage,
   createItemMintEndpoints,
 } from "../src/market/item-mint";
+import {
+  boingToWei,
+  mintFeeFromEnv,
+  normalizeTxId,
+  verifyMintPayment,
+  weiToBoing,
+  type PaymentChain,
+  type PaymentCheck,
+} from "../src/market/mint-payment";
 import { LOCAL_ACCOUNT_ID } from "../src/multiplayer/account";
 import { validateCommand } from "../src/multiplayer/validate";
 import { MemoryWorldRepository } from "../src/persist/memory-repository";
@@ -394,32 +404,81 @@ test("creature owner index: only a player-held NFT has a keeper", () => {
   assert.deepEqual([...index.entries()], [[1, KEEPER]]);
 });
 
-test("mint endpoints: a signed one-time challenge mints exactly the asked units", async () => {
+test("mint endpoints: a signed challenge plus a verified fee mints exactly the asked units", async () => {
   const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString("hex");
   const secret = ed.utils.randomPrivateKey();
   const wallet = `0x${hex(await ed.getPublicKeyAsync(secret))}`;
+  const operator = `0x${"ee".repeat(32)}`;
   const sign = async (message: string) =>
     `0x${hex(await ed.signAsync(blake3(new TextEncoder().encode(message)), secret))}`;
-  const requests: { walletHex: string; slug: string; qty: number }[] = [];
+  const tx = (n: number) => `0x${n.toString(16).padStart(64, "0")}`;
+  const requests: {
+    walletHex: string;
+    slug: string;
+    qty: number;
+    paymentTx: string;
+  }[] = [];
+  // Payment states the fake chain reports, by tx id.
+  const chain = new Map<string, PaymentCheck>();
+  let refuse: string | null = null;
   const endpoints = createItemMintEndpoints({
     enabled: () => true,
     nowMs: () => 1_000,
+    feeWei: 500_000_000_000_000n,
+    payToHex: operator,
+    verifyPayment: async (paymentTx) =>
+      chain.get(paymentTx) ?? {
+        ok: false,
+        pending: true,
+        detail: "payment not on chain yet",
+      },
+    precheck: async () => refuse,
     request: async (req) => {
       requests.push(req);
-      return { ok: true, mintKey: "claim:7", qty: req.qty };
+      return {
+        ok: true,
+        mintKey: `claim:${req.paymentTx.slice(2)}`,
+        qty: req.qty,
+        retried: false,
+      };
     },
+    retry: async (paymentTx) =>
+      paymentTx === tx(5)
+        ? {
+            ok: true,
+            mintKey: `claim:${paymentTx.slice(2)}`,
+            status: "FAILED",
+            itemSlug: ItemSlug.CLOVER,
+            qty: 2,
+          }
+        : { ok: false, detail: "no mint for that payment" },
   });
+  const ask = async () => {
+    const r = await endpoints.challenge(
+      { wallet, itemSlug: ItemSlug.CLOVER, qty: 2 },
+      "https://boing.pets",
+    );
+    assert.equal(r.status, 200);
+    return r.body as MarketMintChallenge;
+  };
   const bad = await endpoints.challenge(
     { wallet, itemSlug: ItemSlug.RATIONS, qty: 999 },
     "https://boing.pets",
   );
   assert.equal(bad.status, 400);
-  const issued = await endpoints.challenge(
+  // Refused before the player pays (cap reached / not enough units).
+  refuse = "3 mints per day; try again tomorrow";
+  const capped = await endpoints.challenge(
     { wallet, itemSlug: ItemSlug.CLOVER, qty: 2 },
     "https://boing.pets",
   );
-  assert.equal(issued.status, 200);
-  const challenge = issued.body as { nonce: string; message: string };
+  assert.equal(capped.status, 409);
+  refuse = null;
+
+  const challenge = await ask();
+  assert.equal(challenge.feeWei, "500000000000000");
+  assert.equal(challenge.feeBoing, "0.0005");
+  assert.equal(challenge.payToHex, operator);
   assert.equal(
     challenge.message,
     itemMintMessage({
@@ -428,37 +487,198 @@ test("mint endpoints: a signed one-time challenge mints exactly the asked units"
       address: wallet,
       itemSlug: ItemSlug.CLOVER,
       qty: 2,
+      feeBoing: "0.0005",
+      payToHex: operator,
       nonce: challenge.nonce,
-      expiresAtMs: 1_000 + 5 * 60 * 1000,
+      expiresAtMs: 1_000 + 15 * 60 * 1000,
     }),
   );
-  // A wrong signature burns the challenge.
+  assert.match(challenge.message, /Fee: 0\.0005 BOING to 0xee/);
+  // A wrong signature burns the challenge; the payment stays unused.
   const wrong = await endpoints.mint({
     wallet,
     nonce: challenge.nonce,
     signature: `0x${"00".repeat(64)}`,
+    paymentTx: tx(1),
   });
   assert.equal(wrong.status, 401);
+  assert.equal((wrong.body as { paymentUnused?: boolean }).paymentUnused, true);
   const reused = await endpoints.mint({
     wallet,
     nonce: challenge.nonce,
     signature: await sign(challenge.message),
+    paymentTx: tx(1),
   });
   assert.equal(reused.status, 400, "single use");
-  const again = (
-    await endpoints.challenge(
-      { wallet, itemSlug: ItemSlug.CLOVER, qty: 2 },
-      "https://boing.pets",
-    )
-  ).body as { nonce: string; message: string };
+  // No payment tx: refused.
+  const next = await ask();
+  const unpaid = await endpoints.mint({
+    wallet,
+    nonce: next.nonce,
+    signature: await sign(next.message),
+  });
+  assert.equal(unpaid.status, 400);
+  // Payment not on chain yet: 202 pending, and the challenge stays open.
+  const pending = await endpoints.mint({
+    wallet,
+    nonce: next.nonce,
+    signature: await sign(next.message),
+    paymentTx: tx(2),
+  });
+  assert.equal(pending.status, 202);
+  assert.equal((pending.body as { pending?: boolean }).pending, true);
+  assert.equal(requests.length, 0);
+  // Now included: the same request goes through, keyed on the payment.
+  chain.set(tx(2), { ok: true, amountWei: 500_000_000_000_000n });
   const ok = await endpoints.mint({
     wallet,
-    nonce: again.nonce,
-    signature: await sign(again.message),
+    nonce: next.nonce,
+    signature: await sign(next.message),
+    paymentTx: tx(2).toUpperCase().replace("0X", "0x"),
   });
   assert.equal(ok.status, 200);
   assert.deepEqual(requests, [
-    { walletHex: wallet, slug: ItemSlug.CLOVER, qty: 2 },
+    { walletHex: wallet, slug: ItemSlug.CLOVER, qty: 2, paymentTx: tx(2) },
   ]);
+  // A bad payment (wrong sender / amount / recipient) is final: 402.
+  const third = await ask();
+  chain.set(tx(3), {
+    ok: false,
+    pending: false,
+    detail: "payment is below the 0.0005 BOING fee",
+  });
+  const short = await endpoints.mint({
+    wallet,
+    nonce: third.nonce,
+    signature: await sign(third.message),
+    paymentTx: tx(3),
+  });
+  assert.equal(short.status, 402);
+  assert.equal(requests.length, 1);
   assert.equal(endpoints.size(), 0);
+  // Retry a paid claim without paying again.
+  assert.equal((await endpoints.retry({ paymentTx: tx(5) })).status, 200);
+  assert.equal((await endpoints.retry({ paymentTx: tx(6) })).status, 404);
+  assert.equal((await endpoints.retry({ paymentTx: "nope" })).status, 400);
+});
+
+test("mint payment: only a fresh transfer from the wallet to the operator, of at least the fee", async () => {
+  const wallet = `0x${"ab".repeat(32)}`;
+  const operator = `0x${"ee".repeat(32)}`;
+  const txId = `0x${"cd".repeat(32)}`;
+  const nowMs = 1_800_000_000_000;
+  const make = (over: {
+    receipt?: object | null;
+    sender?: string;
+    to?: string;
+    amount?: string;
+    payload?: object;
+    ageMs?: number;
+  }): PaymentChain => ({
+    getTransactionReceipt: async () =>
+      over.receipt === undefined
+        ? { tx_id: txId, block_height: 7, tx_index: 1, success: true }
+        : (over.receipt as never),
+    getBlockByHeight: async (height) => {
+      assert.equal(height, 7);
+      return {
+        header: {
+          timestamp: Math.floor((nowMs - (over.ageMs ?? 60_000)) / 1000),
+        },
+        transactions: [
+          {
+            sender: operator,
+            payload: { Transfer: { to: wallet, amount: "1" } },
+          },
+          {
+            sender: over.sender ?? wallet,
+            payload: over.payload ?? {
+              Transfer: {
+                to: over.to ?? operator,
+                amount: over.amount ?? "500000000000000",
+              },
+            },
+          },
+        ],
+      };
+    },
+  });
+  const check = (chain: PaymentChain) =>
+    verifyMintPayment({
+      chain,
+      txId,
+      walletHex: wallet,
+      payToHex: operator,
+      feeWei: 500_000_000_000_000n,
+      nowMs,
+    });
+  assert.deepEqual(await check(make({})), {
+    ok: true,
+    amountWei: 500_000_000_000_000n,
+  });
+  assert.equal(
+    (await check(make({ amount: "600000000000000" }))).ok,
+    true,
+    "overpay ok",
+  );
+  const pending = await check(make({ receipt: null }));
+  assert.equal(!pending.ok && pending.pending, true);
+  const final = async (over: Parameters<typeof make>[0]) => {
+    const r = await check(make(over));
+    assert.equal(r.ok, false);
+    assert.equal(!r.ok && r.pending, false);
+    return r.ok ? "" : r.detail;
+  };
+  assert.match(await final({ amount: "499999999999999" }), /below/);
+  assert.match(
+    await final({ sender: `0x${"77".repeat(32)}` }),
+    /not sent by this wallet/,
+  );
+  assert.match(await final({ to: `0x${"77".repeat(32)}` }), /operator/);
+  assert.match(
+    await final({
+      payload: {
+        ContractCallWithValue: { contract: operator, value: "500000000000000" },
+      },
+    }),
+    /plain BOING transfer/,
+  );
+  assert.match(
+    await final({
+      receipt: { tx_id: txId, block_height: 7, tx_index: 1, success: false },
+    }),
+    /failed/,
+  );
+  assert.match(await final({ ageMs: 25 * 60 * 60 * 1000 }), /too old/);
+  assert.match(
+    await final({
+      receipt: {
+        tx_id: `0x${"01".repeat(32)}`,
+        block_height: 7,
+        tx_index: 1,
+        success: true,
+      },
+    }),
+    /mismatch/,
+  );
+  // Fee config and unit helpers.
+  assert.equal(boingToWei("0.0005"), 500_000_000_000_000n);
+  assert.equal(weiToBoing(500_000_000_000_000n), "0.0005");
+  assert.equal(weiToBoing(2n * 10n ** 18n), "2");
+  assert.equal(mintFeeFromEnv({}), 500_000_000_000_000n);
+  assert.equal(
+    mintFeeFromEnv({ LIVING_PETS_ITEM_MINT_FEE: "0.001" }),
+    10n ** 15n,
+  );
+  assert.equal(
+    mintFeeFromEnv({ LIVING_PETS_ITEM_MINT_FEE: "0" }),
+    500_000_000_000_000n,
+    "never free",
+  );
+  assert.equal(
+    mintFeeFromEnv({ LIVING_PETS_ITEM_MINT_FEE: "abc" }),
+    500_000_000_000_000n,
+  );
+  assert.equal(normalizeTxId("CD".repeat(32)), txId);
+  assert.equal(normalizeTxId("0x12"), null);
 });

@@ -51,6 +51,8 @@ export type SharedWorldHostOptions = {
   creatureOwners?: () => Promise<CreatureOwnerOf>;
   /** See HostRuntimeOptions.itemRewardMode. */
   itemRewardMode?: "offchain" | "automint";
+  /** See HostRuntimeOptions.itemMintFee. */
+  itemMintFee?: { feeWei: bigint; payToHex: string | null };
 };
 
 export type SharedWorldHost = {
@@ -106,6 +108,7 @@ export function createSharedWorldHost(
       options.creatureOwners ??
       (async (): Promise<CreatureOwnerOf> => () => null),
     itemRewardMode: options.itemRewardMode,
+    itemMintFee: options.itemMintFee,
     preferPatches: true,
     initialScale: options.initialScale,
     emit(message) {

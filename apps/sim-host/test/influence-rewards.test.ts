@@ -160,6 +160,7 @@ async function startRuntime(
     autoFrame: false,
     mintEdge,
     itemRewardMode,
+    itemMintFee: { feeWei: 500_000_000_000_000n, payToHex: OPERATOR },
     emit: (message) => messages.push(message),
   });
   await runtime.start();
@@ -303,19 +304,26 @@ test("off-chain first (the default): item rewards land unminted; the keeper mint
     { count: 2, minted: 0 },
   );
 
-  const request = (qty: number) =>
+  const pay = (n: number) => `0x${n.toString(16).padStart(64, "0")}`;
+  const request = (qty: number, paymentTx = pay(1)) =>
     items.requestMint({
       worldId,
       walletHex: WALLET,
       slug: CompressedItemKind.RATIONS_PACK.slug,
       qty,
+      paymentTx,
       tick: snapshot.world.lastTick,
       nowMs: 9_000_000,
     });
   assert.equal((await request(3)).ok, false, "cannot mint more than held");
   assert.equal((await request(0)).ok, false, "at least one");
   const first = await request(2);
-  assert.equal(first.ok, true);
+  assert.deepEqual(first, {
+    ok: true,
+    mintKey: `claim:${"0".repeat(63)}1`,
+    qty: 2,
+    retried: false,
+  });
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(client.items.length, 1, "one LPIT mint for the claim");
   assert.equal(client.items[0]!.toHex.toLowerCase(), WALLET);
@@ -325,12 +333,137 @@ test("off-chain first (the default): item rewards land unminted; the keeper mint
     { count: 2, minted: 2 },
     "same units, now minted",
   );
-  assert.equal((await request(1)).ok, false, "nothing unminted is left");
+  // The same payment again is a retry of its own claim, never a second mint.
+  const reused = await request(2);
+  assert.equal(reused.ok && reused.retried, true);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(client.items.length, 1, "a confirmed claim is not re-minted");
+  assert.equal((await rations())?.count, 2, "no units moved twice");
+  assert.equal(
+    (await request(1, pay(2))).ok,
+    false,
+    "nothing unminted is left",
+  );
   // The reward mirror never double-counts the claim.
   await items.syncRewardLots(worldId, snapshot.world.lastTick, 9_000_000);
   assert.equal((await rations())?.count, 2);
   const info = await items.mintInfo(worldId, WALLET, 9_000_000);
   assert.equal(info.enabled, true);
   assert.equal(info.requestsLeft, 2);
+  assert.equal(info.feeWei, "500000000000000");
+  assert.equal(info.feeBoing, "0.0005");
+  assert.equal(info.payToHex, OPERATOR);
+  assert.deepEqual(info.retryable, []);
+  await runtime.quit();
+});
+
+test("paid mint: a failed operator tx is retried on the same payment, minted once", async () => {
+  const client = recordingClient();
+  let failNext = true;
+  const submitItem = client.submitCompressedItemMint.bind(client);
+  client.submitCompressedItemMint = async (plan) => {
+    if (failNext) {
+      failNext = false;
+      throw new Error("simulation failed");
+    }
+    return submitItem(plan);
+  };
+  const repository = new MemoryWorldRepository();
+  const edge = createMintEdge(
+    config(),
+    client,
+    undefined,
+    createRepositoryAssetMintLinkStore(repository),
+  );
+  const { runtime } = await startRuntime(edge, repository, "offchain");
+  const snapshot = runtime.session.snapshot;
+  const territoryId = snapshot.territories[0]!.id;
+  const wallet = `w:${"ab".repeat(32)}`;
+  await submit(
+    runtime,
+    { kind: InfluenceKind.ENRICH_TERRITORY, payload: { territoryId } },
+    wallet,
+  );
+  const items = runtime.items!;
+  const worldId = snapshot.world.id;
+  const paymentTx = `0x${"cd".repeat(32)}`;
+  const first = await items.requestMint({
+    worldId,
+    walletHex: WALLET,
+    slug: CompressedItemKind.RATIONS_PACK.slug,
+    qty: 1,
+    paymentTx,
+    tick: snapshot.world.lastTick,
+    nowMs: 9_000_000,
+  });
+  assert.equal(first.ok, true);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(client.items.length, 0, "the first submit failed");
+  const info = await items.mintInfo(worldId, WALLET, 9_000_000);
+  assert.deepEqual(info.retryable, [
+    {
+      paymentTx,
+      itemSlug: CompressedItemKind.RATIONS_PACK.slug,
+      qty: 1,
+      error: "simulation failed",
+    },
+  ]);
+  assert.equal(info.requestsLeft, 2, "the failed claim still counts");
+
+  const retried = await items.retryPaidMint({ worldId, paymentTx });
+  assert.equal(retried.ok, true);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(client.items.length, 1, "retry mints once");
+  assert.equal(client.items[0]!.amount, 1);
+  // Confirmed: further retries are no-ops.
+  await items.retryPaidMint({ worldId, paymentTx });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(client.items.length, 1, "never a second mint");
+  assert.deepEqual(
+    (await items.mintInfo(worldId, WALLET, 9_000_000)).retryable,
+    [],
+  );
+  assert.equal(
+    (await items.retryPaidMint({ worldId, paymentTx: `0x${"01".repeat(32)}` }))
+      .ok,
+    false,
+    "no claim for an unknown payment",
+  );
+  // Another wallet cannot claim with this payment.
+  const thief = await items.requestMint({
+    worldId,
+    walletHex: `0x${"77".repeat(32)}`,
+    slug: CompressedItemKind.RATIONS_PACK.slug,
+    qty: 1,
+    paymentTx,
+    tick: snapshot.world.lastTick,
+    nowMs: 9_000_000,
+  });
+  assert.deepEqual(thief, {
+    ok: false,
+    detail: "that payment was already used",
+  });
+  await runtime.quit();
+});
+
+test("mint on demand stays off without a pay-to wallet", async () => {
+  const repository = new MemoryWorldRepository();
+  const edge = createMintEdge(
+    config(),
+    recordingClient(),
+    undefined,
+    createRepositoryAssetMintLinkStore(repository),
+  );
+  const runtime = createHostRuntime({
+    repository,
+    seed: 1,
+    nowMs: () => 9_000_000,
+    autoFrame: false,
+    mintEdge: edge,
+    itemRewardMode: "offchain",
+    emit: () => {},
+  });
+  await runtime.start();
+  assert.equal(runtime.items!.mintEnabled, false);
   await runtime.quit();
 });

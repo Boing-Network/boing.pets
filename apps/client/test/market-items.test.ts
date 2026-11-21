@@ -15,9 +15,13 @@ import {
 import {
   holdingBlock,
   itemListingOffer,
+  mintFeeText,
   mintOffer,
+  mintReplyAction,
   parseQty,
   readyToList,
+  savedMintPayment,
+  saveMintPayment,
   visibleHoldings,
 } from "../src/market/item-market";
 
@@ -188,4 +192,45 @@ test("bag shows how many units are minted; activity lines are per creature, newe
   );
   assert.equal(tickClock(0), "Day 1, 00:00");
   assert.equal(tickClock(144 + 87), "Day 2, 14:30");
+});
+
+test("mint fee: shown from the server's terms; unused fee payments are remembered per wallet", () => {
+  assert.equal(mintFeeText(mintInfo({ feeBoing: "0.0005" })), "0.0005 BOING");
+  assert.equal(mintFeeText(mintInfo()), null, "old servers: no fee text");
+  assert.equal(mintFeeText(undefined), null);
+  const map = new Map<string, string>();
+  const storage = {
+    getItem: (k: string) => map.get(k) ?? null,
+    setItem: (k: string, v: string) => void map.set(k, v),
+    removeItem: (k: string) => void map.delete(k),
+  };
+  const wallet = `0x${"AB".repeat(32)}`;
+  const tx = `0x${"cd".repeat(32)}`;
+  assert.equal(savedMintPayment(storage, wallet), null);
+  saveMintPayment(storage, wallet, tx);
+  assert.equal(savedMintPayment(storage, wallet.toLowerCase()), tx);
+  assert.equal(
+    savedMintPayment(storage, `0x${"ef".repeat(32)}`),
+    null,
+    "per wallet",
+  );
+  saveMintPayment(storage, wallet, null);
+  assert.equal(savedMintPayment(storage, wallet), null);
+  map.set(`boing-pets.mint-payment.${wallet.toLowerCase()}`, "junk");
+  assert.equal(savedMintPayment(storage, wallet), null, "ignores junk");
+  assert.equal(savedMintPayment(null, wallet), null);
+});
+
+test("mint replies: done, pending (ask again), keep or drop the fee payment", () => {
+  assert.equal(mintReplyAction(200, { ok: true }), "done");
+  assert.equal(mintReplyAction(200, { ok: true, retried: true }), "reused");
+  assert.equal(mintReplyAction(202, { ok: false, pending: true }), "pending");
+  assert.equal(
+    mintReplyAction(409, { ok: false, paymentUnused: true }),
+    "keep",
+    "refused after paying: the fee pays for the next try",
+  );
+  assert.equal(mintReplyAction(402, { ok: false }), "drop", "bad payment");
+  assert.equal(mintReplyAction(0, null), "keep", "network error");
+  assert.equal(mintReplyAction(503, { ok: false }), "keep");
 });

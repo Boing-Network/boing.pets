@@ -20,6 +20,8 @@ export const MARKET_ITEMS_MINT_CHALLENGE_PATH =
   "/market/v1/items/mint/challenge";
 /** POST: redeem a signed mint message; the operator mints the units. */
 export const MARKET_ITEMS_MINT_PATH = "/market/v1/items/mint";
+/** Re-queue a paid mint whose operator tx failed (no new payment). */
+export const MARKET_ITEMS_MINT_RETRY_PATH = "/market/v1/items/mint/retry";
 
 export type MarketAssetKind = "CREATURE" | "LINEAGE" | "ITEM";
 
@@ -200,6 +202,21 @@ export type MarketMintInfo = {
   /** Requests this wallet has left in the rolling 24 hours (null: no wallet). */
   requestsLeft: number | null;
   note: string;
+  /** Fee per mint request in base units (1 BOING = 1e18), paid by the player. */
+  feeWei?: string;
+  /** Same fee as a BOING decimal string, for display. */
+  feeBoing?: string;
+  /** Where the fee goes (the operator wallet that pays the mint gas). */
+  payToHex?: string | null;
+  /** Paid mints whose operator tx failed; retry them without paying again. */
+  retryable?: MarketMintRetryable[];
+};
+
+export type MarketMintRetryable = {
+  paymentTx: string;
+  itemSlug: string;
+  qty: number;
+  error: string | null;
 };
 
 export type MarketMintChallengeRequest = {
@@ -213,13 +230,21 @@ export type MarketMintChallenge = {
   nonce: string;
   message: string;
   expiresAt: number;
+  /** Fee to send (base units) and where; one plain BOING transfer. */
+  feeWei: string;
+  feeBoing: string;
+  payToHex: string;
 };
 
 export type MarketMintRequest = {
   wallet: string;
   nonce: string;
   signature: string;
+  /** tx id of the fee transfer (wallet -> payToHex, >= feeWei). */
+  paymentTx: string;
 };
+
+export type MarketMintRetryRequest = { paymentTx: string };
 
 export type MarketMintResult =
   | {
@@ -230,8 +255,17 @@ export type MarketMintResult =
       qty: number;
       /** Mint row status right after queueing (PENDING / SUBMITTED / ...). */
       status: string;
+      /** This payment already had a claim; its mint was re-queued. */
+      retried?: boolean;
     }
-  | { ok: false; error: string };
+  | {
+      ok: false;
+      error: string;
+      /** Payment not on chain yet: send the same request again shortly. */
+      pending?: boolean;
+      /** The payment was not consumed; it can pay for the next request. */
+      paymentUnused?: boolean;
+    };
 
 export type MarketItemsResponse = {
   v: typeof MARKET_API_VERSION;

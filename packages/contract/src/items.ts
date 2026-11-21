@@ -405,6 +405,14 @@ export const MINT_RULES = {
   maxQty: 20,
   /** Mint requests per wallet per rolling 24 hours. */
   maxRequestsPerDay: 3,
+  /**
+   * Default player fee per mint request, in base units: 0.0005 BOING. One
+   * LPIT mint costs the operator ~42.8k gas (~0.00043 BOING); the rest is
+   * margin. Hosts override it with LIVING_PETS_ITEM_MINT_FEE (in BOING).
+   */
+  defaultFeeWei: "500000000000000",
+  /** A fee transfer older than this cannot pay for a mint. */
+  paymentMaxAgeMs: 24 * 60 * 60 * 1000,
 } as const;
 
 /** A lineage relic (LPAR unique NFT) this account holds. */

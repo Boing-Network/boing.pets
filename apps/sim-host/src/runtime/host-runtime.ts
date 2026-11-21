@@ -121,6 +121,11 @@ export type HostRuntimeOptions = {
    * unminted lot the keeper can mint on demand; "automint" mints LPIT at once.
    */
   itemRewardMode?: "offchain" | "automint";
+  /**
+   * Player-paid mint on demand: fee per request (base units) and the wallet
+   * it is paid to. Without a pay-to wallet, mint on demand stays off.
+   */
+  itemMintFee?: { feeWei: bigint; payToHex: string | null };
   /** Run the creature autonomy pass (craft / use). Default true. */
   creatureAutonomy?: boolean;
 };
@@ -178,8 +183,10 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
     assetLinks: () => options.repository.readAssetMintLinks(),
     chain: options.relicChain ?? null,
     mint: {
-      enabled: mintEdge.enabled,
+      enabled: mintEdge.enabled && options.itemMintFee?.payToHex != null,
       queue: (job) => mintEdge.queueCompressedItemMint(job, nowMs()),
+      feeWei: options.itemMintFee?.feeWei,
+      payToHex: options.itemMintFee?.payToHex ?? null,
     },
   });
   const itemRewardMode = options.itemRewardMode ?? "offchain";

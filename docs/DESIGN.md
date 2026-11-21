@@ -556,21 +556,47 @@ click for every ration. Nothing here spends a player's influence budget.
   (`reward:influence:<id>`) instead of LPIT mints;
   `LIVING_PETS_ITEM_REWARD_AUTOMINT=1` restores mint-on-reward. Keepsakes and
   relics (unique artifacts) still mint at once.
-- **Mint on demand**: `inventory_lot.minted` marks units that exist on chain
-  (reward mints, claims, escrow locks / fills / returns; backfilled by
-  source-key prefix). In the market Items tab the wallet signs a one-time
-  message (`POST /market/v1/items/mint/challenge`, then `/mint`, verified like
-  sign-in: Ed25519 over BLAKE3, single-use nonce, 5 min expiry). The host
-  moves the units into a minted lot `mint:claim:<lotId>` and queues an LPIT
-  mint with key `claim:<lotId>` through the operator's nonce queue. The key
-  is unique per world and class, so a unit can never be minted twice; the
-  reward mirror skips it. Limits (`MINT_RULES`): 1–20 units per request,
-  3 requests per wallet per rolling 24 h. **The operator pays the gas**
-  (one multi-token `mint`, ≈0.0004 BOING). **Mint & List** mints, waits for
-  the units to show as tradable, then opens the usual item-escrow listing.
-  Listings are backed only by minted unused units. LPIT ids 4–9 (clover,
-  glowmoss, crystal shard, moonpetal, seed bundle, salt lick) are new; the
-  item escrow already allows the whole LPIT collection.
+- **Mint on demand (player-paid)**: `inventory_lot.minted` marks units that
+  exist on chain (reward mints, claims, escrow locks / fills / returns;
+  backfilled by source-key prefix). In the market Items tab:
+  1. `POST /market/v1/items/mint/challenge` {wallet, itemSlug, qty}. The host
+     refuses up front if the wallet is at its daily cap or lacks the unminted
+     units, so nobody pays for a request that cannot succeed. The reply names
+     the fee (`feeWei`, `feeBoing`) and `payToHex` (the operator wallet); the
+     signed message includes them (single-use nonce, 15 min expiry).
+  2. The wallet signs the message (Ed25519 over BLAKE3, like sign-in) and
+     sends one plain BOING transfer of the fee to the operator.
+  3. `POST /market/v1/items/mint` {wallet, nonce, signature, paymentTx}. The
+     host verifies the payment read-only (`market/mint-payment.ts`):
+     `boing_getTransactionReceipt` (included, success), then the tx at
+     `tx_index` in `boing_getBlockByHeight`: sender = wallet, `Transfer` to
+     the operator, amount >= fee, block under 24 h old. Not included yet:
+     202 `pending` and the challenge stays open, so the client repeats the
+     same request (every 3 s, up to 2 min).
+  4. Verified: the units move into a minted lot `mint:claim:<tx>` and an
+     LPIT mint is queued with key `claim:<tx>` through the operator's nonce
+     queue. Both keys are unique per world, so **one payment backs at most
+     one claim and one mint**. Re-sending a used payment re-queues its own
+     claim (never a new one); another wallet cannot use it.
+  - **Fee**: `LIVING_PETS_ITEM_MINT_FEE` (BOING per request, any quantity),
+    default **0.0005 BOING**: one multi-token mint is ~42.8k gas
+    (~0.00043 BOING) for the operator; the rest is margin. Zero or invalid
+    falls back to the default. Without an operator wallet
+    (`LIVING_PETS_OPERATOR_HEX`) mint on demand is off.
+  - **Retry without paying again**: a payment refused after verification
+    (e.g. a creature ate the units meanwhile) is not consumed; the client
+    keeps the tx id and the next Mint reuses it. A claim whose operator tx
+    failed shows under "Paid mints to retry" (`MarketMintInfo.retryable`);
+    `POST /market/v1/items/mint/retry` {paymentTx} re-queues it. The mint
+    edge only submits PENDING/FAILED rows, and if an operator submit errors
+    after the node took the tx, the account nonce has moved, so the row is
+    recorded as landed instead of being signed again: no double mint.
+  - Limits (`MINT_RULES`): 1–20 units per request, 3 requests per wallet per
+    rolling 24 h (failed claims count). **Mint & List** mints, waits for the
+    units to show as tradable, then opens the usual item-escrow listing.
+    Listings are backed only by minted unused units. LPIT ids 4–9 (clover,
+    glowmoss, crystal shard, moonpetal, seed bundle, salt lick) are new; the
+    item escrow already allows the whole LPIT collection.
 
 ## Time controls (`apps/sim-host/src/clock.ts`, `hud/ClockControls.tsx`)
 

@@ -25,6 +25,8 @@ kill_timeout = "30s"
   # them (public address). The escrow contract address is the
   # LIVING_PETS_ESCROW_HEX Fly secret (deployed Nov 20 2026, 0x344dbd05…622a).
   LIVING_PETS_OPERATOR_HEX = "0xc8b386c732a9f00c7ccd28aa4a8c377634057d6b5604099f4809a8fee58af6f8"
+  # Player-paid mint on demand: fee per request in BOING (to the operator).
+  LIVING_PETS_ITEM_MINT_FEE = "0.0005"
   # Boing testnet (6913) minting. The operator seed is the BOING_SECRET_HEX
   # secret; the collections below were deployed by the operator.
   LIVING_PETS_BOING_MINTING = "1"

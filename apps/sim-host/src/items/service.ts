@@ -35,6 +35,7 @@ import {
   type ItemAutonomySettings,
   type ItemSlug,
   type MarketMintInfo,
+  type MarketMintRetryable,
   type RelicHolding,
   type SystemInfluence,
   type WorldEventView,
@@ -79,6 +80,7 @@ import {
   type CreatureOwnerOf,
 } from "./autonomy";
 import type { CompressedItemMintJob } from "../boing/types";
+import { weiToBoing } from "../market/mint-payment";
 import type {
   InfluenceAccountRow,
   InventoryLotRow,
@@ -94,10 +96,27 @@ export type CraftResult =
   { ok: true; lotId: number } | { ok: false; detail: string };
 
 export type MintRequestResult =
-  { ok: true; mintKey: string; qty: number } | { ok: false; detail: string };
+  | { ok: true; mintKey: string; qty: number; retried: boolean }
+  | { ok: false; detail: string };
 
-/** Mint key prefix for mint-on-demand claims (`claim:<lotId>`). */
+/**
+ * Mint key prefix for mint-on-demand claims: `claim:<payment tx hex>`. The
+ * claim lot is `mint:claim:<tx>`; both are unique per world, so one fee
+ * payment backs at most one claim and one LPIT mint.
+ */
 export const CLAIM_MINT_PREFIX = "claim:";
+
+/** `claim:<64 hex>` for a payment tx id (`0x` + 64 hex). */
+export function claimMintKey(paymentTx: string): string {
+  return `${CLAIM_MINT_PREFIX}${paymentTx.replace(/^0x/i, "").toLowerCase()}`;
+}
+
+/** The payment tx id behind a paid claim key, or null. */
+export function claimPaymentTx(mintKey: string): string | null {
+  if (!mintKey.startsWith(CLAIM_MINT_PREFIX)) return null;
+  const hex = mintKey.slice(CLAIM_MINT_PREFIX.length);
+  return /^[0-9a-f]{64}$/.test(hex) ? `0x${hex}` : null;
+}
 
 export function canHoldItems(accountId: string): boolean {
   return (
@@ -124,6 +143,9 @@ export function createItemService(options: {
   mint?: {
     enabled: boolean;
     queue: (job: CompressedItemMintJob) => Promise<void>;
+    /** Player fee per request (base units) and where it goes. */
+    feeWei?: bigint;
+    payToHex?: string | null;
   } | null;
 }) {
   const repo = options.repository;
@@ -367,6 +389,25 @@ export function createItemService(options: {
       nowMs: number,
     ): Promise<MarketMintInfo> {
       const on = enabled && options.mint?.enabled === true;
+      const feeWei = options.mint?.feeWei ?? BigInt(MINT_RULES.defaultFeeWei);
+      const retryable: MarketMintRetryable[] = [];
+      if (walletHex != null) {
+        for (const link of await options.assetLinks()) {
+          if (link.worldId !== worldId) continue;
+          if (link.tokenClass !== AssetMintClass.COMPRESSED_ITEM) continue;
+          if (link.status !== "FAILED") continue;
+          const paymentTx = claimPaymentTx(link.mintKey);
+          if (paymentTx == null || !sameHex(link.recipientHex, walletHex)) {
+            continue;
+          }
+          retryable.push({
+            paymentTx,
+            itemSlug: link.itemSlug ?? "",
+            qty: link.amount ?? 0,
+            error: link.lastError ?? null,
+          });
+        }
+      }
       return {
         enabled: on,
         minQty: MINT_RULES.minQty,
@@ -381,8 +422,12 @@ export function createItemService(options: {
                   (await recentClaims(worldId, walletHex, nowMs)),
               ),
         note: on
-          ? "Items stay in your world bag until you mint them. Minting sends them to your wallet as LPIT tokens (the operator pays the gas); minted items can be listed but your creatures will no longer use them."
+          ? `Items stay in your world bag until you mint them. Minting sends them to your wallet as LPIT tokens. Each mint request costs a ${weiToBoing(feeWei)} BOING fee (one transfer to the operator, which pays the mint gas); if the mint then fails you can retry it without paying again. Minted items can be listed but your creatures will no longer use them.`
           : "Minting is not enabled on this server.",
+        feeWei: feeWei.toString(),
+        feeBoing: weiToBoing(feeWei),
+        payToHex: options.mint?.payToHex ?? null,
+        retryable,
       };
     },
 
@@ -770,10 +815,13 @@ export function createItemService(options: {
       walletHex: string;
       slug: string;
       qty: number;
+      /** Verified fee transfer (`0x` + 64 hex); keys the claim. */
+      paymentTx: string;
       tick: number;
       nowMs: number;
     }): Promise<
-      { ok: true; job: CompressedItemMintJob } | { ok: false; detail: string }
+      | { ok: true; job: CompressedItemMintJob; retried: boolean }
+      | { ok: false; detail: string }
     > {
       if (!enabled || repo.commitItems == null) {
         return { ok: false, detail: "items are not available here" };
@@ -798,6 +846,36 @@ export function createItemService(options: {
       }
       const wallet = `0x${input.walletHex.replace(/^0x/i, "").toLowerCase()}`;
       const accountId = `w:${wallet.slice(2)}`;
+      if (!/^0x[0-9a-f]{64}$/i.test(input.paymentTx)) {
+        return { ok: false, detail: "payment tx id" };
+      }
+      const mintKey = claimMintKey(input.paymentTx);
+      const current = await lots(input.worldId);
+      // Each payment counts once. Asking again with a payment that already
+      // has a claim re-queues that claim's mint (no new units, no new fee).
+      const prior = current.find((lot) => lot.sourceKey === `mint:${mintKey}`);
+      if (prior != null) {
+        if (prior.accountId !== accountId) {
+          return { ok: false, detail: "that payment was already used" };
+        }
+        const priorKind = lpitItemId(prior.itemSlug as ItemSlug);
+        if (priorKind == null) {
+          return { ok: false, detail: "that payment was already used" };
+        }
+        return {
+          ok: true,
+          retried: true,
+          job: {
+            worldId: input.worldId,
+            mintKey,
+            itemKindId: priorKind,
+            amount: prior.amount,
+            itemSlug: prior.itemSlug,
+            metadataHashHex: null,
+            recipientHex: wallet,
+          },
+        };
+      }
       if (
         (await recentClaims(input.worldId, wallet, input.nowMs)) >=
         MINT_RULES.maxRequestsPerDay
@@ -807,7 +885,6 @@ export function createItemService(options: {
           detail: `${MINT_RULES.maxRequestsPerDay} mints per day; try again tomorrow`,
         };
       }
-      const current = await lots(input.worldId);
       const debit = planDebit(
         current,
         accountId,
@@ -821,7 +898,6 @@ export function createItemService(options: {
         return { ok: false, detail: `not enough unminted ${def.displayName}` };
       }
       const id = nextLotId(current);
-      const mintKey = `${CLAIM_MINT_PREFIX}${id}`;
       const claimed: InventoryLotRow = {
         id,
         worldId: input.worldId,
@@ -844,6 +920,7 @@ export function createItemService(options: {
       });
       return {
         ok: true,
+        retried: false,
         job: {
           worldId: input.worldId,
           mintKey,
@@ -991,7 +1068,70 @@ export function createItemService(options: {
           // Recorded on the asset link row; drain retries it.
         });
       }
-      return { ok: true, mintKey: result.job.mintKey, qty: result.job.amount };
+      return {
+        ok: true,
+        mintKey: result.job.mintKey,
+        qty: result.job.amount,
+        retried: result.retried,
+      };
+    },
+    /**
+     * Re-queue a paid claim whose mint is not confirmed (FAILED or still
+     * PENDING). No inventory moves and no new fee. The mint edge only
+     * submits PENDING/FAILED rows and keys them on `claim:<tx>`, so this can
+     * not mint twice.
+     */
+    async retryPaidMint(input: { worldId: number; paymentTx: string }): Promise<
+      | {
+          ok: true;
+          mintKey: string;
+          status: string;
+          itemSlug: string;
+          qty: number;
+        }
+      | { ok: false; detail: string }
+    > {
+      if (!/^0x[0-9a-f]{64}$/i.test(input.paymentTx)) {
+        return { ok: false, detail: "payment tx id" };
+      }
+      const mintKey = claimMintKey(input.paymentTx);
+      const link = (await options.assetLinks()).find(
+        (row) =>
+          row.worldId === input.worldId &&
+          row.tokenClass === AssetMintClass.COMPRESSED_ITEM &&
+          row.mintKey === mintKey,
+      );
+      if (link == null)
+        return { ok: false, detail: "no mint for that payment" };
+      const status = String(link.status);
+      if (
+        (status === "FAILED" || status === "PENDING") &&
+        link.itemKindId != null &&
+        link.amount != null &&
+        options.mint?.queue != null &&
+        options.mint.enabled
+      ) {
+        void options.mint
+          .queue({
+            worldId: input.worldId,
+            mintKey,
+            itemKindId: link.itemKindId,
+            amount: link.amount,
+            itemSlug: link.itemSlug ?? "",
+            metadataHashHex: null,
+            recipientHex: link.recipientHex ?? null,
+          })
+          .catch(() => {
+            // Recorded on the asset link row.
+          });
+      }
+      return {
+        ok: true,
+        mintKey,
+        status,
+        itemSlug: link.itemSlug ?? "",
+        qty: link.amount ?? 0,
+      };
     },
     /**
      * After the influence row is durable: record the account, credit a

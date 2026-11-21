@@ -111,3 +111,78 @@ export function readyToList(
   const h = res?.wallet?.holdings.find((row) => row.itemId === itemId);
   return h != null && h.tradable >= qty ? h : null;
 }
+
+/** "0.0005 BOING" from the server's mint terms, or null when unknown. */
+export function mintFeeText(mint: MarketMintInfo | undefined): string | null {
+  return mint?.feeBoing != null ? `${mint.feeBoing} BOING` : null;
+}
+
+/** Key/value storage (window.localStorage in the browser). */
+export type MintPaymentStorage = {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+};
+
+const paymentKey = (wallet: string) =>
+  `boing-pets.mint-payment.${wallet.toLowerCase()}`;
+
+/**
+ * A fee payment this wallet sent that has not paid for a claim yet (e.g. the
+ * page closed while waiting, or the request was refused after paying). The
+ * next Mint reuses it instead of asking for a new fee.
+ */
+export function savedMintPayment(
+  storage: MintPaymentStorage | null,
+  wallet: string,
+): string | null {
+  try {
+    const v = storage?.getItem(paymentKey(wallet)) ?? null;
+    return v != null && /^0x[0-9a-f]{64}$/i.test(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveMintPayment(
+  storage: MintPaymentStorage | null,
+  wallet: string,
+  paymentTx: string | null,
+): void {
+  try {
+    if (paymentTx == null) storage?.removeItem(paymentKey(wallet));
+    else storage?.setItem(paymentKey(wallet), paymentTx);
+  } catch {
+    // Private mode etc.: the payment just is not remembered.
+  }
+}
+
+/**
+ * What the client does with a mint reply:
+ * - done: claimed; forget the saved payment.
+ * - reused: the saved payment had already paid for an earlier claim (that
+ *   claim was re-queued); forget it and ask for a new fee next time.
+ * - pending: payment not on chain yet; send the same request again.
+ * - keep: refused, but the payment is unused; keep it for the next try.
+ * - drop: the payment cannot be used (wrong amount, too old, ...).
+ */
+export type MintReplyAction = "done" | "reused" | "pending" | "keep" | "drop";
+
+export function mintReplyAction(
+  status: number,
+  body: {
+    ok?: boolean;
+    retried?: boolean;
+    pending?: boolean;
+    paymentUnused?: boolean;
+  } | null,
+): MintReplyAction {
+  if (status === 200 && body?.ok === true) {
+    return body.retried === true ? "reused" : "done";
+  }
+  if (body?.pending === true) return "pending";
+  if (body?.paymentUnused === true) return "keep";
+  // Server or network trouble: the payment may still be good.
+  if (status >= 500 || body == null) return "keep";
+  return "drop";
+}
