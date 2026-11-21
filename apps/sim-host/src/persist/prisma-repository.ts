@@ -262,6 +262,9 @@ export class PrismaWorldRepository implements WorldRepository {
 
   async commit(batch: CommitBatch): Promise<void> {
     const worldId = toBigInt(batch.world.id);
+    // Replay (retry after a failed commit that may still have landed): skip
+    // rows that already exist, then refresh mutable rows below.
+    const replay = batch.replay === true;
 
     await this.#client.$transaction(async (tx) => {
       await tx.world.update({
@@ -283,6 +286,7 @@ export class PrismaWorldRepository implements WorldRepository {
       if (batch.insertCompatibility && batch.insertCompatibility.length > 0) {
         await tx.speciesCompatibility.createMany({
           data: batch.insertCompatibility.map(compatibilityToDb),
+          skipDuplicates: replay,
         });
       }
       for (const row of batch.updateTerritories ?? []) {
@@ -310,9 +314,15 @@ export class PrismaWorldRepository implements WorldRepository {
       if (batch.insertCreatures.length > 0) {
         await tx.creature.createMany({
           data: batch.insertCreatures.map(creatureToDb),
+          skipDuplicates: replay,
         });
       }
-      for (const row of batch.updateCreatures) {
+      // On replay a "new" creature may already exist with values from the
+      // earlier attempt; write the current values over it.
+      const creatureUpdates = replay
+        ? [...batch.insertCreatures, ...batch.updateCreatures]
+        : batch.updateCreatures;
+      for (const row of creatureUpdates) {
         const { id: _id, worldId: _worldId, ...data } = creatureToDb(row);
         void _id;
         void _worldId;
@@ -325,9 +335,13 @@ export class PrismaWorldRepository implements WorldRepository {
       if (batch.insertRelationships.length > 0) {
         await tx.relationship.createMany({
           data: batch.insertRelationships.map(relationshipToDb),
+          skipDuplicates: replay,
         });
       }
-      for (const row of batch.updateRelationships) {
+      const relationshipUpdates = replay
+        ? [...batch.insertRelationships, ...batch.updateRelationships]
+        : batch.updateRelationships;
+      for (const row of relationshipUpdates) {
         const {
           id: _id,
           worldId: _worldId,
@@ -348,6 +362,7 @@ export class PrismaWorldRepository implements WorldRepository {
       if (batch.insertMemories.length > 0) {
         await tx.memory.createMany({
           data: batch.insertMemories.map(memoryToDb),
+          skipDuplicates: replay,
         });
       }
       if (batch.archiveMemoryIds.length > 0) {
@@ -360,6 +375,7 @@ export class PrismaWorldRepository implements WorldRepository {
       if (batch.insertModifiers.length > 0) {
         await tx.territoryModifier.createMany({
           data: batch.insertModifiers.map(territoryModifierToDb),
+          skipDuplicates: replay,
         });
       }
 
@@ -378,12 +394,14 @@ export class PrismaWorldRepository implements WorldRepository {
       if (batch.insertEvents.length > 0) {
         await tx.worldEvent.createMany({
           data: batch.insertEvents.map(worldEventToDb),
+          skipDuplicates: replay,
         });
       }
 
       if (batch.insertInfluences.length > 0) {
         await tx.playerInfluence.createMany({
           data: batch.insertInfluences.map(influenceToDb),
+          skipDuplicates: replay,
         });
       }
       if (batch.appliedInfluenceIds.length > 0) {
@@ -394,9 +412,16 @@ export class PrismaWorldRepository implements WorldRepository {
       }
 
       if (batch.insertCatchup != null) {
-        await tx.catchupReport.create({
-          data: catchupReportToDb(batch.insertCatchup),
-        });
+        if (replay) {
+          await tx.catchupReport.createMany({
+            data: [catchupReportToDb(batch.insertCatchup)],
+            skipDuplicates: true,
+          });
+        } else {
+          await tx.catchupReport.create({
+            data: catchupReportToDb(batch.insertCatchup),
+          });
+        }
       }
     });
 

@@ -201,6 +201,7 @@ export class MemoryWorldRepository implements WorldRepository {
       const pairs = new Map(next.compatibility.map((row) => [key(row), row]));
       for (const row of batch.insertCompatibility) {
         if (pairs.has(key(row))) {
+          if (batch.replay) continue;
           throw new Error(`compatibility ${key(row)} already exists`);
         }
         pairs.set(key(row), clone(row));
@@ -233,7 +234,7 @@ export class MemoryWorldRepository implements WorldRepository {
 
     const creatures = indexById(next.creatures);
     for (const row of batch.insertCreatures) {
-      if (creatures.has(row.id)) {
+      if (creatures.has(row.id) && batch.replay !== true) {
         throw new Error(`creature id ${row.id} already exists`);
       }
       creatures.set(row.id, clone(row));
@@ -248,7 +249,7 @@ export class MemoryWorldRepository implements WorldRepository {
 
     const relationships = indexById(next.relationships);
     for (const row of batch.insertRelationships) {
-      if (relationships.has(row.id)) {
+      if (relationships.has(row.id) && batch.replay !== true) {
         throw new Error(`relationship id ${row.id} already exists`);
       }
       relationships.set(row.id, clone(row));
@@ -266,6 +267,7 @@ export class MemoryWorldRepository implements WorldRepository {
     const memories = indexById(next.memories);
     for (const row of batch.insertMemories) {
       if (memories.has(row.id)) {
+        if (batch.replay === true) continue;
         throw new Error(`memory id ${row.id} already exists`);
       }
       memories.set(row.id, clone(row));
@@ -280,6 +282,7 @@ export class MemoryWorldRepository implements WorldRepository {
     const modifiers = indexById(next.modifiers);
     for (const row of batch.insertModifiers) {
       if (modifiers.has(row.id)) {
+        if (batch.replay === true) continue;
         throw new Error(`modifier id ${row.id} already exists`);
       }
       modifiers.set(row.id, clone(row));
@@ -295,6 +298,7 @@ export class MemoryWorldRepository implements WorldRepository {
     const events = indexById(next.events);
     for (const row of batch.insertEvents) {
       if (events.has(row.id)) {
+        if (batch.replay === true) continue;
         throw new Error(`event id ${row.id} already exists`);
       }
       events.set(row.id, clone(row));
@@ -307,6 +311,7 @@ export class MemoryWorldRepository implements WorldRepository {
     const influences = indexById(next.influences);
     for (const row of batch.insertInfluences) {
       if (influences.has(row.id)) {
+        if (batch.replay === true) continue;
         throw new Error(`influence id ${row.id} already exists`);
       }
       influences.set(row.id, clone(row));
@@ -337,9 +342,14 @@ export class MemoryWorldRepository implements WorldRepository {
       assertExplicitIds([batch.insertCatchup], "catchup");
       const catchups = indexById(next.catchups);
       if (catchups.has(batch.insertCatchup.id)) {
-        throw new Error(`catchup id ${batch.insertCatchup.id} already exists`);
+        if (batch.replay !== true) {
+          throw new Error(
+            `catchup id ${batch.insertCatchup.id} already exists`,
+          );
+        }
+      } else {
+        catchups.set(batch.insertCatchup.id, clone(batch.insertCatchup));
       }
-      catchups.set(batch.insertCatchup.id, clone(batch.insertCatchup));
       next.catchups = [...catchups.values()].sort((a, b) => a.id - b.id);
     }
 

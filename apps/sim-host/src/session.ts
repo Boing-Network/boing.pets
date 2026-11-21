@@ -181,10 +181,18 @@ export function stepSession(session: HostSession): void {
   markAfterTick(session.dirty, before, session.snapshot, events);
 }
 
-/** Persist the dirty window, then prune DEAD rows from the hot snapshot. */
+/**
+ * Persist the dirty window, then prune DEAD rows from the hot snapshot.
+ *
+ * If the commit throws, the dirty window is left intact so a later call can
+ * re-send it; pass `replay: true` on that retry (the failed attempt may have
+ * landed). Once the commit succeeds the window is durable: post-commit side
+ * effects (mint queues, loot credit) are best effort and never keep the
+ * window dirty, since re-sending it would only duplicate history.
+ */
 export async function commitSession(
   session: HostSession,
-  options: { catchup?: CatchupReport | null } = {},
+  options: { catchup?: CatchupReport | null; replay?: boolean } = {},
 ): Promise<void> {
   const birthEvents = session.dirty.events.filter(
     (event) => event.kind === EventKind.BIRTH,
@@ -200,29 +208,38 @@ export async function commitSession(
     session.snapshot,
     session.dirty,
     options.catchup ?? null,
+    options.replay === true,
   );
-  // Live / catch-up births: mint only after history commit succeeds.
-  await enqueueBirthMintsAfterCommit(
-    session.mintEdge,
-    session.snapshot.world.id,
-    birthEvents,
-    session.snapshot.world.clockAtMs,
-  );
+  try {
+    // Live / catch-up births: mint only after history commit succeeds.
+    await enqueueBirthMintsAfterCommit(
+      session.mintEdge,
+      session.snapshot.world.id,
+      birthEvents,
+      session.snapshot.world.clockAtMs,
+    );
+  } catch (error) {
+    logPostCommit("birth mints", error);
+  }
   // M22 relics: first child / first loss per lineage, after the same commit.
   if (relicEvents.length > 0 && session.mintEdge.enabled) {
     const repository = session.repository;
-    await enqueueRelicMintsAfterCommit({
-      mintEdge: session.mintEdge,
-      worldId: session.snapshot.world.id,
-      events: relicEvents,
-      creatureLinks: () => repository.readCreatureNftLinks(),
-      accounts: async () =>
-        repository.readInfluenceAccounts
-          ? repository.readInfluenceAccounts(session.snapshot.world.id)
-          : [],
-      chain: session.relicChain ?? null,
-      nowMs: session.snapshot.world.clockAtMs,
-    });
+    try {
+      await enqueueRelicMintsAfterCommit({
+        mintEdge: session.mintEdge,
+        worldId: session.snapshot.world.id,
+        events: relicEvents,
+        creatureLinks: () => repository.readCreatureNftLinks(),
+        accounts: async () =>
+          repository.readInfluenceAccounts
+            ? repository.readInfluenceAccounts(session.snapshot.world.id)
+            : [],
+        chain: session.relicChain ?? null,
+        nowMs: session.snapshot.world.clockAtMs,
+      });
+    } catch (error) {
+      logPostCommit("relic mints", error);
+    }
   }
   // Creature loot: credit keepers / pouches after the same commit.
   if (itemEvents.length > 0 && session.onItemEvents != null) {
@@ -234,6 +251,11 @@ export async function commitSession(
   }
   pruneHotSnapshot(session.snapshot);
   clearDirty(session.dirty);
+}
+
+function logPostCommit(what: string, error: unknown): void {
+  const detail = error instanceof Error ? error.message : String(error);
+  console.error(`[sim-host] world saved; ${what} failed: ${detail}`);
 }
 
 /**

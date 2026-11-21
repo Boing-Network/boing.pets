@@ -77,6 +77,7 @@ export function buildCommitBatch(
   snapshot: WorldSnapshot,
   dirty: DirtySet,
   catchup: CatchupReport | null = null,
+  replay = false,
 ): CommitBatch {
   const archiveMemoryIds = collectArchiveIds(snapshot, dirty);
   return {
@@ -102,6 +103,7 @@ export function buildCommitBatch(
     ...(dirty.compatibility.length > 0
       ? { insertCompatibility: clone(dirty.compatibility) }
       : {}),
+    ...(replay ? { replay: true } : {}),
     ...(dirty.territories.length > 0
       ? { updateTerritories: clone(dirty.territories) }
       : {}),
@@ -113,8 +115,9 @@ export async function saveDirty(
   snapshot: WorldSnapshot,
   dirty: DirtySet,
   catchup: CatchupReport | null = null,
+  replay = false,
 ): Promise<void> {
-  const batch = buildCommitBatch(snapshot, dirty, catchup);
+  const batch = buildCommitBatch(snapshot, dirty, catchup, replay);
   await repository.commit(batch);
 }
 

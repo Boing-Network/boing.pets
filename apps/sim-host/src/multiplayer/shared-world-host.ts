@@ -32,6 +32,7 @@ import {
 } from "./client-registry";
 import type { RelicChain } from "../items/relics";
 import type { CreatureOwnerOf } from "../items/autonomy";
+import type { SaveTrackerOptions } from "../runtime/save-tracker";
 
 export type SharedWorldHostOptions = {
   repository: WorldRepository;
@@ -53,6 +54,10 @@ export type SharedWorldHostOptions = {
   itemRewardMode?: "offchain" | "automint";
   /** See HostRuntimeOptions.itemMintFee. */
   itemMintFee?: { feeWei: bigint; payToHex: string | null };
+  /** See HostRuntimeOptions.saveRetry. */
+  saveRetry?: SaveTrackerOptions;
+  /** See HostRuntimeOptions.log. */
+  log?: (line: string) => void;
 };
 
 export type SharedWorldHost = {
@@ -109,6 +114,8 @@ export function createSharedWorldHost(
       (async (): Promise<CreatureOwnerOf> => () => null),
     itemRewardMode: options.itemRewardMode,
     itemMintFee: options.itemMintFee,
+    saveRetry: options.saveRetry,
+    log: options.log,
     preferPatches: true,
     initialScale: options.initialScale,
     emit(message) {
