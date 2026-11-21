@@ -433,7 +433,9 @@ no item influences step exactly as before. Schema migration
 
 - **LPIT** ("Living Pets Items", reference multi-token
   `boing.reference_multi_token.v1`) holds the Vitality Potion (id 1), Calm
-  Potion (2) and Rations Pack (3) rewards. **Not deployed yet.** A simulated
+  Potion (2) and Rations Pack (3) rewards. **Deployed** Nov 20 2026 at
+  `0x4877b234…4fa3f96` (tx `0x3543e7f8…6c42`, block 150288; admin = operator;
+  address in `fly.toml` as `LIVING_PETS_BOING_ITEM_COLLECTION_HEX`). A simulated
   deploy from the operator (Nov 20 2026, testnet 6913, nonce 129) succeeded:
   220,799 gas, fee **0.00220799 BOING**, QA `allow`, bytecode 2,334 bytes,
   predicted address `0x4877b234…4fa3f96` (nonce-derived; changes if the
