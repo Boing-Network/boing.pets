@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { CreatureStatus } from "@boing-pets/contract";
 import { needLevel } from "../src/hud/needs";
-import { groupCreatures, livingSpecies } from "../src/hud/creatureFinder";
+import { groupCreatures, livingSpecies } from "../src/hud/finderGroups";
 
 const row = (
   id: number,

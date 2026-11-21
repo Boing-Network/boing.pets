@@ -4,7 +4,7 @@ import {
   groupCreatures,
   livingSpecies,
   type FinderCreature,
-} from "./creatureFinder";
+} from "./finderGroups";
 
 type Props = {
   creatures: readonly FinderCreature[];
