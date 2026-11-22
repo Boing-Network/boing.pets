@@ -163,7 +163,7 @@ export const ANATOMY_B = {
       eyeshine: "#c6e87a",
     },
     ears: { kind: "round", len: 0.016, w: 0.013 },
-    tail: { kind: "thin", len: 0.05, r: 0.007, lift: -0.1 },
+    tail: { kind: "thin", len: 0.08, r: 0.007, lift: -0.1 },
     info: { breathRate: 2.0 },
     pattern: patterns(
       // Darker dorsal stripe over a blunt, round-bodied vole.
@@ -190,8 +190,8 @@ export const ANATOMY_B = {
       eyeshine: "#f2b866",
     },
     legs: { len: 0.05, r: 0.006, color: "#d8b24c" },
-    wings: { span: 0.34, chord: 0.1, color: "#9a5f36" },
-    tail: { len: 0.14, w: 0.04 },
+    wings: { span: 0.44, chord: 0.1, color: "#9a5f36" },
+    tail: { len: 0.19, w: 0.04 },
     pattern: patterns(
       // Dark moustache stripe below the eye.
       (p, n, part) =>
@@ -214,8 +214,8 @@ export const ANATOMY_B = {
       (p, _n, part) => {
         if (part !== "wingL" && part !== "wingR") return null;
         const x = Math.abs(p.x);
-        if (x > 0.26) return { color: "#2a211b", mix: 0.8 };
-        if (x > 0.13 && x < 0.17) {
+        if (x > 0.335) return { color: "#2a211b", mix: 0.8 };
+        if (x > 0.17 && x < 0.22) {
           return { glow: "#f0a850", glowStrength: 0.22 };
         }
         return null;
@@ -238,8 +238,8 @@ export const ANATOMY_B = {
     splay: 0.08,
     neck: { len: 0.03, pitch: 0.2, r: 0.06 },
     head: {
-      r: [0.042, 0.042, 0.05],
-      snoutLen: 0.03,
+      r: [0.038, 0.038, 0.044],
+      snoutLen: 0.026,
       snoutR: 0.026,
       snoutDrop: 0.02,
       eyeshine: "#e6f08a",
@@ -281,7 +281,7 @@ export const ANATOMY_B = {
       eyeshine: "#e0604f",
     },
     ears: { kind: "round", len: 0.014, w: 0.012 },
-    tail: { kind: "thin", len: 0.09, r: 0.013, lift: -0.15, tip: "#1c140f" },
+    tail: { kind: "thin", len: 0.15, r: 0.013, lift: -0.15, tip: "#1c140f" },
     pattern: patterns(
       // Pale chin and throat against the rusty coat.
       (_p, n, part) =>
@@ -313,7 +313,7 @@ export const ANATOMY_B = {
       snoutDrop: 0.028,
       eyeshine: "#e8cf7a",
     },
-    ears: { kind: "pointed", len: 0.045, w: 0.02, tilt: 1.3 },
+    ears: { kind: "pointed", len: 0.055, w: 0.022, tilt: 1.3 },
     tail: { kind: "short", len: 0.045, r: 0.02, lift: 0.7 },
     extras: combine(
       sweptHorns(0.2, "#a79e86", "#e8cf7a"),
@@ -342,7 +342,7 @@ export const ANATOMY_B = {
     },
     legs: { len: 0.025, r: 0.004, color: "#3a3d40" },
     wings: { span: 0.36, chord: 0.055, color: "#3c444c" },
-    tail: { len: 0.06, w: 0.03 },
+    tail: { len: 0.1, w: 0.03 },
     pattern: patterns(
       (_p, n, part) =>
         part === "head" && n.y < -0.3 ? { color: "#cfd6dc", mix: 0.7 } : null,
@@ -361,7 +361,7 @@ export const ANATOMY_B = {
   "opal-dormouse": quadruped({
     coat: { back: "#b58f62", belly: "#e8dcc4", dark: "#4a3828" },
     gait: "bound",
-    legH: 0.02,
+    legH: 0.015,
     bodyLen: 0.065,
     chest: [0.03, 0.032, 0.04],
     rump: [0.04, 0.04, 0.045],
@@ -379,7 +379,7 @@ export const ANATOMY_B = {
       eyeshine: "#f2c8ff",
     },
     ears: { kind: "round", len: 0.02, w: 0.016 },
-    tail: { kind: "bushy", len: 0.11, r: 0.02, lift: 0.1, tip: "#efe3c8" },
+    tail: { kind: "bushy", len: 0.13, r: 0.02, lift: 0.1, tip: "#efe3c8" },
     // Opal sheen: a slow wash of pink, cyan and gold across back and tail.
     pattern: (p, n, part) => {
       if ((part !== "body" && part !== "tail") || n.y < 0.1) return null;
@@ -406,8 +406,8 @@ export const ANATOMY_B = {
       tufts: 0.03,
     },
     legs: { len: 0.05, r: 0.01, color: "#cbbba0" },
-    wings: { span: 0.3, chord: 0.13, color: "#76695a" },
-    tail: { len: 0.06, w: 0.045 },
+    wings: { span: 0.36, chord: 0.13, color: "#76695a" },
+    tail: { len: 0.09, w: 0.045 },
     pattern: patterns(
       // Vertical streaks down the breast.
       (p, n, part) =>
@@ -484,8 +484,8 @@ export const ANATOMY_B = {
       snoutDrop: 0.012,
       eyeshine: "#e4e88a",
     },
-    ears: { kind: "round", len: 0.016, w: 0.014 },
-    tail: { kind: "thin", len: 0.16, r: 0.012, lift: -0.05, tip: "#2a1f18" },
+    ears: { kind: "round", len: 0.022, w: 0.018 },
+    tail: { kind: "thin", len: 0.26, r: 0.012, lift: -0.05, tip: "#2a1f18" },
     pattern: patterns(
       // Paler muzzle and cheeks.
       (p, n, part) =>
@@ -518,7 +518,7 @@ export const ANATOMY_B = {
       eye: 0.01,
       eyeshine: "#f0c070",
     },
-    ears: { kind: "round", len: 0.03, w: 0.03 },
+    ears: { kind: "round", len: 0.04, w: 0.04 },
     tail: { kind: "short", len: 0.035, r: 0.03, lift: -0.2 },
     extras: mossyHump("#b8e08a"),
     pattern: patterns(
@@ -549,7 +549,7 @@ export const ANATOMY_B = {
     },
     legs: { len: 0.06, r: 0.007, color: "#3a322c" },
     wings: { span: 0.3, chord: 0.1, color: "#3d5f95" },
-    tail: { len: 0.12, w: 0.04 },
+    tail: { len: 0.17, w: 0.04 },
     pattern: patterns(
       // White rump.
       (p, n, part) =>
@@ -588,7 +588,7 @@ export const ANATOMY_B = {
       eyeshine: "#bfe8ff",
     },
     ears: { kind: "round", len: 0.028, w: 0.022 },
-    tail: { kind: "bushy", len: 0.3, r: 0.04, lift: -0.7 },
+    tail: { kind: "bushy", len: 0.4, r: 0.04, lift: -0.7 },
     pattern: patterns(
       // Dark rosettes on a pale coat.
       (p, _n, part) => {
@@ -615,8 +615,8 @@ export const ANATOMY_B = {
       eyeshine: "#ffb08a",
     },
     legs: { len: 0.055, r: 0.007, color: "#c8452f" },
-    wings: { span: 0.34, chord: 0.11, color: "#25262d" },
-    tail: { len: 0.1, w: 0.04 },
+    wings: { span: 0.38, chord: 0.11, color: "#25262d" },
+    tail: { len: 0.14, w: 0.04 },
     // Glossy black feathers shot with a violet sheen, strongest on the wings.
     pattern: (p, n, part) => {
       if (part === "wingL" || part === "wingR") {

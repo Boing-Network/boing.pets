@@ -73,6 +73,51 @@ show it. Fixes:
 New shared helpers live in `anatomy/patterns.ts` (`glowSpeckle`,
 `tailTipGlow`, `cheekRuff`, `quillField`, `combine`).
 
+## Realism pass 3: a measured proportion audit
+
+Unlike the earlier passes this one is measured rather than eyeballed. Each
+anatomy now keeps its source spec (`Anatomy.shape`), so the proportions of
+every quadruped and flying bird can be computed without rendering and compared
+with its real animal: shoulder height / nose-to-rump length, tail / length,
+head / length, ear / head (and wingspan, tail and bill for birds). The
+references (rough field measurements) and tolerances live in
+`apps/client/test/anatomy-proportions.test.ts`, which now guards them. The
+tolerances are wide on purpose: this is a stylised game, so the test catches
+clear drift, not artistic choices.
+
+What the audit found and what changed:
+
+- **Bird tails and wings were too short.** Tails were 19–28% of body length
+  against 33–44% in life, and wings read short on the Kestrel, Owls, Nightjar
+  and Chough. Tails were lengthened on all seven flying birds, wings on the
+  Kestrel (0.34 → 0.44), Hush Owl, Crag Owl, Nightjar and Chough, and the
+  wing-position glow patterns (kestrel bar, nightjar flash) were moved to
+  follow the longer wings.
+- **Small-mammal tails were stubs.** Lengthened on Briar Weasel, Barrow Badger,
+  Slate Marmot, Dew Shrew, Clover Vole, Opal Dormouse, Reed Muskrat (0.16 →
+  0.26) and Rime Cat (0.30 → 0.40).
+- **Heads were large for their bodies** (up to 1.7x real) and ears small
+  against them. Heads were trimmed on the Fire Fox, Moon Hare, Barrow Badger and
+  Thorn Porcupine, and ears enlarged on the Ram, Hog, Badger, Raccoon, Wolf,
+  Goat, Muskrat and Bear. The Moon Hare's ears were slightly shortened (0.15 →
+  0.11) because the fix to its head made them 1.4x the real ratio.
+- **Deer were leggy.** Moss Stag and Silver Deer stood at 0.75 and 0.77 of
+  body length against 0.63 in life; leg height was cut (0.30 → 0.27 and 0.27 →
+  0.235), and the stag's neck mane moved down to match.
+- **Sizes in the world now follow one curve.** Small animals are enlarged so
+  they stay visible, which is fine as long as it is consistent
+  (world size ~ real size^0.56). Species off that curve were rescaled: Stone
+  Pika 1.8 → 2.3, Hollow Squirrel 1.9 → 2.3, Opal Dormouse 1.8 → 2.1, Slate
+  Marmot 2.2 → 2.5, Moon Hare 2.45 → 2.8, Thistle Hog 2.7 → 3.1, Ledge Goat
+  3.0 → 3.3 (too small), and Amber Kestrel 2.3 → 1.8, Reed Heron 3.0 → 2.0,
+  Briar Weasel 2.4 → 2.1, Dew Shrew 1.6 → 1.45, Hush Owl 2.1 → 1.9, Field
+  Nightjar 1.9 → 1.75 (too big).
+
+Not covered by the audit: the Lantern Moth, Gloam Bat, Glow Tortoise and Ember
+Newt, which use their own builders and keep no spec; and anything about how a
+creature actually looks (coat, markings, gait, the glow itself), which needs a
+person looking at `/world/?bestiary`.
+
 ## Batch 3: seven more species (ids 36–42)
 
 One more per territory, each a body type the bestiary did not have. Founders
@@ -88,10 +133,10 @@ One more per territory, each a body type the bestiary did not have. Founders
 | Elder Grove   | Saddle Tapir    | tapirid (quadruped)           | faintly moonlit pale saddle                 |
 | High Crags    | Aurora Yak      | bovid                         | aurora green-to-violet along the hair skirt |
 
-Their proportions were designed against real animals. The source zip also
-included a measured-proportion audit of existing species and an Acorn Jay
-rescale; those are existing-species adjustments and are not part of this
-addition.
+Their proportions were designed against the real animals using the audit from
+realism pass 3 (references added to `anatomy-proportions.test.ts`), so no
+species is outside tolerance. Adding the new points also showed the Acorn Jay
+was 1.3x over the size curve, so it was scaled down (2.1 to 1.75).
 
 Capacities rose again for new worlds (meadow 76, thicket 60, ridge 40, glade
 68, fen 60, grove 56, crags 60; sum 420) and `TERRITORY_CAPACITY_VERSION` is
@@ -167,6 +212,8 @@ checkout:
 
 - the creature renders (new anatomies, glow placement, tuning of world scales
   in `materials.ts`), via `/world/?bestiary`;
-- `anatomy.test.ts` (unique body shapes, triangle budget);
+- `anatomy.test.ts` (unique body shapes, triangle budget) and the new
+  `anatomy-proportions.test.ts` (it passes here against a stub of `three`, since
+  it only reads specs, but should be run on a real checkout too);
 - the `apps/sim-host` tests whose counts were updated (42 → 70, 21 → 35);
 - the React HUD components, which were type-checked against loose stubs only.

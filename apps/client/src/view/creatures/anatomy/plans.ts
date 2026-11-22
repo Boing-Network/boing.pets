@@ -45,7 +45,16 @@ export type RigInfo = {
   lookRange: number;
 };
 
+/**
+ * The source spec an anatomy was built from, kept so tests can measure real
+ * proportions (shoulder height, head and tail length) without rendering.
+ */
+export type AnatomyShape =
+  { kind: "quad"; spec: QuadSpec } | { kind: "bird"; spec: BirdSpec };
+
 export type Anatomy = {
+  /** Source spec, for proportion tests. Present on quadrupeds and birds. */
+  shape?: AnatomyShape;
   coat: Coat;
   pattern?: PatternFn;
   info: RigInfo;
@@ -140,6 +149,7 @@ export function quadruped(spec: QuadSpec): Anatomy {
   const frame: QuadFrame = { chest, rump, headPivot, cranium, spec };
 
   return {
+    shape: { kind: "quad", spec },
     coat: spec.coat,
     pattern: spec.pattern,
     info: {
@@ -538,6 +548,7 @@ export function bird(spec: BirdSpec): Anatomy {
   const hr = spec.head.r;
   const height = headPivot[1] + hr[1];
   return {
+    shape: { kind: "bird", spec },
     coat: spec.coat,
     pattern: spec.pattern,
     info: {
