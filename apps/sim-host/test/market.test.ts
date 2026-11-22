@@ -378,6 +378,8 @@ test("catalog (M22): relics are listable Items; LPIT items are shown but not lis
     ],
   );
   assert.match(items[1]!.escrowNote ?? "", /not tradable/i);
+  assert.equal(items[1]!.image, "/media/items/potion-calm.webp");
+  assert.equal(items[0]!.image, `/media/species/${items[0]!.speciesSlug}.webp`);
   // The relic is not duplicated as a lineage asset.
   assert.ok(
     !catalog.assets.some(

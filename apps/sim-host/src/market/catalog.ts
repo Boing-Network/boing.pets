@@ -8,6 +8,7 @@ import {
   LPIT_NOT_LISTABLE_NOTE,
   MARKET_API_VERSION,
   itemDef,
+  marketImageSrc,
   type MarketAsset,
   type MarketCatalog,
   type MarketListing,
@@ -265,6 +266,13 @@ export function buildMarketCatalog(input: CatalogInputs): MarketCatalog {
         ? LPIT_ITEM_MARKET_NOTE
         : LPIT_NOT_LISTABLE_NOTE,
       ...owned(row),
+    });
+  }
+
+  for (const a of assets) {
+    a.image = marketImageSrc({
+      itemSlug: a.itemSlug,
+      speciesSlug: a.speciesSlug,
     });
   }
 
