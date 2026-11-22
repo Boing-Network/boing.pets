@@ -99,6 +99,8 @@ function applyMarketDeepLink(): void {
   if (own != null && (own === "" || MARKET_OWN_PARAMS.has(own))) {
     $<HTMLSelectElement>("ownership").value = own;
   }
+  const species = q.get("species");
+  if (species) state.pendingSpecies = species;
 }
 
 function writeMarketDeepLink(): void {
@@ -108,6 +110,9 @@ function writeMarketDeepLink(): void {
   const own = $<HTMLSelectElement>("ownership").value;
   if (own) url.searchParams.set("ownership", own);
   else url.searchParams.delete("ownership");
+  const species = $<HTMLSelectElement>("species").value;
+  if (species) url.searchParams.set("species", species);
+  else url.searchParams.delete("species");
   const next = `${url.pathname}${url.search}${url.hash}`;
   const cur = `${window.location.pathname}${window.location.search}${window.location.hash}`;
   if (next !== cur) history.replaceState(null, "", next);
@@ -147,6 +152,7 @@ const state = {
   kind: "CREATURE" as MarketAsset["kind"],
   wallet: null as string | null,
   items: null as MarketItemsResponse | null,
+  pendingSpecies: undefined as string | undefined,
 };
 
 const short = (hex: string | null) =>
@@ -676,6 +682,14 @@ function populateFilters(c: MarketCatalog): void {
 function render(): void {
   const c = state.catalog;
   if (c == null) return;
+  const pending = state.pendingSpecies;
+  if (pending) {
+    const select = $<HTMLSelectElement>("species");
+    if ([...select.options].some((option) => option.value === pending)) {
+      select.value = pending;
+    }
+    state.pendingSpecies = undefined;
+  }
   syncOwnershipFilterLabels();
   writeMarketDeepLink();
   const q = $<HTMLInputElement>("q").value.trim().toLowerCase();

@@ -44,12 +44,13 @@ test("play links go to /world/ and keep game params", () => {
   assert.equal(playHref("?mp=off"), "/world/?mp=off");
 });
 
-test("shared nav is Home, Play and Marketplace", () => {
+test("shared nav is Home, Play, Bestiary and Marketplace", () => {
   assert.deepEqual(
     SITE_LINKS.map((l) => [l.label, l.href]),
     [
       ["Home", "/"],
       ["Play", "/world/"],
+      ["Bestiary", "/world/?bestiary"],
       ["Marketplace", "/market/"],
     ],
   );

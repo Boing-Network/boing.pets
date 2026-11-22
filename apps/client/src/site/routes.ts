@@ -3,11 +3,12 @@
  * the marketplace (`/market/`). `vercel.json` mirrors the redirects so they
  * also happen before any page loads.
  */
-export type SiteSection = "home" | "play" | "market";
+export type SiteSection = "home" | "play" | "bestiary" | "market";
 
 export const WORLD_PATH = "/world/";
 export const MARKET_PATH = "/market/";
 export const HOME_PATH = "/";
+export const BESTIARY_PATH = "/world/?bestiary";
 
 export const SITE_LINKS: readonly {
   key: SiteSection;
@@ -16,6 +17,7 @@ export const SITE_LINKS: readonly {
 }[] = [
   { key: "home", label: "Home", href: HOME_PATH },
   { key: "play", label: "Play", href: WORLD_PATH },
+  { key: "bestiary", label: "Bestiary", href: BESTIARY_PATH },
   { key: "market", label: "Marketplace", href: MARKET_PATH },
 ];
 

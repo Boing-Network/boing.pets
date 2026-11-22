@@ -118,6 +118,18 @@ export {
   type SpeciesSlug,
 } from "./species";
 
+export {
+  SPECIES,
+  TERRITORY_CATALOG,
+  speciesCatalogRow,
+  speciesCatalogRowBySlug,
+  territoryName,
+  type SpeciesBiology,
+  type SpeciesCatalogRow,
+  type TerritoryCatalogRow,
+  type TerritorySlug,
+} from "./species-biology";
+
 export type {
   BirthEventPayload,
   CalmTerritoryPayload,

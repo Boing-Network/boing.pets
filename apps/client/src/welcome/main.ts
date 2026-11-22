@@ -4,47 +4,15 @@
  * shows up here as soon as it has a render in `public/media/species/`.
  */
 import {
-  Diet,
   SPECIES_CATALOG,
+  territoryName,
   type SpeciesKey,
   type SpeciesSlug,
 } from "@boing-pets/contract";
 import { playHref } from "../site/routes";
+import { DIET_LABEL, GAIT_LABEL } from "../site/species-labels";
 import { skinForSkinId } from "../view/species-skins";
 import "./welcome.css";
-
-const TERRITORIES: Record<string, string> = {
-  meadow: "Meadow",
-  thicket: "Thicket",
-  ridge: "Ridge",
-  glade: "Moonlit Glade",
-  fen: "Glowfen",
-  grove: "Elder Grove",
-  crags: "High Crags",
-};
-
-const DIET_LABEL: Record<Diet, string> = {
-  [Diet.HERBIVORE]: "Herbivore",
-  [Diet.OMNIVORE]: "Omnivore",
-  [Diet.INSECTIVORE]: "Insectivore",
-  [Diet.CARNIVORE]: "Carnivore",
-};
-
-const GAIT_LABEL: Record<SpeciesKey["gait"], string> = {
-  walk: "walks",
-  trot: "trots",
-  hop: "hops",
-  bound: "bounds",
-  scurry: "scurries",
-  waddle: "waddles",
-  crawl: "crawls",
-  wade: "wades",
-  fly: "flies",
-};
-
-export function territoryName(slug: string): string {
-  return TERRITORIES[slug] ?? slug.charAt(0).toUpperCase() + slug.slice(1);
-}
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -80,9 +48,11 @@ function speciesCard(s: SpeciesKey): HTMLLIElement {
     `${DIET_LABEL[s.diet]} · ${GAIT_LABEL[s.gait]} · ${territoryName(s.home)}`,
   ]);
   const card = el("li", { className: "card" }, [
-    img,
-    el("h3", {}, [s.displayName]),
-    meta,
+    el("a", { href: "/world/?bestiary=" + s.slug }, [
+      img,
+      el("h3", {}, [s.displayName]),
+      meta,
+    ]),
   ]);
   card.dataset.home = s.home;
   return card;
