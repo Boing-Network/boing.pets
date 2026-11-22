@@ -81,6 +81,38 @@ function ownershipLabel(a: MarketAsset): string {
   return OWNERSHIP_LABEL[a.ownership];
 }
 
+const MARKET_KIND_PARAMS = new Set(["CREATURE", "LINEAGE", "ITEM"]);
+const MARKET_OWN_PARAMS = new Set([
+  "UNMINTED",
+  "OPERATOR",
+  "IN_ESCROW",
+  "PLAYER",
+]);
+
+function applyMarketDeepLink(): void {
+  const q = new URLSearchParams(window.location.search);
+  const kind = q.get("kind");
+  if (kind != null && MARKET_KIND_PARAMS.has(kind)) {
+    state.kind = kind as MarketAsset["kind"];
+  }
+  const own = q.get("ownership");
+  if (own != null && (own === "" || MARKET_OWN_PARAMS.has(own))) {
+    $<HTMLSelectElement>("ownership").value = own;
+  }
+}
+
+function writeMarketDeepLink(): void {
+  const url = new URL(window.location.href);
+  if (state.kind === "CREATURE") url.searchParams.delete("kind");
+  else url.searchParams.set("kind", state.kind);
+  const own = $<HTMLSelectElement>("ownership").value;
+  if (own) url.searchParams.set("ownership", own);
+  else url.searchParams.delete("ownership");
+  const next = `${url.pathname}${url.search}${url.hash}`;
+  const cur = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (next !== cur) history.replaceState(null, "", next);
+}
+
 function syncOwnershipFilterLabels(): void {
   const option = $("ownership").querySelector('option[value="UNMINTED"]');
   if (option != null) {
@@ -645,6 +677,7 @@ function render(): void {
   const c = state.catalog;
   if (c == null) return;
   syncOwnershipFilterLabels();
+  writeMarketDeepLink();
   const q = $<HTMLInputElement>("q").value.trim().toLowerCase();
   const sp = $<HTMLSelectElement>("species").value;
   const own = $<HTMLSelectElement>("ownership").value;
@@ -1354,6 +1387,7 @@ for (const id of ["q", "species", "ownership", "alive", "genesis", "mine"]) {
   $(id).addEventListener("input", render);
 }
 $("wallet").addEventListener("click", () => void connectWallet());
+applyMarketDeepLink();
 void load();
 void loadItems();
 window.setInterval(() => void load(), 10_000);
