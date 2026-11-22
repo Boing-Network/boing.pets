@@ -82,6 +82,12 @@ export type MarketAsset = {
   live: MarketLiveStatus | null;
   /** Items only. */
   itemSlug?: string | null;
+  /**
+   * Public still for the card (`/media/items/…` or `/media/species/…`).
+   * The client also derives this from itemSlug/speciesSlug, so older
+   * servers that omit the field still render correctly.
+   */
+  image?: string | null;
   amount?: number | null;
   /** Items only (M22): RELIC (LPAR unique NFT) or CONSUMABLE (LPIT balance). */
   itemCategory?: "RELIC" | "CONSUMABLE" | null;
@@ -156,6 +162,8 @@ export type MarketItemListing = {
   itemId: number;
   itemSlug: string | null;
   name: string;
+  /** Public still for this item kind (`/media/items/…`), if any. */
+  image?: string | null;
   /** Price per unit in base units, as a decimal string. */
   unitPriceWei: string;
   listed: number;
@@ -175,6 +183,8 @@ export type MarketItemHolding = {
   itemId: number;
   itemSlug: string;
   name: string;
+  /** Public still for this item kind (`/media/items/…`), if any. */
+  image?: string | null;
   /** LPIT balance in the wallet (chain). */
   chain: number | null;
   /** Minted units still unused in the world inventory (DB): the backing. */

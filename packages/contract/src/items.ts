@@ -195,6 +195,46 @@ export function isItemSlug(slug: string): slug is ItemSlug {
   return BY_SLUG.has(slug);
 }
 
+/** LPIT kinds that have a still at `/media/items/<stem>.webp`. Relics do not. */
+const LPIT_ITEM_IMAGE_SLUGS: ReadonlySet<string> = new Set([
+  ItemSlug.CLOVER,
+  ItemSlug.GLOWMOSS,
+  ItemSlug.CRYSTAL_SHARD,
+  ItemSlug.MOONPETAL,
+  ItemSlug.SEED_BUNDLE,
+  ItemSlug.SALT_LICK,
+  ItemSlug.RATIONS,
+  ItemSlug.POTION_CALM,
+  ItemSlug.POTION_VITALITY,
+]);
+
+/** File stem for an item slug (`potion.vitality` → `potion-vitality`). */
+export function itemImageStem(slug: string): string {
+  return slug.replaceAll(".", "-");
+}
+
+/** Marketplace still for an LPIT item, or null when we have no art (relics). */
+export function itemImageSrc(slug: string | null | undefined): string | null {
+  if (slug == null || !LPIT_ITEM_IMAGE_SLUGS.has(slug)) return null;
+  return `/media/items/${itemImageStem(slug)}.webp`;
+}
+
+/** Species portrait path, or null when the slug is missing. */
+export function speciesImageSrc(
+  slug: string | null | undefined,
+): string | null {
+  if (slug == null || slug === "") return null;
+  return `/media/species/${slug}.webp`;
+}
+
+/** Best still for a catalog row: item art, then the species portrait. */
+export function marketImageSrc(input: {
+  itemSlug?: string | null;
+  speciesSlug?: string | null;
+}): string | null {
+  return itemImageSrc(input.itemSlug) ?? speciesImageSrc(input.speciesSlug);
+}
+
 /** Where each resource grows. Every listed territory has its own stock. */
 export const GATHER_SOURCES: readonly {
   resource: ItemSlug;

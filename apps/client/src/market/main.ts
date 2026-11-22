@@ -30,6 +30,8 @@ import {
   MARKET_ITEMS_MINT_CHALLENGE_PATH,
   MARKET_ITEMS_MINT_PATH,
   MARKET_ITEMS_MINT_RETRY_PATH,
+  itemImageSrc,
+  speciesImageSrc,
 } from "@boing-pets/contract";
 import {
   prepareBoingWallet,
@@ -67,6 +69,59 @@ const OWNERSHIP_LABEL: Record<MarketOwnership, string> = {
   IN_ESCROW: "In escrow",
   PLAYER: "Player-owned",
 };
+
+/** Unminted lineage keepsakes: awarded when a player first names the lineage. */
+const LINEAGE_UNMINTED_LABEL =
+  "Awarded to the first player to name this lineage";
+
+function ownershipLabel(a: MarketAsset): string {
+  if (a.kind === "LINEAGE" && a.ownership === "UNMINTED") {
+    return LINEAGE_UNMINTED_LABEL;
+  }
+  return OWNERSHIP_LABEL[a.ownership];
+}
+
+const MARKET_KIND_PARAMS = new Set(["CREATURE", "LINEAGE", "ITEM"]);
+const MARKET_OWN_PARAMS = new Set([
+  "UNMINTED",
+  "OPERATOR",
+  "IN_ESCROW",
+  "PLAYER",
+]);
+
+function applyMarketDeepLink(): void {
+  const q = new URLSearchParams(window.location.search);
+  const kind = q.get("kind");
+  if (kind != null && MARKET_KIND_PARAMS.has(kind)) {
+    state.kind = kind as MarketAsset["kind"];
+  }
+  const own = q.get("ownership");
+  if (own != null && (own === "" || MARKET_OWN_PARAMS.has(own))) {
+    $<HTMLSelectElement>("ownership").value = own;
+  }
+}
+
+function writeMarketDeepLink(): void {
+  const url = new URL(window.location.href);
+  if (state.kind === "CREATURE") url.searchParams.delete("kind");
+  else url.searchParams.set("kind", state.kind);
+  const own = $<HTMLSelectElement>("ownership").value;
+  if (own) url.searchParams.set("ownership", own);
+  else url.searchParams.delete("ownership");
+  const next = `${url.pathname}${url.search}${url.hash}`;
+  const cur = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (next !== cur) history.replaceState(null, "", next);
+}
+
+function syncOwnershipFilterLabels(): void {
+  const option = $("ownership").querySelector('option[value="UNMINTED"]');
+  if (option != null) {
+    option.textContent =
+      state.kind === "LINEAGE"
+        ? LINEAGE_UNMINTED_LABEL
+        : OWNERSHIP_LABEL.UNMINTED;
+  }
+}
 
 const ACTIVITY_LABEL: Record<string, string> = {
   FORAGE: "foraging",
@@ -122,21 +177,53 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
+function cardImage(a: MarketAsset): HTMLElement {
+  const src =
+    a.image ?? itemImageSrc(a.itemSlug) ?? speciesImageSrc(a.speciesSlug);
+  const fallback =
+    a.itemCategory === "RELIC"
+      ? "Relic"
+      : a.kind === "ITEM"
+        ? "Item"
+        : (a.speciesName ?? a.name);
+  if (src == null) {
+    return el("div", { className: "noimg" }, [fallback]);
+  }
+  const img = el("img", {
+    src,
+    alt: a.speciesName ?? a.name,
+    loading: "lazy",
+    width: 480,
+    height: 327,
+  });
+  // A species can ship before its portrait does (bestiary pass 2). Show the
+  // same muted placeholder the marketing gallery uses, not a broken image.
+  img.addEventListener("error", () => {
+    img.replaceWith(el("div", { className: "noimg" }, [fallback]));
+  });
+  return img;
+}
+
+function itemThumb(
+  slug: string | null | undefined,
+  image: string | null | undefined,
+  alt: string,
+): HTMLElement {
+  const src = image ?? itemImageSrc(slug);
+  if (src == null) return el("span", { className: "noimg" });
+  const img = el("img", { src, alt: "", width: 40, height: 28 });
+  img.setAttribute("alt", alt);
+  img.addEventListener("error", () => {
+    img.replaceWith(el("span", { className: "noimg" }));
+  });
+  return img;
+}
+
 function card(a: MarketAsset): HTMLLIElement {
-  const img = a.speciesSlug
-    ? el("img", {
-        src: `/media/species/${a.speciesSlug}.webp`,
-        alt: a.speciesName ?? "",
-        loading: "lazy",
-        width: 480,
-        height: 327,
-      })
-    : el("div", { className: "noimg" }, [
-        a.itemCategory === "RELIC" ? "Relic" : a.kind === "ITEM" ? "Item" : "?",
-      ]);
+  const img = cardImage(a);
   const badges = el("div", { className: "badges" }, [
     el("span", { className: `own ${a.ownership.toLowerCase()}` }, [
-      OWNERSHIP_LABEL[a.ownership],
+      ownershipLabel(a),
     ]),
     ...(a.genesis ? [el("span", { className: "genesis" }, ["Genesis"])] : []),
     ...(a.itemCategory === "RELIC"
@@ -176,7 +263,9 @@ function card(a: MarketAsset): HTMLLIElement {
             `${a.mint.toLowerCase()} · tx ${short(a.mintTxHex)}`,
           ])
         : a.mint === "UNMINTED"
-          ? "not minted yet"
+          ? a.kind === "LINEAGE"
+            ? LINEAGE_UNMINTED_LABEL
+            : "not minted yet"
           : a.mint.toLowerCase(),
     ]),
     el("dt", {}, ["Owner"]),
@@ -366,14 +455,20 @@ function actionFor(a: MarketAsset): Action {
   }
   switch (a.ownership) {
     case "UNMINTED":
-      return {
-        label: "View",
-        trade: false,
-        steps: [
-          `Not minted yet. When minted it goes to the operator (${short(escrow?.operatorHex ?? null)}).`,
-          "Once minted it can be adopted through escrow.",
-        ],
-      };
+      return a.kind === "LINEAGE"
+        ? {
+            label: "View",
+            trade: false,
+            steps: [LINEAGE_UNMINTED_LABEL],
+          }
+        : {
+            label: "View",
+            trade: false,
+            steps: [
+              `Not minted yet. When minted it goes to the operator (${short(escrow?.operatorHex ?? null)}).`,
+              "Once minted it can be adopted through escrow.",
+            ],
+          };
     case "OPERATOR":
       return {
         label: "Adopt",
@@ -581,6 +676,8 @@ function populateFilters(c: MarketCatalog): void {
 function render(): void {
   const c = state.catalog;
   if (c == null) return;
+  syncOwnershipFilterLabels();
+  writeMarketDeepLink();
   const q = $<HTMLInputElement>("q").value.trim().toLowerCase();
   const sp = $<HTMLSelectElement>("species").value;
   const own = $<HTMLSelectElement>("ownership").value;
@@ -1115,7 +1212,10 @@ function renderItemMarket(): void {
         break;
     }
     return el("tr", {}, [
-      el("td", {}, [l.name]),
+      el("td", { className: "im-item" }, [
+        itemThumb(l.itemSlug, l.image, l.name),
+        l.name,
+      ]),
       el("td", {}, [`${l.remaining} / ${l.listed}`]),
       el("td", {}, [boing(unit)]),
       el("td", {}, [short(l.sellerHex)]),
@@ -1178,7 +1278,10 @@ function renderItemMarket(): void {
         }
         const notMinted = h.unminted == null ? "—" : String(h.unminted);
         return el("tr", {}, [
-          el("td", {}, [h.name]),
+          el("td", { className: "im-item" }, [
+            itemThumb(h.itemSlug, h.image, h.name),
+            h.name,
+          ]),
           el("td", {}, [h.chain == null ? "?" : String(h.chain)]),
           el("td", {}, [String(h.usable)]),
           el("td", {}, [
@@ -1284,6 +1387,7 @@ for (const id of ["q", "species", "ownership", "alive", "genesis", "mine"]) {
   $(id).addEventListener("input", render);
 }
 $("wallet").addEventListener("click", () => void connectWallet());
+applyMarketDeepLink();
 void load();
 void loadItems();
 window.setInterval(() => void load(), 10_000);

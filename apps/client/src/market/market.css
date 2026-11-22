@@ -466,6 +466,23 @@ dialog .status a {
   justify-content: flex-end;
   gap: 0.35rem;
 }
+.itemmarket .im-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.itemmarket .im-item img,
+.itemmarket .im-item .noimg {
+  width: 40px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #0b1420;
+  flex: none;
+}
+.itemmarket .im-item .noimg {
+  display: inline-block;
+}
 .itemmarket .act:disabled {
   opacity: 0.55;
   cursor: not-allowed;

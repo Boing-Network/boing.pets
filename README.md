@@ -92,9 +92,11 @@ the same query, so `/?owner=<key>` still works.
 The marketing page shows the world, a species gallery built
 from `SPECIES_CATALOG`, how the game works, and Play now links to `/world/`. Its
 source is `apps/client/index.html` and `apps/client/src/welcome/`; the
-renders live in `apps/client/public/media/` (WebP, about 400 kB in total). A
-new species needs a render at `public/media/species/<slug>.webp`, for example
-cropped from the dev bestiary (`/world/?bestiary=<slug>`).
+renders live in `apps/client/public/media/` (WebP). A new species needs a
+render at `public/media/species/<slug>.webp`, for example cropped from the
+dev bestiary (`/world/?bestiary=<slug>`). LPIT item stills live at
+`public/media/items/<slug-with-dashes>.webp` (for example
+`potion.vitality` → `potion-vitality.webp`) and are used by the marketplace.
 
 ### Desktop (Electron + local Postgres)
 
