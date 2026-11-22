@@ -182,6 +182,7 @@ world lighting, open the dev bestiary:
 npm run dev -w @boing-pets/client
 # http://127.0.0.1:5173/world/?bestiary        all species
 # http://127.0.0.1:5173/world/?bestiary=fire-fox one species, close up
+# add &capture=1 to hide the name overlay (for 480×327 stills)
 ```
 
 See [Creature rendering in the design doc](docs/DESIGN.md#creature-rendering)

@@ -175,6 +175,8 @@ export function Bestiary() {
   const params = new URLSearchParams(window.location.search);
   const only = params.get("bestiary") ?? "";
   const mode = (params.get("pose") ?? "walk") as PoseMode;
+  // Hide the name overlay so 480×327 stills match the existing portraits.
+  const capture = params.has("capture");
   const focus = useRef({ x: 0, y: 0, z: 0 });
   const single = SPECIES_CATALOG.find((row) => row.slug === only);
   const rows = single ? [single] : [...SPECIES_CATALOG];
@@ -215,7 +217,7 @@ export function Bestiary() {
     <div style={{ position: "fixed", inset: 0, background: "#0d2638" }}>
       <Canvas
         shadows
-        dpr={[1, 1.75]}
+        dpr={capture ? [1, 1] : [1, 1.75]}
         camera={{ ...camera, near: 0.1, far: 2000 }}
         onCreated={({ camera: cam, gl }) => {
           gl.setClearColor("#0d2638");
@@ -244,18 +246,20 @@ export function Bestiary() {
           />
         ))}
       </Canvas>
-      <div
-        style={{
-          position: "fixed",
-          left: 16,
-          top: 12,
-          color: "#d9e4ef",
-          font: "600 18px Georgia, serif",
-          textShadow: "0 1px 3px #000",
-        }}
-      >
-        {single ? single.displayName : `Bestiary · ${rows.length} species`}
-      </div>
+      {capture ? null : (
+        <div
+          style={{
+            position: "fixed",
+            left: 16,
+            top: 12,
+            color: "#d9e4ef",
+            font: "600 18px Georgia, serif",
+            textShadow: "0 1px 3px #000",
+          }}
+        >
+          {single ? single.displayName : `Bestiary · ${rows.length} species`}
+        </div>
+      )}
     </div>
   );
 }

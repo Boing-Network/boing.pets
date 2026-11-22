@@ -117,9 +117,8 @@ Found but not done (needs more than a client change, or art/design input):
   navigation for the canvas, and give HUD state text equivalents.
 - **Sign-in friction.** Explain what a wallet unlocks at the point a guest
   first hits a limit.
-- **Species renders.** The marketing gallery needs
-  `public/media/species/<slug>.webp` for the 14 new species. Capture them from
-  the dev bestiary (`/world/?bestiary=<slug>`).
+- **Species renders.** Done: `public/media/species/<slug>.webp` for the 14
+  new species, captured from the dev bestiary (`/world/?bestiary=<slug>&capture=1`).
 
 ## Deploying into an existing world
 
