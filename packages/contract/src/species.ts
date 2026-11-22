@@ -3,7 +3,8 @@
  *
  * One name per species everywhere: the kernel slug and display name match the
  * client skin id and label. Biology (lifespan, traits, home territory) lives in
- * `packages/sim/src/worldgen/catalog.ts`; presentation lives in
+ * `packages/contract/src/species-biology.ts` so the kernel and the client
+ * share one catalog; presentation lives in
  * `apps/client/src/view/species-skins.ts`. Both key off these ids and slugs.
  *
  * Ids 1–3 were called fernfox / mossback / pebblehare before the naming pass.

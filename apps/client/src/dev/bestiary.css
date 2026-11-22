@@ -1,0 +1,447 @@
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  background: #070d16;
+}
+
+.bestiary-page {
+  --bg: #070d16;
+  --panel: #0e1724;
+  --line: #1d2a3b;
+  --text: #dfe7ef;
+  --muted: #93a3b5;
+  --accent: #f0c86a;
+  --glow: #7fd6c2;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font:
+    16px/1.6 system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  color-scheme: dark;
+}
+
+.bestiary-page *,
+.bestiary-page *::before,
+.bestiary-page *::after {
+  box-sizing: border-box;
+}
+
+.bestiary-page h1,
+.bestiary-page h2,
+.bestiary-page .brand {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 600;
+}
+
+.bestiary-page a {
+  color: inherit;
+}
+
+.bestiary-top {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem clamp(1rem, 4vw, 3rem);
+  background: rgb(7 13 22 / 0.82);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+
+.bestiary-page .brand {
+  font-size: 1.4rem;
+  text-decoration: none;
+}
+
+.bestiary-page .site-nav {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.6rem, 2vw, 1.5rem);
+}
+
+.bestiary-page .site-nav a {
+  text-decoration: none;
+  color: var(--muted);
+}
+
+.bestiary-page .site-nav a:hover,
+.bestiary-page .site-nav a[aria-current="page"] {
+  color: var(--text);
+}
+
+.bestiary-main {
+  padding: clamp(1.5rem, 5vh, 3rem) clamp(1rem, 4vw, 3rem) 4rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.bestiary-intro h1 {
+  font-size: clamp(2rem, 4.5vw, 3rem);
+  line-height: 1.1;
+  margin: 0 0 0.5rem;
+}
+
+.bestiary-page .lede {
+  color: var(--muted);
+  max-width: 46rem;
+  margin: 0 0 1.4rem;
+}
+
+.bestiary-notice {
+  margin: 0 0 1.2rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--accent);
+}
+
+.bestiary-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-bottom: 0.9rem;
+  align-items: end;
+}
+
+.bestiary-controls input[type="search"],
+.bestiary-controls select {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.5rem 0.8rem;
+}
+
+.bestiary-controls input[type="search"] {
+  flex: 1 1 16rem;
+  min-width: 12rem;
+}
+
+.bestiary-controls label {
+  display: grid;
+  gap: 0.2rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.bestiary-page .filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.8rem;
+}
+
+.bestiary-page .chip {
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+}
+
+.bestiary-page .chip[aria-pressed="true"] {
+  color: #06231d;
+  background: var(--glow);
+  border-color: var(--glow);
+}
+
+.bestiary-count,
+.bestiary-empty {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 1rem;
+}
+
+.bestiary-gallery {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.bestiary-gallery .card {
+  display: block;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  text-decoration: none;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.bestiary-gallery .card:hover,
+.bestiary-gallery .card:focus-visible {
+  transform: translateY(-3px);
+  border-color: #2e4560;
+  outline: none;
+}
+
+.bestiary-gallery .species-portrait,
+.bestiary-gallery img.species-portrait {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 480 / 327;
+  object-fit: cover;
+}
+
+.bestiary-page .species-portrait.placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 480 / 327;
+  background:
+    radial-gradient(
+      circle at 50% 58%,
+      color-mix(in srgb, var(--glow, #6bc8d8) 38%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at 50% 70%,
+      color-mix(in srgb, var(--coat, #5a8260) 55%, #0b1320),
+      #0b1320 70%
+    );
+  color: var(--muted);
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+}
+
+.bestiary-gallery h2 {
+  margin: 0.7rem 0.9rem 0.1rem;
+  font-size: 1.05rem;
+}
+
+.bestiary-gallery .meta {
+  margin: 0 0.9rem 0.35rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.bestiary-gallery .meta.sub {
+  margin-bottom: 0.9rem;
+}
+
+.bestiary-detail-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.bestiary-detail {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(22rem, 0.9fr);
+  min-height: 0;
+}
+
+.bestiary-viewer,
+.bestiary-stage {
+  position: relative;
+  min-height: 360px;
+  background: #0d2638;
+}
+
+.bestiary-stage,
+.bestiary-stage canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.bestiary-stats {
+  padding: 1.2rem clamp(1rem, 3vw, 2rem) 3rem;
+  overflow: auto;
+  border-left: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.bestiary-stats .back {
+  display: inline-block;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  margin-bottom: 0.8rem;
+}
+
+.bestiary-stats .back:hover {
+  color: var(--text);
+}
+
+.bestiary-stats h1 {
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  line-height: 1.15;
+  margin: 0 0 0.25rem;
+}
+
+.bestiary-stats h2 {
+  font-size: 1.05rem;
+  margin: 1.4rem 0 0.2rem;
+}
+
+.bestiary-stats .hint,
+.bestiary-stats .live-line {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin: 0 0 0.7rem;
+}
+
+.bestiary-stats .facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem 1rem;
+  margin: 1rem 0 0;
+}
+
+.bestiary-stats .fact {
+  margin: 0;
+}
+
+.bestiary-stats .fact dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.bestiary-stats .fact dd {
+  margin: 0.1rem 0 0;
+}
+
+.bestiary-stats .swatch {
+  display: inline-block;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  vertical-align: -0.1rem;
+  margin-right: 0.4rem;
+}
+
+.bestiary-stats .bars {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.4rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.bestiary-stats .bar {
+  display: grid;
+  grid-template-columns: 7.2rem 1fr 2.6rem;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.bestiary-stats .bar-label {
+  color: var(--muted);
+}
+
+.bestiary-stats .bar-track {
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.bestiary-stats .bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--glow);
+}
+
+.bestiary-stats .bar-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.bestiary-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 1.6rem;
+}
+
+.bestiary-page .cta,
+.bestiary-page .ghost {
+  display: inline-block;
+  padding: 0.65rem 1.2rem;
+  border-radius: 999px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.bestiary-page .cta {
+  background: var(--accent);
+  color: #1b1405;
+  box-shadow: 0 0 24px rgb(240 200 106 / 0.35);
+}
+
+.bestiary-page .cta:hover {
+  filter: brightness(1.08);
+}
+
+.bestiary-page .ghost {
+  border: 1px solid var(--line);
+}
+
+@media (max-width: 900px) {
+  .bestiary-detail {
+    grid-template-columns: 1fr;
+  }
+  .bestiary-viewer {
+    height: min(52vh, 420px);
+    min-height: 240px;
+  }
+  .bestiary-stats {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 640px) {
+  .bestiary-top {
+    flex-wrap: wrap;
+    padding: 0.7rem 1rem;
+  }
+  .bestiary-page .site-nav {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 0.7rem;
+    font-size: 0.9rem;
+  }
+  .bestiary-stats .facts,
+  .bestiary-stats .bar {
+    grid-template-columns: 1fr;
+  }
+  .bestiary-stats .bar-value {
+    text-align: left;
+  }
+  .bestiary-gallery {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bestiary-gallery .card {
+    transition: none;
+  }
+}
