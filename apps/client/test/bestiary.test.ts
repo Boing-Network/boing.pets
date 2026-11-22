@@ -12,8 +12,8 @@ import {
   territoryName,
 } from "../src/dev/bestiary-data";
 
-test("the bestiary catalog lists all 35 species from the shared catalog", () => {
-  assert.equal(BESTIARY_SPECIES.length, 35);
+test("the bestiary catalog lists all 42 species from the shared catalog", () => {
+  assert.equal(BESTIARY_SPECIES.length, 42);
   assert.equal(BESTIARY_SPECIES.length, SPECIES.length);
   assert.deepEqual(
     BESTIARY_SPECIES.map((row) => row.id),

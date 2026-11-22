@@ -46,7 +46,10 @@ export type SpeciesBodyPlan =
   | "swift"
   | "corvid"
   | "ursid"
-  | "anuran";
+  | "anuran"
+  | "hedgehog"
+  | "primate"
+  | "tapirid";
 
 export type SpeciesKey = {
   id: number;
@@ -63,7 +66,9 @@ export type SpeciesKey = {
  * Ids 1–7 are the original seven and keep their ids and founder order.
  * Ids 8–21 were added by the bestiary expansion: two per territory, so every
  * territory hosts three species. Ids 22–35 are the second expansion: two more
- * per territory, so every territory now hosts five. Never renumber; append only.
+ * per territory, so every territory now hosts five. Ids 36–42 are the third
+ * batch: one more per territory, so every territory now hosts six. Never
+ * renumber; append only.
  */
 export const SPECIES_CATALOG = [
   {
@@ -380,6 +385,69 @@ export const SPECIES_CATALOG = [
     diet: Diet.OMNIVORE,
     gait: "fly",
     bodyPlan: "corvid",
+  },
+  {
+    id: 36,
+    slug: "candle-hedgehog",
+    displayName: "Candle Hedgehog",
+    home: "meadow",
+    diet: Diet.INSECTIVORE,
+    gait: "waddle",
+    bodyPlan: "hedgehog",
+  },
+  {
+    id: 37,
+    slug: "veil-marten",
+    displayName: "Veil Marten",
+    home: "thicket",
+    diet: Diet.OMNIVORE,
+    gait: "bound",
+    bodyPlan: "mustelid",
+  },
+  {
+    id: 38,
+    slug: "tarn-eagle",
+    displayName: "Tarn Eagle",
+    home: "ridge",
+    diet: Diet.CARNIVORE,
+    gait: "fly",
+    bodyPlan: "raptor",
+  },
+  {
+    id: 39,
+    slug: "halo-loris",
+    displayName: "Halo Loris",
+    home: "glade",
+    diet: Diet.OMNIVORE,
+    gait: "walk",
+    bodyPlan: "primate",
+  },
+  {
+    id: 40,
+    slug: "wisp-otter",
+    displayName: "Wisp Otter",
+    home: "fen",
+    diet: Diet.CARNIVORE,
+    gait: "bound",
+    bodyPlan: "mustelid",
+  },
+  {
+    id: 41,
+    slug: "saddle-tapir",
+    displayName: "Saddle Tapir",
+    home: "grove",
+    diet: Diet.HERBIVORE,
+    gait: "walk",
+    bodyPlan: "tapirid",
+  },
+  {
+    id: 42,
+    slug: "aurora-yak",
+    displayName: "Aurora Yak",
+    home: "crags",
+    diet: Diet.HERBIVORE,
+    gait: "walk",
+    bodyPlan: "bovid",
   },
 ] as const satisfies readonly SpeciesKey[];
 

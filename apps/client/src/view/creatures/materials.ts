@@ -39,6 +39,13 @@ export const SPECIES_WORLD_SCALE: Record<string, number> = {
   "acorn-jay": 2.1,
   "rime-cat": 3.0,
   "gale-chough": 2.2,
+  "candle-hedgehog": 2.5,
+  "veil-marten": 2.4,
+  "tarn-eagle": 1.8,
+  "halo-loris": 2.4,
+  "wisp-otter": 2.6,
+  "saddle-tapir": 3.1,
+  "aurora-yak": 3.15,
 };
 
 export function worldScaleForSkin(skinId: string, selected: boolean): number {

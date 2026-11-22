@@ -20,7 +20,7 @@ test("worldgen species match the contract catalog one to one", () => {
     gait: string;
   }) => [row.id, row.slug, row.displayName, row.home, row.diet, row.gait];
   assert.deepEqual(WORLDGEN_SPECIES.map(pick), SPECIES_CATALOG.map(pick));
-  assert.equal(SPECIES_CATALOG.length, 35);
+  assert.equal(SPECIES_CATALOG.length, 42);
   assert.deepEqual(
     SPECIES_CATALOG.map((row) => row.id),
     SPECIES_CATALOG.map((_, index) => index + 1),
@@ -52,7 +52,7 @@ test("legacy slugs resolve to the renamed species with the same id", () => {
   assert.ok(!speciesKeyForSlug("nope"));
 });
 
-test("every territory is home to exactly five species", () => {
+test("every territory is home to exactly six species", () => {
   const slugs = new Set(TERRITORY_CATALOG.map((row) => row.slug));
   for (const row of WORLDGEN_SPECIES) {
     assert.ok(slugs.has(row.home), row.home);
@@ -62,7 +62,7 @@ test("every territory is home to exactly five species", () => {
     const residents = WORLDGEN_SPECIES.filter(
       (row) => row.home === territory.slug,
     );
-    assert.equal(residents.length, 5, territory.slug);
+    assert.equal(residents.length, 6, territory.slug);
   }
 });
 

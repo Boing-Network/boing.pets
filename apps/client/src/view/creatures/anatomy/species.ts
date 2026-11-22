@@ -6,6 +6,7 @@
 import type { SpeciesSlug } from "@boing-pets/contract";
 import { GRAIN, type Vec3, type CreatureBuilder } from "./builder";
 import { ANATOMY_B } from "./species-b";
+import { ANATOMY_C } from "./species-c";
 import {
   add,
   cheekRuff,
@@ -619,6 +620,7 @@ const QUAD_SPECIES = {
 export const ANATOMY: Record<SpeciesSlug, Anatomy> = {
   ...QUAD_SPECIES,
   ...ANATOMY_B,
+  ...ANATOMY_C,
   "lantern-moth": moth({
     coat: { back: "#b5ae9f", belly: "#e2dccd", dark: "#3a3530" },
     wing: "#a49d8e",

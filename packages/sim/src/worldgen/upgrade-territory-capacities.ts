@@ -12,14 +12,14 @@
  *   - a second run on an already-upgraded world finds nothing to do.
  *
  * `TERRITORY_CAPACITY_VERSION` is the catalog generation this upgrade
- * targets (build 2: bestiary pass 2, sum 338). There is no extra DB
+ * targets (build 3: bestiary batch 3, sum 420). There is no extra DB
  * column: "already at catalog capacity" is the version flag.
  */
 import type { TerritoryRow, WorldSnapshot } from "../types";
 import { TERRITORY_CATALOG } from "./catalog";
 
-/** Build 2: bestiary pass 2 capacities (sum 338). */
-export const TERRITORY_CAPACITY_VERSION = 2;
+/** Build 3: bestiary batch 3 capacities (sum 420). */
+export const TERRITORY_CAPACITY_VERSION = 3;
 
 export type TerritoryCapacityChange = {
   slug: string;

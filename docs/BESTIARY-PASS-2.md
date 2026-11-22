@@ -73,6 +73,34 @@ show it. Fixes:
 New shared helpers live in `anatomy/patterns.ts` (`glowSpeckle`,
 `tailTipGlow`, `cheekRuff`, `quillField`, `combine`).
 
+## Batch 3: seven more species (ids 36–42)
+
+One more per territory, each a body type the bestiary did not have. Founders
+1–70 of the seed-1 world are unchanged; 71–84 are new.
+
+| Territory     | Species         | Body                          | Glow                                        |
+| ------------- | --------------- | ----------------------------- | ------------------------------------------- |
+| Meadow        | Candle Hedgehog | hedgehog (quadruped + spines) | candle-gold spine tips                      |
+| Thicket       | Veil Marten     | mustelid                      | silver-lavender veil over the cream bib     |
+| Ridge         | Tarn Eagle      | raptor                        | storm blue along the wing tips, sunlit nape |
+| Moonlit Glade | Halo Loris      | primate (quadruped)           | warm ring around the huge eyes              |
+| Glowfen       | Wisp Otter      | mustelid                      | aqua bioluminescent water on the fur        |
+| Elder Grove   | Saddle Tapir    | tapirid (quadruped)           | faintly moonlit pale saddle                 |
+| High Crags    | Aurora Yak      | bovid                         | aurora green-to-violet along the hair skirt |
+
+Their proportions were designed against real animals. The source zip also
+included a measured-proportion audit of existing species and an Acorn Jay
+rescale; those are existing-species adjustments and are not part of this
+addition.
+
+Capacities rose again for new worlds (meadow 76, thicket 60, ridge 40, glade
+68, fen 60, grove 56, crags 60; sum 420) and `TERRITORY_CAPACITY_VERSION` is
+now 3, so deployed worlds are raised on boot by the existing upgrade. The
+ecology harness needed the Crags bump: with six species on Crags at capacity
+42 the Slate Marmot (which lives there) fell to one survivor on seed 1, and at
+50 the Crag Ram did on seed 7. Raising Ridge made no difference; raising Crags
+to 60 fixed both.
+
 ## UX audit: what was found and what was done
 
 Done in this pass (client only, all in `apps/client/src/hud/`):
