@@ -1,6 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { CreatureStatus, type CreatureView } from "@boing-pets/contract";
+import { WorldAudioProbe } from "../../audio/WorldAudioProbe";
 import { useUiStore } from "../../state/uiStore";
 import { useWorldViewStore } from "../../state/worldViewStore";
 import { CreatureToken } from "../CreatureToken";
@@ -107,6 +108,7 @@ export function WorldScene() {
       ))}
 
       <PlayerMarkers model={model} focus={orbitTarget} />
+      <WorldAudioProbe model={model} focus={orbitTarget} />
 
       <CameraRig
         model={model}

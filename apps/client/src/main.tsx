@@ -2,6 +2,7 @@ import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./app/App";
 import { bindIpcToStores } from "./api/bind";
+import { initWorldAudio } from "./audio/bind";
 import { createBrowserHostIpc } from "./api/browser-host-ipc";
 import {
   createElectronIpc,
@@ -90,6 +91,8 @@ function bootGame(rootElement: HTMLElement) {
     : shared != null
       ? bootSharedWorldIpc(shared)
       : bootBrowserHostIpc();
+
+  initWorldAudio();
 
   createRoot(rootElement).render(
     <StrictMode>

@@ -445,3 +445,20 @@ body,
     transition: none;
   }
 }
+
+.bestiary-stats .call-btn {
+  display: block;
+  margin: 0.2rem 0 0.9rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  opacity: 0.8;
+  cursor: pointer;
+}
+
+.bestiary-stats .call-btn:hover {
+  opacity: 1;
+}

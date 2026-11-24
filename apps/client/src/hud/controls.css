@@ -6,6 +6,32 @@
   font-family: "Segoe UI", "Helvetica Neue", sans-serif;
 }
 
+.header-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.9rem;
+}
+
+.sound-control {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+}
+
+.sound-volume {
+  width: 4.5rem;
+  accent-color: var(--glow);
+  cursor: pointer;
+}
+
+@media (max-width: 720px) {
+  .sound-volume {
+    width: 3.5rem;
+  }
+}
+
 .clock-scales {
   display: flex;
   gap: 0.25rem;

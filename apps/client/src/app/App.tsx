@@ -7,6 +7,7 @@ import { InfluencePanel } from "../hud/InfluencePanel";
 import { IntroTip } from "../hud/IntroTip";
 import { InspectionPanel } from "../hud/InspectionPanel";
 import { SiteNav } from "../hud/SiteNav";
+import { SoundControl } from "../hud/SoundControl";
 import { useWorldViewStore } from "../state/worldViewStore";
 import "../hud/controls.css";
 import "./shell.css";
@@ -49,7 +50,10 @@ export function App({ ipc, siteNav = true }: Props) {
           </p>
         </div>
         {siteNav ? <SiteNav current="play" /> : null}
-        <ClockControls ipc={ipc} />
+        <div className="header-tools">
+          <ClockControls ipc={ipc} />
+          <SoundControl />
+        </div>
       </header>
       <main className="map-stage">
         <Suspense
