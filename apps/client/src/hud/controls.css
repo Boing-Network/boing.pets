@@ -122,19 +122,6 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 720px) {
-  .influence-panel {
-    position: absolute;
-    left: 0.5rem;
-    right: 0.5rem;
-    top: auto;
-    bottom: 3.5rem;
-    width: auto;
-    max-height: 40%;
-    overflow: auto;
-  }
-}
-
 .clock-btn:disabled {
   cursor: not-allowed;
   opacity: 0.45;
