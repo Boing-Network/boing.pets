@@ -14,6 +14,7 @@ import {
   ensure0xHex,
   hexToBytes,
   multiTokenItemIdWord,
+  referenceNftOwnerStorageKey,
   referenceNftTokenIdWordFromU64,
   senderHexFromSecretKey,
   fetchNextNonce,
@@ -167,21 +168,59 @@ export class SdkBoingNftClient implements BoingNftClient {
   async submitCreatureMint(
     plan: BoingMintBatchPlan,
   ): Promise<BoingMintSubmitResult> {
-    return this.#submitCall(
-      plan.collectionHex,
-      plan.calldataBytes,
-      plan.tokenIdHex,
-    );
+    return this.#submitUniqueMint(plan);
   }
 
   async submitLineageArtifactMint(
     plan: BoingMintBatchPlan,
   ): Promise<BoingMintSubmitResult> {
-    return this.#submitCall(
+    return this.#submitUniqueMint(plan);
+  }
+
+  /** Current owner of a reference NFT token (0x + 64 hex, lowercase; all zeros = unminted). */
+  async #ownerOf(collectionHex: string, tokenIdHex: string): Promise<string> {
+    const word = await this.rpc.getContractStorage(
+      ensure0xHex(collectionHex),
+      referenceNftOwnerStorageKey(tokenIdHex),
+    );
+    return ensure0xHex(String(word?.value ?? ZERO_HASH_HEX)).toLowerCase();
+  }
+
+  /**
+   * A reference `mint_batch` that faults (non-admin sender, token already owned) still
+   * advances the sender nonce and pays its fee, so "nonce moved" does not mean "minted".
+   * Check the owner slot instead: skip the submit when the token is already ours (an
+   * earlier attempt landed), and only report success when the slot shows the recipient.
+   */
+  async #submitUniqueMint(
+    plan: BoingMintBatchPlan,
+  ): Promise<BoingMintSubmitResult> {
+    const want = ensure0xHex(plan.toHex).toLowerCase();
+    const before = await this.#ownerOf(plan.collectionHex, plan.tokenIdHex);
+    if (before === want) {
+      return {
+        txHash: "already-minted",
+        collectionHex: ensure0xHex(plan.collectionHex),
+        tokenIdHex: plan.tokenIdHex,
+      };
+    }
+    if (before !== ZERO_HASH_HEX) {
+      throw new Error(
+        `token ${plan.tokenIdHex} is already owned by ${before}; not minting`,
+      );
+    }
+    const result = await this.#submitCall(
       plan.collectionHex,
       plan.calldataBytes,
       plan.tokenIdHex,
     );
+    const after = await this.#ownerOf(plan.collectionHex, plan.tokenIdHex);
+    if (after !== want) {
+      throw new Error(
+        `mint tx included but token ${plan.tokenIdHex} is not owned by the recipient (owner ${after}); the call likely faulted`,
+      );
+    }
+    return result;
   }
 
   async submitCompressedItemMint(
