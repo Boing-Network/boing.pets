@@ -1,0 +1,31 @@
+name: Deploy shared-world server
+# Manual only: Actions tab -> "Deploy shared-world server" -> Run workflow.
+# Runs the same command as `npm run fly:deploy`, for machines that cannot run
+# flyctl. Needs the FLY_API_TOKEN repository secret (a Fly deploy token scoped
+# to the boing-living-pets app).
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  # One machine, one writer: never two deploys at once.
+  group: fly-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy --ha=false --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      - name: Health check
+        run: |
+          for i in $(seq 1 20); do
+            if curl -fsS https://boing-living-pets.fly.dev/healthz; then exit 0; fi
+            sleep 6
+          done
+          exit 1
