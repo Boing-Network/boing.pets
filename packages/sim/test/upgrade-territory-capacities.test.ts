@@ -55,7 +55,7 @@ test("raises only capacities on a standard world, then is a no-op", () => {
   );
   assert.equal(
     snapshot.territories.reduce((sum, row) => sum + row.capacity, 0),
-    338,
+    420,
   );
   for (const row of TERRITORY_CATALOG) {
     const stored = snapshot.territories.find((t) => t.slug === row.slug);
@@ -110,5 +110,27 @@ test("never lowers a capacity already above the catalog", () => {
   assert.equal(meadow.capacity, 80);
   assert.ok(!result.changes.some((row) => row.slug === "meadow"));
   const crags = snapshot.territories.find((row) => row.slug === "crags");
-  assert.equal(crags?.capacity, 36);
+  assert.equal(crags?.capacity, 60);
+});
+
+test("a world on the previous (build 2) capacities is raised to this build", () => {
+  const { snapshot } = createWorld(1);
+  const build2: Record<string, number> = {
+    meadow: 64,
+    thicket: 50,
+    ridge: 34,
+    glade: 58,
+    fen: 50,
+    grove: 46,
+    crags: 36,
+  };
+  for (const territory of snapshot.territories) {
+    territory.capacity = build2[territory.slug]!;
+  }
+  const result = upgradeTerritoryCapacities(snapshot);
+  assert.equal(result.changes.length, 7);
+  assert.equal(
+    snapshot.territories.reduce((sum, row) => sum + row.capacity, 0),
+    420,
+  );
 });

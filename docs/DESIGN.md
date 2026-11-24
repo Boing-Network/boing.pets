@@ -215,7 +215,8 @@ Newborns start with `NURSE`. A losing `CONTEST` can kill with cause `INJURY`.
   changed again in the bestiary pass: 21 species with 2 founders each (42
   founders, born mature) instead of 7 × 4, plus per-species biology. The
   second bestiary pass added species 22–35 (founders 43–70) and larger
-  territory capacities; founders 1–42 kept their ids, names, and genes.
+  territory capacities, and the third added species 36–42 (founders 71–84)
+  with larger capacities again; founders 1–42 kept their ids, names, and genes.
   `catchup-equivalence.test.ts` checks that catch-up equals live stepping.
 
 ## World and species
@@ -226,21 +227,21 @@ Territory ids follow catalog order, so the original three keep ids 1–3.
 
 | Territory (id, slug) | Name          | Food | Danger | Capacity | Client biome            |
 | -------------------- | ------------- | ---- | ------ | -------- | ----------------------- |
-| 1 `meadow`           | Meadow        | 700  | 200    | 64       | meadow (pond)           |
-| 2 `thicket`          | Thicket       | 500  | 450    | 50       | thicket (swamp)         |
-| 3 `ridge`            | Ridge         | 350  | 700    | 34       | ridge (tarn, peak)      |
-| 4 `glade`            | Moonlit Glade | 650  | 250    | 58       | glade (pond)            |
-| 5 `fen`              | Glowfen       | 600  | 350    | 50       | fen (swamp, low)        |
-| 6 `grove`            | Elder Grove   | 550  | 400    | 46       | grove (pond, dark wood) |
-| 7 `crags`            | High Crags    | 300  | 600    | 36       | crags (tarn, peak)      |
+| 1 `meadow`           | Meadow        | 700  | 200    | 76       | meadow (pond)           |
+| 2 `thicket`          | Thicket       | 500  | 450    | 60       | thicket (swamp)         |
+| 3 `ridge`            | Ridge         | 350  | 700    | 40       | ridge (tarn, peak)      |
+| 4 `glade`            | Moonlit Glade | 650  | 250    | 68       | glade (pond)            |
+| 5 `fen`              | Glowfen       | 600  | 350    | 60       | fen (swamp, low)        |
+| 6 `grove`            | Elder Grove   | 550  | 400    | 56       | grove (pond, dark wood) |
+| 7 `crags`            | High Crags    | 300  | 600    | 60       | crags (tarn, peak)      |
 
 Links (two-way, travel ticks): meadow–thicket 6, thicket–ridge 8,
 meadow–glade 5, glade–grove 6, grove–thicket 6, thicket–fen 7,
 ridge–crags 7. The graph is connected, and the meadow–glade–grove–thicket
 loop gives creatures a second route between the lowlands.
 
-There are 35 species, five per territory, and 2 founders per species (one
-female, one male), for 70 total. Each founder starts its own lineage in its
+There are 42 species, six per territory, and 2 founders per species (one
+female, one male), for 84 total. Each founder starts its own lineage in its
 species' home territory. Founders are born mature: their `birthTick` is
 `-maturityDays × ticksPerDay`, so they can court from day one (stored ticks may
 therefore be negative for founders; the DB mapper reads `birth_tick` signed).
@@ -282,10 +283,17 @@ therefore be negative for founders; the DB mapper reads `birth_tick` signed).
 | 33 `acorn-jay` Acorn Jay             | grove   | thicket, glade | OMNIVORE    | fly / corvid      | 50 / 600 / 12 / 10                                | 70           |
 | 34 `rime-cat` Rime Cat               | crags   | ridge          | CARNIVORE   | walk / felid      | 120 / 1000 / 22 / 20                              | 80           |
 | 35 `gale-chough` Gale Chough         | crags   | ridge          | OMNIVORE    | fly / corvid      | 60 / 800 / 14 / 12                                | 70           |
+| 36 `candle-hedgehog` Candle Hedgehog | meadow  | glade          | INSECTIVORE | waddle / hedgehog | 60 / 700 / 14 / 12                                | 60           |
+| 37 `veil-marten` Veil Marten         | thicket | grove          | OMNIVORE    | bound / mustelid  | 70 / 800 / 16 / 14                                | 75           |
+| 38 `tarn-eagle` Tarn Eagle           | ridge   | crags          | CARNIVORE   | fly / raptor      | 150 / 1600 / 26 / 24                              | 85           |
+| 39 `halo-loris` Halo Loris           | glade   | grove          | OMNIVORE    | walk / primate    | 90 / 900 / 20 / 18                                | 55           |
+| 40 `wisp-otter` Wisp Otter           | fen     | thicket        | CARNIVORE   | bound / mustelid  | 100 / 1100 / 20 / 18                              | 75           |
+| 41 `saddle-tapir` Saddle Tapir       | grove   | fen, thicket   | HERBIVORE   | walk / tapirid    | 150 / 1800 / 34 / 30                              | 40           |
+| 42 `aurora-yak` Aurora Yak           | crags   | ridge          | HERBIVORE   | walk / bovid      | 130 / 1500 / 28 / 24                              | 70           |
 
 Ids 1–7 are the original seven and never change; new species are appended.
-Ids 8–21 are the first bestiary pass and 22–35 the second (see
-`docs/BESTIARY-PASS-2.md` for the design notes and the glow palette).
+Ids 8–21 are the first bestiary pass, 22–35 the second and 36–42 the third
+(see `docs/BESTIARY-PASS-2.md` for the design notes and the glow palette).
 
 ### Biology
 
@@ -310,8 +318,8 @@ without new columns:
   or the species' kin fill more than half of it.
 
 `packages/sim/test/ecology.test.ts` runs seeds 1 and 7 for 150 days: every
-species must end with ≥ 2 alive and peak at ≤ 24, there must be at least one birth per founder (70),
-the population must grow but stay at or under the summed capacity (338), and
+species must end with ≥ 2 alive and peak at ≤ 24, there must be at least one birth per founder (84),
+the population must grow but stay at or under the summed capacity (420), and
 thirst plus starvation deaths must stay ≤ 3. Longer runs (365 days) keep all
 21 species alive on both seeds (193 and 213 alive; deaths are illness and old
 age).
@@ -325,7 +333,7 @@ in that order, and share one commit before any tick or catch-up:
 
 1. **Capacities first.** On a standard seven-territory world, any territory
    whose stored capacity is below the catalog is raised to the catalog value
-   (`TERRITORY_CAPACITY_VERSION` 2, sum 338). Capacities are never lowered,
+   (`TERRITORY_CAPACITY_VERSION` 3, sum 420). Capacities are never lowered,
    and food, danger, names and links are never touched. Scale-rehearsal
    worlds (fewer territories) are ineligible and left alone. "Already at
    catalog capacity" is the version flag; there is no extra DB column.
@@ -699,7 +707,7 @@ click for every ration. Nothing here spends a player's influence budget.
   (forage, drink, rest, social, court, and so on) and to waypoints from
   deterministic anchors. Creatures free-roam visually across regions, while
   their sim location stays the territory id.
-- `view/creatures/*`: procedural creatures for all 35 species (see
+- `view/creatures/*`: procedural creatures for all 42 species (see
   [Creature rendering](#creature-rendering)). The repo has no model or
   texture assets.
 - HUD: `InspectionPanel` (creature, family, top memories), `InfluencePanel`

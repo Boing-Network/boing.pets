@@ -93,9 +93,23 @@ const FOUNDERS = [
   ["rime-cat", "MALE", "crags", "Ithquilldorr"],
   ["gale-chough", "FEMALE", "crags", "Torwrenpax"],
   ["gale-chough", "MALE", "crags", "Lunithoak"],
+  ["candle-hedgehog", "FEMALE", "meadow", "Wrenoakquill"],
+  ["candle-hedgehog", "MALE", "meadow", "Briquillsae"],
+  ["veil-marten", "FEMALE", "thicket", "Dorrvessdorr"],
+  ["veil-marten", "MALE", "thicket", "Moselioari"],
+  ["tarn-eagle", "FEMALE", "ridge", "Kaeoakvess"],
+  ["tarn-eagle", "MALE", "ridge", "Dorrdorrquill"],
+  ["halo-loris", "FEMALE", "glade", "Mirafenith"],
+  ["halo-loris", "MALE", "glade", "Pellunpel"],
+  ["wisp-otter", "FEMALE", "fen", "Solnimalun"],
+  ["wisp-otter", "MALE", "fen", "Ithsaemos"],
+  ["saddle-tapir", "FEMALE", "grove", "Saemosmira"],
+  ["saddle-tapir", "MALE", "grove", "Paxquillpax"],
+  ["aurora-yak", "FEMALE", "crags", "Miraquillpax"],
+  ["aurora-yak", "MALE", "crags", "Wreneliopax"],
 ] as const;
 
-const SPECIES_IDS = Array.from({ length: 35 }, (_, index) => index + 1);
+const SPECIES_IDS = Array.from({ length: 42 }, (_, index) => index + 1);
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -173,7 +187,10 @@ test("seed 1 twice produces the same founders", () => {
     // larger territory capacities. Founders 1–42 keep their ids, names and
     // genes (523b3f7e…, the 21-species world). High Crags capacity was then
     // raised 30 → 36 so slate-marmot stays at ≥2 on seed 1 (8c883e95… at 30).
-    "5b7b6663af134554eb1d5a4c697b1df721b28acde24762fb446a7adaa0fa416f",
+    // Changed once more with the third batch: species 36–42 (founders 71–84)
+    // and larger capacities (High Crags ends at 60); founders 1–70 are
+    // unchanged (5b7b6663…, the 35-species world).
+    "b6a47a25ad53b0e3babbe1c454d9c45ccc59b649d4224ae9f1c9bee8fd85d498",
   );
   assert.notEqual(
     canonicalHash(first.snapshot),
@@ -185,9 +202,9 @@ test("seed 1 twice produces the same founders", () => {
   assert.equal(snapshot.world.lastTick, 0);
   assert.equal(snapshot.world.schemaVersion, 2);
   assert.equal(snapshot.world.rulesetVersion, 1);
-  assert.equal(snapshot.world.nextCreatureId, 71);
-  assert.equal(snapshot.world.nextLineageId, 71);
-  assert.equal(snapshot.world.nextEventId, 141);
+  assert.equal(snapshot.world.nextCreatureId, 85);
+  assert.equal(snapshot.world.nextLineageId, 85);
+  assert.equal(snapshot.world.nextEventId, 169);
   assert.equal(snapshot.world.nextTerritoryId, 8);
   assert.equal(snapshot.world.nextMemoryId, 1);
   assert.equal(snapshot.world.nextRelationshipId, 1);
@@ -196,10 +213,10 @@ test("seed 1 twice produces the same founders", () => {
   snapshot.ruleset.hungerPerTick = 99;
   assert.equal(RULESET_V1.hungerPerTick, 4);
 
-  assert.equal(snapshot.creatures.length, 70);
-  assert.equal(snapshot.lineages.length, 70);
-  assert.equal(snapshot.discoveries.length, 70);
-  assert.equal(events.length, 140);
+  assert.equal(snapshot.creatures.length, 84);
+  assert.equal(snapshot.lineages.length, 84);
+  assert.equal(snapshot.discoveries.length, 84);
+  assert.equal(events.length, 168);
   assert.deepEqual(
     snapshot.compatibility.map((row) => [
       row.speciesLowId,

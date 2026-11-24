@@ -23,7 +23,7 @@ test("buildWorldView exposes seven territories and living founders", () => {
   const living = view.creatures.filter(
     (c) => c.status === CreatureStatus.ALIVE,
   );
-  assert.equal(living.length, 70);
+  assert.equal(living.length, 84);
   // Founders arrive just mature: their age is their species' maturity.
   for (const c of living) {
     assert.equal(c.ageDays, speciesCatalogRow(c.speciesId)?.maturityDays);
@@ -37,7 +37,7 @@ test("buildWorldView exposes seven territories and living founders", () => {
   }
 
   assert.equal(view.world.seed, 1);
-  assert.equal(view.lineages.length, 70);
+  assert.equal(view.lineages.length, 84);
   assert.ok(view.lineages.every((l) => l.extinct === false));
 });
 

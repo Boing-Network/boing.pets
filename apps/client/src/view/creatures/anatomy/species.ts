@@ -6,6 +6,7 @@
 import type { SpeciesSlug } from "@boing-pets/contract";
 import { GRAIN, type Vec3, type CreatureBuilder } from "./builder";
 import { ANATOMY_B } from "./species-b";
+import { ANATOMY_C } from "./species-c";
 import {
   add,
   cheekRuff,
@@ -122,8 +123,8 @@ const QUAD_SPECIES = {
     socks: 0.55,
     neck: { len: 0.09, pitch: 0.75, r: 0.045 },
     head: {
-      r: [0.052, 0.048, 0.06],
-      snoutLen: 0.075,
+      r: [0.047, 0.043, 0.054],
+      snoutLen: 0.07,
       snoutR: 0.024,
       eyeshine: "#c9a050",
     },
@@ -144,7 +145,7 @@ const QUAD_SPECIES = {
   "moss-stag": quadruped({
     coat: { back: "#56553f", belly: "#b8ae98", dark: "#29231d" },
     gait: "walk",
-    legH: 0.3,
+    legH: 0.27,
     bodyLen: 0.26,
     waist: 0.25,
     chest: [0.085, 0.1, 0.12],
@@ -167,7 +168,7 @@ const QUAD_SPECIES = {
       // Shaggy neck, thicker than the neck tube, as on a rutting stag.
       b.part("body");
       b.ellipsoid(
-        [0, 0.5, 0.237],
+        [0, 0.47, 0.237],
         [0.048, 0.085, 0.052],
         "coat",
         [0.62, 0, 0],
@@ -202,13 +203,13 @@ const QUAD_SPECIES = {
     hindFoot: 0.075,
     neck: { len: 0.05, pitch: 1.0, r: 0.035 },
     head: {
-      r: [0.04, 0.042, 0.052],
-      snoutLen: 0.03,
+      r: [0.036, 0.038, 0.046],
+      snoutLen: 0.028,
       snoutR: 0.022,
       snoutDrop: 0.012,
       eyeshine: "#b8d4ff",
     },
-    ears: { kind: "long", len: 0.15, w: 0.022, tilt: 0.12 },
+    ears: { kind: "long", len: 0.11, w: 0.022, tilt: 0.12 },
     tail: { kind: "short", len: 0.045, r: 0.025, lift: 0.9, tip: "#ece6da" },
     pattern: patterns(
       // Black-tipped ears that catch the moon.
@@ -240,7 +241,7 @@ const QUAD_SPECIES = {
       snoutR: 0.032,
       snoutDrop: 0.03,
     },
-    ears: { kind: "pointed", len: 0.04, w: 0.02, tilt: 1.3 },
+    ears: { kind: "pointed", len: 0.05, w: 0.024, tilt: 1.3 },
     tail: { kind: "short", len: 0.06, r: 0.028, lift: -0.4 },
     extras: curlHorns(0.11, "#857760", "#9fc4ff"),
     pattern: (p, n, part) =>
@@ -266,7 +267,7 @@ const QUAD_SPECIES = {
       snoutR: 0.03,
       snoutDrop: 0.03,
     },
-    ears: { kind: "pointed", len: 0.04, w: 0.022, tilt: 0.6 },
+    ears: { kind: "pointed", len: 0.055, w: 0.03, tilt: 0.6 },
     tail: { kind: "thin", len: 0.08, r: 0.008, lift: -0.8 },
     extras: (b, at) => {
       // Short tusks curving up from the lower jaw.
@@ -317,14 +318,14 @@ const QUAD_SPECIES = {
     splay: 0.12,
     neck: { len: 0.04, pitch: 0.2, r: 0.055 },
     head: {
-      r: [0.045, 0.042, 0.06],
-      snoutLen: 0.06,
+      r: [0.045, 0.042, 0.052],
+      snoutLen: 0.052,
       snoutR: 0.022,
       snoutDrop: 0.02,
       eyeshine: "#c9b27a",
     },
-    ears: { kind: "round", len: 0.022, w: 0.016 },
-    tail: { kind: "short", len: 0.05, r: 0.022, lift: -0.2 },
+    ears: { kind: "round", len: 0.03, w: 0.02 },
+    tail: { kind: "short", len: 0.09, r: 0.026, lift: -0.2 },
     pattern: (p, n, part) => {
       if (part === "body") {
         // Grizzled grey back.
@@ -402,7 +403,7 @@ const QUAD_SPECIES = {
       snoutDrop: 0.015,
       eyeshine: "#b7a5e0",
     },
-    ears: { kind: "round", len: 0.03, w: 0.02 },
+    ears: { kind: "round", len: 0.04, w: 0.024 },
     tail: { kind: "ringed", len: 0.17, r: 0.03, lift: -0.45 },
     pattern: (p, n, part) => {
       if (part !== "head") return null;
@@ -438,7 +439,7 @@ const QUAD_SPECIES = {
       eyeshine: "#e0b070",
     },
     ears: { kind: "round", len: 0.018, w: 0.013 },
-    tail: { kind: "bushy", len: 0.08, r: 0.02, lift: -0.2, tip: "#3a2f25" },
+    tail: { kind: "bushy", len: 0.12, r: 0.02, lift: -0.2, tip: "#3a2f25" },
     pattern: patterns(
       // Slate-grey grizzle over a warm brown coat.
       (p, n, part) =>
@@ -457,7 +458,7 @@ const QUAD_SPECIES = {
   "silver-deer": quadruped({
     coat: { back: "#868176", belly: "#e0dbd0", dark: "#3c352d" },
     gait: "walk",
-    legH: 0.27,
+    legH: 0.235,
     bodyLen: 0.22,
     waist: 0.35,
     chest: [0.07, 0.085, 0.1],
@@ -503,7 +504,7 @@ const QUAD_SPECIES = {
       snoutDrop: 0.01,
     },
     ears: { kind: "round", len: 0.012, w: 0.01 },
-    tail: { kind: "thin", len: 0.1, r: 0.007, lift: -0.1 },
+    tail: { kind: "thin", len: 0.16, r: 0.007, lift: -0.1 },
     info: { breathRate: 2.2 },
     pattern: patterns(
       glowSpot([0, 0.075, 0.16], 0.025, "#9ee0c8", 0.5, ["head"]),
@@ -562,7 +563,7 @@ const QUAD_SPECIES = {
       snoutDrop: 0.012,
       eyeshine: "#d8c08a",
     },
-    ears: { kind: "pointed", len: 0.055, w: 0.026, tilt: 0.25 },
+    ears: { kind: "pointed", len: 0.065, w: 0.03, tilt: 0.25 },
     tail: { kind: "bushy", len: 0.26, r: 0.036, lift: -1.0, tip: "#2c2925" },
     extras: (b, at) => {
       // Neck ruff.
@@ -619,6 +620,7 @@ const QUAD_SPECIES = {
 export const ANATOMY: Record<SpeciesSlug, Anatomy> = {
   ...QUAD_SPECIES,
   ...ANATOMY_B,
+  ...ANATOMY_C,
   "lantern-moth": moth({
     coat: { back: "#b5ae9f", belly: "#e2dccd", dark: "#3a3530" },
     wing: "#a49d8e",
@@ -662,12 +664,12 @@ export const ANATOMY: Record<SpeciesSlug, Anatomy> = {
       eyeshine: "#e8d49a",
     },
     legs: { len: 0.04, r: 0.005, color: "#4a3e33" },
-    wings: { span: 0.3, chord: 0.09, color: "#7e6c54" },
-    tail: { len: 0.11, w: 0.04 },
+    wings: { span: 0.37, chord: 0.09, color: "#7e6c54" },
+    tail: { len: 0.15, w: 0.04 },
     pattern: (p, n, part) => {
       if (
         (part === "wingL" || part === "wingR") &&
-        Math.abs(Math.abs(p.x) - 0.22) < 0.02
+        Math.abs(Math.abs(p.x) - 0.265) < 0.02
       ) {
         return {
           color: "#d8ccb0",
@@ -708,7 +710,7 @@ export const ANATOMY: Record<SpeciesSlug, Anatomy> = {
     },
     legs: { len: 0.37, r: 0.01, color: "#5a5240" },
     wings: { span: 0, chord: 0, color: "#67717a" },
-    tail: { len: 0.08, w: 0.05 },
+    tail: { len: 0.1, w: 0.05 },
     pattern: (p, _n, part) =>
       part === "head" && p.z < -0.02
         ? { glow: "#a8d8f0", glowStrength: 0.3 }
@@ -737,8 +739,8 @@ export const ANATOMY: Record<SpeciesSlug, Anatomy> = {
       tufts: 0.045,
     },
     legs: { len: 0.06, r: 0.012, color: "#a89a82" },
-    wings: { span: 0.38, chord: 0.16, color: "#5e5244" },
-    tail: { len: 0.09, w: 0.07 },
+    wings: { span: 0.46, chord: 0.16, color: "#5e5244" },
+    tail: { len: 0.13, w: 0.07 },
     pattern: (p, n, part) =>
       part === "body" && n.z > 0.2 && Math.sin(p.y * 160) > 0.6
         ? { color: "#6e604e", mix: 0.5 }

@@ -59,8 +59,8 @@ test("live patches are deltas that rebuild the full view", async () => {
     const eventBytes = JSON.stringify(patch.events).length;
     assert.ok(eventBytes < 4_000, `patch ${index} events ${eventBytes}B`);
     // Field-level creature deltas: ~6 KB per tick for 28 pets (was ~45 KB);
-    // the 35-species world starts with 70 pets, so the bound scales by 2.5.
-    assert.ok(bytes < 50_000, `patch ${index} ${bytes}B`);
+    // the 42-species world starts with 84 pets, so the bound scales by 3.
+    assert.ok(bytes < 60_000, `patch ${index} ${bytes}B`);
   }
   assert.ok(
     patches.some((p) => p.territories.length === 0),

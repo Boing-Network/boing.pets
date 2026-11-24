@@ -17,6 +17,7 @@ const FLIERS = new Set([
   "hush-owl",
   "acorn-jay",
   "gale-chough",
+  "tarn-eagle",
 ]);
 
 test("every species has its own procedural body with head, legs and coat attributes", () => {

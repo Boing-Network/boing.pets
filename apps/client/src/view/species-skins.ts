@@ -354,6 +354,69 @@ const SKIN_PALETTES: Record<CreatureSkinId, PaletteBody> = {
     emissiveIntensity: 0.4,
     locomotion: "fly",
   },
+  "candle-hedgehog": {
+    primary: "#6B5A44",
+    secondary: "#CDB594",
+    accent: "#2A2118",
+    emissive: "#F2D27A",
+    // Candle-gold tips on every spine.
+    emissiveIntensity: 0.5,
+    locomotion: "walk",
+  },
+  "veil-marten": {
+    primary: "#4A3A30",
+    secondary: "#6A5648",
+    accent: "#1A1410",
+    emissive: "#C8B8FF",
+    // Silver-lavender veil over the cream bib.
+    emissiveIntensity: 0.45,
+    locomotion: "trot",
+  },
+  "tarn-eagle": {
+    primary: "#5A4636",
+    secondary: "#8A735A",
+    accent: "#241C16",
+    emissive: "#9EC8FF",
+    // Storm-blue light along the wing tips, sunlit golden nape.
+    emissiveIntensity: 0.5,
+    locomotion: "fly",
+  },
+  "halo-loris": {
+    primary: "#8A7458",
+    secondary: "#C8B896",
+    accent: "#3A2A1C",
+    emissive: "#FFE9A0",
+    // A warm halo around the huge eyes.
+    emissiveIntensity: 0.5,
+    locomotion: "walk",
+  },
+  "wisp-otter": {
+    primary: "#5A4636",
+    secondary: "#C8B89A",
+    accent: "#2A1F18",
+    emissive: "#8FF0E0",
+    // Bioluminescent water clinging to the fur.
+    emissiveIntensity: 0.5,
+    locomotion: "trot",
+  },
+  "saddle-tapir": {
+    primary: "#2A2A2C",
+    secondary: "#CFD2CC",
+    accent: "#141416",
+    emissive: "#D8F0E8",
+    // A faintly moonlit pale saddle.
+    emissiveIntensity: 0.4,
+    locomotion: "walk",
+  },
+  "aurora-yak": {
+    primary: "#3A322A",
+    secondary: "#2E2822",
+    accent: "#16120E",
+    emissive: "#7FFFD0",
+    // Aurora green-to-violet along the hair skirt.
+    emissiveIntensity: 0.65,
+    locomotion: "walk",
+  },
 };
 
 export function skinIdForSpecies(speciesId: number): CreatureSkinId {

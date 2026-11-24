@@ -83,8 +83,8 @@ test("load rebuilds discoveries from DISCOVERY events", async () => {
   const store = new MemoryWorldRepository();
   const session = await bootSession(store, SEED);
   const founderDiscoveries = session.snapshot.discoveries.length;
-  // 35 species × 2 founders, one lineage (and one discovery) each.
-  assert.equal(founderDiscoveries, 70);
+  // 42 species × 2 founders, one lineage (and one discovery) each.
+  assert.equal(founderDiscoveries, 84);
 
   const reloaded = await bootSession(store, SEED);
   assert.equal(reloaded.snapshot.discoveries.length, founderDiscoveries);

@@ -60,6 +60,49 @@ const PLAN_VOICES: Record<SpeciesBodyPlan, VoiceSpec> = {
       0.17,
     ),
   ),
+  // Snuffles, then a small huff.
+  hedgehog: voice(
+    ...repeat(
+      { wave: "noise", from: 1400, to: 1400, dur: 0.06, gain: 0.5 },
+      3,
+      0.11,
+    ),
+    {
+      wave: "triangle",
+      from: 620,
+      to: 480,
+      at: 0.38,
+      dur: 0.09,
+      gain: 0.45,
+    },
+  ),
+  // Rising whistle, twice.
+  primate: voice(
+    ...repeat(
+      {
+        wave: "sine",
+        from: 1100,
+        to: 1750,
+        dur: 0.16,
+        gain: 0.55,
+        vibHz: 9,
+        vibCents: 20,
+      },
+      2,
+      0.24,
+    ),
+  ),
+  // High, thin whistle that slides up.
+  tapirid: voice({
+    wave: "triangle",
+    from: 900,
+    to: 1500,
+    dur: 0.4,
+    gain: 0.55,
+    lowpass: 2600,
+    vibHz: 6,
+    vibCents: 15,
+  }),
   // Low bellow.
   cervid: voice({
     wave: "sawtooth",

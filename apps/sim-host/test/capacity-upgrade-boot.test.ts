@@ -1,6 +1,6 @@
 /**
  * Live-world upgrade at host boot: raise stored capacities to the catalog,
- * then introduce the 14 new species (28 founders) in the same commit,
+ * then introduce the 21 new species (42 founders) in the same commit,
  * without touching existing creatures.
  */
 import assert from "node:assert/strict";
@@ -62,7 +62,7 @@ async function liveLikeStore(): Promise<MemoryWorldRepository> {
   return store;
 }
 
-test("boot raises capacities then introduces 14 species, committed at once", async () => {
+test("boot raises capacities then introduces 21 species, committed at once", async () => {
   const store = await liveLikeStore();
   const before = await store.readTables();
   assert.ok(before);
@@ -92,7 +92,7 @@ test("boot raises capacities then introduces 14 species, committed at once", asy
     session.introduced.species,
     added.map((row) => row.slug),
   );
-  assert.equal(session.introduced.founders, 28);
+  assert.equal(session.introduced.founders, 42);
   assert.deepEqual(session.introduced.dietUpdates, []);
 
   const storedRaw = await store.readTables();
@@ -100,10 +100,10 @@ test("boot raises capacities then introduces 14 species, committed at once", asy
   const stored: DurableTables = storedRaw;
   assert.equal(stored.world.lastTick, before.world.lastTick);
   assert.equal(stored.species.length, SPECIES_CATALOG.length);
-  assert.equal(stored.creatures.length, 70);
+  assert.equal(stored.creatures.length, 84);
   assert.equal(
     stored.territories.reduce((sum, row) => sum + row.capacity, 0),
-    338,
+    420,
   );
   for (const row of TERRITORY_CATALOG) {
     const territory = stored.territories.find((t) => t.slug === row.slug)!;
@@ -146,7 +146,7 @@ test("boot raises capacities then introduces 14 species, committed at once", asy
       event.actorId != null &&
       !priorIds.has(event.actorId),
   );
-  assert.equal(births.length, 28);
+  assert.equal(births.length, 42);
 
   const reboot = await bootSession(store, 1);
   assert.equal(reboot.capacityUpgrade, null);
@@ -165,6 +165,6 @@ test("upgraded world keeps stepping and a second boot is a no-op", async () => {
   assert.equal(canonicalHash(reboot.snapshot), canonicalHash(session.snapshot));
   assert.equal(
     reboot.snapshot.territories.reduce((sum, row) => sum + row.capacity, 0),
-    338,
+    420,
   );
 });
