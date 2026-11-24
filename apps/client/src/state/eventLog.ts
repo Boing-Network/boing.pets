@@ -31,6 +31,14 @@ export const EMPTY_EVENT_LOG: EventLog = {
   liveCount: 0,
 };
 
+/** Item rows kept for the inspector's activity lines. */
+export const ITEM_LOG_LIMIT = 200;
+
+/** Per-creature item activity: finds, crafts, gifts, meals. */
+export function isItemEvent(event: WorldEventView): boolean {
+  return event.kind === EventKind.ITEM;
+}
+
 /** World-level happenings. ITEM rows are per-creature activity, not news. */
 export function isNewsEvent(event: WorldEventView): boolean {
   return event.kind !== EventKind.ITEM;
@@ -47,12 +55,13 @@ export function recordEvents(
   events: readonly WorldEventView[],
   live: boolean,
   limit: number = EVENT_LOG_LIMIT,
+  accept: (event: WorldEventView) => boolean = isNewsEvent,
 ): EventLog {
   const base = log.worldId === worldId ? log : { ...EMPTY_EVENT_LOG, worldId };
   const known = new Set(base.entries.map((event) => event.id));
   const added: WorldEventView[] = [];
   for (const event of events) {
-    if (!isNewsEvent(event) || known.has(event.id)) continue;
+    if (!accept(event) || known.has(event.id)) continue;
     known.add(event.id);
     added.push(event);
   }

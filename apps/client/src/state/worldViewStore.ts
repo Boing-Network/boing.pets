@@ -17,6 +17,8 @@ import { applyWorldPatch } from "@boing-pets/contract";
 import {
   capEvents,
   EMPTY_EVENT_LOG,
+  ITEM_LOG_LIMIT,
+  isItemEvent,
   recordEvents,
   type EventLog,
 } from "./eventLog";
@@ -49,6 +51,12 @@ type WorldViewState = {
    * which a full snapshot resets.
    */
   eventLog: EventLog;
+  /**
+   * Recent item activity (finds, crafts, gifts) for the inspector. A host
+   * that sends snapshots instead of patches shows each event for one tick
+   * only, so the inspector cannot rely on `view.events` either.
+   */
+  itemLog: EventLog;
   connection: ConnectionStatus;
   /** Shared-world session; null for local play (where you own the world). */
   session: SessionInfo | null;
@@ -65,6 +73,7 @@ export const useWorldViewStore = create<WorldViewState>((set, get) => ({
   clockReceivedAtMs: 0,
   lastCatchup: null,
   eventLog: EMPTY_EVENT_LOG,
+  itemLog: EMPTY_EVENT_LOG,
   connection: "local",
   session: null,
   lastNotice: null,
@@ -77,6 +86,14 @@ export const useWorldViewStore = create<WorldViewState>((set, get) => ({
     set({
       view,
       eventLog: recordEvents(get().eventLog, view.world.id, view.events, live),
+      itemLog: recordEvents(
+        get().itemLog,
+        view.world.id,
+        view.events,
+        live,
+        ITEM_LOG_LIMIT,
+        isItemEvent,
+      ),
     });
   },
 
@@ -93,6 +110,14 @@ export const useWorldViewStore = create<WorldViewState>((set, get) => ({
         current.world.id,
         patch.events,
         true,
+      ),
+      itemLog: recordEvents(
+        get().itemLog,
+        current.world.id,
+        patch.events,
+        true,
+        ITEM_LOG_LIMIT,
+        isItemEvent,
       ),
     });
   },

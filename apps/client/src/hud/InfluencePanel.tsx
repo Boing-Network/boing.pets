@@ -247,7 +247,18 @@ export function InfluencePanel({ ipc }: Props) {
           territory={
             territories.find((row) => row.id === effectiveTerritoryId) ?? null
           }
-          lineageId={creature?.family.lineageId ?? null}
+          creature={
+            creature == null
+              ? null
+              : {
+                  id: creature.id,
+                  name: creature.name,
+                  lineageId: creature.family.lineageId,
+                }
+          }
+          territoryNames={Object.fromEntries(
+            territories.map((row) => [row.slug, row.name]),
+          )}
         />
       </div>
     </aside>

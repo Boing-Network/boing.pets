@@ -289,6 +289,103 @@
   margin: 0;
 }
 
+/* Workshop: materials, things ready to use, the recipe book. */
+.workshop-materials {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+}
+
+.workshop-material {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--line);
+  font-size: 0.74rem;
+  color: var(--ink);
+}
+
+.workshop-material.is-none {
+  color: var(--ink-muted);
+  opacity: 0.7;
+}
+
+.workshop-count {
+  min-width: 1.1em;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--glow);
+}
+
+.workshop-material.is-none .workshop-count {
+  color: inherit;
+  font-weight: 400;
+}
+
+.workshop-heading {
+  margin: 0.3rem 0 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.workshop-group > summary {
+  cursor: pointer;
+  font-size: 0.78rem;
+  padding: 0.15rem 0;
+}
+
+.workshop-recipes {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.workshop-recipe {
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--line);
+  font-size: 0.76rem;
+}
+
+.workshop-recipe.is-ready {
+  border-color: color-mix(in srgb, var(--glow) 55%, var(--line));
+  background: color-mix(in srgb, var(--glow) 7%, transparent);
+}
+
+.workshop-recipe-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.workshop-effect,
+.workshop-needs {
+  margin: 0.2rem 0 0;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--ink-muted);
+}
+
+.workshop-needs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.6rem;
+}
+
+.workshop-needs .is-met {
+  color: var(--glow);
+}
+
 /* Influence feedback and first-visit tip. */
 .influence-reason,
 .influence-target,

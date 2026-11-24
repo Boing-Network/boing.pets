@@ -111,7 +111,8 @@ export function InspectionPanel({ ipc }: Props) {
   const creature =
     view?.creatures.find((row) => row.id === selectedCreatureId) ?? null;
 
-  // Item activity: durable history (query.events) plus live patch events.
+  // Item activity: durable history (query.events) plus live events.
+  const itemLog = useWorldViewStore((s) => s.itemLog.entries);
   const [history, setHistory] = useState<WorldEventView[]>([]);
   const worldId = view?.world.id ?? null;
   const lastTick = view?.world.lastTick ?? 0;
@@ -149,9 +150,10 @@ export function InspectionPanel({ ipc }: Props) {
     if (selectedCreatureId == null) return [];
     const byId = new Map<number, WorldEventView>();
     for (const event of history) byId.set(event.id, event);
+    for (const event of itemLog) byId.set(event.id, event);
     for (const event of view?.events ?? []) byId.set(event.id, event);
     return creatureActivity(byId.values(), selectedCreatureId);
-  }, [history, view?.events, selectedCreatureId]);
+  }, [history, itemLog, view?.events, selectedCreatureId]);
 
   useEffect(() => {
     if (selectedCreatureId == null) {
