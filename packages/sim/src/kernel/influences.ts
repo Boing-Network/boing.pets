@@ -47,7 +47,10 @@ function applyNameCreature(
 ): void {
   const payload = influence.payload as NameCreaturePayload;
   const creature = indexById(snapshot.creatures).get(payload.creatureId);
-  if (!creature) throw new Error(`influence creature ${payload.creatureId}`);
+  // The host only queues renames for living creatures, but the target can
+  // die and leave the snapshot before this tick. Throwing here would stop
+  // every later tick (the influence stays pending), so it lapses instead.
+  if (!creature) return;
   creature.name = payload.name;
   creature.nameGivenByPlayer = true;
 }
@@ -58,7 +61,7 @@ function applyNameLineage(
 ): void {
   const payload = influence.payload as NameLineagePayload;
   const lineage = indexById(snapshot.lineages).get(payload.lineageId);
-  if (!lineage) throw new Error(`influence lineage ${payload.lineageId}`);
+  if (!lineage) return;
   lineage.name = payload.name;
 }
 
@@ -68,7 +71,7 @@ function addFavor(
   amount: number,
 ): void {
   const lineage = indexById(snapshot.lineages).get(lineageId);
-  if (!lineage) throw new Error(`influence lineage ${lineageId}`);
+  if (!lineage) return;
   lineage.playerFavor = assertInteger(
     clamp(lineage.playerFavor + amount, 0, 1000),
     "playerFavor",
@@ -92,9 +95,7 @@ function appendModifier(
   tick: number,
   durationTicks: number = modifierDurationTicks(snapshot),
 ): void {
-  if (!indexById(snapshot.territories).has(territoryId)) {
-    throw new Error(`influence territory ${territoryId}`);
-  }
+  if (!indexById(snapshot.territories).has(territoryId)) return;
   const id = snapshot.world.nextModifierId;
   snapshot.world.nextModifierId = id + 1;
   const row: TerritoryModifierRow = {
@@ -154,7 +155,7 @@ function applyGatherResource(
 ): void {
   const payload = influence.payload as GatherResourcePayload;
   const stock = resourceStock(snapshot, payload.territoryId, tick, 0);
-  if (!stock) throw new Error(`gather territory ${payload.territoryId}`);
+  if (!stock) return;
   const units = Math.min(Math.max(0, payload.units), stock.free);
   if (units <= 0) return;
   const spec = harvestModifierSpec(snapshot, units);
@@ -296,6 +297,8 @@ export function decayLineageFavor(
 
 /**
  * Apply pending influences with `issuedAtTick == tick`, ascending id.
+ * An influence whose target no longer exists lapses (it is marked applied and
+ * changes nothing): a queued row must never be able to stop the world.
  * Enrich/calm append modifiers; they never write territory base abundance/danger.
  * Favor only touches lineage.playerFavor — never health, genes, or needs;
  * its effect is the forage bonus in `resolveForage` (see favorForageBonus).

@@ -32,10 +32,10 @@ export type InfluenceSubmitOk = {
   issuedAtTick: number;
 };
 
-export type InfluenceSubmitRejected = {
-  ok: false;
-  reason: "rate_limit" | "catching_up";
-};
+export type InfluenceSubmitRejected =
+  | { ok: false; reason: "rate_limit" | "catching_up" }
+  /** The request itself is wrong (unknown or dead target, empty name). */
+  | { ok: false; reason: "invalid"; detail: string };
 
 export type InfluenceSubmitResult = InfluenceSubmitOk | InfluenceSubmitRejected;
 
@@ -71,75 +71,67 @@ export function canAcceptInfluence(
   return recent.length < INFLUENCE_RATE_LIMIT;
 }
 
-function assertValidSubmit(
+/**
+ * Why a submit cannot be queued, or null when it can. A bad request is the
+ * sender's problem, never a save failure: it must not throw into the commit
+ * error path (which pauses influences for everyone).
+ */
+export function invalidSubmitReason(
   session: HostSession,
   submit: InfluenceSubmit,
-): void {
+): string | null {
+  const hasName = (name: unknown) => typeof name === "string" && name !== "";
   switch (submit.kind) {
     case InfluenceKind.NAME_CREATURE: {
       const creature = session.snapshot.creatures.find(
         (row) => row.id === submit.payload.creatureId,
       );
-      if (!creature) throw new Error("creature");
-      if (
-        typeof submit.payload.name !== "string" ||
-        submit.payload.name === ""
-      ) {
-        throw new Error("name");
+      // A dead creature leaves the hot snapshot at the next commit; a rename
+      // queued for it would have no target when the kernel applies it.
+      if (!creature || creature.status !== CreatureStatus.ALIVE) {
+        return "that creature is no longer alive";
       }
-      break;
+      return hasName(submit.payload.name) ? null : "a name is required";
     }
     case InfluenceKind.NAME_LINEAGE: {
       const lineage = session.snapshot.lineages.find(
         (row) => row.id === submit.payload.lineageId,
       );
-      if (!lineage) throw new Error("lineage");
-      if (
-        typeof submit.payload.name !== "string" ||
-        submit.payload.name === ""
-      ) {
-        throw new Error("name");
-      }
-      break;
+      if (!lineage) return "unknown lineage";
+      return hasName(submit.payload.name) ? null : "a name is required";
     }
     case InfluenceKind.FAVOR_BLOODLINE: {
       const lineage = session.snapshot.lineages.find(
         (row) => row.id === submit.payload.lineageId,
       );
-      if (!lineage) throw new Error("lineage");
-      break;
+      return lineage ? null : "unknown lineage";
     }
     case InfluenceKind.ENRICH_TERRITORY:
     case InfluenceKind.CALM_TERRITORY: {
       const territory = session.snapshot.territories.find(
         (row) => row.id === submit.payload.territoryId,
       );
-      if (!territory) throw new Error("territory");
-      break;
+      return territory ? null : "unknown territory";
     }
     case InfluenceKind.GATHER_RESOURCE: {
       // Units are granted by the item service (items/service.ts) before this.
       const territory = session.snapshot.territories.find(
         (row) => row.id === submit.payload.territoryId,
       );
-      if (!territory) throw new Error("territory");
-      if (
-        !Number.isSafeInteger(submit.payload.units) ||
-        submit.payload.units < 1
-      ) {
-        throw new Error("units");
-      }
-      break;
+      if (!territory) return "unknown territory";
+      return Number.isSafeInteger(submit.payload.units) &&
+        submit.payload.units >= 1
+        ? null
+        : "nothing to gather";
     }
     case InfluenceKind.USE_ITEM: {
       // Ownership and balance are checked by the item service; here only shape.
       const def = itemDef(submit.payload.item);
-      if (!def || !def.effect) throw new Error("item");
-      break;
+      return def && def.effect ? null : "that item cannot be used";
     }
     default: {
       const never: never = submit;
-      throw new Error(`kind ${String(never)}`);
+      return `unknown influence ${String((never as { kind?: unknown }).kind)}`;
     }
   }
 }
@@ -155,7 +147,8 @@ export type SubmitInfluenceOptions = {
 /**
  * Queue one influence for `lastTick + 1` if the rate limit allows.
  * Persists the row and the accept-time log in their own commit between ticks.
- * Rejects while catch-up is running (`session.catchingUp`).
+ * Rejects while catch-up is running (`session.catchingUp`) and when the
+ * request names a target that does not exist; throws only when the save fails.
  *
  * Rate limiting is per gate. Multiplayer passes a per-account gate; local
  * single-player keeps one shared gate (the `"local"` account).
@@ -170,7 +163,8 @@ export async function submitInfluence(
   if (session.catchingUp) {
     return { ok: false, reason: "catching_up" };
   }
-  assertValidSubmit(session, submit);
+  const invalid = invalidSubmitReason(session, submit);
+  if (invalid != null) return { ok: false, reason: "invalid", detail: invalid };
   pruneInfluenceGate(gate, nowMs);
   if (gate.acceptedAtMs.length >= INFLUENCE_RATE_LIMIT) {
     return { ok: false, reason: "rate_limit" };
