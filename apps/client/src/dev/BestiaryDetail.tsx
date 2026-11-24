@@ -2,6 +2,7 @@ import {
   speciesKeyForSlug,
   type SpeciesCatalogRow,
 } from "@boing-pets/contract";
+import { previewSpeciesVoice } from "../audio/bind";
 import { SiteNav } from "../hud/SiteNav";
 import { bodyPlanName } from "../site/species-labels";
 import {
@@ -95,6 +96,13 @@ export function BestiaryDetail({ row, pose, live, onBack }: Props) {
             {DIET_LABEL[row.diet]} · {GAIT_NAME[row.gait]} ·{" "}
             {territoryName(row.home)}
           </p>
+          <button
+            type="button"
+            className="call-btn"
+            onClick={() => previewSpeciesVoice(row.id)}
+          >
+            Hear its call
+          </button>
           {live ? (
             <p className="live-line">
               {live.living} living in the world
