@@ -86,14 +86,20 @@ function influence(body: unknown): InfluenceSubmit | null {
       if (typeof p.item !== "string" || !isItemSlug(p.item)) return null;
       const territoryId = p.territoryId == null ? undefined : id(p.territoryId);
       const lineageId = p.lineageId == null ? undefined : id(p.lineageId);
-      if (territoryId === null || lineageId === null) return null;
-      if (territoryId == null && lineageId == null) return null;
+      const creatureId = p.creatureId == null ? undefined : id(p.creatureId);
+      if (territoryId === null || lineageId === null || creatureId === null) {
+        return null;
+      }
+      if (territoryId == null && lineageId == null && creatureId == null) {
+        return null;
+      }
       return {
         kind: body.kind,
         payload: {
           item: p.item,
           ...(territoryId != null ? { territoryId } : {}),
           ...(lineageId != null ? { lineageId } : {}),
+          ...(creatureId != null ? { creatureId } : {}),
         },
       };
     }

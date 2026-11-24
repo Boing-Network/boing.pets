@@ -12,6 +12,7 @@ import {
   GATHER_RULES,
   InfluenceKind,
   ItemSlug,
+  resourceForTerritory,
   LOOT_RULES,
   ModifierKind,
   type InfluenceRecord,
@@ -116,8 +117,8 @@ test("lootCheck: no resource, reserve, daily cap and seeded roll", () => {
   });
   // Same inputs, same answer.
   assert.deepEqual(lootCheck(snapshot, creature, tick, "meadow"), ok);
-  // Nothing grows in the Thicket.
-  assert.deepEqual(lootCheck(snapshot, creature, tick, "thicket"), {
+  // A territory with no resource of its own (none today; a future one).
+  assert.deepEqual(lootCheck(snapshot, creature, tick, "barrens"), {
     ok: false,
     reason: "no_resource",
   });
@@ -206,9 +207,10 @@ test("creatures loot on their own, within the stock, reserve and daily cap", () 
     }
   }
   // World supply ceiling: perTerritoryPerDay per resource territory per day.
-  const resourceTerritories = snapshot.territories.filter((t) =>
-    ["meadow", "fen", "ridge", "crags", "glade"].includes(t.slug),
+  const resourceTerritories = snapshot.territories.filter(
+    (t) => resourceForTerritory(t.slug) != null,
   ).length;
+  assert.equal(resourceTerritories, snapshot.territories.length);
   assert.ok(
     loots.length <= days * resourceTerritories * LOOT_RULES.perTerritoryPerDay,
   );

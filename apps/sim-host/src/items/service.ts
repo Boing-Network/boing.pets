@@ -21,6 +21,7 @@
  */
 import {
   AUTONOMY_RULES,
+  CreatureStatus,
   DEFAULT_ITEM_AUTONOMY,
   GATHER_RULES,
   InfluenceKind,
@@ -484,7 +485,7 @@ export function createItemService(options: {
         };
       }
 
-      const { item, territoryId, lineageId } = submit.payload;
+      const { item, territoryId, lineageId, creatureId } = submit.payload;
       const def = itemDef(item);
       if (def == null || def.effect == null) {
         return { ok: false, detail: "that item cannot be used" };
@@ -492,6 +493,13 @@ export function createItemService(options: {
       if (def.target === "TERRITORY") {
         if (!snapshot.territories.some((row) => row.id === territoryId)) {
           return { ok: false, detail: "choose a territory" };
+        }
+      } else if (def.target === "CREATURE") {
+        const creature = snapshot.creatures.find(
+          (row) => row.id === creatureId,
+        );
+        if (creature == null || creature.status !== CreatureStatus.ALIVE) {
+          return { ok: false, detail: "choose a living creature" };
         }
       } else if (!snapshot.lineages.some((row) => row.id === lineageId)) {
         return { ok: false, detail: "choose a lineage" };
@@ -501,7 +509,9 @@ export function createItemService(options: {
         payload:
           def.target === "TERRITORY"
             ? { item: def.slug, territoryId }
-            : { item: def.slug, lineageId },
+            : def.target === "CREATURE"
+              ? { item: def.slug, creatureId }
+              : { item: def.slug, lineageId },
       };
 
       if (def.category === ItemCategory.RELIC) {

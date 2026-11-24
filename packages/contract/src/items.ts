@@ -1,6 +1,7 @@
 /**
- * Item slice 1 (M22): gathered resources, crafted tools, consumable rewards
- * and lineage relics. This catalog is code, not ruleset: it is NOT frozen onto
+ * Items: gathered resources, crafted tools, potions, tonics and lineage
+ * relics. Creatures find the resources while they forage (the idle half);
+ * the player turns them into things at the workshop (the hands-on half). This catalog is code, not ruleset: it is NOT frozen onto
  * a world, so existing worlds pick it up without a ruleset migration.
  *
  * Ownership is off-chain (host inventory) except relics (LPAR unique NFTs) and
@@ -13,6 +14,8 @@ export const ItemCategory = {
   RESOURCE: "RESOURCE",
   TOOL: "TOOL",
   CONSUMABLE: "CONSUMABLE",
+  /** Tonics: a small, lasting change to one creature. */
+  ENHANCEMENT: "ENHANCEMENT",
   RELIC: "RELIC",
 } as const;
 export type ItemCategory = (typeof ItemCategory)[keyof typeof ItemCategory];
@@ -22,24 +25,56 @@ export const ItemSlug = {
   GLOWMOSS: "resource.glowmoss",
   CRYSTAL_SHARD: "resource.crystal-shard",
   MOONPETAL: "resource.moonpetal",
+  THORNBERRY: "resource.thornberry",
+  AMBER_RESIN: "resource.amber-resin",
   SEED_BUNDLE: "tool.seed-bundle",
   SALT_LICK: "tool.salt-lick",
   /** Existing LPIT reward ids 1..3 (apps/sim-host/src/boing/taxonomy.ts). */
   POTION_VITALITY: "potion.vitality",
   POTION_CALM: "potion.calm",
   RATIONS: "item.rations",
+  POTION_MENDING: "potion.mending",
+  HEARTY_STEW: "item.hearty-stew",
+  DREAM_DRAUGHT: "potion.dream-draught",
+  TONIC_SWIFT: "tonic.swift",
+  TONIC_MIGHT: "tonic.might",
+  TONIC_INSIGHT: "tonic.insight",
   RELIC_KEEPSAKE: "relic.keepsake",
   RELIC_FIRST_CHILD: "relic.first-child",
   RELIC_REMEMBRANCE: "relic.remembrance",
 } as const;
 export type ItemSlug = (typeof ItemSlug)[keyof typeof ItemSlug];
 
+/** Needs (and health) an item can ease on one creature, 0..1000 scale. */
+export type CreatureRelief = {
+  hunger?: number;
+  thirst?: number;
+  fatigue?: number;
+  discomfort?: number;
+  unsafety?: number;
+  loneliness?: number;
+  health?: number;
+};
+
+/** Genes a tonic can raise. */
+export type TonicGene = "strength" | "speed" | "intelligence";
+
 /** What USE_ITEM does in the kernel. */
 export type ItemEffect =
   | { kind: "FOOD"; amount: number; days: number }
   | { kind: "DANGER"; amount: number; days: number }
   | { kind: "COMFORT"; amount: number; days: number }
-  | { kind: "FAVOR"; amount: number };
+  | { kind: "FAVOR"; amount: number }
+  /** Given to one creature: eases its needs at once. */
+  | { kind: "RELIEF"; relief: CreatureRelief }
+  /** Given to one creature: raises a gene for good (its young inherit it). */
+  | { kind: "GENE"; gene: TonicGene; amount: number };
+
+/**
+ * A tonic never lifts a gene past this (natural genes run to 1000), so the
+ * very best creatures are still bred, not brewed.
+ */
+export const TONIC_GENE_CEILING = 900;
 
 export type ItemDef = {
   slug: ItemSlug;
@@ -50,7 +85,7 @@ export type ItemDef = {
   /** null: not usable (raw resources are only crafted). */
   effect: ItemEffect | null;
   /** Target the effect needs. */
-  target: "TERRITORY" | "LINEAGE" | null;
+  target: "TERRITORY" | "LINEAGE" | "CREATURE" | null;
   /** Host cooldown between uses of this item per account (relics), in days. */
   useCooldownDays: number | null;
   description: string;
@@ -96,6 +131,26 @@ export const ITEM_CATALOG: readonly ItemDef[] = [
     target: null,
     useCooldownDays: null,
     description: "A pale petal that only opens in the Moonlit Glade.",
+  },
+  {
+    slug: ItemSlug.THORNBERRY,
+    displayName: "Thornberry",
+    category: ItemCategory.RESOURCE,
+    spoilDays: 4,
+    effect: null,
+    target: null,
+    useCooldownDays: null,
+    description: "Tart berries from deep in the Thicket.",
+  },
+  {
+    slug: ItemSlug.AMBER_RESIN,
+    displayName: "Amber resin",
+    category: ItemCategory.RESOURCE,
+    spoilDays: 7,
+    effect: null,
+    target: null,
+    useCooldownDays: null,
+    description: "Slow golden resin from the oldest trees of the Elder Grove.",
   },
   {
     slug: ItemSlug.SEED_BUNDLE,
@@ -147,6 +202,72 @@ export const ITEM_CATALOG: readonly ItemDef[] = [
     target: "LINEAGE",
     useCooldownDays: null,
     description: "A small Favor: lineage favor +50.",
+  },
+  {
+    slug: ItemSlug.POTION_MENDING,
+    displayName: "Mending Potion",
+    category: ItemCategory.CONSUMABLE,
+    spoilDays: 10,
+    effect: { kind: "RELIEF", relief: { health: 300, discomfort: 150 } },
+    target: "CREATURE",
+    useCooldownDays: null,
+    description: "Give to a creature: health +300 and it rests easier.",
+  },
+  {
+    slug: ItemSlug.HEARTY_STEW,
+    displayName: "Hearty Stew",
+    category: ItemCategory.CONSUMABLE,
+    spoilDays: 4,
+    effect: { kind: "RELIEF", relief: { hunger: 500, thirst: 250 } },
+    target: "CREATURE",
+    useCooldownDays: null,
+    description: "Give to a creature: a full meal and a drink.",
+  },
+  {
+    slug: ItemSlug.DREAM_DRAUGHT,
+    displayName: "Dream Draught",
+    category: ItemCategory.CONSUMABLE,
+    spoilDays: 10,
+    effect: {
+      kind: "RELIEF",
+      relief: { fatigue: 500, unsafety: 250, loneliness: 250 },
+    },
+    target: "CREATURE",
+    useCooldownDays: null,
+    description: "Give to a creature: it feels rested, safe and less alone.",
+  },
+  {
+    slug: ItemSlug.TONIC_SWIFT,
+    displayName: "Swiftness Tonic",
+    category: ItemCategory.ENHANCEMENT,
+    spoilDays: null,
+    effect: { kind: "GENE", gene: "speed", amount: 20 },
+    target: "CREATURE",
+    useCooldownDays: null,
+    description:
+      "Give to a creature: speed +20 for good (up to 900). Its young inherit it.",
+  },
+  {
+    slug: ItemSlug.TONIC_MIGHT,
+    displayName: "Might Tonic",
+    category: ItemCategory.ENHANCEMENT,
+    spoilDays: null,
+    effect: { kind: "GENE", gene: "strength", amount: 20 },
+    target: "CREATURE",
+    useCooldownDays: null,
+    description:
+      "Give to a creature: strength +20 for good (up to 900). Its young inherit it.",
+  },
+  {
+    slug: ItemSlug.TONIC_INSIGHT,
+    displayName: "Insight Tonic",
+    category: ItemCategory.ENHANCEMENT,
+    spoilDays: null,
+    effect: { kind: "GENE", gene: "intelligence", amount: 20 },
+    target: "CREATURE",
+    useCooldownDays: null,
+    description:
+      "Give to a creature: intelligence +20 for good (up to 900). Its young inherit it.",
   },
   {
     slug: ItemSlug.RELIC_KEEPSAKE,
@@ -244,6 +365,8 @@ export const GATHER_SOURCES: readonly {
   { resource: ItemSlug.GLOWMOSS, territorySlugs: ["fen"] },
   { resource: ItemSlug.CRYSTAL_SHARD, territorySlugs: ["ridge", "crags"] },
   { resource: ItemSlug.MOONPETAL, territorySlugs: ["glade"] },
+  { resource: ItemSlug.THORNBERRY, territorySlugs: ["thicket"] },
+  { resource: ItemSlug.AMBER_RESIN, territorySlugs: ["grove"] },
 ];
 
 export function resourceForTerritory(territorySlug: string): ItemSlug | null {
@@ -275,6 +398,12 @@ export type Recipe = {
   inputs: readonly { slug: ItemSlug; count: number }[];
 };
 
+/**
+ * The recipe book. Every territory's resource is needed somewhere, so a
+ * player has a reason to care about creatures all over the map. Tools and
+ * food are cheap; potions need two regions; tonics need crystal from the
+ * high country plus a pair of something else.
+ */
 export const RECIPES: readonly Recipe[] = [
   {
     output: ItemSlug.SEED_BUNDLE,
@@ -290,7 +419,80 @@ export const RECIPES: readonly Recipe[] = [
       { slug: ItemSlug.GLOWMOSS, count: 1 },
     ],
   },
+  {
+    output: ItemSlug.RATIONS,
+    inputs: [
+      { slug: ItemSlug.CLOVER, count: 2 },
+      { slug: ItemSlug.THORNBERRY, count: 2 },
+    ],
+  },
+  {
+    output: ItemSlug.HEARTY_STEW,
+    inputs: [
+      { slug: ItemSlug.CLOVER, count: 2 },
+      { slug: ItemSlug.AMBER_RESIN, count: 1 },
+    ],
+  },
+  {
+    output: ItemSlug.POTION_CALM,
+    inputs: [
+      { slug: ItemSlug.GLOWMOSS, count: 2 },
+      { slug: ItemSlug.MOONPETAL, count: 1 },
+    ],
+  },
+  {
+    output: ItemSlug.POTION_MENDING,
+    inputs: [
+      { slug: ItemSlug.THORNBERRY, count: 2 },
+      { slug: ItemSlug.GLOWMOSS, count: 1 },
+    ],
+  },
+  {
+    output: ItemSlug.DREAM_DRAUGHT,
+    inputs: [
+      { slug: ItemSlug.MOONPETAL, count: 2 },
+      { slug: ItemSlug.AMBER_RESIN, count: 1 },
+    ],
+  },
+  {
+    output: ItemSlug.POTION_VITALITY,
+    inputs: [
+      { slug: ItemSlug.AMBER_RESIN, count: 2 },
+      { slug: ItemSlug.MOONPETAL, count: 1 },
+      { slug: ItemSlug.THORNBERRY, count: 1 },
+    ],
+  },
+  {
+    output: ItemSlug.TONIC_SWIFT,
+    inputs: [
+      { slug: ItemSlug.CRYSTAL_SHARD, count: 2 },
+      { slug: ItemSlug.MOONPETAL, count: 2 },
+    ],
+  },
+  {
+    output: ItemSlug.TONIC_MIGHT,
+    inputs: [
+      { slug: ItemSlug.CRYSTAL_SHARD, count: 2 },
+      { slug: ItemSlug.AMBER_RESIN, count: 2 },
+    ],
+  },
+  {
+    output: ItemSlug.TONIC_INSIGHT,
+    inputs: [
+      { slug: ItemSlug.CRYSTAL_SHARD, count: 2 },
+      { slug: ItemSlug.GLOWMOSS, count: 2 },
+    ],
+  },
 ];
+
+/**
+ * Recipes a creature may craft on its own (when its keeper allows it): only
+ * things creatures can use themselves. Potions for another creature and
+ * tonics are the player's craft.
+ */
+export function creatureCraftable(output: string): boolean {
+  return CREATURE_USE_RULES.some((rule) => rule.item === output);
+}
 
 export function recipeFor(output: string): Recipe | undefined {
   return RECIPES.find((recipe) => recipe.output === output);
@@ -307,6 +509,8 @@ export type UseItemPayload = {
   item: ItemSlug;
   territoryId?: number;
   lineageId?: number;
+  /** For items given to one creature (potions, tonics). */
+  creatureId?: number;
 };
 
 /** One stack of an off-chain item in a player's inventory. */
@@ -428,8 +632,13 @@ export type ItemAutonomySettings = {
   autoUse: boolean;
 };
 
+/**
+ * Crafting is the player's part of the game, so creatures leave the
+ * workbench alone unless their keeper turns this on. They still help
+ * themselves to food and potions from the bag when they need them.
+ */
 export const DEFAULT_ITEM_AUTONOMY: ItemAutonomySettings = {
-  autoCraft: true,
+  autoCraft: false,
   autoUse: true,
 };
 
