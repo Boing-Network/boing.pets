@@ -70,10 +70,13 @@ export const useWorldViewStore = create<WorldViewState>((set, get) => ({
   lastNotice: null,
 
   setSnapshot(view) {
-    // Whatever a snapshot carries already happened: logged, but not "new".
+    // The first snapshot of a world is history: logged, but not "new". A
+    // later one is a keyframe standing in for a patch, and the host puts
+    // that tick's events in it, so those are news like any patch's.
+    const live = get().view?.world.id === view.world.id;
     set({
       view,
-      eventLog: recordEvents(get().eventLog, view.world.id, view.events, false),
+      eventLog: recordEvents(get().eventLog, view.world.id, view.events, live),
     });
   },
 
