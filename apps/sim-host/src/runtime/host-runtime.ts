@@ -29,6 +29,10 @@ import {
   type HostClock,
 } from "../clock";
 import {
+  daysUntilAccept,
+  invalidSubmitReason,
+  renameDeniedReason,
+  renameGateKey,
   submitInfluence,
   submitSystemInfluences,
   type InfluenceGate,
@@ -531,10 +535,6 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
             const accountId = resolveAccountId(
               context.accountId ?? LOCAL_ACCOUNT_ID,
             );
-            const gate: InfluenceGate = gateForAccount(
-              requireBook(),
-              accountId,
-            );
             const prepared = await items.prepare(
               active,
               accountId,
@@ -549,6 +549,26 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
               };
             }
             const submit = prepared.submit;
+            // Renames: owners only, and once a month per creature or lineage.
+            const renameKey = renameGateKey(submit);
+            if (
+              renameKey != null &&
+              invalidSubmitReason(active, submit) == null
+            ) {
+              const denied = renameDeniedReason(
+                active,
+                submit,
+                accountId,
+                await creatureOwners(),
+              );
+              if (denied != null) {
+                return { ok: false, code: "not_owner", detail: denied };
+              }
+            }
+            const gate: InfluenceGate = gateForAccount(
+              requireBook(),
+              renameKey ?? accountId,
+            );
             let result: Awaited<ReturnType<typeof submitInfluence>>;
             try {
               result = await submitInfluence(active, gate, submit, nowMs(), {
@@ -573,7 +593,10 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
                 return {
                   ok: false,
                   code: "rate_limited",
-                  detail: "influence limit reached for this account",
+                  detail:
+                    renameKey == null
+                      ? "influence limit reached for this account"
+                      : `a name can change once a month; try again in ${daysText(daysUntilAccept(gate, nowMs()))}`,
                 };
               }
               return {
@@ -776,4 +799,8 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
   };
 
   return runtime;
+}
+
+function daysText(days: number): string {
+  return days === 1 ? "1 day" : `${days} days`;
 }

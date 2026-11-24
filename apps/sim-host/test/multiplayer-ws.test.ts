@@ -41,11 +41,14 @@ async function waitFor(predicate: () => boolean, timeoutMs = 3_000) {
 }
 
 async function startServer(options: { nowMs?: () => number } = {}) {
+  /** Account that owns every creature (null: nobody does). */
+  const owner: { accountId: string | null } = { accountId: null };
   const host = createSharedWorldHost({
     repository: new MemoryWorldRepository(),
     seed: 1,
     nowMs: options.nowMs ?? (() => 7_000_000),
     autoFrame: false,
+    creatureOwners: async () => () => owner.accountId,
   });
   await host.start();
   const secret = randomBytes(32);
@@ -56,7 +59,7 @@ async function startServer(options: { nowMs?: () => number } = {}) {
     ownerKey: OWNER_KEY,
     heartbeatMs: 0,
   });
-  return { host, server, secret };
+  return { host, server, secret, owner };
 }
 
 type Client = ReturnType<typeof openClient>;
@@ -227,10 +230,11 @@ test("a reconnect with the session token keeps the same account and role", async
   await stop(ctx, [second, third]);
 });
 
-test("influence limits follow the account across sockets", async () => {
+test("a rename is for the owner, once a month, across sockets", async () => {
   const ctx = await startServer();
   const a1 = openClient(ctx.server.url);
   const wa = await a1.hello({});
+  ctx.owner.accountId = wa.accountId;
   const creature = ctx.host.runtime.session.snapshot.creatures[0]!;
   const enrich = {
     type: "command",
@@ -248,21 +252,27 @@ test("influence limits follow the account across sockets", async () => {
       ctx.host.runtime.session.snapshot.pendingInfluences.length ===
       INFLUENCE_RATE_LIMIT,
   );
-  // Same account on a second socket (e.g. another tab): still limited.
+  // The owner on a second socket (e.g. another tab): already renamed
+  // this month.
   const a2 = openClient(ctx.server.url);
   await a2.hello({ token: wa.token });
   a2.send(enrich);
   await waitFor(() => a2.messages("session.notice").length > 0);
   const n = a2.messages("session.notice")[0]!;
   assert.equal(n.message === "session.notice" && n.body.code, "rate_limited");
-  // A different account is not.
+  // Anyone else cannot rename it at all.
   const b = openClient(ctx.server.url);
   await b.hello({});
   b.send(enrich);
-  await waitFor(
-    () =>
-      ctx.host.runtime.session.snapshot.pendingInfluences.length ===
-      INFLUENCE_RATE_LIMIT + 1,
+  await waitFor(() => b.messages("session.notice").length > 0);
+  const refused = b.messages("session.notice")[0]!;
+  assert.equal(
+    refused.message === "session.notice" && refused.body.code,
+    "not_owner",
+  );
+  assert.equal(
+    ctx.host.runtime.session.snapshot.pendingInfluences.length,
+    INFLUENCE_RATE_LIMIT,
   );
   await stop(ctx, [a1, a2, b]);
 });

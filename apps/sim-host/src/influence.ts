@@ -21,12 +21,12 @@ import type { WorldRepository } from "./persist/repository";
 import type { HostSession } from "./session";
 
 /**
- * Renames accepted per account per wall-clock window. Not a game mechanic any
- * more (the three-a-day nudge budget is gone): it only stops one visitor
- * renaming the whole world. Item actions are not counted: see
+ * Accepts per gate per wall-clock window. A rename is gated per target (one
+ * gate per creature, one per lineage: see `renameGateKey`), so a name can
+ * change once a month. Item actions are not counted: see
  * `countsAgainstLimit`.
  */
-export const INFLUENCE_RATE_LIMIT = 20;
+export const INFLUENCE_RATE_LIMIT = 1;
 
 /**
  * Gathering by hand and using an item are limited by what they consume (a
@@ -39,8 +39,61 @@ export function countsAgainstLimit(kind: InfluenceSubmit["kind"]): boolean {
   );
 }
 
-/** Wall-clock window for the rate limit (24 hours). */
-export const INFLUENCE_RATE_WINDOW_MS = 24 * 60 * 60 * 1000;
+/** Wall-clock window for the rate limit (30 days). */
+export const INFLUENCE_RATE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * The gate a rename is counted on: the thing being renamed, not the account,
+ * so the once-a-month rule follows the creature or lineage (a new owner does
+ * not get a fresh rename by buying it). Null for every other kind.
+ */
+export function renameGateKey(submit: InfluenceSubmit): string | null {
+  if (submit.kind === InfluenceKind.NAME_CREATURE) {
+    return `rename:creature:${submit.payload.creatureId}`;
+  }
+  if (submit.kind === InfluenceKind.NAME_LINEAGE) {
+    return `rename:lineage:${submit.payload.lineageId}`;
+  }
+  return null;
+}
+
+/**
+ * Why `accountId` may not rename this target, or null when it may (and for
+ * every kind that is not a rename). A creature is renamed by its owner; a
+ * lineage by anyone who owns a living creature of it.
+ */
+export function renameDeniedReason(
+  session: HostSession,
+  submit: InfluenceSubmit,
+  accountId: string,
+  ownerOf: (creatureId: number) => string | null,
+): string | null {
+  if (submit.kind === InfluenceKind.NAME_CREATURE) {
+    return ownerOf(submit.payload.creatureId) === accountId
+      ? null
+      : "only this creature's owner can rename it";
+  }
+  if (submit.kind === InfluenceKind.NAME_LINEAGE) {
+    const lineageId = submit.payload.lineageId;
+    const ownsOne = session.snapshot.creatures.some(
+      (row) =>
+        row.lineageId === lineageId &&
+        row.status === CreatureStatus.ALIVE &&
+        ownerOf(row.id) === accountId,
+    );
+    return ownsOne
+      ? null
+      : "only someone who owns a creature of this lineage can rename it";
+  }
+  return null;
+}
+
+/** Whole days until the gate accepts again (at least 1 while it is full). */
+export function daysUntilAccept(gate: InfluenceGate, nowMs: number): number {
+  const oldest = Math.min(...gate.acceptedAtMs);
+  const leftMs = oldest + INFLUENCE_RATE_WINDOW_MS - nowMs;
+  return Math.max(1, Math.ceil(leftMs / (24 * 60 * 60 * 1000)));
+}
 
 export type InfluenceSubmitOk = {
   ok: true;

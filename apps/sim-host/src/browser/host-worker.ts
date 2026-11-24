@@ -99,7 +99,15 @@ workerScope.onmessage = (event) => {
           return;
         case "command":
           if (runtime == null) return;
-          await runtime.handleCommand(data.message);
+          {
+            const outcome = await runtime.handleCommand(data.message);
+            if (!outcome.ok) {
+              emit({
+                message: "session.notice",
+                body: { code: outcome.code, detail: outcome.detail },
+              });
+            }
+          }
           return;
         case "query": {
           if (runtime == null) {

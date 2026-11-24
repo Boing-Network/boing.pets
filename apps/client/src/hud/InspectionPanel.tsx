@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CreatureStatus,
   InfluenceKind,
@@ -205,6 +205,16 @@ export function InspectionPanel({ ipc }: Props) {
     () => setNotice(""),
     [selectedCreatureId, creature?.name, lineageName],
   );
+  // A refused rename (not the owner, or renamed this month) says why.
+  const renameSentAt = useRef(0);
+  const lastNotice = useWorldViewStore((s) => s.lastNotice);
+  useEffect(() => {
+    if (lastNotice == null || renameSentAt.current === 0) return;
+    if (lastNotice.atMs < renameSentAt.current) return;
+    renameSentAt.current = 0;
+    const text = lastNotice.detail;
+    setNotice(text.charAt(0).toUpperCase() + text.slice(1) + ".");
+  }, [lastNotice]);
 
   // Item activity: durable history (query.events) plus live events.
   const itemLog = useWorldViewStore((s) => s.itemLog.entries);
@@ -362,6 +372,7 @@ export function InspectionPanel({ ipc }: Props) {
                       payload: { creatureId: creature.id, name },
                     },
                   });
+                  renameSentAt.current = Date.now();
                   setNotice(`Renaming to ${name}…`);
                 }}
               />
@@ -388,6 +399,7 @@ export function InspectionPanel({ ipc }: Props) {
                         payload: { lineageId: creature.family.lineageId, name },
                       },
                     });
+                    renameSentAt.current = Date.now();
                     setNotice(`Renaming the lineage to ${name}…`);
                   }}
                 />

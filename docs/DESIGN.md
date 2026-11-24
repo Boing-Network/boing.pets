@@ -384,11 +384,13 @@ territories 1–3 so its timings stay comparable.
   the kernel deterministic; health, genes and needs are never written
   directly. Favor still also ranks catch-up highlights. Worlds saved before
   these knobs existed pick up the defaults on load (`persist/load.ts`).
-- **Rate limit** (`apps/sim-host/src/influence.ts`): 20 renames accepted per
-  rolling 24 h of wall time (`INFLUENCE_RATE_LIMIT`, `INFLUENCE_RATE_WINDOW_MS`),
-  per gate. It is an anti-spam cap, not a game mechanic; item actions are not
-  counted. Single-player uses one `"local"` gate, multiplayer one gate per account
-  id.
+- **Renames** (`apps/sim-host/src/influence.ts`): owners only (a creature by
+  the wallet that owns it, a lineage by anyone who owns a living creature of
+  it; `renameDeniedReason`), and one per target per rolling 30 days of wall
+  time (`INFLUENCE_RATE_LIMIT`, `INFLUENCE_RATE_WINDOW_MS`). The gate is keyed
+  by the creature or lineage (`renameGateKey`), not the account, so a sale
+  does not reset it. Item actions are not counted. In single-player the
+  `"local"` account owns every creature.
 - The accept log persists in `host-meta.json` (desktop) or in the repository
   (browser).
 - Accepted influences are queued for `lastTick + 1`.
