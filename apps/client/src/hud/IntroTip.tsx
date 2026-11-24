@@ -44,12 +44,13 @@ export function IntroTip() {
       <ul className="catchup-notable">
         <li>
           <strong>Look.</strong> Pick a creature from the list on the right to
-          see what it wants, who it loves and where it came from.
+          see what it wants, who it loves and where it came from. You can name
+          it there too.
         </li>
         <li>
-          <strong>Nudge.</strong> You cannot command them, but a few times a day
-          you can name a creature, favor a bloodline, or enrich or calm a
-          territory.
+          <strong>Craft.</strong> You cannot command them, but they bring back
+          materials as they forage. Open the Workshop to turn those into food,
+          potions and tonics, and give them out.
         </li>
         <li>
           <strong>Time.</strong> The clock controls at the top speed the world

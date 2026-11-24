@@ -312,3 +312,28 @@ test("remote clients can name a creature for an item, and nothing else new", () 
   });
   assert.equal(bad.ok, false);
 });
+
+test("favor, enrich and calm are crafted now, not free actions", () => {
+  for (const body of [
+    { kind: InfluenceKind.FAVOR_BLOODLINE, payload: { lineageId: 1 } },
+    { kind: InfluenceKind.ENRICH_TERRITORY, payload: { territoryId: 1 } },
+    { kind: InfluenceKind.CALM_TERRITORY, payload: { territoryId: 1 } },
+  ]) {
+    const result = validateCommand({ message: "influence.submit", body });
+    assert.equal(result.ok, false, body.kind);
+  }
+  // Each has a crafted stand-in a player can make and use instead.
+  const effects = RECIPES.map((recipe) => itemDef(recipe.output)?.effect?.kind);
+  assert.ok(effects.includes("FAVOR"));
+  const targets = RECIPES.map((recipe) => itemDef(recipe.output)?.target);
+  assert.ok(targets.includes("TERRITORY"));
+  // Renames still go through.
+  const rename = validateCommand({
+    message: "influence.submit",
+    body: {
+      kind: InfluenceKind.NAME_CREATURE,
+      payload: { creatureId: 1, name: "Ada" },
+    },
+  });
+  assert.equal(rename.ok, true);
+});

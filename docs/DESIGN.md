@@ -10,8 +10,10 @@ noted.
 1. **Creatures live on their own.** Every creature picks its own goals each
    time its action slot frees up. Nothing in the client writes needs, genes, or
    location (`apps/sim-host/src/influence.ts` header).
-2. **The player influences, not controls.** Five verbs, three accepted per
-   rolling 24 hours, applied by the kernel on the next tick.
+2. **The player influences, not controls.** Players rename, gather and use
+   crafted items; each is applied by the kernel on the next tick. (Until the
+   workshop update there were five free verbs, three accepted per day; favor,
+   enrich and calm are now crafted items and are refused from clients.)
 3. **Time keeps passing.** Closing the game is not a pause. On the next launch
    the host replays the owed ticks with the same `step()` (offline catch-up).
 4. **Deterministic and replayable.** The kernel is pure: no `Date.now`, no
@@ -382,9 +384,10 @@ territories 1–3 so its timings stay comparable.
   the kernel deterministic; health, genes and needs are never written
   directly. Favor still also ranks catch-up highlights. Worlds saved before
   these knobs existed pick up the defaults on load (`persist/load.ts`).
-- **Rate limit** (`apps/sim-host/src/influence.ts`): 3 accepted per rolling
-  24 h of wall time (`INFLUENCE_RATE_LIMIT`, `INFLUENCE_RATE_WINDOW_MS`), per
-  gate. Single-player uses one `"local"` gate, multiplayer one gate per account
+- **Rate limit** (`apps/sim-host/src/influence.ts`): 20 renames accepted per
+  rolling 24 h of wall time (`INFLUENCE_RATE_LIMIT`, `INFLUENCE_RATE_WINDOW_MS`),
+  per gate. It is an anti-spam cap, not a game mechanic; item actions are not
+  counted. Single-player uses one `"local"` gate, multiplayer one gate per account
   id.
 - The accept log persists in `host-meta.json` (desktop) or in the repository
   (browser).

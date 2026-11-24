@@ -1,11 +1,10 @@
 /*
  * HUD layout and the shared collapsible panel chrome.
  *
- * The panels used to be positioned one by one against the map, so on a phone
- * the Influences panel sat underneath the inspector. They now share one
- * layout box: a grid on wide screens (Influences, news and the status chip
- * down the left, the inspector down the right) and a column on narrow ones
- * (chip and news at the top, both panels docked at the bottom).
+ * Everything on the map shares one layout box, so nothing can overlap: a
+ * grid on wide screens (news and the status chip bottom left, the Workshop
+ * button bottom centre, the inspector down the right) and a column on narrow
+ * ones (chip and news at the top, the button and inspector at the bottom).
  *
  * Selectors carry `.hud` so they win over the per-panel rules in
  * controls.css / inspection.css regardless of stylesheet order.
@@ -16,10 +15,10 @@
   z-index: 2;
   padding: 1rem;
   display: grid;
-  grid-template-columns: minmax(0, 18rem) minmax(0, 1fr) minmax(0, 22rem);
+  grid-template-columns: minmax(0, 18rem) minmax(0, 1fr) minmax(0, 23rem);
   grid-template-rows: minmax(0, 1fr) auto auto;
   grid-template-areas:
-    "influence . inspect"
+    ". . inspect"
     "news . inspect"
     "chip . inspect";
   gap: 0.6rem 1rem;
@@ -41,18 +40,22 @@
   pointer-events: auto;
 }
 
-.hud .influence-panel {
-  grid-area: influence;
+/* As tall as its content, up to the full height; the list view fills it. */
+.hud .inspect-panel {
+  grid-area: inspect;
   align-self: start;
 }
 
-.hud .inspect-panel {
-  grid-area: inspect;
+.hud .inspect-panel--empty:not(.hud-panel--collapsed) {
   align-self: stretch;
 }
 
-.hud .inspect-panel.hud-panel--collapsed {
-  align-self: start;
+/* One quiet scrollbar style for every scrolling box on the HUD. */
+.hud *,
+.ws-menu * {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ink-muted) 45%, transparent)
+    transparent;
 }
 
 .hud .news-feed {
@@ -115,21 +118,16 @@
   overflow: auto;
 }
 
-.influence-panel .panel-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-  padding: 0.1rem 0.95rem 1rem;
-}
-
 .inspect-panel .panel-body {
   padding: 0.25rem 1.1rem 1.25rem;
 }
 
+/* The list view: the hint and filters stay put, only the list scrolls. */
 .inspect-panel--empty .panel-body {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  overflow: hidden;
 }
 
 /* After the display rules above: a folded body must stay hidden. */
@@ -220,27 +218,13 @@
     flex: 0 1 auto;
   }
 
-  /* Docked at the bottom, stacked, so both title bars are always in reach. */
-  .hud .influence-panel,
+  /* Docked at the bottom, under the Workshop button. */
   .hud .inspect-panel,
-  .hud .inspect-panel.hud-panel--collapsed {
+  .hud .inspect-panel--empty:not(.hud-panel--collapsed) {
+    order: 5;
     flex: 0 1 auto;
     align-self: stretch;
-    max-height: 60%;
-  }
-
-  .hud .influence-panel {
-    order: 3;
-    margin-top: auto;
-  }
-
-  .hud .inspect-panel {
-    order: 4;
-  }
-
-  /* Before the world loads there is no Influences panel to push down. */
-  .hud > .inspect-panel:first-child {
-    margin-top: auto;
+    max-height: 62%;
   }
 
   .hud .hud-panel--collapsed {
