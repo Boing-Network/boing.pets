@@ -187,6 +187,10 @@ materials into:
 - **Tonics** (Swiftness, Might, Insight): +20 to one gene of one creature for
   good, never past 900, and inherited by its young.
 
+The Workshop opens from the button at the bottom of the play screen (or the
+`W` key): materials and things ready to use on one side, the recipe book on
+the other, with a creature picker for giving items.
+
 Crafting, gathering by hand and using an item have no daily limit: gathering
 is bounded by a territory's stock and using by the item itself. Only the world
 nudges (naming, favoring, enriching, calming) keep the three-a-day limit.

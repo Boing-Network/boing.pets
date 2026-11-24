@@ -7,8 +7,12 @@ import {
   type InventoryEntry,
 } from "@boing-pets/contract";
 import {
+  RECIPE_FILTERS,
   RECIPE_GROUPS,
+  filterRecipes,
   ingredientText,
+  missingText,
+  readyCount,
   madeItems,
   materialRows,
   recipeRows,
@@ -121,5 +125,33 @@ test("use buttons name their target and wait for one", () => {
   assert.equal(
     useAction(itemDef(ItemSlug.POTION_VITALITY)!, none).ready,
     false,
+  );
+});
+
+test("the menu badge counts recipes that can be made, and filters narrow them", () => {
+  assert.equal(readyCount([]), 0);
+  const items = bag({ [ItemSlug.THORNBERRY]: 2, [ItemSlug.GLOWMOSS]: 1 });
+  assert.equal(readyCount(items), 1);
+  const rows = recipeRows(items);
+  assert.equal(filterRecipes(rows, "all").length, RECIPES.length);
+  assert.deepEqual(
+    filterRecipes(rows, "ready").map((row) => row.output),
+    [ItemSlug.POTION_MENDING],
+  );
+  assert.ok(
+    filterRecipes(rows, "tonics").every((row) => row.group === "tonics"),
+  );
+  // Every filter the menu offers is one the helper understands.
+  for (const option of RECIPE_FILTERS) {
+    assert.ok(Array.isArray(filterRecipes(rows, option.id)), option.id);
+  }
+});
+
+test("a recipe that is short says what is missing and where it grows", () => {
+  const rows = recipeRows(bag({ [ItemSlug.CLOVER]: 1 }));
+  const stew = rows.find((row) => row.output === ItemSlug.HEARTY_STEW)!;
+  assert.equal(
+    missingText(stew, { meadow: "Meadow", grove: "Elder Grove" }),
+    "1 Clover (Meadow), 1 Amber resin (Elder Grove)",
   );
 });

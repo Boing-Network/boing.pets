@@ -157,3 +157,65 @@ export function useAction(
       return { label: "Use", ready: false, hint: "" };
   }
 }
+
+export function spoilText(
+  nextSpoilTick: number | null,
+  tick: number,
+  ticksPerDay = 144,
+): string {
+  if (nextSpoilTick == null) return "keeps";
+  const days = (nextSpoilTick - tick) / ticksPerDay;
+  if (days < 1) return "spoils today";
+  return `spoils in ${Math.floor(days)}d`;
+}
+
+/** "2 minted" when some units of a stack exist as LPIT (creatures skip them). */
+export function mintedText(entry: { count: number; minted?: number }): string {
+  const minted = entry.minted ?? 0;
+  if (minted <= 0) return "";
+  return minted >= entry.count ? "all minted" : `${minted} minted`;
+}
+
+export type RecipeFilter = "all" | "ready" | RecipeGroup;
+
+export const RECIPE_FILTERS: readonly { id: RecipeFilter; title: string }[] = [
+  { id: "all", title: "All" },
+  { id: "ready", title: "Can craft" },
+  ...RECIPE_GROUPS,
+];
+
+export function filterRecipes(
+  rows: readonly RecipeRow[],
+  filter: RecipeFilter,
+): RecipeRow[] {
+  if (filter === "all") return [...rows];
+  if (filter === "ready") return rows.filter((row) => row.ready);
+  return rows.filter((row) => row.group === filter);
+}
+
+/** How many different recipes the bag can make right now (the button badge). */
+export function readyCount(items: readonly InventoryEntry[]): number {
+  return recipeRows(items).filter((row) => row.ready).length;
+}
+
+/** "Amber resin (Elder Grove)" for each ingredient the bag is short of. */
+export function missingText(
+  row: RecipeRow,
+  territoryNames: Readonly<Record<string, string>>,
+): string {
+  return row.inputs
+    .filter((input) => input.have < input.need)
+    .map((input) => {
+      const where = (
+        GATHER_SOURCES.find((source) => source.resource === input.slug)
+          ?.territorySlugs ?? []
+      )
+        .map((slug) => territoryNames[slug] ?? slug)
+        .join(" or ");
+      const short = input.need - input.have;
+      return where === ""
+        ? `${short} ${input.name}`
+        : `${short} ${input.name} (${where})`;
+    })
+    .join(", ");
+}
