@@ -13,7 +13,9 @@ import { useUiStore } from "../state/uiStore";
 import { useWorldViewStore } from "../state/worldViewStore";
 import { topMemories } from "./topMemories";
 import { CreatureFinder } from "./CreatureFinder";
+import { actionLabel, goalLabel, memoryLabel, memoryStrength } from "./labels";
 import { needLevel, type NeedName } from "./needs";
+import { PanelBar, usePanel } from "./PanelBar";
 import "./inspection.css";
 
 type Props = {
@@ -103,6 +105,8 @@ export function InspectionPanel({ ipc }: Props) {
   const view = useWorldViewStore((s) => s.view);
   const [family, setFamily] = useState<FamilyQueryResult | null>(null);
   const [familyError, setFamilyError] = useState<string | null>(null);
+  const { collapsed, toggle } = usePanel("inspect");
+  const foldClass = collapsed ? " hud-panel--collapsed" : "";
 
   const creature =
     view?.creatures.find((row) => row.id === selectedCreatureId) ?? null;
@@ -185,17 +189,29 @@ export function InspectionPanel({ ipc }: Props) {
 
   if (selectedCreatureId == null || !creature) {
     return (
-      <aside className="inspect-panel inspect-panel--empty" aria-live="polite">
-        <p className="inspect-hint">
-          Select a creature to inspect: tap one in the world, or find it here.
-        </p>
-        {living.length > 0 ? (
-          <CreatureFinder
-            creatures={living}
-            selectedId={null}
-            onSelect={selectCreature}
-          />
-        ) : null}
+      <aside
+        className={`inspect-panel inspect-panel--empty hud-panel${foldClass}`}
+        aria-live="polite"
+      >
+        <PanelBar
+          title="Inspector"
+          name="Inspector"
+          bodyId="inspect-body"
+          collapsed={collapsed}
+          onToggle={toggle}
+        />
+        <div id="inspect-body" className="panel-body" hidden={collapsed}>
+          <p className="inspect-hint">
+            Select a creature to inspect: tap one in the world, or find it here.
+          </p>
+          {living.length > 0 ? (
+            <CreatureFinder
+              creatures={living}
+              selectedId={null}
+              onSelect={selectCreature}
+            />
+          ) : null}
+        </div>
       </aside>
     );
   }
@@ -208,147 +224,197 @@ export function InspectionPanel({ ipc }: Props) {
   const pairs = creature.relationships;
 
   return (
-    <aside className="inspect-panel" aria-label="Creature inspection">
-      <header className="inspect-header">
-        <div>
-          <h2 className="inspect-name">{creature.name}</h2>
-          <p className="inspect-sub">
-            {speciesLabel(creature.speciesId)} · gen{" "}
-            {creature.family.generation} · {creature.gender.toLowerCase()} ·{" "}
-            {creature.status === CreatureStatus.ALIVE ? "alive" : "dead"} · age{" "}
-            {creature.ageDays}d
-          </p>
-        </div>
-        <button
-          type="button"
-          className="inspect-close"
-          onClick={() => selectCreature(null)}
-        >
-          Close
-        </button>
-      </header>
-
-      {living.length > 1 ? (
-        <details className="inspect-switch">
-          <summary>Switch creature ({living.length} alive)</summary>
-          <CreatureFinder
-            creatures={living}
-            selectedId={creature.id}
-            onSelect={selectCreature}
-          />
-        </details>
-      ) : null}
-
-      <section className="inspect-section">
-        <h3>Goal</h3>
-        <p className="inspect-goal">{creature.currentGoal}</p>
-      </section>
-
-      <section className="inspect-section">
-        <h3>Activity</h3>
-        {activity.length === 0 ? (
-          <p className="inspect-empty">
-            Nothing found, crafted or eaten lately.
-          </p>
-        ) : (
-          <ul className="inspect-activity">
-            {activity.map((line) => (
-              <li key={line.id}>
-                <time>{tickClock(line.tick, ticksPerDay)}</time>
-                {line.text}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="inspect-section">
-        <h3>Needs</h3>
-        <NeedMeters rows={needRows(creature)} />
-      </section>
-
-      <section className="inspect-section">
-        <h3>Genes</h3>
-        <StatList rows={geneRows(creature)} />
-      </section>
-
-      <section className="inspect-section">
-        <h3>Traits</h3>
-        <StatList rows={traitRows(creature)} />
-      </section>
-
-      <section className="inspect-section">
-        <h3>Top memories</h3>
-        {memories.length === 0 ? (
-          <p className="inspect-empty">None yet.</p>
-        ) : (
-          <ul className="inspect-memory-list">
-            {memories.map((memory) => (
-              <li key={memory.id}>
-                <span>{memory.kind}</span>
-                <strong>str {memory.strength}</strong>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="inspect-section">
-        <h3>Pairs</h3>
-        {pairs.length === 0 ? (
-          <p className="inspect-empty">No pairs.</p>
-        ) : (
-          <ul className="inspect-pair-list">
-            {pairs.map((rel) => (
-              <li key={rel.id}>
-                <span>{labelFor(pairOtherId(rel, creature.id))}</span>
-                <span className="inspect-labels">
-                  {rel.labels.length > 0 ? rel.labels.join(", ") : "unlabeled"}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="inspect-section">
-        <h3>Family</h3>
-        {familyError ? (
-          <p className="inspect-empty">{familyError}</p>
-        ) : family == null ? (
-          <p className="inspect-empty">Loading family…</p>
-        ) : (
-          <div className="inspect-family">
-            <p>
-              mother{" "}
-              {creature.family.motherId == null
-                ? "—"
-                : labelFor(creature.family.motherId)}
-              {" · "}
-              father{" "}
-              {creature.family.fatherId == null
-                ? "—"
-                : labelFor(creature.family.fatherId)}
+    <aside
+      className={`inspect-panel hud-panel${foldClass}`}
+      aria-label="Creature inspection"
+    >
+      {/* Collapsed, the bar is all that shows, so it names who is selected. */}
+      <PanelBar
+        title={collapsed ? `Inspector · ${creature.name}` : "Inspector"}
+        name="Inspector"
+        bodyId="inspect-body"
+        collapsed={collapsed}
+        onToggle={toggle}
+      />
+      <div id="inspect-body" className="panel-body" hidden={collapsed}>
+        <header className="inspect-header">
+          <div>
+            <h2 className="inspect-name">{creature.name}</h2>
+            <p className="inspect-sub">
+              {speciesLabel(creature.speciesId)} · gen{" "}
+              {creature.family.generation} · {creature.gender.toLowerCase()} ·{" "}
+              {creature.status === CreatureStatus.ALIVE ? "alive" : "dead"} ·
+              age {creature.ageDays}d
             </p>
-            <ul className="inspect-ancestor-list">
-              {family.ancestors.length === 0 ? (
-                <li>No ancestors (founder).</li>
-              ) : (
-                family.ancestors.map(({ creature: ancestor, depth }) => (
-                  <li key={`${ancestor.id}-${depth}`}>
-                    d{depth} {ancestor.name}{" "}
-                    <em>
-                      {ancestor.status === CreatureStatus.DEAD
-                        ? "dead"
-                        : "alive"}
-                    </em>
-                  </li>
-                ))
-              )}
-            </ul>
           </div>
-        )}
-      </section>
+          <button
+            type="button"
+            className="inspect-close"
+            onClick={() => selectCreature(null)}
+          >
+            Close
+          </button>
+        </header>
+
+        {living.length > 1 ? (
+          <details className="inspect-switch">
+            <summary>Switch creature ({living.length} alive)</summary>
+            <CreatureFinder
+              creatures={living}
+              selectedId={creature.id}
+              onSelect={selectCreature}
+            />
+          </details>
+        ) : null}
+
+        <section className="inspect-section">
+          <h3>Goal</h3>
+          <p className="inspect-goal">{goalLabel(creature.currentGoal)}</p>
+          {creature.currentAction != null &&
+          creature.status === CreatureStatus.ALIVE ? (
+            <p className="inspect-doing">
+              Right now: {actionLabel(creature.currentAction).toLowerCase()}
+            </p>
+          ) : null}
+        </section>
+
+        <section className="inspect-section">
+          <h3>Activity</h3>
+          {activity.length === 0 ? (
+            <p className="inspect-empty">
+              Nothing found, crafted or eaten lately.
+            </p>
+          ) : (
+            <ul className="inspect-activity">
+              {activity.map((line) => (
+                <li key={line.id}>
+                  <time>{tickClock(line.tick, ticksPerDay)}</time>
+                  {line.text}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="inspect-section">
+          <h3>Needs</h3>
+          <NeedMeters rows={needRows(creature)} />
+        </section>
+
+        <section className="inspect-section">
+          <h3>Genes</h3>
+          <StatList rows={geneRows(creature)} />
+        </section>
+
+        <section className="inspect-section">
+          <h3>Traits</h3>
+          <StatList rows={traitRows(creature)} />
+        </section>
+
+        <section className="inspect-section">
+          <h3>Top memories</h3>
+          {memories.length === 0 ? (
+            <p className="inspect-empty">None yet.</p>
+          ) : (
+            <ul className="inspect-memory-list">
+              {memories.map((memory) => {
+                const strength = memoryStrength(memory.strength);
+                // Only name a subject the view knows; a bare id says nothing.
+                const subject =
+                  memory.subjectCreatureId == null
+                    ? undefined
+                    : nameOf.get(memory.subjectCreatureId);
+                return (
+                  <li
+                    key={memory.id}
+                    title={`strength ${memory.strength} / 1000`}
+                  >
+                    <span className="inspect-memory-what">
+                      {memoryLabel(memory.kind)}
+                      {subject == null ? null : <em> · {subject}</em>}
+                    </span>
+                    <span
+                      className="inspect-need-bar inspect-memory-bar"
+                      role="meter"
+                      aria-label="memory strength"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={strength.percent}
+                      aria-valuetext={strength.label}
+                    >
+                      <span
+                        style={{ width: `${Math.max(3, strength.percent)}%` }}
+                      />
+                    </span>
+                    <strong className="inspect-memory-label">
+                      {strength.label}
+                    </strong>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
+        <section className="inspect-section">
+          <h3>Pairs</h3>
+          {pairs.length === 0 ? (
+            <p className="inspect-empty">No pairs.</p>
+          ) : (
+            <ul className="inspect-pair-list">
+              {pairs.map((rel) => (
+                <li key={rel.id}>
+                  <span>{labelFor(pairOtherId(rel, creature.id))}</span>
+                  <span className="inspect-labels">
+                    {rel.labels.length > 0
+                      ? rel.labels.join(", ")
+                      : "unlabeled"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="inspect-section">
+          <h3>Family</h3>
+          {familyError ? (
+            <p className="inspect-empty">{familyError}</p>
+          ) : family == null ? (
+            <p className="inspect-empty">Loading family…</p>
+          ) : (
+            <div className="inspect-family">
+              <p>
+                mother{" "}
+                {creature.family.motherId == null
+                  ? "—"
+                  : labelFor(creature.family.motherId)}
+                {" · "}
+                father{" "}
+                {creature.family.fatherId == null
+                  ? "—"
+                  : labelFor(creature.family.fatherId)}
+              </p>
+              <ul className="inspect-ancestor-list">
+                {family.ancestors.length === 0 ? (
+                  <li>No ancestors (founder).</li>
+                ) : (
+                  family.ancestors.map(({ creature: ancestor, depth }) => (
+                    <li key={`${ancestor.id}-${depth}`}>
+                      d{depth} {ancestor.name}{" "}
+                      <em>
+                        {ancestor.status === CreatureStatus.DEAD
+                          ? "dead"
+                          : "alive"}
+                      </em>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
+          )}
+        </section>
+      </div>
     </aside>
   );
 }
