@@ -21,10 +21,12 @@ import type { WorldRepository } from "./persist/repository";
 import type { HostSession } from "./session";
 
 /**
- * Accepted world nudges (naming, favoring, enriching, calming) per wall-clock
- * window. Item actions are not counted: see `countsAgainstLimit`.
+ * Renames accepted per account per wall-clock window. Not a game mechanic any
+ * more (the three-a-day nudge budget is gone): it only stops one visitor
+ * renaming the whole world. Item actions are not counted: see
+ * `countsAgainstLimit`.
  */
-export const INFLUENCE_RATE_LIMIT = 3;
+export const INFLUENCE_RATE_LIMIT = 20;
 
 /**
  * Gathering by hand and using an item are limited by what they consume (a

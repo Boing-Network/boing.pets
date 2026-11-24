@@ -218,12 +218,9 @@ test("a bad influence over the socket is a notice, not a save failure", async ()
   assert.equal(ctx.host.runtime.persistenceStatus().saveFailures, 0);
 
   // Everyone's influences still work, and the sender kept their allowance.
-  const meadow = ctx.host.runtime.session.snapshot.territories[0]!;
+  const living = ctx.host.runtime.session.snapshot.creatures[0]!;
   for (let i = 0; i < INFLUENCE_RATE_LIMIT; i += 1) {
-    submit({
-      kind: InfluenceKind.ENRICH_TERRITORY,
-      payload: { territoryId: meadow.id },
-    });
+    submit(rename(living.id, `Ada ${i}`));
   }
   await waitFor(
     () =>

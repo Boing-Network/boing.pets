@@ -566,22 +566,13 @@
 }
 
 @media (max-width: 720px) {
-  /* The bottom dock holds the two panels; the launcher sits just above. */
+  /* The inspector docks at the bottom; the launcher sits just above. */
   .hud .ws-launcher {
     order: 3;
     align-self: center;
     margin-top: auto;
     padding: 0.5rem 1rem 0.5rem 0.8rem;
     font-size: 0.85rem;
-  }
-
-  .hud .ws-launcher ~ .influence-panel {
-    order: 4;
-    margin-top: 0;
-  }
-
-  .hud .ws-launcher ~ .inspect-panel {
-    order: 5;
   }
 
   .ws-overlay {

@@ -3,7 +3,6 @@ import { CreatureStatus } from "@boing-pets/contract";
 import type { IpcClient } from "../api/ipc";
 import { CatchupPanel } from "../hud/CatchupPanel";
 import { ClockControls } from "../hud/ClockControls";
-import { InfluencePanel } from "../hud/InfluencePanel";
 import { IntroTip } from "../hud/IntroTip";
 import { InspectionPanel } from "../hud/InspectionPanel";
 import { NewsFeed } from "../hud/NewsFeed";
@@ -67,7 +66,6 @@ export function App({ ipc, siteNav = true }: Props) {
         <div className="hud">
           {/* First, so the phone layout can dock the panels below it. */}
           <Workshop ipc={ipc} />
-          <InfluencePanel ipc={ipc} />
           <InspectionPanel ipc={ipc} />
           <NewsFeed />
           <div className="status-chip">

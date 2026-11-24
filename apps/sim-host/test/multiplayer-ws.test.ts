@@ -231,14 +231,14 @@ test("influence limits follow the account across sockets", async () => {
   const ctx = await startServer();
   const a1 = openClient(ctx.server.url);
   const wa = await a1.hello({});
-  const meadow = ctx.host.runtime.session.snapshot.territories[0]!;
+  const creature = ctx.host.runtime.session.snapshot.creatures[0]!;
   const enrich = {
     type: "command",
     message: {
       message: "influence.submit",
       body: {
-        kind: InfluenceKind.ENRICH_TERRITORY,
-        payload: { territoryId: meadow.id },
+        kind: InfluenceKind.NAME_CREATURE,
+        payload: { creatureId: creature.id, name: "Ada" },
       },
     },
   };

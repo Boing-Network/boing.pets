@@ -5,6 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { INFLUENCE_RATE_LIMIT } from "../src/influence";
 import {
   InfluenceKind,
   ItemSlug,
@@ -267,7 +268,7 @@ function territory(
   return row.id;
 }
 
-test("gather fills the bag without spending daily nudges, and guests are refused", async () => {
+test("gather fills the bag without spending renames, and guests are refused", async () => {
   const { runtime, inventory } = await runtimeWith();
   const meadow = territory(runtime, "meadow");
   const gather = (accountId: string) =>
@@ -289,22 +290,25 @@ test("gather fills the bag without spending daily nudges, and guests are refused
   assert.equal(guest.ok, false);
   assert.equal(!guest.ok && guest.code, "item_rejected");
 
-  // More gathers than the daily nudge limit, and none of them spends a nudge.
+  // Gathering never spends the rename allowance, and still works once
+  // that allowance is used up.
   for (let i = 0; i < 4; i += 1)
     assert.deepEqual(await gather(WALLET), { ok: true });
-  const nudge = () =>
+  const creature = runtime.session.snapshot.creatures[0]!;
+  const rename = () =>
     runtime.handleCommand(
       {
         message: "influence.submit",
         body: {
-          kind: InfluenceKind.ENRICH_TERRITORY,
-          payload: { territoryId: meadow },
+          kind: InfluenceKind.NAME_CREATURE,
+          payload: { creatureId: creature.id, name: "Ada" },
         },
       },
       { accountId: WALLET },
     );
-  for (let i = 0; i < 3; i += 1) assert.deepEqual(await nudge(), { ok: true });
-  const limited = await nudge();
+  for (let i = 0; i < INFLUENCE_RATE_LIMIT; i += 1)
+    assert.deepEqual(await rename(), { ok: true });
+  const limited = await rename();
   assert.equal(!limited.ok && limited.code, "rate_limited");
   assert.deepEqual(await gather(WALLET), { ok: true });
 

@@ -1,29 +1,28 @@
 /**
  * Which HUD panels are collapsed to their title bar. Remembered per browser.
  *
- * Wide and narrow layouts keep separate choices because they have different
- * rules: on a wide screen every panel folds on its own, while on a phone the
- * Influences and Inspector panels share the bottom of the screen, so at most
- * one of them is open and both start collapsed (the world stays visible).
+ * Wide and narrow layouts keep separate choices: on a wide screen both
+ * panels start open, while on a phone they start collapsed so the world stays
+ * visible.
  */
 import { create } from "zustand";
 
-export type PanelId = "influence" | "inspect" | "news";
-/** The two panels that share the bottom dock on a narrow screen. */
-export type DockPanelId = "influence" | "inspect";
+export type PanelId = "inspect" | "news";
+/** The panel docked at the bottom of a narrow screen. */
+export type DockPanelId = "inspect";
 
 export type PanelPrefs = {
   /** Wide layout: true = collapsed. */
   wide: Record<PanelId, boolean>;
   narrow: {
-    /** The one dock panel that is open, if any. */
+    /** The dock panel, when it is open. */
     open: DockPanelId | null;
     newsCollapsed: boolean;
   };
 };
 
 export const DEFAULT_PANEL_PREFS: PanelPrefs = {
-  wide: { influence: false, inspect: false, news: false },
+  wide: { inspect: false, news: false },
   narrow: { open: null, newsCollapsed: true },
 };
 
@@ -42,7 +41,7 @@ export function isCollapsed(
   return prefs.narrow.open !== panel;
 }
 
-/** Flip one panel. On a narrow screen opening a dock panel closes the other. */
+/** Flip one panel in the given layout. */
 export function togglePanel(
   prefs: PanelPrefs,
   panel: PanelId,
@@ -88,12 +87,11 @@ export function parsePanelPrefs(raw: string | null | undefined): PanelPrefs {
   const open = narrow?.open;
   return {
     wide: {
-      influence: flag(wide?.influence, d.wide.influence),
       inspect: flag(wide?.inspect, d.wide.inspect),
       news: flag(wide?.news, d.wide.news),
     },
     narrow: {
-      open: open === "influence" || open === "inspect" ? open : d.narrow.open,
+      open: open === "inspect" ? open : d.narrow.open,
       newsCollapsed: flag(narrow?.newsCollapsed, d.narrow.newsCollapsed),
     },
   };

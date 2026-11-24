@@ -10,37 +10,39 @@ import {
 
 test("a first visit shows everything on a wide screen, nothing on a phone", () => {
   const prefs = DEFAULT_PANEL_PREFS;
-  for (const panel of ["influence", "inspect", "news"] as const) {
+  for (const panel of ["inspect", "news"] as const) {
     assert.equal(isCollapsed(prefs, panel, false), false, `${panel} wide`);
     assert.equal(isCollapsed(prefs, panel, true), true, `${panel} narrow`);
   }
 });
 
 test("wide panels fold independently", () => {
-  const prefs = togglePanel(DEFAULT_PANEL_PREFS, "influence", false);
-  assert.equal(isCollapsed(prefs, "influence", false), true);
-  assert.equal(isCollapsed(prefs, "inspect", false), false);
+  const prefs = togglePanel(DEFAULT_PANEL_PREFS, "inspect", false);
+  assert.equal(isCollapsed(prefs, "inspect", false), true);
   assert.equal(isCollapsed(prefs, "news", false), false);
   // The phone layout keeps its own choices.
   assert.deepEqual(prefs.narrow, DEFAULT_PANEL_PREFS.narrow);
-  const back = togglePanel(prefs, "influence", false);
+  const back = togglePanel(prefs, "inspect", false);
   assert.deepEqual(back, DEFAULT_PANEL_PREFS);
 });
 
-test("on a phone only one dock panel is open at a time", () => {
-  let prefs = togglePanel(DEFAULT_PANEL_PREFS, "influence", true);
-  assert.equal(isCollapsed(prefs, "influence", true), false);
-  assert.equal(isCollapsed(prefs, "inspect", true), true);
-
-  prefs = togglePanel(prefs, "inspect", true);
+test("the phone inspector opens and closes without touching the wide layout", () => {
+  let prefs = togglePanel(DEFAULT_PANEL_PREFS, "inspect", true);
   assert.equal(isCollapsed(prefs, "inspect", true), false);
-  assert.equal(isCollapsed(prefs, "influence", true), true);
-
   prefs = togglePanel(prefs, "inspect", true);
   assert.equal(isCollapsed(prefs, "inspect", true), true);
-  assert.equal(isCollapsed(prefs, "influence", true), true);
-  // The wide layout was never touched.
   assert.deepEqual(prefs.wide, DEFAULT_PANEL_PREFS.wide);
+});
+
+test("prefs saved when there was an Influences panel still load", () => {
+  const old = JSON.stringify({
+    wide: { influence: true, inspect: true, news: false },
+    narrow: { open: "influence", newsCollapsed: false },
+  });
+  assert.deepEqual(parsePanelPrefs(old), {
+    wide: { inspect: true, news: false },
+    narrow: { open: null, newsCollapsed: false },
+  });
 });
 
 test("the phone news feed folds on its own", () => {
@@ -71,7 +73,7 @@ test("stored prefs round-trip and bad data falls back to defaults", () => {
       }),
     ),
     {
-      wide: { influence: true, inspect: false, news: false },
+      wide: { inspect: false, news: false },
       narrow: { open: null, newsCollapsed: false },
     },
   );
@@ -81,6 +83,6 @@ test("the store toggles without browser storage", () => {
   usePanelStore.setState({ prefs: DEFAULT_PANEL_PREFS });
   usePanelStore.getState().toggle("inspect", true);
   assert.equal(usePanelStore.getState().prefs.narrow.open, "inspect");
-  usePanelStore.getState().toggle("influence", true);
-  assert.equal(usePanelStore.getState().prefs.narrow.open, "influence");
+  usePanelStore.getState().toggle("inspect", true);
+  assert.equal(usePanelStore.getState().prefs.narrow.open, null);
 });

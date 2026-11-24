@@ -3,8 +3,8 @@
 Living Pets is a deterministic creature-life simulation. Creatures in a small
 world of territories eat, drink, rest, socialize, court, raise young, migrate,
 remember, and die on their own. The player does not control them. The player
-watches, inspects, and nudges the world through five rate-limited _influences_
-(naming, favoring a bloodline, enriching or calming a territory).
+watches, inspects, names creatures and lineages, and shapes the world with
+what they craft from the materials the creatures gather.
 
 The world has seven territories (Meadow, Thicket, Ridge, Moonlit Glade,
 Glowfen, Elder Grove, High Crags) and 35 species, five per territory, each
@@ -177,8 +177,7 @@ one (Clover, Thornberry, Crystal shard, Moonpetal, Glowmoss, Amber resin).
 Finds go to the creature's keeper, or wait in the creature's own pouch until
 someone adopts it; this keeps happening while the player is away.
 
-Crafting is the hands-on half. In the Workshop (bottom of the Influences
-panel) a player with a bag (wallet sign-in, or local single-player) turns
+Crafting is the hands-on half. In the Workshop a player with a bag (wallet sign-in, or local single-player) turns
 materials into:
 
 - **Food and potions** given to one creature (Hearty Stew, Mending Potion,
@@ -192,8 +191,12 @@ The Workshop opens from the button at the bottom of the play screen (or the
 the other, with a creature picker for giving items.
 
 Crafting, gathering by hand and using an item have no daily limit: gathering
-is bounded by a territory's stock and using by the item itself. Only the world
-nudges (naming, favoring, enriching, calming) keep the three-a-day limit.
+is bounded by a territory's stock and using by the item itself. The old free
+actions (favor a bloodline, enrich or calm a territory) are gone: their crafted
+stand-ins are the Vitality Potion, the Seed bundle and Rations Pack, and the
+Calm Potion. Renaming a creature or a lineage is done from the Inspector; the
+server allows 20 renames per account per day so one visitor cannot rename the
+world.
 Every craftable item has an LPIT token id and a still, so it can be minted and
 listed on the marketplace. Creatures still help themselves to
 food and potions from their keeper's bag; they only craft if the keeper turns
