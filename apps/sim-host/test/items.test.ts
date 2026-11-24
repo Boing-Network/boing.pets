@@ -267,7 +267,7 @@ function territory(
   return row.id;
 }
 
-test("gather fills the bag, shares the 3-per-day budget, and guests are refused", async () => {
+test("gather fills the bag without spending daily nudges, and guests are refused", async () => {
   const { runtime, inventory } = await runtimeWith();
   const meadow = territory(runtime, "meadow");
   const gather = (accountId: string) =>
@@ -289,14 +289,28 @@ test("gather fills the bag, shares the 3-per-day budget, and guests are refused"
   assert.equal(guest.ok, false);
   assert.equal(!guest.ok && guest.code, "item_rejected");
 
-  for (let i = 0; i < 3; i += 1)
+  // More gathers than the daily nudge limit, and none of them spends a nudge.
+  for (let i = 0; i < 4; i += 1)
     assert.deepEqual(await gather(WALLET), { ok: true });
-  const limited = await gather(WALLET);
+  const nudge = () =>
+    runtime.handleCommand(
+      {
+        message: "influence.submit",
+        body: {
+          kind: InfluenceKind.ENRICH_TERRITORY,
+          payload: { territoryId: meadow },
+        },
+      },
+      { accountId: WALLET },
+    );
+  for (let i = 0; i < 3; i += 1) assert.deepEqual(await nudge(), { ok: true });
+  const limited = await nudge();
   assert.equal(!limited.ok && limited.code, "rate_limited");
+  assert.deepEqual(await gather(WALLET), { ok: true });
 
   const bag = await inventory(WALLET);
   const clover = bag.items.find((row) => row.slug === ItemSlug.CLOVER);
-  assert.ok(clover && clover.count >= 3 && clover.count <= 9);
+  assert.ok(clover && clover.count >= 5 && clover.count <= 12);
   // The client cannot pick the resource or the yield.
   assert.ok(!bag.items.some((row) => row.slug === ItemSlug.GLOWMOSS));
   const pending = runtime.session.snapshot.pendingInfluences.filter(

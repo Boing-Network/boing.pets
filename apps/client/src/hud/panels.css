@@ -1,0 +1,249 @@
+/*
+ * HUD layout and the shared collapsible panel chrome.
+ *
+ * The panels used to be positioned one by one against the map, so on a phone
+ * the Influences panel sat underneath the inspector. They now share one
+ * layout box: a grid on wide screens (Influences, news and the status chip
+ * down the left, the inspector down the right) and a column on narrow ones
+ * (chip and news at the top, both panels docked at the bottom).
+ *
+ * Selectors carry `.hud` so they win over the per-panel rules in
+ * controls.css / inspection.css regardless of stylesheet order.
+ */
+.hud {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  padding: 1rem;
+  display: grid;
+  grid-template-columns: minmax(0, 18rem) minmax(0, 1fr) minmax(0, 22rem);
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "influence . inspect"
+    "news . inspect"
+    "chip . inspect";
+  gap: 0.6rem 1rem;
+  /* The box covers the map; only the panels themselves take the pointer. */
+  pointer-events: none;
+}
+
+.hud .hud-panel {
+  position: static;
+  width: auto;
+  min-height: 0;
+  max-height: 100%;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  /* The body scrolls, so the title bar and its toggle stay in reach. */
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.hud .influence-panel {
+  grid-area: influence;
+  align-self: start;
+}
+
+.hud .inspect-panel {
+  grid-area: inspect;
+  align-self: stretch;
+}
+
+.hud .inspect-panel.hud-panel--collapsed {
+  align-self: start;
+}
+
+.hud .news-feed {
+  grid-area: news;
+}
+
+.hud .status-chip {
+  grid-area: chip;
+  position: static;
+  justify-self: start;
+}
+
+.panel-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem 0.5rem 0.95rem;
+}
+
+.panel-title {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--brand);
+}
+
+.panel-toggle {
+  flex: none;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-muted);
+  padding: 0.2rem 0.55rem;
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.panel-toggle:hover {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--brand) 40%, var(--line));
+}
+
+.panel-toggle:focus-visible,
+.news-line--link:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+
+.panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.influence-panel .panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.1rem 0.95rem 1rem;
+}
+
+.inspect-panel .panel-body {
+  padding: 0.25rem 1.1rem 1.25rem;
+}
+
+.inspect-panel--empty .panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* After the display rules above: a folded body must stay hidden. */
+.hud .panel-body[hidden] {
+  display: none;
+}
+
+/* World news: the live event feed. */
+.news-feed {
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg-panel) 92%, transparent);
+  backdrop-filter: blur(10px);
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+  color: var(--ink);
+}
+
+.news-feed .panel-title {
+  font-size: 0.82rem;
+}
+
+.news-feed .panel-body {
+  /* About five lines; older news scrolls. */
+  max-height: 7.6rem;
+  padding: 0 0.95rem 0.6rem;
+}
+
+.news-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.news-line {
+  display: block;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+}
+
+.news-line--link {
+  cursor: pointer;
+}
+
+.news-line--link:hover {
+  color: var(--brand);
+  text-decoration: underline;
+}
+
+.news-line time {
+  color: var(--ink-muted);
+  margin-right: 0.35rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.news-empty {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--ink-muted);
+}
+
+@media (max-width: 720px) {
+  .hud {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.5rem;
+  }
+
+  .hud .status-chip {
+    order: 1;
+    flex: none;
+    align-self: flex-start;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.72rem;
+  }
+
+  .hud .news-feed {
+    order: 2;
+    flex: 0 1 auto;
+  }
+
+  /* Docked at the bottom, stacked, so both title bars are always in reach. */
+  .hud .influence-panel,
+  .hud .inspect-panel,
+  .hud .inspect-panel.hud-panel--collapsed {
+    flex: 0 1 auto;
+    align-self: stretch;
+    max-height: 60%;
+  }
+
+  .hud .influence-panel {
+    order: 3;
+    margin-top: auto;
+  }
+
+  .hud .inspect-panel {
+    order: 4;
+  }
+
+  /* Before the world loads there is no Influences panel to push down. */
+  .hud > .inspect-panel:first-child {
+    margin-top: auto;
+  }
+
+  .hud .hud-panel--collapsed {
+    flex: none;
+  }
+}

@@ -6,6 +6,7 @@ import { ClockControls } from "../hud/ClockControls";
 import { InfluencePanel } from "../hud/InfluencePanel";
 import { IntroTip } from "../hud/IntroTip";
 import { InspectionPanel } from "../hud/InspectionPanel";
+import { NewsFeed } from "../hud/NewsFeed";
 import { SiteNav } from "../hud/SiteNav";
 import { useWorldViewStore } from "../state/worldViewStore";
 import "../hud/controls.css";
@@ -57,15 +58,19 @@ export function App({ ipc, siteNav = true }: Props) {
         >
           <WorldCanvas />
         </Suspense>
-        <InfluencePanel ipc={ipc} />
-        <InspectionPanel ipc={ipc} />
+        {/* One layout box for the HUD so its panels can never overlap. */}
+        <div className="hud">
+          <InfluencePanel ipc={ipc} />
+          <InspectionPanel ipc={ipc} />
+          <NewsFeed />
+          <div className="status-chip">
+            {view
+              ? `${territoryCount} territories · seed ${view.world.seed}`
+              : "No world loaded"}
+          </div>
+        </div>
         <CatchupPanel />
         <IntroTip />
-        <div className="status-chip">
-          {view
-            ? `${territoryCount} territories · seed ${view.world.seed}`
-            : "No world loaded"}
-        </div>
       </main>
     </div>
   );

@@ -414,7 +414,8 @@ verbs (`packages/sim/src/kernel/items.ts`, `kernel/influences.ts`):
   its First Child relic (recipient resolved from the mother), its first DEATH
   its Remembrance relic (from the deceased). "First" is the host mint key.
 
-Both verbs count against the existing 3-per-24h influence budget. Worlds with
+Neither verb counts against the 3-per-24h nudge limit (they did until the
+workshop update; `countsAgainstLimit` in `influence.ts`). Worlds with
 no item influences step exactly as before. Schema migration
 `20261123090000_items_slice` only adds enum values (`ADD VALUE IF NOT EXISTS`).
 
@@ -430,8 +431,8 @@ no item influences step exactly as before. Schema migration
   Guests cannot gather, craft or use (anti-farming, like rewards).
 - **Gather** grants units at accept time with the kernel's `gatherYield`; the
   client cannot choose the resource or the yield. Gather and use-item are
-  influences, so they share the 3-per-24h budget. **Crafting** is a host
-  command (`item.craft`), not an influence, and costs no budget.
+  influences but are not rate limited: stock and the item itself bound them.
+  **Crafting** is a host command (`item.craft`), not an influence.
 - **LPIT rewards** (Vitality, Calm, Rations) are mirrored into the bag from
   their asset mint rows at boot and after each reward, whatever their mint
   status (rows marked FAILED before the LPIT collection existed included).
@@ -940,8 +941,8 @@ From the Nov 20, 2026 local audit:
   selected territory (shows the free stock, e.g. `Clover 9/12`), the bag with
   counts and spoil times, _Use here_ / _Use on lineage_ for tools and LPIT
   consumables, craft buttons for Seed bundle and Salt lick, and relics with
-  _Honor (+25 favor)_ that greys out for the week after use. Gathering and
-  using items share the 3-per-day influence budget; crafting does not.
+  _Honor (+25 favor)_ that greys out for the week after use. Gathering,
+  crafting and using items have no daily limit.
   Guests see a "connect a wallet" hint. Inventory comes from
   `query.inventory`, polled every 5 s and after each action.
 - `TerritoryView` carries optional `effects` (active modifiers summed by kind,

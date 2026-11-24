@@ -20,8 +20,22 @@ import { LOCAL_ACCOUNT_ID } from "./multiplayer/account";
 import type { WorldRepository } from "./persist/repository";
 import type { HostSession } from "./session";
 
-/** Accepted influences per wall-clock window. */
+/**
+ * Accepted world nudges (naming, favoring, enriching, calming) per wall-clock
+ * window. Item actions are not counted: see `countsAgainstLimit`.
+ */
 export const INFLUENCE_RATE_LIMIT = 3;
+
+/**
+ * Gathering by hand and using an item are limited by what they consume (a
+ * territory's stock, the item itself), not by the daily nudge limit, so a
+ * player can gather, craft and give freely.
+ */
+export function countsAgainstLimit(kind: InfluenceSubmit["kind"]): boolean {
+  return (
+    kind !== InfluenceKind.GATHER_RESOURCE && kind !== InfluenceKind.USE_ITEM
+  );
+}
 
 /** Wall-clock window for the rate limit (24 hours). */
 export const INFLUENCE_RATE_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -166,7 +180,8 @@ export async function submitInfluence(
   const invalid = invalidSubmitReason(session, submit);
   if (invalid != null) return { ok: false, reason: "invalid", detail: invalid };
   pruneInfluenceGate(gate, nowMs);
-  if (gate.acceptedAtMs.length >= INFLUENCE_RATE_LIMIT) {
+  const counted = countsAgainstLimit(submit.kind);
+  if (counted && gate.acceptedAtMs.length >= INFLUENCE_RATE_LIMIT) {
     return { ok: false, reason: "rate_limit" };
   }
 
@@ -182,7 +197,7 @@ export async function submitInfluence(
     applied: false,
   };
   session.snapshot.pendingInfluences.push(row);
-  gate.acceptedAtMs.push(nowMs);
+  if (counted) gate.acceptedAtMs.push(nowMs);
 
   const byAccount = options.influenceAcceptedByAccount;
   try {
@@ -206,7 +221,7 @@ export async function submitInfluence(
     // stays consumed (a gap is harmless; reusing it could collide with a
     // commit that landed after reporting an error).
     dropPending(session, [row.id]);
-    const at = gate.acceptedAtMs.lastIndexOf(nowMs);
+    const at = counted ? gate.acceptedAtMs.lastIndexOf(nowMs) : -1;
     if (at >= 0) gate.acceptedAtMs.splice(at, 1);
     throw error;
   }

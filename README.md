@@ -169,6 +169,33 @@ shared-world server. Production and previews default to the Fly.io server
 below; point one at your own server with `?mp=wss://…` (browsers block
 `ws://` from an `https://` page).
 
+## Items and the workshop
+
+The game is idle first: creatures forage on their own, and now and then one
+brings back a material from the territory it lives in. Every territory grows
+one (Clover, Thornberry, Crystal shard, Moonpetal, Glowmoss, Amber resin).
+Finds go to the creature's keeper, or wait in the creature's own pouch until
+someone adopts it; this keeps happening while the player is away.
+
+Crafting is the hands-on half. In the Workshop (bottom of the Influences
+panel) a player with a bag (wallet sign-in, or local single-player) turns
+materials into:
+
+- **Food and potions** given to one creature (Hearty Stew, Mending Potion,
+  Dream Draught), or used on a lineage (Vitality Potion).
+- **Territory items** (Seed bundle, Salt lick, Rations Pack, Calm Potion).
+- **Tonics** (Swiftness, Might, Insight): +20 to one gene of one creature for
+  good, never past 900, and inherited by its young.
+
+Crafting, gathering by hand and using an item have no daily limit: gathering
+is bounded by a territory's stock and using by the item itself. Only the world
+nudges (naming, favoring, enriching, calming) keep the three-a-day limit.
+Every craftable item has an LPIT token id and a still, so it can be minted and
+listed on the marketplace. Creatures still help themselves to
+food and potions from their keeper's bag; they only craft if the keeper turns
+that on, and never make tonics. The catalog, recipes and rules live in
+`packages/contract/src/items.ts`.
+
 ## Creature rendering
 
 Creatures are procedural: no model or texture files. Each of the 35 species

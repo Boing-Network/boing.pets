@@ -90,9 +90,18 @@ test("gatherYield is a pure function of seed, tick, territory and influence id",
     assert.equal(ya, gatherYield(b, meadow, id, 10));
     assert.ok(ya >= GATHER_RULES.minYield && ya <= GATHER_RULES.maxYield);
   }
-  // Nothing grows in the Thicket or the Elder Grove in this slice.
-  assert.equal(gatherYield(a, territoryId(a, "thicket"), 1, 10), 0);
-  assert.equal(resourceStock(a, territoryId(a, "grove"), 10), null);
+  // Every territory grows something of its own.
+  assert.equal(
+    resourceStock(a, territoryId(a, "thicket"), 10)?.resource,
+    ItemSlug.THORNBERRY,
+  );
+  assert.equal(
+    resourceStock(a, territoryId(a, "grove"), 10)?.resource,
+    ItemSlug.AMBER_RESIN,
+  );
+  // An unknown territory has no stock and yields nothing.
+  assert.equal(resourceStock(a, 999_999, 10), null);
+  assert.equal(gatherYield(a, 999_999, 1, 10), 0);
   assert.equal(
     resourceStock(a, territoryId(a, "crags"), 10)?.resource,
     ItemSlug.CRYSTAL_SHARD,
