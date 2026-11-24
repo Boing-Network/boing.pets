@@ -14,6 +14,12 @@ import type {
 } from "@boing-pets/contract";
 import type { HostToClient } from "@boing-pets/contract";
 import { applyWorldPatch } from "@boing-pets/contract";
+import {
+  capEvents,
+  EMPTY_EVENT_LOG,
+  recordEvents,
+  type EventLog,
+} from "./eventLog";
 
 function monotonicNowMs(): number {
   return typeof performance !== "undefined" ? performance.now() : Date.now();
@@ -38,6 +44,11 @@ type WorldViewState = {
    */
   clockReceivedAtMs: number;
   lastCatchup: CatchupReport | null;
+  /**
+   * Recent world events for the news feed. Kept apart from `view.events`,
+   * which a full snapshot resets.
+   */
+  eventLog: EventLog;
   connection: ConnectionStatus;
   /** Shared-world session; null for local play (where you own the world). */
   session: SessionInfo | null;
@@ -53,25 +64,40 @@ export const useWorldViewStore = create<WorldViewState>((set, get) => ({
   clock: null,
   clockReceivedAtMs: 0,
   lastCatchup: null,
+  eventLog: EMPTY_EVENT_LOG,
   connection: "local",
   session: null,
   lastNotice: null,
 
   setSnapshot(view) {
-    set({ view });
+    // Whatever a snapshot carries already happened: logged, but not "new".
+    set({
+      view,
+      eventLog: recordEvents(get().eventLog, view.world.id, view.events, false),
+    });
   },
 
   applyPatch(patch) {
     const current = get().view;
     if (!current) return;
-    // Dead creatures stay in the cache for lineage lookups.
-    set({ view: applyWorldPatch(current, patch).view });
+    // Dead creatures stay in the cache for lineage lookups; events do not
+    // need to, so only the newest are kept.
+    const next = applyWorldPatch(current, patch).view;
+    set({
+      view: { ...next, events: capEvents(next.events) },
+      eventLog: recordEvents(
+        get().eventLog,
+        current.world.id,
+        patch.events,
+        true,
+      ),
+    });
   },
 
   applyHostMessage(message) {
     switch (message.message) {
       case "world.snapshot":
-        set({ view: message.body });
+        get().setSnapshot(message.body);
         break;
       case "world.patch":
         get().applyPatch(message.body);
