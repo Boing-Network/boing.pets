@@ -3,7 +3,6 @@ import { InfluenceKind } from "@boing-pets/contract";
 import type { IpcClient } from "../api/ipc";
 import { useUiStore } from "../state/uiStore";
 import { useWorldViewStore } from "../state/worldViewStore";
-import { ItemsSection } from "./ItemsSection";
 import { PanelBar, usePanel } from "./PanelBar";
 
 type SubmitBody = Extract<
@@ -57,9 +56,8 @@ export function InfluencePanel({ ipc }: Props) {
       {/* Hidden, not unmounted: typed names and item choices survive a fold. */}
       <div id="influence-body" className="panel-body" hidden={collapsed}>
         <p className="influence-hint">
-          You nudge, they decide. Up to 3 nudges per rolling day; the workshop
-          below has no limit. The selected creature and territory are the
-          targets.
+          You nudge, they decide. Up to 3 nudges per rolling day. The selected
+          creature and territory are the targets.
         </p>
         {creature == null ? (
           <p className="influence-reason" role="note">
@@ -241,25 +239,6 @@ export function InfluencePanel({ ipc }: Props) {
         <p className="influence-notice" role="status" aria-live="polite">
           {notice ?? ""}
         </p>
-
-        <ItemsSection
-          ipc={ipc}
-          territory={
-            territories.find((row) => row.id === effectiveTerritoryId) ?? null
-          }
-          creature={
-            creature == null
-              ? null
-              : {
-                  id: creature.id,
-                  name: creature.name,
-                  lineageId: creature.family.lineageId,
-                }
-          }
-          territoryNames={Object.fromEntries(
-            territories.map((row) => [row.slug, row.name]),
-          )}
-        />
       </div>
     </aside>
   );

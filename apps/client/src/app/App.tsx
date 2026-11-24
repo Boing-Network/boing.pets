@@ -9,6 +9,7 @@ import { InspectionPanel } from "../hud/InspectionPanel";
 import { NewsFeed } from "../hud/NewsFeed";
 import { SiteNav } from "../hud/SiteNav";
 import { SoundControl } from "../hud/SoundControl";
+import { Workshop } from "../hud/WorkshopMenu";
 import { useWorldViewStore } from "../state/worldViewStore";
 import "../hud/controls.css";
 import "./shell.css";
@@ -64,6 +65,8 @@ export function App({ ipc, siteNav = true }: Props) {
         </Suspense>
         {/* One layout box for the HUD so its panels can never overlap. */}
         <div className="hud">
+          {/* First, so the phone layout can dock the panels below it. */}
+          <Workshop ipc={ipc} />
           <InfluencePanel ipc={ipc} />
           <InspectionPanel ipc={ipc} />
           <NewsFeed />
