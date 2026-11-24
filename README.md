@@ -194,9 +194,10 @@ Crafting, gathering by hand and using an item have no daily limit: gathering
 is bounded by a territory's stock and using by the item itself. The old free
 actions (favor a bloodline, enrich or calm a territory) are gone: their crafted
 stand-ins are the Vitality Potion, the Seed bundle and Rations Pack, and the
-Calm Potion. Renaming a creature or a lineage is done from the Inspector; the
-server allows 20 renames per account per day so one visitor cannot rename the
-world.
+Calm Potion. Renaming is done from the Inspector and belongs to owners: a creature is
+renamed by the wallet that owns it, a lineage by anyone who owns a living
+creature of it, and each name can change once every 30 days. In local play
+the player owns every creature.
 Every craftable item has an LPIT token id and a still, so it can be minted and
 listed on the marketplace. Creatures still help themselves to
 food and potions from their keeper's bag; they only craft if the keeper turns

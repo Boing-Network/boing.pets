@@ -304,12 +304,25 @@ test("gather fills the bag without spending renames, and guests are refused", as
           payload: { creatureId: creature.id, name: "Ada" },
         },
       },
-      { accountId: WALLET },
+      // Local play: the local account owns every creature.
+      {},
     );
   for (let i = 0; i < INFLUENCE_RATE_LIMIT; i += 1)
     assert.deepEqual(await rename(), { ok: true });
   const limited = await rename();
   assert.equal(!limited.ok && limited.code, "rate_limited");
+  // A wallet that does not own the creature cannot rename it at all.
+  const stranger = await runtime.handleCommand(
+    {
+      message: "influence.submit",
+      body: {
+        kind: InfluenceKind.NAME_CREATURE,
+        payload: { creatureId: creature.id, name: "Mine" },
+      },
+    },
+    { accountId: WALLET },
+  );
+  assert.equal(!stranger.ok && stranger.code, "not_owner");
   assert.deepEqual(await gather(WALLET), { ok: true });
 
   const bag = await inventory(WALLET);

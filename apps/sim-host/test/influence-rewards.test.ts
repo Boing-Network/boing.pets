@@ -4,6 +4,7 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { INFLUENCE_RATE_WINDOW_MS } from "../src/influence";
 import {
   InfluenceKind,
   type HostToClient,
@@ -153,18 +154,21 @@ async function startRuntime(
   itemRewardMode: "offchain" | "automint" = "automint",
 ) {
   const messages: HostToClient[] = [];
+  const clock = { nowMs: 9_000_000 };
   const runtime = createHostRuntime({
     repository,
     seed: 1,
-    nowMs: () => 9_000_000,
+    nowMs: () => clock.nowMs,
     autoFrame: false,
     mintEdge,
     itemRewardMode,
     itemMintFee: { feeWei: 500_000_000_000_000n, payToHex: OPERATOR },
+    // The first wallet owns every creature, so it may rename.
+    creatureOwners: async () => () => `w:${"ab".repeat(32)}`,
     emit: (message) => messages.push(message),
   });
   await runtime.start();
-  return { runtime, repository };
+  return { runtime, repository, clock };
 }
 
 async function submit(
@@ -214,15 +218,19 @@ test("automint mode: landed influences mint to the player's wallet, never the op
     { kind: InfluenceKind.CALM_TERRITORY, payload: { territoryId } },
     "g:guest01",
   );
-  // A second wallet naming the same lineage does not get a second keepsake.
-  await submit(
-    runtime,
+  // A wallet that owns no creature of the lineage cannot rename it, so
+  // there is no second keepsake.
+  const refused = await runtime.handleCommand(
     {
-      kind: InfluenceKind.NAME_LINEAGE,
-      payload: { lineageId, name: "Cinder" },
+      message: "influence.submit",
+      body: {
+        kind: InfluenceKind.NAME_LINEAGE,
+        payload: { lineageId, name: "Cinder" },
+      },
     },
-    other,
+    { accountId: other },
   );
+  assert.equal(!refused.ok && refused.code, "not_owner");
 
   assert.equal(client.items.length, 1, "one item minted");
   assert.equal(client.items[0]!.toHex.toLowerCase(), WALLET);
@@ -269,7 +277,7 @@ test("off-chain first (the default): item rewards land unminted; the keeper mint
     undefined,
     createRepositoryAssetMintLinkStore(repository),
   );
-  const { runtime } = await startRuntime(edge, repository, "offchain");
+  const { runtime, clock } = await startRuntime(edge, repository, "offchain");
   const snapshot = runtime.session.snapshot;
   const territoryId = snapshot.territories[0]!.id;
   const lineageId = snapshot.lineages[0]!.id;
@@ -279,7 +287,10 @@ test("off-chain first (the default): item rewards land unminted; the keeper mint
     InfluenceKind.ENRICH_TERRITORY,
   ] as const) {
     await submit(runtime, { kind, payload: { territoryId } }, wallet);
+    // The old free actions are one per account per window; step past it.
+    clock.nowMs += INFLUENCE_RATE_WINDOW_MS;
   }
+  clock.nowMs = 9_000_000;
   await submit(
     runtime,
     { kind: InfluenceKind.NAME_LINEAGE, payload: { lineageId, name: "Ember" } },

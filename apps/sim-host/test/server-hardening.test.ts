@@ -56,11 +56,14 @@ async function startServer(
   } = {},
 ) {
   const repository = new CountingRepository();
+  /** Account that owns every creature (null: nobody does). */
+  const owner: { accountId: string | null } = { accountId: null };
   const host = createSharedWorldHost({
     repository,
     seed: 1,
     nowMs: options.nowMs ?? (() => 7_000_000),
     autoFrame: false,
+    creatureOwners: async () => () => owner.accountId,
   });
   await host.start();
   const server = await listenSharedWorldWs({
@@ -70,7 +73,7 @@ async function startServer(
     heartbeatMs: 0,
     ...options,
   });
-  return { host, server, repository };
+  return { host, server, repository, owner };
 }
 
 function openClient(url: string) {
@@ -217,7 +220,10 @@ test("a bad influence over the socket is a notice, not a save failure", async ()
   assert.equal(notice.body.detail, "that creature is no longer alive");
   assert.equal(ctx.host.runtime.persistenceStatus().saveFailures, 0);
 
-  // Everyone's influences still work, and the sender kept their allowance.
+  // Influences still work afterwards: the creature's owner can rename it.
+  const welcome = c.frames.find((f) => f.type === "welcome");
+  assert.ok(welcome && welcome.type === "welcome");
+  ctx.owner.accountId = welcome.accountId;
   const living = ctx.host.runtime.session.snapshot.creatures[0]!;
   for (let i = 0; i < INFLUENCE_RATE_LIMIT; i += 1) {
     submit(rename(living.id, `Ada ${i}`));
