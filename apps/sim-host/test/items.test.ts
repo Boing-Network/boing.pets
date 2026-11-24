@@ -5,6 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { INFLUENCE_RATE_LIMIT } from "../src/influence";
 import {
   InfluenceKind,
   ItemSlug,
@@ -267,7 +268,7 @@ function territory(
   return row.id;
 }
 
-test("gather fills the bag, shares the 3-per-day budget, and guests are refused", async () => {
+test("gather fills the bag without spending renames, and guests are refused", async () => {
   const { runtime, inventory } = await runtimeWith();
   const meadow = territory(runtime, "meadow");
   const gather = (accountId: string) =>
@@ -289,14 +290,44 @@ test("gather fills the bag, shares the 3-per-day budget, and guests are refused"
   assert.equal(guest.ok, false);
   assert.equal(!guest.ok && guest.code, "item_rejected");
 
-  for (let i = 0; i < 3; i += 1)
+  // Gathering never spends the rename allowance, and still works once
+  // that allowance is used up.
+  for (let i = 0; i < 4; i += 1)
     assert.deepEqual(await gather(WALLET), { ok: true });
-  const limited = await gather(WALLET);
+  const creature = runtime.session.snapshot.creatures[0]!;
+  const rename = () =>
+    runtime.handleCommand(
+      {
+        message: "influence.submit",
+        body: {
+          kind: InfluenceKind.NAME_CREATURE,
+          payload: { creatureId: creature.id, name: "Ada" },
+        },
+      },
+      // Local play: the local account owns every creature.
+      {},
+    );
+  for (let i = 0; i < INFLUENCE_RATE_LIMIT; i += 1)
+    assert.deepEqual(await rename(), { ok: true });
+  const limited = await rename();
   assert.equal(!limited.ok && limited.code, "rate_limited");
+  // A wallet that does not own the creature cannot rename it at all.
+  const stranger = await runtime.handleCommand(
+    {
+      message: "influence.submit",
+      body: {
+        kind: InfluenceKind.NAME_CREATURE,
+        payload: { creatureId: creature.id, name: "Mine" },
+      },
+    },
+    { accountId: WALLET },
+  );
+  assert.equal(!stranger.ok && stranger.code, "not_owner");
+  assert.deepEqual(await gather(WALLET), { ok: true });
 
   const bag = await inventory(WALLET);
   const clover = bag.items.find((row) => row.slug === ItemSlug.CLOVER);
-  assert.ok(clover && clover.count >= 3 && clover.count <= 9);
+  assert.ok(clover && clover.count >= 5 && clover.count <= 12);
   // The client cannot pick the resource or the yield.
   assert.ok(!bag.items.some((row) => row.slug === ItemSlug.GLOWMOSS));
   const pending = runtime.session.snapshot.pendingInfluences.filter(

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { TerritoryView } from "@boing-pets/contract";
 import { territoryOverlayLine } from "../src/view/world/territory-overlay";
-import { spoilText } from "../src/hud/ItemsSection";
+import { spoilText } from "../src/hud/workshop";
 
 const base = {
   id: 1,

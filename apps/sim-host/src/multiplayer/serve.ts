@@ -356,6 +356,8 @@ const server = await listenSharedWorldWs({
   walletChallenges: createWalletChallenges({ chainId: config.chainId }),
   log,
   allowOrigin: compileOriginMatcher(config.allowedOrigins),
+  // Behind Fly's proxy every TCP peer is the proxy; it sets this header.
+  ...(process.env.FLY_APP_NAME ? { clientAddressHeader: "fly-client-ip" } : {}),
   marketCatalog: createCatalogCache({
     snapshot: () => host.runtime.session.snapshot,
     creatureLinks,

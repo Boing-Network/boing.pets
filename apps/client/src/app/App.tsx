@@ -3,10 +3,12 @@ import { CreatureStatus } from "@boing-pets/contract";
 import type { IpcClient } from "../api/ipc";
 import { CatchupPanel } from "../hud/CatchupPanel";
 import { ClockControls } from "../hud/ClockControls";
-import { InfluencePanel } from "../hud/InfluencePanel";
 import { IntroTip } from "../hud/IntroTip";
 import { InspectionPanel } from "../hud/InspectionPanel";
+import { NewsFeed } from "../hud/NewsFeed";
 import { SiteNav } from "../hud/SiteNav";
+import { SoundControl } from "../hud/SoundControl";
+import { Workshop } from "../hud/WorkshopMenu";
 import { useWorldViewStore } from "../state/worldViewStore";
 import "../hud/controls.css";
 import "./shell.css";
@@ -49,7 +51,10 @@ export function App({ ipc, siteNav = true }: Props) {
           </p>
         </div>
         {siteNav ? <SiteNav current="play" /> : null}
-        <ClockControls ipc={ipc} />
+        <div className="header-tools">
+          <ClockControls ipc={ipc} />
+          <SoundControl />
+        </div>
       </header>
       <main className="map-stage">
         <Suspense
@@ -57,15 +62,20 @@ export function App({ ipc, siteNav = true }: Props) {
         >
           <WorldCanvas />
         </Suspense>
-        <InfluencePanel ipc={ipc} />
-        <InspectionPanel ipc={ipc} />
+        {/* One layout box for the HUD so its panels can never overlap. */}
+        <div className="hud">
+          {/* First, so the phone layout can dock the panels below it. */}
+          <Workshop ipc={ipc} />
+          <InspectionPanel ipc={ipc} />
+          <NewsFeed />
+          <div className="status-chip">
+            {view
+              ? `${territoryCount} territories · seed ${view.world.seed}`
+              : "No world loaded"}
+          </div>
+        </div>
         <CatchupPanel />
         <IntroTip />
-        <div className="status-chip">
-          {view
-            ? `${territoryCount} territories · seed ${view.world.seed}`
-            : "No world loaded"}
-        </div>
       </main>
     </div>
   );

@@ -10,8 +10,10 @@ noted.
 1. **Creatures live on their own.** Every creature picks its own goals each
    time its action slot frees up. Nothing in the client writes needs, genes, or
    location (`apps/sim-host/src/influence.ts` header).
-2. **The player influences, not controls.** Five verbs, three accepted per
-   rolling 24 hours, applied by the kernel on the next tick.
+2. **The player influences, not controls.** Players rename, gather and use
+   crafted items; each is applied by the kernel on the next tick. (Until the
+   workshop update there were five free verbs, three accepted per day; favor,
+   enrich and calm are now crafted items and are refused from clients.)
 3. **Time keeps passing.** Closing the game is not a pause. On the next launch
    the host replays the owed ticks with the same `step()` (offline catch-up).
 4. **Deterministic and replayable.** The kernel is pure: no `Date.now`, no
@@ -390,10 +392,13 @@ territories 1–3 so its timings stay comparable.
   the kernel deterministic; health, genes and needs are never written
   directly. Favor still also ranks catch-up highlights. Worlds saved before
   these knobs existed pick up the defaults on load (`persist/load.ts`).
-- **Rate limit** (`apps/sim-host/src/influence.ts`): 3 accepted per rolling
-  24 h of wall time (`INFLUENCE_RATE_LIMIT`, `INFLUENCE_RATE_WINDOW_MS`), per
-  gate. Single-player uses one `"local"` gate, multiplayer one gate per account
-  id.
+- **Renames** (`apps/sim-host/src/influence.ts`): owners only (a creature by
+  the wallet that owns it, a lineage by anyone who owns a living creature of
+  it; `renameDeniedReason`), and one per target per rolling 30 days of wall
+  time (`INFLUENCE_RATE_LIMIT`, `INFLUENCE_RATE_WINDOW_MS`). The gate is keyed
+  by the creature or lineage (`renameGateKey`), not the account, so a sale
+  does not reset it. Item actions are not counted. In single-player the
+  `"local"` account owns every creature.
 - The accept log persists in `host-meta.json` (desktop) or in the repository
   (browser).
 - Accepted influences are queued for `lastTick + 1`.
@@ -422,7 +427,8 @@ verbs (`packages/sim/src/kernel/items.ts`, `kernel/influences.ts`):
   its First Child relic (recipient resolved from the mother), its first DEATH
   its Remembrance relic (from the deceased). "First" is the host mint key.
 
-Both verbs count against the existing 3-per-24h influence budget. Worlds with
+Neither verb counts against the 3-per-24h nudge limit (they did until the
+workshop update; `countsAgainstLimit` in `influence.ts`). Worlds with
 no item influences step exactly as before. Schema migration
 `20261123090000_items_slice` only adds enum values (`ADD VALUE IF NOT EXISTS`).
 
@@ -438,8 +444,8 @@ no item influences step exactly as before. Schema migration
   Guests cannot gather, craft or use (anti-farming, like rewards).
 - **Gather** grants units at accept time with the kernel's `gatherYield`; the
   client cannot choose the resource or the yield. Gather and use-item are
-  influences, so they share the 3-per-24h budget. **Crafting** is a host
-  command (`item.craft`), not an influence, and costs no budget.
+  influences but are not rate limited: stock and the item itself bound them.
+  **Crafting** is a host command (`item.craft`), not an influence.
 - **LPIT rewards** (Vitality, Calm, Rations) are mirrored into the bag from
   their asset mint rows at boot and after each reward, whatever their mint
   status (rows marked FAILED before the LPIT collection existed included).
@@ -948,8 +954,8 @@ From the Nov 20, 2026 local audit:
   selected territory (shows the free stock, e.g. `Clover 9/12`), the bag with
   counts and spoil times, _Use here_ / _Use on lineage_ for tools and LPIT
   consumables, craft buttons for Seed bundle and Salt lick, and relics with
-  _Honor (+25 favor)_ that greys out for the week after use. Gathering and
-  using items share the 3-per-day influence budget; crafting does not.
+  _Honor (+25 favor)_ that greys out for the week after use. Gathering,
+  crafting and using items have no daily limit.
   Guests see a "connect a wallet" hint. Inventory comes from
   `query.inventory`, polled every 5 s and after each action.
 - `TerritoryView` carries optional `effects` (active modifiers summed by kind,

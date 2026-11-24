@@ -20,11 +20,80 @@ import { LOCAL_ACCOUNT_ID } from "./multiplayer/account";
 import type { WorldRepository } from "./persist/repository";
 import type { HostSession } from "./session";
 
-/** Accepted influences per wall-clock window. */
-export const INFLUENCE_RATE_LIMIT = 3;
+/**
+ * Accepts per gate per wall-clock window. A rename is gated per target (one
+ * gate per creature, one per lineage: see `renameGateKey`), so a name can
+ * change once a month. Item actions are not counted: see
+ * `countsAgainstLimit`.
+ */
+export const INFLUENCE_RATE_LIMIT = 1;
 
-/** Wall-clock window for the rate limit (24 hours). */
-export const INFLUENCE_RATE_WINDOW_MS = 24 * 60 * 60 * 1000;
+/**
+ * Gathering by hand and using an item are limited by what they consume (a
+ * territory's stock, the item itself), not by the daily nudge limit, so a
+ * player can gather, craft and give freely.
+ */
+export function countsAgainstLimit(kind: InfluenceSubmit["kind"]): boolean {
+  return (
+    kind !== InfluenceKind.GATHER_RESOURCE && kind !== InfluenceKind.USE_ITEM
+  );
+}
+
+/** Wall-clock window for the rate limit (30 days). */
+export const INFLUENCE_RATE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * The gate a rename is counted on: the thing being renamed, not the account,
+ * so the once-a-month rule follows the creature or lineage (a new owner does
+ * not get a fresh rename by buying it). Null for every other kind.
+ */
+export function renameGateKey(submit: InfluenceSubmit): string | null {
+  if (submit.kind === InfluenceKind.NAME_CREATURE) {
+    return `rename:creature:${submit.payload.creatureId}`;
+  }
+  if (submit.kind === InfluenceKind.NAME_LINEAGE) {
+    return `rename:lineage:${submit.payload.lineageId}`;
+  }
+  return null;
+}
+
+/**
+ * Why `accountId` may not rename this target, or null when it may (and for
+ * every kind that is not a rename). A creature is renamed by its owner; a
+ * lineage by anyone who owns a living creature of it.
+ */
+export function renameDeniedReason(
+  session: HostSession,
+  submit: InfluenceSubmit,
+  accountId: string,
+  ownerOf: (creatureId: number) => string | null,
+): string | null {
+  if (submit.kind === InfluenceKind.NAME_CREATURE) {
+    return ownerOf(submit.payload.creatureId) === accountId
+      ? null
+      : "only this creature's owner can rename it";
+  }
+  if (submit.kind === InfluenceKind.NAME_LINEAGE) {
+    const lineageId = submit.payload.lineageId;
+    const ownsOne = session.snapshot.creatures.some(
+      (row) =>
+        row.lineageId === lineageId &&
+        row.status === CreatureStatus.ALIVE &&
+        ownerOf(row.id) === accountId,
+    );
+    return ownsOne
+      ? null
+      : "only someone who owns a creature of this lineage can rename it";
+  }
+  return null;
+}
+
+/** Whole days until the gate accepts again (at least 1 while it is full). */
+export function daysUntilAccept(gate: InfluenceGate, nowMs: number): number {
+  const oldest = Math.min(...gate.acceptedAtMs);
+  const leftMs = oldest + INFLUENCE_RATE_WINDOW_MS - nowMs;
+  return Math.max(1, Math.ceil(leftMs / (24 * 60 * 60 * 1000)));
+}
 
 export type InfluenceSubmitOk = {
   ok: true;
@@ -32,10 +101,10 @@ export type InfluenceSubmitOk = {
   issuedAtTick: number;
 };
 
-export type InfluenceSubmitRejected = {
-  ok: false;
-  reason: "rate_limit" | "catching_up";
-};
+export type InfluenceSubmitRejected =
+  | { ok: false; reason: "rate_limit" | "catching_up" }
+  /** The request itself is wrong (unknown or dead target, empty name). */
+  | { ok: false; reason: "invalid"; detail: string };
 
 export type InfluenceSubmitResult = InfluenceSubmitOk | InfluenceSubmitRejected;
 
@@ -71,75 +140,67 @@ export function canAcceptInfluence(
   return recent.length < INFLUENCE_RATE_LIMIT;
 }
 
-function assertValidSubmit(
+/**
+ * Why a submit cannot be queued, or null when it can. A bad request is the
+ * sender's problem, never a save failure: it must not throw into the commit
+ * error path (which pauses influences for everyone).
+ */
+export function invalidSubmitReason(
   session: HostSession,
   submit: InfluenceSubmit,
-): void {
+): string | null {
+  const hasName = (name: unknown) => typeof name === "string" && name !== "";
   switch (submit.kind) {
     case InfluenceKind.NAME_CREATURE: {
       const creature = session.snapshot.creatures.find(
         (row) => row.id === submit.payload.creatureId,
       );
-      if (!creature) throw new Error("creature");
-      if (
-        typeof submit.payload.name !== "string" ||
-        submit.payload.name === ""
-      ) {
-        throw new Error("name");
+      // A dead creature leaves the hot snapshot at the next commit; a rename
+      // queued for it would have no target when the kernel applies it.
+      if (!creature || creature.status !== CreatureStatus.ALIVE) {
+        return "that creature is no longer alive";
       }
-      break;
+      return hasName(submit.payload.name) ? null : "a name is required";
     }
     case InfluenceKind.NAME_LINEAGE: {
       const lineage = session.snapshot.lineages.find(
         (row) => row.id === submit.payload.lineageId,
       );
-      if (!lineage) throw new Error("lineage");
-      if (
-        typeof submit.payload.name !== "string" ||
-        submit.payload.name === ""
-      ) {
-        throw new Error("name");
-      }
-      break;
+      if (!lineage) return "unknown lineage";
+      return hasName(submit.payload.name) ? null : "a name is required";
     }
     case InfluenceKind.FAVOR_BLOODLINE: {
       const lineage = session.snapshot.lineages.find(
         (row) => row.id === submit.payload.lineageId,
       );
-      if (!lineage) throw new Error("lineage");
-      break;
+      return lineage ? null : "unknown lineage";
     }
     case InfluenceKind.ENRICH_TERRITORY:
     case InfluenceKind.CALM_TERRITORY: {
       const territory = session.snapshot.territories.find(
         (row) => row.id === submit.payload.territoryId,
       );
-      if (!territory) throw new Error("territory");
-      break;
+      return territory ? null : "unknown territory";
     }
     case InfluenceKind.GATHER_RESOURCE: {
       // Units are granted by the item service (items/service.ts) before this.
       const territory = session.snapshot.territories.find(
         (row) => row.id === submit.payload.territoryId,
       );
-      if (!territory) throw new Error("territory");
-      if (
-        !Number.isSafeInteger(submit.payload.units) ||
-        submit.payload.units < 1
-      ) {
-        throw new Error("units");
-      }
-      break;
+      if (!territory) return "unknown territory";
+      return Number.isSafeInteger(submit.payload.units) &&
+        submit.payload.units >= 1
+        ? null
+        : "nothing to gather";
     }
     case InfluenceKind.USE_ITEM: {
       // Ownership and balance are checked by the item service; here only shape.
       const def = itemDef(submit.payload.item);
-      if (!def || !def.effect) throw new Error("item");
-      break;
+      return def && def.effect ? null : "that item cannot be used";
     }
     default: {
       const never: never = submit;
-      throw new Error(`kind ${String(never)}`);
+      return `unknown influence ${String((never as { kind?: unknown }).kind)}`;
     }
   }
 }
@@ -155,7 +216,8 @@ export type SubmitInfluenceOptions = {
 /**
  * Queue one influence for `lastTick + 1` if the rate limit allows.
  * Persists the row and the accept-time log in their own commit between ticks.
- * Rejects while catch-up is running (`session.catchingUp`).
+ * Rejects while catch-up is running (`session.catchingUp`) and when the
+ * request names a target that does not exist; throws only when the save fails.
  *
  * Rate limiting is per gate. Multiplayer passes a per-account gate; local
  * single-player keeps one shared gate (the `"local"` account).
@@ -170,9 +232,11 @@ export async function submitInfluence(
   if (session.catchingUp) {
     return { ok: false, reason: "catching_up" };
   }
-  assertValidSubmit(session, submit);
+  const invalid = invalidSubmitReason(session, submit);
+  if (invalid != null) return { ok: false, reason: "invalid", detail: invalid };
   pruneInfluenceGate(gate, nowMs);
-  if (gate.acceptedAtMs.length >= INFLUENCE_RATE_LIMIT) {
+  const counted = countsAgainstLimit(submit.kind);
+  if (counted && gate.acceptedAtMs.length >= INFLUENCE_RATE_LIMIT) {
     return { ok: false, reason: "rate_limit" };
   }
 
@@ -188,7 +252,7 @@ export async function submitInfluence(
     applied: false,
   };
   session.snapshot.pendingInfluences.push(row);
-  gate.acceptedAtMs.push(nowMs);
+  if (counted) gate.acceptedAtMs.push(nowMs);
 
   const byAccount = options.influenceAcceptedByAccount;
   try {
@@ -212,7 +276,7 @@ export async function submitInfluence(
     // stays consumed (a gap is harmless; reusing it could collide with a
     // commit that landed after reporting an error).
     dropPending(session, [row.id]);
-    const at = gate.acceptedAtMs.lastIndexOf(nowMs);
+    const at = counted ? gate.acceptedAtMs.lastIndexOf(nowMs) : -1;
     if (at >= 0) gate.acceptedAtMs.splice(at, 1);
     throw error;
   }

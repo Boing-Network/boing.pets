@@ -100,7 +100,11 @@ test("M22: territory views carry active effects and gather stock", () => {
     meadowView.effects?.map((e) => e.kind),
     [ModifierKind.HARVEST],
   );
-  assert.equal(groveView.resource, undefined);
+  assert.deepEqual(groveView.resource, {
+    slug: "resource.amber-resin",
+    free: 12,
+    cap: 12,
+  });
   // Expired modifiers do not show; active ones carry their end tick.
   assert.deepEqual(groveView.effects, [
     { kind: ModifierKind.FOOD, amount: 100, endTick: tick + 1008 },

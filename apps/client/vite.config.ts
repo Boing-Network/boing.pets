@@ -36,6 +36,9 @@ export default defineConfig({
       ),
       // Fail closed if Prisma leaks into the worker graph.
       "@prisma/client": path.resolve(root, "shims/empty-prisma.ts"),
+      // The Postgres driver reads Node's Buffer as it loads, which killed the
+      // dev worker (the dev server tree-shakes nothing).
+      "@prisma/adapter-pg": path.resolve(root, "shims/empty-prisma-pg.ts"),
     },
   },
   build: {

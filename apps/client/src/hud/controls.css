@@ -6,6 +6,32 @@
   font-family: "Segoe UI", "Helvetica Neue", sans-serif;
 }
 
+.header-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.9rem;
+}
+
+.sound-control {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+}
+
+.sound-volume {
+  width: 4.5rem;
+  accent-color: var(--glow);
+  cursor: pointer;
+}
+
+@media (max-width: 720px) {
+  .sound-volume {
+    width: 3.5rem;
+  }
+}
+
 .clock-scales {
   display: flex;
   gap: 0.25rem;
@@ -31,29 +57,6 @@
   border-color: color-mix(in srgb, var(--glow) 55%, var(--line));
   color: var(--brand);
   background: color-mix(in srgb, var(--glow) 12%, transparent);
-}
-
-.influence-panel {
-  position: absolute;
-  left: 1rem;
-  top: 1rem;
-  width: min(18rem, calc(100% - 2rem));
-  padding: 0.85rem 0.95rem 1rem;
-  border: 1px solid var(--line);
-  background: linear-gradient(
-    165deg,
-    color-mix(in srgb, var(--bg-panel) 94%, #243038) 0%,
-    color-mix(in srgb, var(--bg-panel) 92%, transparent) 100%
-  );
-  backdrop-filter: blur(10px);
-  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
-  color: var(--ink);
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-  max-height: calc(100% - 2rem);
-  overflow: auto;
 }
 
 .influence-title {
@@ -120,19 +123,6 @@
 .influence-input:disabled {
   opacity: 0.45;
   cursor: not-allowed;
-}
-
-@media (max-width: 720px) {
-  .influence-panel {
-    position: absolute;
-    left: 0.5rem;
-    right: 0.5rem;
-    top: auto;
-    bottom: 3.5rem;
-    width: auto;
-    max-height: 40%;
-    overflow: auto;
-  }
 }
 
 .clock-btn:disabled {

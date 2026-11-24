@@ -13,6 +13,7 @@ import {
   type HostToClient,
   type QueryResult,
   type TimeScale,
+  type WorldEventView,
 } from "@boing-pets/contract";
 import { catchupOnLaunch } from "../catchup";
 import {
@@ -28,6 +29,10 @@ import {
   type HostClock,
 } from "../clock";
 import {
+  daysUntilAccept,
+  invalidSubmitReason,
+  renameDeniedReason,
+  renameGateKey,
   submitInfluence,
   submitSystemInfluences,
   type InfluenceGate,
@@ -49,12 +54,13 @@ import {
   createRepositoryNftLinkStore,
   type MintEdge,
 } from "../boing";
-import type { WorldRepository } from "../persist/repository";
+import type { DurableTables, WorldRepository } from "../persist/repository";
 import { bootSession, commitSession, type HostSession } from "../session";
 import {
   buildWorldPatch,
   createPatchBaseline,
   resetPatchBaseline,
+  unsentEventViews,
 } from "../view/world-patch";
 import { buildWorldView } from "../view/world-view";
 import {
@@ -142,6 +148,9 @@ export type HostRuntimeOptions = {
 };
 
 /** Players see this while the database is not taking saves. */
+/** How long one read of the durable store may answer inspection queries. */
+export const QUERY_TABLES_TTL_MS = 5_000;
+
 export const SAVES_BLOCKED_DETAIL =
   "the world can't save right now; try again in a minute";
 
@@ -270,6 +279,7 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
       );
     }
     saves.succeeded(tick, nowMs());
+    queryTables = null;
     return true;
   }
 
@@ -280,6 +290,31 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
       `world save failed (attempt ${status.saveFailures}, ${status.unsavedTicks} tick(s) unsaved since tick ${status.lastSavedTick}; ` +
         `still ticking in memory, retry in ${status.nextRetryInS}s): ${status.lastError}`,
     );
+  }
+
+  // Inspection queries read the whole durable store (dead ancestors are not
+  // in the hot snapshot). Doing that under the writer lock for every query
+  // let one client stall the world: at the socket rate limit the lock never
+  // came free, so nothing ticked or saved. One read is now shared by every
+  // query until the store changes (a save or a command) or it ages out, and
+  // the answers are computed outside the lock.
+  let queryTables: { atMs: number; tables: DurableTables } | null = null;
+  let queryTablesLoading: Promise<DurableTables> | null = null;
+
+  function tablesForQueries(): Promise<DurableTables> {
+    const cached = queryTables;
+    if (cached != null && nowMs() - cached.atMs < QUERY_TABLES_TTL_MS) {
+      return Promise.resolve(cached.tables);
+    }
+    queryTablesLoading ??= withExclusive(async () => {
+      const tables = await options.repository.readTables();
+      if (tables == null) throw new Error("no world");
+      queryTables = { atMs: nowMs(), tables };
+      return tables;
+    }).finally(() => {
+      queryTablesLoading = null;
+    });
+    return queryTablesLoading;
   }
 
   /**
@@ -332,9 +367,13 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
   const keyframeEvery = Math.max(1, options.keyframeEvery ?? 60);
   let patchesSinceKeyframe = 0;
 
-  function pushSnapshot(): void {
+  /**
+   * `events`: live events this snapshot stands in for (a keyframe). Other
+   * snapshots (boot, after an influence) carry none: history is a query.
+   */
+  function pushSnapshot(events: WorldEventView[] = []): void {
     patchesSinceKeyframe = 0;
-    const view = buildWorldView(requireSession().snapshot);
+    const view = buildWorldView(requireSession().snapshot, events);
     resetPatchBaseline(baseline, view);
     options.emit({ message: "world.snapshot", body: view });
   }
@@ -352,7 +391,7 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
         body: buildWorldPatch(active.snapshot, active.dirty, baseline),
       });
     } else {
-      pushSnapshot();
+      pushSnapshot(unsentEventViews(active.dirty, baseline));
     }
     pushClock();
   }
@@ -462,6 +501,9 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
       }
 
       return withExclusive(async (): Promise<CommandOutcome> => {
+        // Commands can write the store (a rename, an item); queries after
+        // one must see it.
+        queryTables = null;
         const active = requireSession();
         const activeClock = requireClock();
         switch (message.message) {
@@ -493,10 +535,6 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
             const accountId = resolveAccountId(
               context.accountId ?? LOCAL_ACCOUNT_ID,
             );
-            const gate: InfluenceGate = gateForAccount(
-              requireBook(),
-              accountId,
-            );
             const prepared = await items.prepare(
               active,
               accountId,
@@ -511,6 +549,26 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
               };
             }
             const submit = prepared.submit;
+            // Renames: owners only, and once a month per creature or lineage.
+            const renameKey = renameGateKey(submit);
+            if (
+              renameKey != null &&
+              invalidSubmitReason(active, submit) == null
+            ) {
+              const denied = renameDeniedReason(
+                active,
+                submit,
+                accountId,
+                await creatureOwners(),
+              );
+              if (denied != null) {
+                return { ok: false, code: "not_owner", detail: denied };
+              }
+            }
+            const gate: InfluenceGate = gateForAccount(
+              requireBook(),
+              renameKey ?? accountId,
+            );
             let result: Awaited<ReturnType<typeof submitInfluence>>;
             try {
               result = await submitInfluence(active, gate, submit, nowMs(), {
@@ -531,17 +589,24 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
             if (!result.ok) {
               // Local play stays silent (the influence simply does not land);
               // shared hosts relay this to the sender as a notice.
-              return result.reason === "rate_limit"
-                ? {
-                    ok: false,
-                    code: "rate_limited",
-                    detail: "influence limit reached for this account",
-                  }
-                : {
-                    ok: false,
-                    code: "influence_rejected",
-                    detail: "the world is catching up; try again",
-                  };
+              if (result.reason === "rate_limit") {
+                return {
+                  ok: false,
+                  code: "rate_limited",
+                  detail:
+                    renameKey == null
+                      ? "influence limit reached for this account"
+                      : `a name can change once a month; try again in ${daysText(daysUntilAccept(gate, nowMs()))}`,
+                };
+              }
+              return {
+                ok: false,
+                code: "influence_rejected",
+                detail:
+                  result.reason === "invalid"
+                    ? result.detail
+                    : "the world is catching up; try again",
+              };
             }
             // Wallet players earn a token for a landed influence (minting
             // is off by default; see boing/influence-rewards.ts).
@@ -628,20 +693,18 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
     },
 
     async handleQuery(message, context = {}) {
-      return withExclusive(async () => {
-        if (message.message === "query.inventory") {
+      if (message.message === "query.inventory") {
+        return withExclusive(async () => {
           const accountId = resolveAccountId(
             context.accountId ?? LOCAL_ACCOUNT_ID,
           );
           return {
-            message: "query.inventory",
+            message: "query.inventory" as const,
             body: await items.inventory(requireSession(), accountId, nowMs()),
           };
-        }
-        const tables = await options.repository.readTables();
-        if (tables == null) throw new Error("no world");
-        return handleInspectionQuery(tables, message);
-      });
+        });
+      }
+      return handleInspectionQuery(await tablesForQueries(), message);
     },
 
     async tickFrame(frameDeltaMs) {
@@ -736,4 +799,8 @@ export function createHostRuntime(options: HostRuntimeOptions): HostRuntime {
   };
 
   return runtime;
+}
+
+function daysText(days: number): string {
+  return days === 1 ? "1 day" : `${days} days`;
 }

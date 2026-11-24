@@ -45,6 +45,15 @@ export const LPIT_ITEM_IDS: Readonly<Record<string, number>> = {
   [ItemSlug.MOONPETAL]: 7,
   [ItemSlug.SEED_BUNDLE]: 8,
   [ItemSlug.SALT_LICK]: 9,
+  // Workshop: the last two materials and the crafted potions and tonics.
+  [ItemSlug.THORNBERRY]: 10,
+  [ItemSlug.AMBER_RESIN]: 11,
+  [ItemSlug.POTION_MENDING]: 12,
+  [ItemSlug.HEARTY_STEW]: 13,
+  [ItemSlug.DREAM_DRAUGHT]: 14,
+  [ItemSlug.TONIC_SWIFT]: 15,
+  [ItemSlug.TONIC_MIGHT]: 16,
+  [ItemSlug.TONIC_INSIGHT]: 17,
 };
 
 export function lpitItemId(slug: string): number | null {

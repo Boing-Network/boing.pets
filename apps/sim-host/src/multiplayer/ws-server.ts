@@ -9,6 +9,8 @@
  *   client sees as a seq gap and answers with `resync`.
  * - Limits: frames over `MP_MAX_CLIENT_MESSAGE_BYTES` are refused by `ws`,
  *   every command/query is validated, and each socket is rate limited.
+ *   Sockets are capped in total and per address, must say `hello` promptly,
+ *   and are dropped if they stop reading while asking for more.
  *   Influence limits are per account inside the host.
  *
  * Binds 127.0.0.1 unless told otherwise.
@@ -67,6 +69,20 @@ export type SharedWorldWsServerOptions = {
   nowMs?: () => number;
   /** Drop broadcasts to a socket with more than this many bytes queued. */
   maxBufferedBytes?: number;
+  /** Most sockets open at once. Further upgrades get 503. Default 2000. */
+  maxClients?: number;
+  /**
+   * Most sockets from one address. Default 40 (a household or a classroom
+   * behind one address is fine; a script opening hundreds is not).
+   */
+  maxClientsPerAddress?: number;
+  /**
+   * Request header holding the real client address when a trusted proxy
+   * sits in front (Fly: `fly-client-ip`). Unset: the TCP peer address.
+   */
+  clientAddressHeader?: string;
+  /** A socket that has not joined within this long is closed. 0 disables. */
+  helloTimeoutMs?: number;
   /** Server → client heartbeat interval (ms). 0 disables. */
   heartbeatMs?: number;
   /**
@@ -161,10 +177,28 @@ type SocketState = {
   wallet: string | null;
   presence: { x: number; z: number } | null;
   presenceAtMs: number;
+  /** Where the socket came from, for the per-address cap. */
+  address: string;
+  /** When this socket last got a base snapshot it asked for. */
+  resyncAtMs: number;
 };
+
+/** A socket may ask for a fresh base snapshot this often (ms). */
+const RESYNC_MIN_GAP_MS = 2_000;
 
 /** Sign-in challenges one socket may request. */
 const MAX_CHALLENGES_PER_SOCKET = 8;
+
+/**
+ * What a client may be told about a failed query: "not found" answers are
+ * meant for it; anything else (database errors) is not.
+ */
+export function publicQueryError(error: unknown): string {
+  const text = error instanceof Error ? error.message : String(error);
+  return /^(creature|lineage|ancestor) \d+ (not found|missing)/.test(text)
+    ? text.slice(0, 80)
+    : "query failed";
+}
 
 function quantize(value: number): number {
   return Math.round(value * 100) / 100;
@@ -216,6 +250,37 @@ export async function listenSharedWorldWs(
   const heartbeatMs = options.heartbeatMs ?? 15_000;
   const heartbeatMisses = Math.max(1, options.heartbeatMisses ?? 4);
   const log = options.log ?? (() => {});
+  const maxClients = options.maxClients ?? 2000;
+  const maxPerAddress = options.maxClientsPerAddress ?? 40;
+  const helloTimeoutMs = options.helloTimeoutMs ?? 20_000;
+  // Reliable frames (snapshots, query results) are never skipped, so a peer
+  // that stops reading while asking for more would queue them without end.
+  // Past this backlog the socket is beyond catching up: drop it.
+  const hardBuffered = maxBuffered * 4;
+  const addressHeader = options.clientAddressHeader?.toLowerCase();
+  const socketsByAddress = new Map<string, number>();
+
+  function addressOf(request: {
+    headers: Record<string, string | string[] | undefined>;
+    socket: { remoteAddress?: string };
+  }): string {
+    const forwarded =
+      addressHeader == null ? undefined : request.headers[addressHeader];
+    const value = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+    return (
+      (value != null && value !== "" ? value : request.socket.remoteAddress) ??
+      "unknown"
+    ).slice(0, 64);
+  }
+
+  function overloaded(socket: WebSocket, state: SocketState): boolean {
+    if (socket.bufferedAmount <= hardBuffered) return false;
+    log(
+      `dropping ${state.connection?.sessionId ?? "(not joined)"}: ${socket.bufferedAmount} bytes unread`,
+    );
+    socket.terminate();
+    return true;
+  }
 
   const allowOrigin = options.allowOrigin ?? (() => true);
   const ownerWallets = new Set(
@@ -384,6 +449,16 @@ export async function listenSharedWorldWs(
         done(false, 403, "origin not allowed");
         return;
       }
+      if (states.size >= maxClients) {
+        done(false, 503, "server full");
+        return;
+      }
+      const address = addressOf(info.req);
+      if ((socketsByAddress.get(address) ?? 0) >= maxPerAddress) {
+        log(`refused ${address}: too many connections`);
+        done(false, 429, "too many connections");
+        return;
+      }
       done(true);
     },
   });
@@ -422,6 +497,7 @@ export async function listenSharedWorldWs(
         return;
       }
     }
+    if (overloaded(socket, state)) return;
     if (meta?.base) state.skipped = false;
     send(socket, {
       type: "host",
@@ -535,6 +611,13 @@ export async function listenSharedWorldWs(
         deliver(socket, state, hostMessage, meta);
       },
     });
+    // Wallet verification is async: the socket may have closed while it ran,
+    // after its close handler found nothing to leave. Leave now, or the
+    // session would stay registered (and broadcast to) for good.
+    if (connection != null && !states.has(socket)) {
+      options.host.leave(connection.sessionId);
+      return;
+    }
     state.connection = connection;
     state.wallet = wallet;
     if (connection != null) {
@@ -595,9 +678,27 @@ export async function listenSharedWorldWs(
       wallet: null,
       presence: null,
       presenceAtMs: Number.NEGATIVE_INFINITY,
+      address: addressOf(request),
+      resyncAtMs: Number.NEGATIVE_INFINITY,
     };
     states.set(socket, state);
+    socketsByAddress.set(
+      state.address,
+      (socketsByAddress.get(state.address) ?? 0) + 1,
+    );
     const flood = createFloodGate();
+    // Inspection queries are the costly message; the inspector sends a few
+    // per selection, so this never touches a person clicking around.
+    const queryFlood = createFloodGate(4, 12);
+    const helloTimer =
+      helloTimeoutMs > 0
+        ? setTimeout(() => {
+            if (state.connection == null && !state.joining) {
+              socket.close(1008, "hello timeout");
+            }
+          }, helloTimeoutMs)
+        : null;
+    helloTimer?.unref?.();
 
     socket.on("pong", () => {
       state.missed = 0;
@@ -710,9 +811,13 @@ export async function listenSharedWorldWs(
               return;
             }
             case "resync": {
-              if (state.connection != null) {
-                options.host.resync(state.connection.sessionId);
-              }
+              if (state.connection == null) return;
+              // A base snapshot is the largest frame there is. A client only
+              // needs one after a gap; asked again at once, it waits.
+              const at = nowMs();
+              if (at - state.resyncAtMs < RESYNC_MIN_GAP_MS) return;
+              state.resyncAtMs = at;
+              options.host.resync(state.connection.sessionId);
               return;
             }
             case "command": {
@@ -755,6 +860,14 @@ export async function listenSharedWorldWs(
                 });
                 return;
               }
+              if (!queryFlood.take(nowMs()) || overloaded(socket, state)) {
+                send(socket, {
+                  type: "query-error",
+                  id: message.id,
+                  error: "busy; try again",
+                });
+                return;
+              }
               try {
                 const result = await options.host.handleQuery(
                   state.connection.sessionId,
@@ -762,12 +875,10 @@ export async function listenSharedWorldWs(
                 );
                 send(socket, { type: "query-result", id: message.id, result });
               } catch (error) {
-                const text =
-                  error instanceof Error ? error.message : String(error);
                 send(socket, {
                   type: "query-error",
                   id: message.id,
-                  error: text,
+                  error: publicQueryError(error),
                 });
               }
               return;
@@ -776,8 +887,15 @@ export async function listenSharedWorldWs(
               return;
           }
         } catch (error) {
-          const text = error instanceof Error ? error.message : String(error);
-          send(socket, { type: "error", code: "server_error", error: text });
+          // Internal error text (database, paths) stays in the server log.
+          log(
+            `message failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+          send(socket, {
+            type: "error",
+            code: "server_error",
+            error: "server error",
+          });
         }
       })();
     });
@@ -793,6 +911,10 @@ export async function listenSharedWorldWs(
         state.connection = null;
       }
       states.delete(socket);
+      if (helloTimer != null) clearTimeout(helloTimer);
+      const remaining = (socketsByAddress.get(state.address) ?? 1) - 1;
+      if (remaining > 0) socketsByAddress.set(state.address, remaining);
+      else socketsByAddress.delete(state.address);
       presenceDirty = true;
     });
     socket.on("error", () => {

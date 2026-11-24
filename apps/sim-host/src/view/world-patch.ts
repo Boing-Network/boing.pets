@@ -71,6 +71,39 @@ export function resetPatchBaseline(
   }
 }
 
+function dirtyEventViews(dirty: DirtySet): WorldEventView[] {
+  return dirty.events
+    .slice()
+    .sort((a, b) => a.tick - b.tick || a.id - b.id)
+    .map((event) => ({
+      id: event.id,
+      worldId: event.worldId,
+      tick: event.tick,
+      kind: event.kind,
+      actorId: event.actorId,
+      subjectId: event.subjectId,
+      territoryId: event.territoryId,
+      lineageId: event.lineageId,
+      summary: event.summary,
+      payload: event.payload,
+    }));
+}
+
+/**
+ * Events in the dirty window that no listener has been sent yet. A keyframe
+ * snapshot replaces the patch for its tick, and the commit that often follows
+ * in the same frame clears the window, so the snapshot has to carry them or
+ * that tick's births and deaths never reach the live feed.
+ */
+export function unsentEventViews(
+  dirty: DirtySet,
+  baseline: PatchBaseline,
+): WorldEventView[] {
+  return dirtyEventViews(dirty).filter(
+    (event) => event.id > baseline.lastEventId,
+  );
+}
+
 function creatureFields(row: CreatureView): Map<string, string> {
   const fields = new Map<string, string>();
   for (const [key, value] of Object.entries(row)) {
@@ -179,21 +212,7 @@ export function buildWorldPatch(
       ),
     );
 
-  const events: WorldEventView[] = dirty.events
-    .slice()
-    .sort((a, b) => a.tick - b.tick || a.id - b.id)
-    .map((event) => ({
-      id: event.id,
-      worldId: event.worldId,
-      tick: event.tick,
-      kind: event.kind,
-      actorId: event.actorId,
-      subjectId: event.subjectId,
-      territoryId: event.territoryId,
-      lineageId: event.lineageId,
-      summary: event.summary,
-      payload: event.payload,
-    }));
+  const events = dirtyEventViews(dirty);
 
   if (baseline == null) {
     return {

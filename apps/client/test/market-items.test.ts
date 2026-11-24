@@ -6,7 +6,7 @@ import type {
   MarketMintInfo,
 } from "@boing-pets/contract";
 import { creatureActivity, tickClock } from "../src/hud/activity";
-import { mintedText } from "../src/hud/ItemsSection";
+import { mintedText } from "../src/hud/workshop";
 import {
   DEFAULT_SERVER,
   itemsUrl,

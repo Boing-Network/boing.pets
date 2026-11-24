@@ -1,5 +1,5 @@
 /**
- * Pause / scale / influence HUD sends the contract IPC messages.
+ * Pause / scale / rename HUD sends the contract IPC messages.
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -55,7 +55,7 @@ test("clock controls send pause, resume, and setScale", () => {
   client.dispose();
 });
 
-test("influence submits cover all five verbs for the selected creature", () => {
+test("the inspector's two renames go out as influences", () => {
   resetStores();
   const sent: ClientToHost[] = [];
   const { client, host } = createMemoryIpc();
@@ -86,27 +86,6 @@ test("influence submits cover all five verbs for the selected creature", () => {
       payload: { lineageId: creature.family.lineageId, name: "Quill line" },
     },
   });
-  client.send({
-    message: "influence.submit",
-    body: {
-      kind: InfluenceKind.FAVOR_BLOODLINE,
-      payload: { lineageId: creature.family.lineageId },
-    },
-  });
-  client.send({
-    message: "influence.submit",
-    body: {
-      kind: InfluenceKind.ENRICH_TERRITORY,
-      payload: { territoryId: creature.territoryId },
-    },
-  });
-  client.send({
-    message: "influence.submit",
-    body: {
-      kind: InfluenceKind.CALM_TERRITORY,
-      payload: { territoryId: creature.territoryId },
-    },
-  });
 
   const kinds = sent
     .filter((message) => message.message === "influence.submit")
@@ -114,9 +93,6 @@ test("influence submits cover all five verbs for the selected creature", () => {
   assert.deepEqual(kinds, [
     InfluenceKind.NAME_CREATURE,
     InfluenceKind.NAME_LINEAGE,
-    InfluenceKind.FAVOR_BLOODLINE,
-    InfluenceKind.ENRICH_TERRITORY,
-    InfluenceKind.CALM_TERRITORY,
   ]);
 
   unbind();

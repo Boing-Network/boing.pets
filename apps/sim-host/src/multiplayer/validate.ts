@@ -63,15 +63,14 @@ function influence(body: unknown): InfluenceSubmit | null {
         ? { kind: body.kind, payload: { lineageId, name: n } }
         : null;
     }
-    case InfluenceKind.FAVOR_BLOODLINE: {
-      const lineageId = id(p.lineageId);
-      return lineageId ? { kind: body.kind, payload: { lineageId } } : null;
-    }
+    // Favoring a bloodline and enriching or calming a territory are no
+    // longer free actions: players craft a Vitality Potion, Rations Pack,
+    // Seed bundle or Calm Potion and use that instead (USE_ITEM below). The
+    // kinds stay in the kernel so recorded worlds replay.
+    case InfluenceKind.FAVOR_BLOODLINE:
     case InfluenceKind.ENRICH_TERRITORY:
-    case InfluenceKind.CALM_TERRITORY: {
-      const territoryId = id(p.territoryId);
-      return territoryId ? { kind: body.kind, payload: { territoryId } } : null;
-    }
+    case InfluenceKind.CALM_TERRITORY:
+      return null;
     case InfluenceKind.GATHER_RESOURCE: {
       // The host grants resource and units; anything the client sends is ignored.
       const territoryId = id(p.territoryId);
@@ -86,14 +85,20 @@ function influence(body: unknown): InfluenceSubmit | null {
       if (typeof p.item !== "string" || !isItemSlug(p.item)) return null;
       const territoryId = p.territoryId == null ? undefined : id(p.territoryId);
       const lineageId = p.lineageId == null ? undefined : id(p.lineageId);
-      if (territoryId === null || lineageId === null) return null;
-      if (territoryId == null && lineageId == null) return null;
+      const creatureId = p.creatureId == null ? undefined : id(p.creatureId);
+      if (territoryId === null || lineageId === null || creatureId === null) {
+        return null;
+      }
+      if (territoryId == null && lineageId == null && creatureId == null) {
+        return null;
+      }
       return {
         kind: body.kind,
         payload: {
           item: p.item,
           ...(territoryId != null ? { territoryId } : {}),
           ...(lineageId != null ? { lineageId } : {}),
+          ...(creatureId != null ? { creatureId } : {}),
         },
       };
     }

@@ -25,6 +25,7 @@ import {
   LOOT_RULES,
   ModifierKind,
   RECIPES,
+  creatureCraftable,
   creatureUseRule,
   itemDef,
   resourceForTerritory,
@@ -205,7 +206,12 @@ export function applyCreatureUse(
     );
   } else {
     const effect = def.effect;
-    if (effect == null || effect.kind === "FAVOR") {
+    if (
+      effect == null ||
+      effect.kind === "FAVOR" ||
+      effect.kind === "RELIEF" ||
+      effect.kind === "GENE"
+    ) {
       throw new Error(`creature use effect ${input.item}`);
     }
     addModifier(
@@ -366,10 +372,12 @@ export function planCreatureAutonomy(input: {
   for (const [bag, creatureId] of crafter) {
     if (!bag.autoCraft) continue;
     for (let n = 0; n < input.maxCraftsPerBag; n += 1) {
-      const recipe = RECIPES.find((row) =>
-        row.inputs.every(
-          (need) => (bag.units.get(need.slug) ?? 0) >= need.count,
-        ),
+      const recipe = RECIPES.find(
+        (row) =>
+          creatureCraftable(row.output) &&
+          row.inputs.every(
+            (need) => (bag.units.get(need.slug) ?? 0) >= need.count,
+          ),
       );
       if (recipe == null) break;
       for (const need of recipe.inputs) {

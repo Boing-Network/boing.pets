@@ -21,7 +21,7 @@ import { runCatchup } from "../src/catchup";
 
 const SEED = 1;
 
-test("host accepts at most 3 influences per wall-clock 24 hours", async () => {
+test("a gate accepts its limit per window, then again once the window rolls", async () => {
   const store = new MemoryWorldRepository();
   const session = await bootSession(store, SEED);
   const gate = createInfluenceGate();

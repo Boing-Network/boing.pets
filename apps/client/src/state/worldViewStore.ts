@@ -14,6 +14,14 @@ import type {
 } from "@boing-pets/contract";
 import type { HostToClient } from "@boing-pets/contract";
 import { applyWorldPatch } from "@boing-pets/contract";
+import {
+  capEvents,
+  EMPTY_EVENT_LOG,
+  ITEM_LOG_LIMIT,
+  isItemEvent,
+  recordEvents,
+  type EventLog,
+} from "./eventLog";
 
 function monotonicNowMs(): number {
   return typeof performance !== "undefined" ? performance.now() : Date.now();
@@ -38,6 +46,17 @@ type WorldViewState = {
    */
   clockReceivedAtMs: number;
   lastCatchup: CatchupReport | null;
+  /**
+   * Recent world events for the news feed. Kept apart from `view.events`,
+   * which a full snapshot resets.
+   */
+  eventLog: EventLog;
+  /**
+   * Recent item activity (finds, crafts, gifts) for the inspector. A host
+   * that sends snapshots instead of patches shows each event for one tick
+   * only, so the inspector cannot rely on `view.events` either.
+   */
+  itemLog: EventLog;
   connection: ConnectionStatus;
   /** Shared-world session; null for local play (where you own the world). */
   session: SessionInfo | null;
@@ -53,25 +72,60 @@ export const useWorldViewStore = create<WorldViewState>((set, get) => ({
   clock: null,
   clockReceivedAtMs: 0,
   lastCatchup: null,
+  eventLog: EMPTY_EVENT_LOG,
+  itemLog: EMPTY_EVENT_LOG,
   connection: "local",
   session: null,
   lastNotice: null,
 
   setSnapshot(view) {
-    set({ view });
+    // The first snapshot of a world is history: logged, but not "new". A
+    // later one is a keyframe standing in for a patch, and the host puts
+    // that tick's events in it, so those are news like any patch's.
+    const live = get().view?.world.id === view.world.id;
+    set({
+      view,
+      eventLog: recordEvents(get().eventLog, view.world.id, view.events, live),
+      itemLog: recordEvents(
+        get().itemLog,
+        view.world.id,
+        view.events,
+        live,
+        ITEM_LOG_LIMIT,
+        isItemEvent,
+      ),
+    });
   },
 
   applyPatch(patch) {
     const current = get().view;
     if (!current) return;
-    // Dead creatures stay in the cache for lineage lookups.
-    set({ view: applyWorldPatch(current, patch).view });
+    // Dead creatures stay in the cache for lineage lookups; events do not
+    // need to, so only the newest are kept.
+    const next = applyWorldPatch(current, patch).view;
+    set({
+      view: { ...next, events: capEvents(next.events) },
+      eventLog: recordEvents(
+        get().eventLog,
+        current.world.id,
+        patch.events,
+        true,
+      ),
+      itemLog: recordEvents(
+        get().itemLog,
+        current.world.id,
+        patch.events,
+        true,
+        ITEM_LOG_LIMIT,
+        isItemEvent,
+      ),
+    });
   },
 
   applyHostMessage(message) {
     switch (message.message) {
       case "world.snapshot":
-        set({ view: message.body });
+        get().setSnapshot(message.body);
         break;
       case "world.patch":
         get().applyPatch(message.body);
