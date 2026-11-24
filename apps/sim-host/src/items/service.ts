@@ -4,8 +4,8 @@
  *
  * - Only wallet accounts (`w:<hex>`) and the local single-player account can
  *   hold items. Guests cannot gather, craft, or use (anti-farming).
- * - GATHER_RESOURCE and USE_ITEM are influences, so they share the existing
- *   3-per-24h budget. Crafting is not an influence and costs no budget.
+ * - GATHER_RESOURCE and USE_ITEM are influences (recorded and replayed) but
+ *   are not rate limited. Crafting is not an influence.
  * - LPIT reward consumables (Vitality, Calm, Rations) are mirrored into the
  *   inventory from their asset mint rows (`mint:<mintKey>` lots), whatever the
  *   on-chain status. Using one debits the lot; the LPIT token itself is not

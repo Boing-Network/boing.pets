@@ -58,8 +58,8 @@ export function mintedText(entry: { count: number; minted?: number }): string {
  * keep finding them while the player is away); here the player turns those
  * into food, potions, tools and tonics by hand, and gives them out.
  *
- * Crafting is free. Gathering by hand and using an item are world actions
- * and share the 3-per-day influence budget.
+ * Nothing here has a daily limit: gathering is bounded by the territory's
+ * stock, crafting by materials, and using by the item itself.
  */
 export function ItemsSection({
   ipc,
@@ -153,7 +153,7 @@ export function ItemsSection({
             title={
               resource == null
                 ? "Nothing grows here"
-                : "Uses one influence. Gathering eats into the food creatures forage."
+                : "Gathering eats into the food creatures forage here."
             }
             onClick={() => {
               if (territory == null) return;
@@ -210,11 +210,7 @@ export function ItemsSection({
                     type="button"
                     className="influence-btn items-use"
                     disabled={!action.ready}
-                    title={
-                      action.ready
-                        ? `${def.description} Uses one influence.`
-                        : action.hint
-                    }
+                    title={action.ready ? def.description : action.hint}
                     onClick={() => {
                       if (def.target === "TERRITORY" && territory != null) {
                         use({ item: def.slug, territoryId: territory.id });

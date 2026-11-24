@@ -187,8 +187,11 @@ materials into:
 - **Tonics** (Swiftness, Might, Insight): +20 to one gene of one creature for
   good, never past 900, and inherited by its young.
 
-Crafting is free. Gathering by hand and using an item are world actions and
-share the three-a-day influence budget. Creatures still help themselves to
+Crafting, gathering by hand and using an item have no daily limit: gathering
+is bounded by a territory's stock and using by the item itself. Only the world
+nudges (naming, favoring, enriching, calming) keep the three-a-day limit.
+Every craftable item has an LPIT token id and a still, so it can be minted and
+listed on the marketplace. Creatures still help themselves to
 food and potions from their keeper's bag; they only craft if the keeper turns
 that on, and never make tonics. The catalog, recipes and rules live in
 `packages/contract/src/items.ts`.

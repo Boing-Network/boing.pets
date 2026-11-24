@@ -3,6 +3,7 @@
  * potions and tonics from them and gives them to a creature.
  */
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { test } from "node:test";
 import {
   CREATURE_USE_RULES,
@@ -12,10 +13,13 @@ import {
   InfluenceKind,
   ItemCategory,
   ItemSlug,
+  LPIT_ITEM_IDS,
   RECIPES,
   TONIC_GENE_CEILING,
   creatureCraftable,
   itemDef,
+  itemImageSrc,
+  lpitItemSlug,
   type InventoryView,
   type WorldEventView,
 } from "@boing-pets/contract";
@@ -136,6 +140,27 @@ test("the recipe book hangs together", () => {
     );
   }
   assert.ok(TONIC_GENE_CEILING < 1000);
+});
+
+test("everything gathered or crafted can be minted and has a still", () => {
+  const ids = new Set<number>();
+  for (const def of ITEM_CATALOG) {
+    if (def.category === ItemCategory.RELIC) continue;
+    const id = LPIT_ITEM_IDS[def.slug];
+    assert.ok(id != null && id >= 1, `${def.slug} has a token id`);
+    assert.ok(!ids.has(id), `${def.slug} has its own token id`);
+    ids.add(id);
+    assert.equal(lpitItemSlug(id), def.slug);
+    const src = itemImageSrc(def.slug);
+    assert.ok(src, `${def.slug} has a still`);
+    assert.ok(
+      existsSync(new URL(`../../client/public${src}`, import.meta.url)),
+      `${src} is on disk`,
+    );
+  }
+  // Ids already minted on chain never move.
+  assert.equal(LPIT_ITEM_IDS[ItemSlug.POTION_VITALITY], 1);
+  assert.equal(LPIT_ITEM_IDS[ItemSlug.SALT_LICK], 9);
 });
 
 test("crafting is the player's job unless they hand it over", () => {

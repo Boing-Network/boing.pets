@@ -327,6 +327,14 @@ const LPIT_ITEM_IMAGE_SLUGS: ReadonlySet<string> = new Set([
   ItemSlug.RATIONS,
   ItemSlug.POTION_CALM,
   ItemSlug.POTION_VITALITY,
+  ItemSlug.THORNBERRY,
+  ItemSlug.AMBER_RESIN,
+  ItemSlug.POTION_MENDING,
+  ItemSlug.HEARTY_STEW,
+  ItemSlug.DREAM_DRAUGHT,
+  ItemSlug.TONIC_SWIFT,
+  ItemSlug.TONIC_MIGHT,
+  ItemSlug.TONIC_INSIGHT,
 ]);
 
 /** File stem for an item slug (`potion.vitality` → `potion-vitality`). */

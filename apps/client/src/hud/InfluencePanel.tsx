@@ -57,8 +57,8 @@ export function InfluencePanel({ ipc }: Props) {
       {/* Hidden, not unmounted: typed names and item choices survive a fold. */}
       <div id="influence-body" className="panel-body" hidden={collapsed}>
         <p className="influence-hint">
-          You nudge, they decide. Up to 3 influences per rolling day (gathering
-          and using items count). The selected creature and territory are the
+          You nudge, they decide. Up to 3 nudges per rolling day; the workshop
+          below has no limit. The selected creature and territory are the
           targets.
         </p>
         {creature == null ? (
