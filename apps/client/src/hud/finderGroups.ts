@@ -76,3 +76,27 @@ export function livingSpecies(
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
 }
+
+/** The followed creatures that are alive, in name order. */
+export function followedCreatures<T extends FinderCreature>(
+  creatures: readonly T[],
+  followed: ReadonlySet<number>,
+): T[] {
+  if (followed.size === 0) return [];
+  return creatures
+    .filter(
+      (row) => row.status === CreatureStatus.ALIVE && followed.has(row.id),
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** The "need help" banner: the player's own creatures come first. */
+export function needLabel(total: number, yours: number): string {
+  if (yours > 0) {
+    const rest = total - yours;
+    const head =
+      yours === 1 ? "1 of yours needs help" : `${yours} of yours need help`;
+    return rest > 0 ? `${head}, and ${rest} more` : head;
+  }
+  return total === 1 ? "1 creature needs help" : `${total} creatures need help`;
+}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { FollowPrompt } from "./YourCreatures";
 
 const KEY = "living-pets.intro.v1";
 
@@ -14,11 +15,12 @@ function storage(): Storage | null {
  * First-visit orientation. The world is already moving when a player arrives
  * and nothing says what they can do, so say it once, briefly. Dismissal is
  * remembered per browser; if storage is unavailable it simply shows once per
- * page load.
+ * page load. Once it is out of the way, a player who follows no creature yet
+ * is offered three to choose from.
  */
 export function IntroTip() {
   const [open, setOpen] = useState(() => storage()?.getItem(KEY) !== "1");
-  if (!open) return null;
+  if (!open) return <FollowPrompt />;
   const close = () => {
     try {
       storage()?.setItem(KEY, "1");
