@@ -15,6 +15,7 @@ export const RNG_DOMAINS = [
   "move",
   "gather",
   "loot",
+  "hazard",
 ] as const;
 
 export type RngDomain = (typeof RNG_DOMAINS)[number];

@@ -75,10 +75,21 @@ function rememberFirstChild(
   });
 }
 
+/** How a birth names a father who did not live to see it. */
+export const LATE_FATHER_NAME = "her late mate";
+
+/**
+ * `sire` is null when the father died during the gestation. His row may
+ * already have left the hot snapshot (the host prunes the dead after a
+ * commit), so nothing here may depend on it: the child then takes after its
+ * mother alone. Deciding by "alive", not by "row present", keeps the result
+ * the same whenever the prune happened.
+ */
 function deliverChild(
   snapshot: WorldSnapshot,
   mother: CreatureRow,
-  father: CreatureRow,
+  sire: CreatureRow | null,
+  sireId: number,
   tick: number,
   events: WorldEvent[],
 ): void {
@@ -90,6 +101,7 @@ function deliverChild(
   );
   if (!species || !territory) throw new Error("birth");
 
+  const father = sire ?? mother;
   const childId = take(snapshot, "nextCreatureId");
   const seed = snapshot.world.seed;
   const { genes, mutations } = inheritGenes(
@@ -130,7 +142,7 @@ function deliverChild(
     territoryId: mother.territoryId,
     lineageId,
     motherId: mother.id,
-    fatherId: father.id,
+    fatherId: sireId,
     generation,
     geneStrength: genes.strength,
     geneSpeed: genes.speed,
@@ -179,9 +191,11 @@ function deliverChild(
 
   snapshot.creatures.push(child);
   createParentChildRelationship(snapshot, mother.id, childId, tick);
-  createParentChildRelationship(snapshot, father.id, childId, tick);
   rememberFirstChild(snapshot, mother, childId, tick);
-  rememberFirstChild(snapshot, father, childId, tick);
+  if (sire != null) {
+    createParentChildRelationship(snapshot, sire.id, childId, tick);
+    rememberFirstChild(snapshot, sire, childId, tick);
+  }
 
   events.push(
     birthEvent({
@@ -190,13 +204,13 @@ function deliverChild(
       tick,
       childId,
       motherId: mother.id,
-      fatherId: father.id,
+      fatherId: sireId,
       lineageId,
       speciesId: mother.speciesId,
       territoryId: mother.territoryId,
       name: child.name,
       motherName: mother.name,
-      fatherName: father.name,
+      fatherName: sire?.name ?? LATE_FATHER_NAME,
       territoryName: territory.name,
       genes,
       mutations,
@@ -229,7 +243,8 @@ export function resolveBirths(
     const sireId = mother.gestationSireId;
     if (sireId == null) throw new Error("gestationSireId");
     const father = snapshot.creatures.find((row) => row.id === sireId);
-    if (!father) throw new Error("sire");
-    deliverChild(snapshot, mother, father, tick, events);
+    const sire =
+      father != null && father.status === CreatureStatus.ALIVE ? father : null;
+    deliverChild(snapshot, mother, sire, sireId, tick, events);
   }
 }

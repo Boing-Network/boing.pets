@@ -1,3 +1,9 @@
+export {
+  HAZARD_RULES,
+  applyHazard,
+  hazardChance,
+  recoverPerTick,
+} from "./kernel/hazards";
 export { step } from "./kernel/step";
 export { applyInfluences } from "./kernel/influences";
 export { aggregateTerritories } from "./kernel/territories";

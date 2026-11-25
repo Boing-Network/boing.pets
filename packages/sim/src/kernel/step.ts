@@ -11,7 +11,8 @@ import { die, driftDeathCause, lifespanTicks } from "./death";
 import { applyInfluences, decayLineageFavor } from "./influences";
 import { applyHealthDrift, applyNeedDrift, type TerritoryTick } from "./needs";
 import { aggregateTerritories } from "./territories";
-import { biologyFor } from "./biology";
+import { biologyFor, perceivedDanger } from "./biology";
+import { applyHazard } from "./hazards";
 
 function indexById<T extends { id: number }>(
   rows: readonly T[],
@@ -35,6 +36,15 @@ function stepCreatures(
   const speciesById = indexById(snapshot.species);
   const creaturesById = indexById(snapshot.creatures);
   const ordered = [...snapshot.creatures].sort((a, b) => a.id - b.id);
+  // Living members per species as the tick starts (hazards spare the last few).
+  const speciesLiving = new Map<number, number>();
+  for (const creature of ordered) {
+    if (creature.status !== CreatureStatus.ALIVE) continue;
+    speciesLiving.set(
+      creature.speciesId,
+      (speciesLiving.get(creature.speciesId) ?? 0) + 1,
+    );
+  }
 
   for (const creature of ordered) {
     if (creature.status !== CreatureStatus.ALIVE) continue;
@@ -51,15 +61,18 @@ function stepCreatures(
       continue;
     }
 
-    applyNeedDrift(
-      creature,
-      creaturesById,
-      rules,
-      territory,
-      biologyFor(creature.speciesId),
-    );
+    const biology = biologyFor(creature.speciesId);
+    applyNeedDrift(creature, creaturesById, rules, territory, biology);
     applyHealthDrift(creature, rules);
-    const cause = driftDeathCause(creature);
+    const hazard = applyHazard(
+      creature,
+      snapshot.world.seed,
+      tick,
+      perceivedDanger(biology, territory),
+      speciesLiving.get(creature.speciesId) ?? 0,
+    );
+    const cause =
+      hazard === "killed" ? DeathCause.INJURY : driftDeathCause(creature);
     if (cause) {
       events.push(die(snapshot, creature, tick, cause, territory.name));
       continue;

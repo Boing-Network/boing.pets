@@ -101,6 +101,11 @@ export type CreatureView = {
   memories: MemoryView[];
   relationships: RelationshipView[];
   needs: Needs;
+  /**
+   * 0-1000, higher is better; a creature dies at 0. Optional because a
+   * client may be newer than the server it joins.
+   */
+  health?: number;
   currentGoal: Goal;
   family: {
     motherId: number | null;

@@ -11,6 +11,8 @@ export type FinderCreature = {
   speciesId: number;
   status: string;
   territoryId: number | null;
+  health?: number;
+  needs?: { hunger: number; thirst: number };
 };
 
 export type FinderGroup = {
@@ -23,12 +25,15 @@ export function groupCreatures(
   creatures: readonly FinderCreature[],
   query: string,
   speciesFilter: number | null,
+  /** When set, only these creature ids are listed. */
+  only: ReadonlySet<number> | null = null,
 ): FinderGroup[] {
   const q = query.trim().toLowerCase();
   const groups = new Map<number, FinderGroup>();
   for (const creature of creatures) {
     if (creature.status !== CreatureStatus.ALIVE) continue;
     if (speciesFilter != null && creature.speciesId !== speciesFilter) continue;
+    if (only != null && !only.has(creature.id)) continue;
     const label = speciesLabel(creature.speciesId);
     if (
       q &&

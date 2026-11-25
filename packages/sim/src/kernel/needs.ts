@@ -1,6 +1,7 @@
 import { Action, CreatureStatus, type Ruleset } from "@boing-pets/contract";
 import { assertInteger, clamp } from "../math";
 import type { CreatureRow } from "../types";
+import { recoverPerTick } from "./hazards";
 import {
   NEUTRAL_PROFILE,
   perceivedDanger,
@@ -136,7 +137,7 @@ export function applyHealthDrift(creature: CreatureRow, rules: Ruleset): void {
     creature.thirst < rules.healthRecoverThirstMax &&
     creature.fatigue < rules.healthRecoverFatigueMax
   ) {
-    health += rules.healthRecoverPerTick;
+    health += recoverPerTick(health, rules);
   }
   creature.health = score(health, "health");
 }
