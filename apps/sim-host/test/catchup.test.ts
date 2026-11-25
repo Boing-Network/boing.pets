@@ -85,7 +85,9 @@ test("host catch-up of 1,440 ticks matches 1,440 single steps and report counts"
     report.summary.matings +
     report.summary.migrations +
     report.summary.discoveries +
-    (report.summary.items ?? 0);
+    (report.summary.items ?? 0) +
+    (report.summary.injuries ?? 0) +
+    (report.summary.outbreaks ?? 0);
   assert.equal(kindTotal, goldEvents.length);
 
   // Batch commits every catchupBatchTicks (500) plus the final commit.

@@ -18,6 +18,30 @@ function world(): WorldSnapshot {
   return createWorld(1).snapshot;
 }
 
+/**
+ * A founder pair is "the last of a kind" and is spared by want (see
+ * `applyHealthDrift`). These tests are about the plain thresholds, so give
+ * creature 1 enough kin, in another territory, to count as a common species.
+ */
+function commonWorld(): WorldSnapshot {
+  const snapshot = world();
+  const model = snapshot.creatures.find((creature) => creature.id === 1);
+  assert.ok(model);
+  const elsewhere = snapshot.territories.find(
+    (territory) => territory.id !== model.territoryId,
+  );
+  assert.ok(elsewhere);
+  for (let i = 0; i < 4; i += 1) {
+    const kin = JSON.parse(JSON.stringify(model)) as CreatureRow;
+    kin.id = snapshot.world.nextCreatureId;
+    snapshot.world.nextCreatureId += 1;
+    kin.name = `Kin ${i}`;
+    kin.territoryId = elsewhere.id;
+    snapshot.creatures.push(kin);
+  }
+  return snapshot;
+}
+
 function byId(snapshot: WorldSnapshot, id: number): CreatureRow {
   const row = snapshot.creatures.find((creature) => creature.id === id);
   assert.ok(row);
@@ -275,7 +299,7 @@ test("health penalties follow the ruleset thresholds", () => {
   assert.equal(byId(both, 1).fatigue, 203);
   assert.equal(byId(both, 1).health, 850);
 
-  const illness = world();
+  const illness = commonWorld();
   const sick = byId(illness, 1);
   sick.health = 10;
   sick.hunger = 990;
@@ -293,7 +317,7 @@ test("health penalties follow the ruleset thresholds", () => {
 });
 
 test("death checks prefer starvation, then thirst, then illness", () => {
-  const both = world();
+  const both = commonWorld();
   byId(both, 1).hunger = 996;
   byId(both, 1).thirst = 993;
   byId(both, 1).health = 10;
@@ -302,7 +326,7 @@ test("death checks prefer starvation, then thirst, then illness", () => {
   assert.equal(byId(both, 1).health, 0);
   assert.equal(bothStep.events.length, 1);
 
-  const thirst = world();
+  const thirst = commonWorld();
   const dry = byId(thirst, 1);
   dry.thirst = 993;
   dry.health = 10;

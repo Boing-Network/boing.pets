@@ -16,6 +16,8 @@ export type ConditionInput = {
   status: string;
   /** Absent from servers older than the health field: treated as healthy. */
   health?: number;
+  /** Caught the sickness in its territory. */
+  sick?: boolean;
   needs?: { hunger: number; thirst: number };
 };
 
@@ -43,6 +45,14 @@ export function creatureCondition(creature: ConditionInput): Condition {
     reasons.push(critical ? "badly wounded" : "wounded");
     advice.push("a Mending Potion heals it");
     level = critical ? 2 : 1;
+  }
+  if (creature.sick === true) {
+    reasons.push("sick");
+    // Sickness drains health until it passes; a potion buys the time.
+    if (health >= WOUNDED_BELOW) {
+      advice.push("a Mending Potion keeps its strength up until it passes");
+    }
+    if (level === 0) level = 1;
   }
   if (hunger >= STARVING_AT) {
     reasons.push("starving");

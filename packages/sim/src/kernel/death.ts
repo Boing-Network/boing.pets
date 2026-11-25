@@ -123,6 +123,7 @@ export function die(
   tick: number,
   cause: DeathCause,
   territoryName: string,
+  killer: CreatureRow | null = null,
 ): WorldEvent {
   const gestationLost = creature.gestationEndTick != null;
   creature.status = CreatureStatus.DEAD;
@@ -143,6 +144,7 @@ export function die(
     territoryName,
     ageDays: ageDays(creature.birthTick, tick, snapshot.ruleset.ticksPerDay),
     gestationLost,
+    killer: killer ? { id: killer.id, name: killer.name } : null,
   });
   rememberParentDeath(snapshot, creature, tick);
   return event;

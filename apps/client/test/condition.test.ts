@@ -52,6 +52,28 @@ test("wounds and starvation are named with what helps", () => {
   assert.deepEqual(parched.reasons, ["parched"]);
 });
 
+test("a sick creature is flagged, with advice while it is still strong", () => {
+  const sick = creatureCondition({
+    status: "ALIVE",
+    health: 800,
+    sick: true,
+    needs: well,
+  });
+  assert.equal(sick.level, 1);
+  assert.deepEqual(sick.reasons, ["sick"]);
+  assert.match(sick.advice, /Mending Potion/);
+
+  const failing = creatureCondition({
+    status: "ALIVE",
+    health: 200,
+    sick: true,
+    needs: well,
+  });
+  assert.equal(failing.level, 2);
+  assert.deepEqual(failing.reasons, ["badly wounded", "sick"]);
+  assert.equal(failing.advice, "A Mending Potion heals it.");
+});
+
 test("the list of creatures in need puts the most urgent first", () => {
   const rows = [
     { id: 1, status: "ALIVE", health: 950, needs: well },

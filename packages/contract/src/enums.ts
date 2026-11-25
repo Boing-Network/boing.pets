@@ -107,6 +107,10 @@ export const EventKind = {
   MIGRATION: "MIGRATION",
   /** A creature looted, crafted or used an item on its own (autonomy). */
   ITEM: "ITEM",
+  /** A creature was left wounded by a hazard or a predator. */
+  INJURY: "INJURY",
+  /** A sickness began to spread through a territory. */
+  OUTBREAK: "OUTBREAK",
 } as const;
 export type EventKind = (typeof EventKind)[keyof typeof EventKind];
 
@@ -146,6 +150,8 @@ export const ModifierKind = {
   HARVEST: "HARVEST",
   /** Salt lick: per-tick thirst and discomfort relief. */
   COMFORT: "COMFORT",
+  /** An outbreak: susceptible creatures here lose `amount` health per tick. */
+  SICKNESS: "SICKNESS",
 } as const;
 export type ModifierKind = (typeof ModifierKind)[keyof typeof ModifierKind];
 
@@ -173,6 +179,8 @@ export const EventTemplate = {
   ITEM_LOOT: "item.loot.v1",
   ITEM_CRAFT: "item.craft.v1",
   ITEM_USE: "item.use.v1",
+  INJURY: "injury.v1",
+  OUTBREAK: "outbreak.v1",
 } as const;
 export type EventTemplate = (typeof EventTemplate)[keyof typeof EventTemplate];
 

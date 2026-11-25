@@ -474,6 +474,22 @@ const EVENT_CUES: Record<EventKind, CueSpec> = {
     timbre: "pluck",
     notes: [{ midi: 72, at: 0, dur: 0.5, gain: 0.3 }],
   },
+  // A short falling pair: something went wrong.
+  [EventKind.INJURY]: {
+    timbre: "pluck",
+    notes: [
+      { midi: 64, at: 0, dur: 0.5, gain: 0.3 },
+      { midi: 57, at: 0.12, dur: 0.8, gain: 0.3 },
+    ],
+  },
+  // A low, uneasy bell.
+  [EventKind.OUTBREAK]: {
+    timbre: "bell",
+    notes: [
+      { midi: 53, at: 0, dur: 2.6, gain: 0.45 },
+      { midi: 52, at: 0.3, dur: 2.6, gain: 0.3 },
+    ],
+  },
 };
 
 export function cueForEvent(kind: EventKind): CueSpec {
@@ -488,6 +504,8 @@ const CUE_PRIORITY: Record<EventKind, number> = {
   [EventKind.DISCOVERY]: 2,
   [EventKind.MIGRATION]: 3,
   [EventKind.ITEM]: 4,
+  [EventKind.OUTBREAK]: 1,
+  [EventKind.INJURY]: 3,
 };
 
 /** At most this many cues per batch of events; the rest are dropped. */

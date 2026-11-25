@@ -12,6 +12,7 @@ export type FinderCreature = {
   status: string;
   territoryId: number | null;
   health?: number;
+  sick?: boolean;
   needs?: { hunger: number; thirst: number };
 };
 

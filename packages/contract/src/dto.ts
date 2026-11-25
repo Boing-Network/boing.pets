@@ -106,6 +106,8 @@ export type CreatureView = {
    * client may be newer than the server it joins.
    */
   health?: number;
+  /** Caught the sickness in its territory. Omitted when well. */
+  sick?: boolean;
   currentGoal: Goal;
   family: {
     motherId: number | null;
@@ -153,6 +155,26 @@ export type DeathEventPayload = {
   ageDays: number;
   territoryId: number;
   gestationLost: boolean;
+  /** The predator that made the kill, when there was one. */
+  killerId?: number;
+};
+
+/** A creature was left wounded (EventKind.INJURY). */
+export type InjuryEventPayload = {
+  template: typeof EventTemplate.INJURY;
+  creatureId: number;
+  /** The predator that attacked, or null for a fall, a storm and the like. */
+  attackerId: number | null;
+  /** Health left after the blow (0..1000). */
+  health: number;
+  territoryId: number;
+};
+
+/** A sickness began in a territory (EventKind.OUTBREAK). */
+export type OutbreakEventPayload = {
+  template: typeof EventTemplate.OUTBREAK;
+  territoryId: number;
+  endTick: number;
 };
 
 export type MatingEventPayload = {
@@ -208,7 +230,9 @@ export type EventPayload =
   | MatingEventPayload
   | DiscoveryEventPayload
   | MigrationEventPayload
-  | ItemEventPayload;
+  | ItemEventPayload
+  | InjuryEventPayload
+  | OutbreakEventPayload;
 
 export type WorldEventView = {
   id: number;
@@ -242,7 +266,7 @@ export type TerritoryView = {
 
 /** One kind of active territory effect, summed, with the latest end tick. */
 export type TerritoryEffectView = {
-  kind: "FOOD" | "DANGER" | "HARVEST" | "COMFORT";
+  kind: "FOOD" | "DANGER" | "HARVEST" | "COMFORT" | "SICKNESS";
   amount: number;
   endTick: number;
 };
@@ -358,6 +382,9 @@ export type CatchupSummary = {
   discoveries: number;
   /** Creature loot, crafts and item uses (absent on older reports). */
   items?: number;
+  /** Creatures left wounded, and outbreaks begun (absent on older reports). */
+  injuries?: number;
+  outbreaks?: number;
   notable: CatchupNotable[];
 };
 

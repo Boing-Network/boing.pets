@@ -54,6 +54,11 @@ export function catchupEventRank(
     case EventKind.ITEM:
       // Creature loot / craft / use: everyday activity, never "notable".
       return 0;
+    case EventKind.INJURY:
+      // Wounds are common; the deaths they lead to are what is notable.
+      return 0;
+    case EventKind.OUTBREAK:
+      return RANK_DISCOVERY;
     default: {
       const never: never = event.kind;
       return never;
@@ -110,6 +115,8 @@ export function buildCatchupSummary(
     migrations: countKind(events, EventKind.MIGRATION),
     discoveries: countKind(events, EventKind.DISCOVERY),
     items: countKind(events, EventKind.ITEM),
+    injuries: countKind(events, EventKind.INJURY),
+    outbreaks: countKind(events, EventKind.OUTBREAK),
     notable: selectNotable(events, byId),
   };
 }

@@ -79,6 +79,8 @@ enum EventKind {
   DISCOVERY
   MIGRATION
   ITEM
+  INJURY
+  OUTBREAK
 }
 
 enum DeathCause {
@@ -106,6 +108,7 @@ enum ModifierKind {
   DANGER
   HARVEST
   COMFORT
+  SICKNESS
 }
 
 /// Host-edge mint status for creature ↔ Boing NFT links (M19 schema-ready; M20 writes).

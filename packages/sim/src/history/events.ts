@@ -86,13 +86,20 @@ function deathCausePhrase(cause: DeathCause): string {
   }
 }
 
-/** `{name} died of {cause} in {territory} at age {ageDays}.` */
+/**
+ * `{name} died of {cause} in {territory} at age {ageDays}.`, or
+ * `{name} was killed by {killer} in {territory} at age {ageDays}.`
+ */
 export function deathSummary(
   name: string,
   cause: DeathCause,
   territoryName: string,
   ageDays: number,
+  killerName: string | null = null,
 ): string {
+  if (killerName != null) {
+    return `${name} was killed by ${killerName} in ${territoryName} at age ${ageDays}.`;
+  }
   return `${name} died of ${deathCausePhrase(cause)} in ${territoryName} at age ${ageDays}.`;
 }
 
@@ -108,6 +115,7 @@ export function deathEvent(input: {
   territoryName: string;
   ageDays: number;
   gestationLost: boolean;
+  killer?: { id: number; name: string } | null;
 }): WorldEvent {
   return {
     id: input.id,
@@ -115,7 +123,7 @@ export function deathEvent(input: {
     tick: input.tick,
     kind: EventKind.DEATH,
     actorId: input.creatureId,
-    subjectId: null,
+    subjectId: input.killer?.id ?? null,
     territoryId: input.territoryId,
     lineageId: input.lineageId,
     summary: deathSummary(
@@ -123,6 +131,7 @@ export function deathEvent(input: {
       input.cause,
       input.territoryName,
       input.ageDays,
+      input.killer?.name ?? null,
     ),
     payload: {
       template: EventTemplate.DEATH,
@@ -130,6 +139,88 @@ export function deathEvent(input: {
       ageDays: input.ageDays,
       territoryId: input.territoryId,
       gestationLost: input.gestationLost,
+      ...(input.killer ? { killerId: input.killer.id } : {}),
+    },
+  };
+}
+
+/**
+ * `{name} was mauled by {attacker} in {territory}.`, or
+ * `{name} was badly hurt in {territory}.`
+ */
+export function injurySummary(
+  name: string,
+  territoryName: string,
+  attackerName: string | null,
+): string {
+  return attackerName != null
+    ? `${name} was mauled by ${attackerName} in ${territoryName}.`
+    : `${name} was badly hurt in ${territoryName}.`;
+}
+
+export function injuryEvent(input: {
+  id: number;
+  worldId: number;
+  tick: number;
+  creatureId: number;
+  lineageId: number;
+  territoryId: number;
+  name: string;
+  territoryName: string;
+  health: number;
+  attacker: { id: number; name: string } | null;
+}): WorldEvent {
+  return {
+    id: input.id,
+    worldId: input.worldId,
+    tick: input.tick,
+    kind: EventKind.INJURY,
+    actorId: input.creatureId,
+    subjectId: input.attacker?.id ?? null,
+    territoryId: input.territoryId,
+    lineageId: input.lineageId,
+    summary: injurySummary(
+      input.name,
+      input.territoryName,
+      input.attacker?.name ?? null,
+    ),
+    payload: {
+      template: EventTemplate.INJURY,
+      creatureId: input.creatureId,
+      attackerId: input.attacker?.id ?? null,
+      health: input.health,
+      territoryId: input.territoryId,
+    },
+  };
+}
+
+/** `A sickness is spreading through {territory}.` */
+export function outbreakSummary(territoryName: string): string {
+  return `A sickness is spreading through ${territoryName}.`;
+}
+
+export function outbreakEvent(input: {
+  id: number;
+  worldId: number;
+  tick: number;
+  territoryId: number;
+  territoryName: string;
+  endTick: number;
+}): WorldEvent {
+  return {
+    id: input.id,
+    worldId: input.worldId,
+    tick: input.tick,
+    kind: EventKind.OUTBREAK,
+    actorId: null,
+    subjectId: null,
+    territoryId: input.territoryId,
+    lineageId: null,
+    summary: outbreakSummary(input.territoryName),
+    payload: {
+      template: EventTemplate.OUTBREAK,
+      territoryId: input.territoryId,
+      endTick: input.endTick,
     },
   };
 }
