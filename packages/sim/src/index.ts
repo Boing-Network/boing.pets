@@ -1,4 +1,18 @@
 export {
+  SICKNESS_RULES,
+  activeSickness,
+  applySickness,
+  isSick,
+  outbreakChance,
+  startOutbreaks,
+  type Sickness,
+} from "./kernel/sickness";
+export {
+  PREDATOR_RULES,
+  carnivoresByTerritory,
+  pickPredator,
+} from "./kernel/predators";
+export {
   HAZARD_RULES,
   applyHazard,
   hazardChance,

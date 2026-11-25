@@ -737,7 +737,7 @@ const CONVERSATION_EMOTION = 200;
 const COOPERATION_IMPORTANCE = 6;
 const COOPERATION_EMOTION = 250;
 
-function rememberFor(
+export function rememberFor(
   snapshot: WorldSnapshot,
   creature: CreatureRow,
   tick: number,

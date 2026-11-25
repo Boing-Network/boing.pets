@@ -137,7 +137,9 @@ test("CatchupSummary counts match gap events and notable stays at most 10", () =
       summary.matings +
       summary.migrations +
       summary.discoveries +
-      (summary.items ?? 0),
+      (summary.items ?? 0) +
+      (summary.injuries ?? 0) +
+      (summary.outbreaks ?? 0),
     events.length,
   );
 });

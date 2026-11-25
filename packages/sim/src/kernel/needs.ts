@@ -1,7 +1,8 @@
 import { Action, CreatureStatus, type Ruleset } from "@boing-pets/contract";
 import { assertInteger, clamp } from "../math";
 import type { CreatureRow } from "../types";
-import { recoverPerTick } from "./hazards";
+import { HAZARD_RULES, recoverPerTick } from "./hazards";
+import type { Sickness } from "./sickness";
 import {
   NEUTRAL_PROFILE,
   perceivedDanger,
@@ -19,6 +20,8 @@ export type TerritoryTick = {
   capacity: number;
   /** M22 salt lick: per-tick thirst and discomfort relief (0..3). */
   comfort?: number;
+  /** The outbreak here this tick, if any (see `kernel/sickness.ts`). */
+  sickness?: Sickness;
 };
 
 function score(value: number, label: string): number {
@@ -118,9 +121,22 @@ export function applyNeedDrift(
   creature.loneliness = score(loneliness, "loneliness");
 }
 
-/** Health drift from the needs this tick already wrote. */
-export function applyHealthDrift(creature: CreatureRow, rules: Ruleset): void {
-  let health = creature.health;
+/**
+ * Health drift from the needs this tick already wrote. A sick creature does
+ * not mend on its own until the sickness passes.
+ *
+ * `endangered` (the species is down to its last few) stops want from taking
+ * the last health: a famine that empties a crowded territory leaves the last
+ * of a kind weak, not dead. Hunger or thirst at 1000 still kills.
+ */
+export function applyHealthDrift(
+  creature: CreatureRow,
+  rules: Ruleset,
+  sick = false,
+  endangered = false,
+): void {
+  const before = creature.health;
+  let health = before;
   const critical =
     creature.hunger > rules.healthCriticalThreshold ||
     creature.thirst > rules.healthCriticalThreshold;
@@ -133,11 +149,15 @@ export function applyHealthDrift(creature: CreatureRow, rules: Ruleset): void {
     health -= rules.healthExhaustPerTick;
   }
   if (
+    !sick &&
     creature.hunger < rules.healthRecoverHungerMax &&
     creature.thirst < rules.healthRecoverThirstMax &&
     creature.fatigue < rules.healthRecoverFatigueMax
   ) {
     health += recoverPerTick(health, rules);
+  }
+  if (endangered) {
+    health = Math.max(health, Math.min(before, HAZARD_RULES.spareHealth));
   }
   creature.health = score(health, "health");
 }

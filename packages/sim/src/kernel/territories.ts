@@ -3,6 +3,7 @@ import { assertInteger, clamp } from "../math";
 import type { WorldSnapshot } from "../types";
 import { comfortRelief } from "./items";
 import type { TerritoryTick } from "./needs";
+import { activeSickness } from "./sickness";
 
 function addBonus(
   bonuses: Map<number, number>,
@@ -42,6 +43,9 @@ export function aggregateTerritories(
       case ModifierKind.COMFORT:
         addBonus(comfortBonus, modifier.territoryId, modifier.amount);
         break;
+      case ModifierKind.SICKNESS:
+        // Read by `activeSickness`; it changes no territory stat.
+        break;
       default: {
         const never: never = modifier.kind;
         throw new Error(`modifier ${String(never)}`);
@@ -49,6 +53,7 @@ export function aggregateTerritories(
     }
   }
 
+  const sickness = activeSickness(snapshot, tick);
   const stats = new Map<number, TerritoryTick>();
   for (const territory of snapshot.territories) {
     stats.set(territory.id, {
@@ -72,6 +77,7 @@ export function aggregateTerritories(
       ),
       capacity: territory.capacity,
       comfort: comfortRelief(comfortBonus.get(territory.id) ?? 0),
+      sickness: sickness.get(territory.id),
     });
   }
   return stats;

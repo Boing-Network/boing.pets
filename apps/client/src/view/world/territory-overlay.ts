@@ -5,6 +5,7 @@ const EFFECT_LABEL: Record<string, (amount: number) => string> = {
   DANGER: (amount) => `danger ${amount >= 0 ? "+" : ""}${amount}`,
   COMFORT: () => "salt lick",
   HARVEST: (amount) => `gathered ${amount}`,
+  SICKNESS: () => "sickness",
 };
 
 /**

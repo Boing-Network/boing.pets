@@ -212,10 +212,22 @@ often outside its own habitat, less often while resting), and a creature below
 half health is wounded: it heals slowly, so a second blow or a hungry spell can
 kill it. The last four of a species are never killed by a hazard.
 
+Predators are real too: where a stronger meat-eater of another species is
+about, most attacks are its doing. It is fed by them, the victim remembers it,
+and World news says who mauled or killed whom.
+
+Crowded territories now and then fall sick for two days. Four in ten of the
+creatures there catch it, lose health steadily and stop healing until it
+passes or they move on. World news announces the outbreak and the map shows it
+under the territory's name.
+
+A species down to its last four cannot be finished by danger, sickness or
+famine; each leaves it weak but alive.
+
 The Inspector shows each creature's health above its needs, says what would
-help ("A Mending Potion heals it"), marks wounded and starving creatures in the
+help ("A Mending Potion heals it"), marks wounded, sick and starving creatures in the
 list with a red dot, and offers a "creatures need help" filter. The rules are
-in `packages/sim/src/kernel/hazards.ts`.
+in `packages/sim/src/kernel/` (`hazards.ts`, `predators.ts`, `sickness.ts`).
 
 ## Creature rendering
 

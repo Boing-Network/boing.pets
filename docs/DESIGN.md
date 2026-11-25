@@ -109,8 +109,9 @@ db code end up only in the host-worker chunk.
    - Old age: dies once lived ticks ≥ `baseLifespanDays × 144 × (500 + geneStrength) / 1000`,
      which is 0.5× to 1.5× the species lifespan.
    - Need drift, then health drift.
+   - Sickness drain, if the creature caught the outbreak in its territory.
    - Hazard roll (`kernel/hazards.ts`): a hit that takes the last health →
-     `INJURY`.
+     `INJURY`. A predator may be named as its source.
    - Death from drift: hunger ≥ 1000 → `STARVATION`, thirst ≥ 1000 →
      `THIRST`, health ≤ 0 → `ILLNESS`.
    - Resolve the action that ends this tick (or finish a relocate).
@@ -151,6 +152,44 @@ Danger hurts. Each tick a creature rolls against the danger it perceives
 - The numbers are `HAZARD_RULES` in code, not the frozen ruleset (like the
   item catalog), so existing worlds pick them up on load. The roll is
   `rngInt(seed, tick, "hazard", creatureId, …)`.
+
+### Predators (`kernel/predators.ts`)
+
+A hazard hit is often a predator's doing. When a living meat-eater of another
+species, at least as strong as the victim (gene strength) and neither nursing
+nor travelling, is in the territory, 60% of hits are attributed to one of
+them. The predator sheds 150 hunger (350 for a kill), a surviving victim gets
+a `THREAT` memory of it, and the news names both. Predators add no hits of
+their own: the odds of being hurt stay those of `HAZARD_RULES`.
+
+A hit that leaves a creature wounded (health below 500) emits an `INJURY`
+event; lighter hits are silent. A kill by a predator sets `killerId` on the
+`DEATH` payload and reads "X was killed by Y in T at age N."
+
+### Sickness (`kernel/sickness.ts`)
+
+Once a day each territory without an outbreak rolls for one. The chance is 0
+at half capacity or below (or under six creatures) and rises with crowding to
+about 6% a day at capacity, capped at 8%. An outbreak is a `SICKNESS`
+territory modifier lasting two days and emits an `OUTBREAK` event.
+
+- 40% of the creatures there catch it. The roll is
+  `rngInt(seed, startTick, "sickness", creatureId, modifierId)`, so the same
+  creatures stay sick for the whole outbreak and no per-creature state is
+  stored. Nursing young never catch it. Leaving the territory ends it.
+- A sick creature loses 2 health a tick (1 while resting) and does not mend
+  on its own. Untreated, a healthy creature ends the outbreak wounded and an
+  already-hurt one dies (`ILLNESS`).
+- The view marks sick creatures (`CreatureView.sick`) and lists the outbreak
+  among the territory's effects.
+
+### The last of a kind
+
+A species with four or fewer living members cannot be finished by a hazard,
+by sickness or by want: each leaves at least 40 health. (Hunger or thirst at
+1000, and old age, still kill.) Without this a famine in a crowded territory
+could erase a small species in three days; year-long runs on two seeds lost
+up to four species before the guard and none after.
 
 A birth no longer needs the father's row: if he died during the gestation
 (his row may already be pruned from the hot snapshot) the child takes after

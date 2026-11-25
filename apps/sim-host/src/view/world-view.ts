@@ -25,6 +25,8 @@ import {
   type MemoryRow,
   type RelationshipRow,
   type WorldSnapshot,
+  activeSickness,
+  isSick,
 } from "@boing-pets/sim";
 
 export function relationshipLabels(row: RelationshipRow): RelationshipLabel[] {
@@ -203,6 +205,7 @@ function territoryItemExtras(
     "DANGER",
     "COMFORT",
     "HARVEST",
+    "SICKNESS",
   ];
   const effects = order.flatMap((kind) => {
     const row = byKind.get(kind);
@@ -278,18 +281,25 @@ export function buildWorldView(
     list.sort((a, b) => a.id - b.id);
   }
 
+  const sickness = activeSickness(snapshot, tick);
   const creatures = snapshot.creatures
     .slice()
     .sort((a, b) => a.id - b.id)
-    .map((creature) =>
-      toCreatureView(
+    .map((creature) => {
+      const view = toCreatureView(
         creature,
         tick,
         snapshot.ruleset,
         relationshipsByCreature.get(creature.id) ?? [],
         memoriesByCreature.get(creature.id) ?? [],
-      ),
-    );
+      );
+      const sick = isSick(
+        creature,
+        sickness.get(creature.territoryId),
+        snapshot.world.seed,
+      );
+      return sick ? { ...view, sick } : view;
+    });
 
   return {
     world: {

@@ -12,7 +12,14 @@ import { applyInfluences, decayLineageFavor } from "./influences";
 import { applyHealthDrift, applyNeedDrift, type TerritoryTick } from "./needs";
 import { aggregateTerritories } from "./territories";
 import { biologyFor, perceivedDanger } from "./biology";
-import { applyHazard } from "./hazards";
+import { HAZARD_RULES, applyHazard } from "./hazards";
+import { injuryEvent } from "../history/events";
+import {
+  carnivoresByTerritory,
+  pickPredator,
+  resolveAttack,
+} from "./predators";
+import { applySickness, isSick, startOutbreaks } from "./sickness";
 
 function indexById<T extends { id: number }>(
   rows: readonly T[],
@@ -46,6 +53,9 @@ function stepCreatures(
     );
   }
 
+  const carnivores = carnivoresByTerritory(ordered, speciesById);
+  const seed = snapshot.world.seed;
+
   for (const creature of ordered) {
     if (creature.status !== CreatureStatus.ALIVE) continue;
     const species = speciesById.get(creature.speciesId);
@@ -63,19 +73,70 @@ function stepCreatures(
 
     const biology = biologyFor(creature.speciesId);
     applyNeedDrift(creature, creaturesById, rules, territory, biology);
-    applyHealthDrift(creature, rules);
+    const living = speciesLiving.get(creature.speciesId) ?? 0;
+    const sick = isSick(creature, territory.sickness, seed);
+    applyHealthDrift(
+      creature,
+      rules,
+      sick,
+      living <= HAZARD_RULES.endangeredAtMost,
+    );
+    if (sick && territory.sickness) {
+      applySickness(creature, territory.sickness, living);
+    }
     const hazard = applyHazard(
       creature,
-      snapshot.world.seed,
+      seed,
       tick,
       perceivedDanger(biology, territory),
-      speciesLiving.get(creature.speciesId) ?? 0,
+      living,
     );
+    const predator =
+      hazard === "none"
+        ? null
+        : pickPredator(
+            creature,
+            carnivores.get(creature.territoryId),
+            seed,
+            tick,
+          );
+    if (predator) {
+      resolveAttack(snapshot, predator, creature, tick, hazard === "killed");
+    }
     const cause =
       hazard === "killed" ? DeathCause.INJURY : driftDeathCause(creature);
     if (cause) {
-      events.push(die(snapshot, creature, tick, cause, territory.name));
+      events.push(
+        die(
+          snapshot,
+          creature,
+          tick,
+          cause,
+          territory.name,
+          hazard === "killed" ? predator : null,
+        ),
+      );
       continue;
+    }
+    // News only when the blow leaves the creature wounded: that is when a
+    // player's help matters, and it keeps the feed from filling with scrapes.
+    if (hazard === "hurt" && creature.health < HAZARD_RULES.woundedBelow) {
+      const id = snapshot.world.nextEventId;
+      snapshot.world.nextEventId = id + 1;
+      events.push(
+        injuryEvent({
+          id,
+          worldId: snapshot.world.id,
+          tick,
+          creatureId: creature.id,
+          lineageId: creature.lineageId,
+          territoryId: creature.territoryId,
+          name: creature.name,
+          territoryName: territory.name,
+          health: creature.health,
+          attacker: predator ? { id: predator.id, name: predator.name } : null,
+        }),
+      );
     }
 
     if (creature.actionEndsTick === tick) {
@@ -96,7 +157,8 @@ function stepCreatures(
 
 /**
  * Simulate the next tick in place.
- * Influences apply first, then aggregates, creatures, births, and decay.
+ * Influences apply first, then outbreaks, aggregates, creatures, births,
+ * and decay.
  * Creature item uses and crafts (host-issued influences) apply with them;
  * creature loot happens when a FORAGE resolves.
  */
@@ -104,6 +166,7 @@ export function step(snapshot: WorldSnapshot): StepResult {
   const tick = snapshot.world.lastTick + 1;
   const events: WorldEvent[] = [];
   events.push(...applyInfluences(snapshot, tick));
+  startOutbreaks(snapshot, tick, events);
   const territories = aggregateTerritories(snapshot, tick);
   stepCreatures(snapshot, tick, territories, events);
   resolveBirths(snapshot, tick, events);
