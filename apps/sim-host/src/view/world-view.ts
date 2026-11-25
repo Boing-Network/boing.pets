@@ -137,6 +137,7 @@ export function toCreatureView(
       unsafety: creature.unsafety,
       loneliness: creature.loneliness,
     },
+    health: creature.health,
     currentGoal: creature.currentGoal,
     family: {
       motherId: creature.motherId,

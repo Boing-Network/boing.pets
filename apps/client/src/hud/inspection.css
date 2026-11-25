@@ -496,3 +496,59 @@
   max-height: 9.5rem;
   overflow: auto;
 }
+
+/* Creatures that need help: a marker in the list, a filter, and advice. */
+.finder-need {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  border: 1px solid color-mix(in srgb, #e0604f 55%, var(--line));
+  background: color-mix(in srgb, #e0604f 14%, transparent);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.35rem 0.5rem;
+  cursor: pointer;
+  text-align: left;
+}
+.finder-need--on {
+  background: color-mix(in srgb, #e0604f 26%, transparent);
+}
+.finder-need:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+.finder-need-action {
+  margin-left: auto;
+  color: var(--brand);
+}
+.finder-need-dot {
+  display: inline-block;
+  flex: none;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: #e0604f;
+}
+.inspect-picker-btn .finder-need-dot {
+  margin-right: 0.3rem;
+}
+.inspect-health {
+  margin-bottom: 0.35rem;
+}
+.inspect-need-bar--health.inspect-need-bar--0 > span {
+  background: #5fc48a;
+}
+.inspect-condition {
+  margin: 0.5rem 0 0;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  border-left: 3px solid #e0903c;
+  background: color-mix(in srgb, #e0903c 12%, transparent);
+}
+.inspect-condition--2 {
+  border-left-color: #e0604f;
+  background: color-mix(in srgb, #e0604f 14%, transparent);
+}

@@ -14,6 +14,7 @@ import { useUiStore } from "../state/uiStore";
 import { useWorldViewStore } from "../state/worldViewStore";
 import { topMemories } from "./topMemories";
 import { CreatureFinder } from "./CreatureFinder";
+import { creatureCondition, healthLevel } from "./condition";
 import { actionLabel, goalLabel, memoryLabel, memoryStrength } from "./labels";
 import { needLevel, type NeedName } from "./needs";
 import { PanelBar, usePanel } from "./PanelBar";
@@ -58,6 +59,30 @@ function NeedMeters({ rows }: { rows: Array<[NeedName, number]> }) {
           </li>
         );
       })}
+    </ul>
+  );
+}
+
+/** Health reads the other way round from needs: a fuller bar is better. */
+function HealthMeter({ health }: { health: number }) {
+  const level = healthLevel(health);
+  return (
+    <ul className="inspect-need-list inspect-health">
+      <li title={`health ${health} / 1000`}>
+        <span className="inspect-need-name">health</span>
+        <span
+          className={`inspect-need-bar inspect-need-bar--${level.tone} inspect-need-bar--health`}
+          role="meter"
+          aria-label="health"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={level.percent}
+          aria-valuetext={level.label}
+        >
+          <span style={{ width: `${Math.max(3, level.percent)}%` }} />
+        </span>
+        <strong className="inspect-need-label">{level.label}</strong>
+      </li>
     </ul>
   );
 }
@@ -330,6 +355,7 @@ export function InspectionPanel({ ipc }: Props) {
   const labelFor = (id: number): string => nameOf.get(id) ?? `#${id}`;
   const memories = topMemories(creature.memories, 5);
   const alive = creature.status === CreatureStatus.ALIVE;
+  const condition = creatureCondition(creature);
   const lineage =
     view?.lineages.find((row) => row.id === creature.family.lineageId) ?? null;
   const territory =
@@ -452,7 +478,22 @@ export function InspectionPanel({ ipc }: Props) {
 
             <section className="inspect-section">
               <h3>Needs</h3>
+              {alive && creature.health != null ? (
+                <HealthMeter health={creature.health} />
+              ) : null}
               <NeedMeters rows={needRows(creature)} />
+              {condition.level > 0 ? (
+                <p
+                  className={`inspect-condition inspect-condition--${condition.level}`}
+                  role="status"
+                >
+                  <strong>
+                    {condition.level === 2 ? "In danger: " : "Needs help: "}
+                    {condition.reasons.join(", ")}.
+                  </strong>{" "}
+                  {condition.advice}
+                </p>
+              ) : null}
             </section>
 
             <section className="inspect-section">

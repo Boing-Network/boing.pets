@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { skinForSpecies } from "../view/species-skins";
+import { creatureCondition, creaturesInNeed } from "./condition";
 import {
   groupCreatures,
   livingSpecies,
@@ -20,9 +21,17 @@ export function CreatureFinder({ creatures, selectedId, onSelect }: Props) {
   const [query, setQuery] = useState("");
   const [speciesId, setSpeciesId] = useState<number | null>(null);
   const species = useMemo(() => livingSpecies(creatures), [creatures]);
+  const [needOnly, setNeedOnly] = useState(false);
+  const inNeed = useMemo(
+    () => new Set(creaturesInNeed(creatures).map((row) => row.id)),
+    [creatures],
+  );
+  // Nothing left to help: fall back to the full list.
+  const filterNeed = needOnly && inNeed.size > 0;
   const groups = useMemo(
-    () => groupCreatures(creatures, query, speciesId),
-    [creatures, query, speciesId],
+    () =>
+      groupCreatures(creatures, query, speciesId, filterNeed ? inNeed : null),
+    [creatures, query, speciesId, filterNeed, inNeed],
   );
   const shown = groups.reduce((n, g) => n + g.creatures.length, 0);
 
@@ -55,6 +64,22 @@ export function CreatureFinder({ creatures, selectedId, onSelect }: Props) {
           ))}
         </select>
       </div>
+      {inNeed.size > 0 ? (
+        <button
+          type="button"
+          className={filterNeed ? "finder-need finder-need--on" : "finder-need"}
+          aria-pressed={filterNeed}
+          onClick={() => setNeedOnly(!filterNeed)}
+        >
+          <span className="finder-need-dot" aria-hidden="true" />
+          {inNeed.size === 1
+            ? "1 creature needs help"
+            : `${inNeed.size} creatures need help`}
+          <span className="finder-need-action">
+            {filterNeed ? "Show all" : "Show"}
+          </span>
+        </button>
+      ) : null}
       <p className="finder-count" aria-live="polite">
         {shown === 0 ? "No creatures match." : `${shown} shown`}
       </p>
@@ -83,6 +108,12 @@ export function CreatureFinder({ creatures, selectedId, onSelect }: Props) {
                     aria-pressed={row.id === selectedId}
                     onClick={() => onSelect(row.id)}
                   >
+                    {inNeed.has(row.id) ? (
+                      <span
+                        className="finder-need-dot"
+                        title={creatureCondition(row).reasons.join(", ")}
+                      />
+                    ) : null}
                     {row.name}
                   </button>
                 </li>

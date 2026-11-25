@@ -205,6 +205,18 @@ food and potions from their keeper's bag; they only craft if the keeper turns
 that on, and never make tonics. The catalog, recipes and rules live in
 `packages/contract/src/items.ts`.
 
+## Danger, wounds and creatures in need
+
+Danger is real. In a dangerous territory a creature is now and then hurt (more
+often outside its own habitat, less often while resting), and a creature below
+half health is wounded: it heals slowly, so a second blow or a hungry spell can
+kill it. The last four of a species are never killed by a hazard.
+
+The Inspector shows each creature's health above its needs, says what would
+help ("A Mending Potion heals it"), marks wounded and starving creatures in the
+list with a red dot, and offers a "creatures need help" filter. The rules are
+in `packages/sim/src/kernel/hazards.ts`.
+
 ## Creature rendering
 
 Creatures are procedural: no model or texture files. Each of the 42 species

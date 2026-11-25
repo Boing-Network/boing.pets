@@ -109,6 +109,8 @@ db code end up only in the host-worker chunk.
    - Old age: dies once lived ticks ≥ `baseLifespanDays × 144 × (500 + geneStrength) / 1000`,
      which is 0.5× to 1.5× the species lifespan.
    - Need drift, then health drift.
+   - Hazard roll (`kernel/hazards.ts`): a hit that takes the last health →
+     `INJURY`.
    - Death from drift: hunger ≥ 1000 → `STARVATION`, thirst ≥ 1000 →
      `THIRST`, health ≤ 0 → `ILLNESS`.
    - Resolve the action that ends this tick (or finish a relocate).
@@ -127,6 +129,33 @@ db code end up only in the host-worker chunk.
 | unsafety   | moves toward territory danger (halved while resting): +8 up, −4 down (−12 resting)                                       |
 | loneliness | +2, unless approaching someone; −20 while nursing beside the mother                                                      |
 | health     | −40 if hunger or thirst > 950, else −15 if > 800; −5 if fatigue > 900; +5 when hunger and thirst < 400 and fatigue < 500 |
+
+Health recovers at +5 only from 500 up. Below 500 a creature is _wounded_ and
+recovers at +1, so a second blow or a hungry spell can finish it; this is
+where a player's Mending Potion or Hearty Stew changes the outcome.
+
+### Hazards (`kernel/hazards.ts`)
+
+Danger hurts. Each tick a creature rolls against the danger it perceives
+(half inside its own habitat):
+
+- No risk at perceived danger ≤ 150. Above that the chance per tick is
+  0.58 per 100,000 for each point over, and a third of that while resting.
+  A Ridge native (perceives 350) is hit about once in six days; a stranger on
+  the Ridge (700) about once in two.
+- A hit costs 150–520 health and adds 250 unsafety, which sends the creature
+  to shelter. Nursing young never roll.
+- A hit that takes the last health kills with cause `INJURY`, unless the
+  species has four or fewer living members: then it leaves 40 health, so
+  danger alone cannot wipe out the last of a kind.
+- The numbers are `HAZARD_RULES` in code, not the frozen ruleset (like the
+  item catalog), so existing worlds pick them up on load. The roll is
+  `rngInt(seed, tick, "hazard", creatureId, …)`.
+
+A birth no longer needs the father's row: if he died during the gestation
+(his row may already be pruned from the hot snapshot) the child takes after
+its mother alone and the event names "her late mate". Before this a pruned
+sire made `resolveBirths` throw on every tick.
 
 ### Goal-picking AI (`ai/utility.ts`, `ai/actions.ts`)
 
