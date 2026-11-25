@@ -18,6 +18,8 @@ import { creatureCondition, healthLevel } from "./condition";
 import { actionLabel, goalLabel, memoryLabel, memoryStrength } from "./labels";
 import { needLevel, type NeedName } from "./needs";
 import { PanelBar, usePanel } from "./PanelBar";
+import { GoalsCard } from "./GoalsCard";
+import { noteGoal, useGoalStore } from "../state/goalStore";
 import { FollowButton, useFollowedIds } from "./YourCreatures";
 import "./inspection.css";
 
@@ -320,6 +322,11 @@ export function InspectionPanel({ ipc }: Props) {
   const living =
     view?.creatures.filter((row) => row.status === CreatureStatus.ALIVE) ?? [];
   const followed = useFollowedIds();
+  // Goal: looking at the bonds of one of your creatures.
+  useEffect(() => {
+    if (tab !== "bonds" || selectedCreatureId == null) return;
+    if (followed.has(selectedCreatureId)) noteGoal("bonds");
+  }, [tab, selectedCreatureId, followed]);
 
   if (selectedCreatureId == null || !creature) {
     return (
@@ -339,6 +346,7 @@ export function InspectionPanel({ ipc }: Props) {
             Tap a creature in the world or pick one here to see how it is doing,
             rename it, or follow its family.
           </p>
+          <GoalsCard />
           {living.length > 0 ? (
             <CreatureFinder
               creatures={living}
@@ -403,6 +411,7 @@ export function InspectionPanel({ ipc }: Props) {
                     },
                   });
                   renameSentAt.current = Date.now();
+                  useGoalStore.getState().expectName(creature.id, name);
                   setNotice(`Renaming to ${name}…`);
                 }}
               />

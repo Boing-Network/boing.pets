@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { noteGoal } from "../state/goalStore";
+import { creatureCondition } from "./condition";
 import {
   CreatureStatus,
   InfluenceKind,
@@ -181,6 +183,11 @@ export function Workshop({ ipc, ticksPerDay = 144 }: Props) {
   const after = () => setTimeout(refresh, 400);
 
   const use = (payload: UseItemPayload, done: string) => {
+    if (payload.creatureId != null) {
+      noteGoal("gave");
+      const target = view.creatures.find((c) => c.id === payload.creatureId);
+      if (target && creatureCondition(target).level > 0) noteGoal("helped");
+    }
     ipc.send({
       message: "influence.submit",
       body: { kind: InfluenceKind.USE_ITEM, payload },
@@ -321,6 +328,7 @@ export function Workshop({ ipc, ticksPerDay = 144 }: Props) {
                         title="Gathering eats into the food creatures forage here."
                         onClick={() => {
                           if (territory == null || resource == null) return;
+                          noteGoal("gathered");
                           ipc.send({
                             message: "influence.submit",
                             body: {
@@ -591,6 +599,7 @@ export function Workshop({ ipc, ticksPerDay = 144 }: Props) {
                                 : "Missing ingredients"
                             }
                             onClick={() => {
+                              noteGoal("crafted");
                               ipc.send({
                                 message: "item.craft",
                                 body: { output: row.output },

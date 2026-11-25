@@ -652,3 +652,78 @@
   gap: 0.5rem;
   justify-content: flex-end;
 }
+
+/* Goals: the next step, and the list behind it. */
+.goals {
+  margin: 0 0 0.6rem;
+  border: 1px solid var(--line);
+  font-size: 0.75rem;
+}
+.goals summary {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.35rem 0.5rem;
+  cursor: pointer;
+}
+.goals summary:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+.goals-count {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.goals-next {
+  color: var(--ink-muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.goals-hint {
+  margin: 0;
+  padding: 0 0.5rem 0.4rem;
+  line-height: 1.35;
+}
+.goals-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0.5rem 0.45rem;
+  display: grid;
+  gap: 0.15rem;
+  color: var(--ink-muted);
+}
+.goals-list li > span:first-child {
+  display: inline-block;
+  width: 1.1rem;
+}
+.goals-row--done {
+  color: var(--ink);
+}
+.goals-row--done > span:first-child {
+  color: #5fc48a;
+}
+.goal-toast {
+  position: absolute;
+  z-index: 7;
+  top: 0.8rem;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  max-width: calc(100% - 2rem);
+  padding: 0.4rem 0.8rem;
+  border: 1px solid color-mix(in srgb, #5fc48a 55%, var(--line));
+  background: color-mix(in srgb, var(--bg-panel) 94%, transparent);
+  color: var(--ink);
+  font-size: 0.8rem;
+}
+.goal-toast > span {
+  color: #5fc48a;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
