@@ -243,6 +243,13 @@ youngest, and the one with the longest line behind it.
 - Coming back after half a world day or more shows **Since your last visit**:
   what happened to them while you were gone.
 
+**Goals** give a first session a next step and later ones something to aim
+for: nine of them, from "Follow a creature" through gathering, crafting and
+helping a creature in need to "See one of yours have young". The Inspector's
+home view shows the count and the next goal with how to do it, and a short
+notice appears when one is reached. Goals are a guide: they are kept in the
+browser per world and grant nothing (`apps/client/src/hud/goals.ts`).
+
 Following is a bookmark kept in the browser, per world
 (`apps/client/src/hud/follow.ts`, `state/followStore.ts`). It is not ownership
 and grants nothing on the server.
