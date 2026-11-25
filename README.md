@@ -229,6 +229,24 @@ help ("A Mending Potion heals it"), marks wounded, sick and starving creatures i
 list with a red dot, and offers a "creatures need help" filter. The rules are
 in `packages/sim/src/kernel/` (`hazards.ts`, `predators.ts`, `sickness.ts`).
 
+## Your creatures
+
+A world of two hundred strangers is hard to care about, so a player can
+**follow** creatures (the star beside a creature's name, up to twelve). A
+first-time player is offered three to choose from: one that needs help, the
+youngest, and the one with the longest line behind it.
+
+- Followed creatures are listed first in the Inspector as "Your creatures",
+  and the "need help" banner counts them first ("1 of yours needs help").
+- World news has a **Yours** view: a journal of what happened to them over the
+  last three days and since, with a star on their lines in the World view.
+- Coming back after half a world day or more shows **Since your last visit**:
+  what happened to them while you were gone.
+
+Following is a bookmark kept in the browser, per world
+(`apps/client/src/hud/follow.ts`, `state/followStore.ts`). It is not ownership
+and grants nothing on the server.
+
 ## Creature rendering
 
 Creatures are procedural: no model or texture files. Each of the 42 species

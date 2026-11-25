@@ -9,6 +9,7 @@ import { NewsFeed } from "../hud/NewsFeed";
 import { SiteNav } from "../hud/SiteNav";
 import { SoundControl } from "../hud/SoundControl";
 import { Workshop } from "../hud/WorkshopMenu";
+import { VisitPanel } from "../hud/YourCreatures";
 import { useWorldViewStore } from "../state/worldViewStore";
 import "../hud/controls.css";
 import "./shell.css";
@@ -75,6 +76,7 @@ export function App({ ipc, siteNav = true }: Props) {
           </div>
         </div>
         <CatchupPanel />
+        <VisitPanel ipc={ipc} />
         <IntroTip />
       </main>
     </div>

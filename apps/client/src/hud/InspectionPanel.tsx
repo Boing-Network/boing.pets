@@ -18,6 +18,7 @@ import { creatureCondition, healthLevel } from "./condition";
 import { actionLabel, goalLabel, memoryLabel, memoryStrength } from "./labels";
 import { needLevel, type NeedName } from "./needs";
 import { PanelBar, usePanel } from "./PanelBar";
+import { FollowButton, useFollowedIds } from "./YourCreatures";
 import "./inspection.css";
 
 type Props = {
@@ -318,6 +319,7 @@ export function InspectionPanel({ ipc }: Props) {
 
   const living =
     view?.creatures.filter((row) => row.status === CreatureStatus.ALIVE) ?? [];
+  const followed = useFollowedIds();
 
   if (selectedCreatureId == null || !creature) {
     return (
@@ -340,6 +342,7 @@ export function InspectionPanel({ ipc }: Props) {
           {living.length > 0 ? (
             <CreatureFinder
               creatures={living}
+              followed={followed}
               selectedId={null}
               onSelect={selectCreature}
             />
@@ -386,6 +389,7 @@ export function InspectionPanel({ ipc }: Props) {
         <header className="inspect-header">
           <div className="inspect-title-row">
             <h2 className="inspect-name">{creature.name}</h2>
+            <FollowButton creatureId={creature.id} />
             {alive ? (
               <NameEditor
                 what="creature"

@@ -552,3 +552,103 @@
   border-left-color: #e0604f;
   background: color-mix(in srgb, #e0604f 14%, transparent);
 }
+
+/* Your creatures: follow, journal, first pick. */
+.follow-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.15rem 0.45rem;
+  cursor: pointer;
+}
+.follow-btn--on {
+  border-color: color-mix(in srgb, #e6c15a 60%, var(--line));
+  background: color-mix(in srgb, #e6c15a 16%, transparent);
+}
+.follow-btn--on > span {
+  color: #e6c15a;
+}
+.follow-btn:focus-visible,
+.follow-choice:focus-visible,
+.news-filter button:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+.follow-full {
+  flex-basis: 100%;
+  font-size: 0.7rem;
+  color: var(--ink-muted);
+}
+.finder-group--yours .finder-group-title {
+  color: #e6c15a;
+}
+.finder-group--yours .finder-group-title::before {
+  display: none;
+}
+.news-filter {
+  display: flex;
+  gap: 0.3rem;
+  margin-bottom: 0.4rem;
+}
+.news-filter button {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-muted);
+  font: inherit;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  cursor: pointer;
+}
+.news-filter button[aria-pressed="true"] {
+  color: var(--ink);
+  border-color: var(--brand);
+}
+.news-yours {
+  color: #e6c15a;
+}
+.follow-choices {
+  list-style: none;
+  margin: 0.6rem 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+.follow-choice {
+  display: grid;
+  gap: 0.1rem;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg-panel) 80%, transparent);
+  color: var(--ink);
+  font: inherit;
+  padding: 0.45rem 0.6rem;
+  cursor: pointer;
+}
+.follow-choice:hover {
+  border-color: var(--brand);
+}
+.follow-choice > span {
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+}
+.catchup-panel.visit-panel {
+  top: auto;
+  bottom: 4.5rem;
+  z-index: 6;
+}
+.visit-lines time {
+  color: var(--ink-muted);
+  font-size: 0.7rem;
+}
+.visit-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}

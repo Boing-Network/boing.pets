@@ -2,13 +2,19 @@ import { useMemo, useState } from "react";
 import { skinForSpecies } from "../view/species-skins";
 import { creatureCondition, creaturesInNeed } from "./condition";
 import {
+  followedCreatures,
   groupCreatures,
   livingSpecies,
+  needLabel,
   type FinderCreature,
 } from "./finderGroups";
 
+const NONE: ReadonlySet<number> = new Set();
+
 type Props = {
   creatures: readonly FinderCreature[];
+  /** Creatures the player follows: listed first, as "Your creatures". */
+  followed?: ReadonlySet<number>;
   selectedId: number | null;
   onSelect: (id: number) => void;
 };
@@ -17,7 +23,12 @@ type Props = {
  * Search and species filter over every living creature, grouped by species
  * and tinted with each species' glow colour. Replaces a flat wall of names.
  */
-export function CreatureFinder({ creatures, selectedId, onSelect }: Props) {
+export function CreatureFinder({
+  creatures,
+  followed = NONE,
+  selectedId,
+  onSelect,
+}: Props) {
   const [query, setQuery] = useState("");
   const [speciesId, setSpeciesId] = useState<number | null>(null);
   const species = useMemo(() => livingSpecies(creatures), [creatures]);
@@ -34,6 +45,33 @@ export function CreatureFinder({ creatures, selectedId, onSelect }: Props) {
     [creatures, query, speciesId, filterNeed, inNeed],
   );
   const shown = groups.reduce((n, g) => n + g.creatures.length, 0);
+  const yours = useMemo(
+    () => followedCreatures(creatures, followed),
+    [creatures, followed],
+  );
+  const yoursInNeed = yours.filter((row) => inNeed.has(row.id)).length;
+  const row = (creature: FinderCreature) => (
+    <li key={creature.id}>
+      <button
+        type="button"
+        className={
+          creature.id === selectedId
+            ? "inspect-picker-btn inspect-picker-btn--active"
+            : "inspect-picker-btn"
+        }
+        aria-pressed={creature.id === selectedId}
+        onClick={() => onSelect(creature.id)}
+      >
+        {inNeed.has(creature.id) ? (
+          <span
+            className="finder-need-dot"
+            title={creatureCondition(creature).reasons.join(", ")}
+          />
+        ) : null}
+        {creature.name}
+      </button>
+    </li>
+  );
 
   return (
     <div className="finder">
@@ -72,9 +110,7 @@ export function CreatureFinder({ creatures, selectedId, onSelect }: Props) {
           onClick={() => setNeedOnly(!filterNeed)}
         >
           <span className="finder-need-dot" aria-hidden="true" />
-          {inNeed.size === 1
-            ? "1 creature needs help"
-            : `${inNeed.size} creatures need help`}
+          {needLabel(inNeed.size, yoursInNeed)}
           <span className="finder-need-action">
             {filterNeed ? "Show all" : "Show"}
           </span>
@@ -84,6 +120,18 @@ export function CreatureFinder({ creatures, selectedId, onSelect }: Props) {
         {shown === 0 ? "No creatures match." : `${shown} shown`}
       </p>
       <div className="finder-list">
+        {yours.length > 0 &&
+        !filterNeed &&
+        query === "" &&
+        speciesId == null ? (
+          <section className="finder-group finder-group--yours">
+            <h4 className="finder-group-title">
+              ★ Your creatures
+              <span>{yours.length}</span>
+            </h4>
+            <ul className="inspect-picker">{yours.map(row)}</ul>
+          </section>
+        ) : null}
         {groups.map((group) => (
           <section key={group.speciesId} className="finder-group">
             <h4
@@ -95,30 +143,7 @@ export function CreatureFinder({ creatures, selectedId, onSelect }: Props) {
               {group.label}
               <span>{group.creatures.length}</span>
             </h4>
-            <ul className="inspect-picker">
-              {group.creatures.map((row) => (
-                <li key={row.id}>
-                  <button
-                    type="button"
-                    className={
-                      row.id === selectedId
-                        ? "inspect-picker-btn inspect-picker-btn--active"
-                        : "inspect-picker-btn"
-                    }
-                    aria-pressed={row.id === selectedId}
-                    onClick={() => onSelect(row.id)}
-                  >
-                    {inNeed.has(row.id) ? (
-                      <span
-                        className="finder-need-dot"
-                        title={creatureCondition(row).reasons.join(", ")}
-                      />
-                    ) : null}
-                    {row.name}
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <ul className="inspect-picker">{group.creatures.map(row)}</ul>
           </section>
         ))}
       </div>
