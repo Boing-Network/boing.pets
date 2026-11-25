@@ -14,6 +14,7 @@ import {
   ItemSlug,
   resourceForTerritory,
   LOOT_RULES,
+  SEASON_RULES,
   ModifierKind,
   type InfluenceRecord,
   type ItemEventPayload,
@@ -148,7 +149,8 @@ test("lootCheck: no resource, reserve, daily cap and seeded roll", () => {
   const low = world();
   const c4 = inMeadow(low);
   const keep = LOOT_RULES.reserve;
-  for (let i = 0; i < GATHER_RULES.stockCap - keep; i += 1) {
+  const cap = resourceStock(low, meadow, tick)?.cap ?? 0;
+  for (let i = 0; i < cap - keep; i += 1) {
     harvest(low, meadow, tick - 200 - i, 900 + i);
   }
   assert.equal(resourceStock(low, meadow, tick)?.free, keep);
@@ -201,7 +203,7 @@ test("creatures loot on their own, within the stock, reserve and daily cap", () 
           tick < m.endTick,
       ).length;
       assert.ok(
-        outstanding <= GATHER_RULES.stockCap - LOOT_RULES.reserve,
+        outstanding <= SEASON_RULES.plentifulCap - LOOT_RULES.reserve,
         `${territory.slug} at ${tick}: ${outstanding}`,
       );
     }

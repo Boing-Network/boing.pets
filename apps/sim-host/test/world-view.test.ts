@@ -93,8 +93,9 @@ test("M22: territory views carry active effects and gather stock", () => {
 
   assert.deepEqual(meadowView.resource, {
     slug: "resource.clover",
-    free: 10,
-    cap: 12,
+    // Spring: clover is plentiful (16), two units taken.
+    free: 14,
+    cap: 16,
   });
   assert.deepEqual(
     meadowView.effects?.map((e) => e.kind),

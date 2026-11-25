@@ -388,7 +388,8 @@ export function resourceForTerritory(territorySlug: string): ItemSlug | null {
  * Gathering balance. A gather takes 1..maxYield units, never more than the
  * territory's free stock. Each unit draws `foodPerUnit` from the territory's
  * effective food (the same pool creatures forage from) until it regrows
- * `regrowDays` later. With stockCap 12 a territory loses at most 120 food.
+ * `regrowDays` later. `stockCap` is the cap outside a material's good and
+ * bad seasons (seasons.ts: 16 and 8), so a territory loses at most 160 food.
  */
 export const GATHER_RULES = {
   stockCap: 12,
@@ -543,7 +544,8 @@ export type InventoryEntry = {
  * unit. It draws from the same regrowing stock as player gathers (a HARVEST
  * modifier), so creature loot never adds supply beyond `GATHER_RULES`:
  *
- * - `chancePerMille`: roll per successful forage (seeded, replay-safe).
+ * - The roll per successful forage (seeded, replay-safe) depends on the
+ *   creature's genes: see `lootChancePerMille` in seasons.ts.
  * - `reserve`: creatures only loot while more than this many units are free,
  *   so players can always gather the last `reserve` units.
  * - `perTerritoryPerDay`: at most this many creature loots per territory in
@@ -556,7 +558,6 @@ export type InventoryEntry = {
  * the player's 3-per-day influence budget.
  */
 export const LOOT_RULES = {
-  chancePerMille: 300,
   units: 1,
   reserve: 6,
   perTerritoryPerDay: 3,

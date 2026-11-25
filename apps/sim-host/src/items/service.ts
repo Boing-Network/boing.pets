@@ -23,7 +23,6 @@ import {
   AUTONOMY_RULES,
   CreatureStatus,
   DEFAULT_ITEM_AUTONOMY,
-  GATHER_RULES,
   InfluenceKind,
   ItemCategory,
   MINT_RULES,
@@ -1023,7 +1022,7 @@ export function createItemService(options: {
           territoryId: territory.id,
           resource: stock.resource,
           free: stock.free,
-          cap: GATHER_RULES.stockCap,
+          cap: stock.cap,
         });
       }
       return {

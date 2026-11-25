@@ -19,6 +19,8 @@ import { actionLabel, goalLabel, memoryLabel, memoryStrength } from "./labels";
 import { needLevel, type NeedName } from "./needs";
 import { PanelBar, usePanel } from "./PanelBar";
 import { GoalsCard } from "./GoalsCard";
+import { SeasonLine } from "./SeasonLine";
+import { foragingText } from "./seasons";
 import { noteGoal, useGoalStore } from "../state/goalStore";
 import { FollowButton, useFollowedIds } from "./YourCreatures";
 import "./inspection.css";
@@ -98,6 +100,17 @@ function geneRows(creature: CreatureView): Array<[string, number]> {
     ["curiosity", creature.genes.curiosity],
     ["sociability", creature.genes.sociability],
   ];
+}
+
+/** How well this creature finds materials while it forages. */
+function ForagingNote({ creature }: { creature: CreatureView }) {
+  const text = foragingText(creature.genes);
+  return (
+    <p className="inspect-foraging">
+      Finding materials: <strong>{text.grade}</strong>, {text.detail}.
+      Intelligence counts most, then speed and curiosity.
+    </p>
+  );
 }
 
 function traitRows(creature: CreatureView): Array<[string, number]> {
@@ -346,6 +359,7 @@ export function InspectionPanel({ ipc }: Props) {
             Tap a creature in the world or pick one here to see how it is doing,
             rename it, or follow its family.
           </p>
+          <SeasonLine />
           <GoalsCard />
           {living.length > 0 ? (
             <CreatureFinder
@@ -534,6 +548,7 @@ export function InspectionPanel({ ipc }: Props) {
             <section className="inspect-section">
               <h3>Genes</h3>
               <StatList rows={geneRows(creature)} />
+              <ForagingNote creature={creature} />
             </section>
 
             <section className="inspect-section">

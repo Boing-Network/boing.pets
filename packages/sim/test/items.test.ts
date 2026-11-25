@@ -11,6 +11,7 @@ import {
   InfluenceKind,
   ItemSlug,
   ModifierKind,
+  SEASON_RULES,
   type InfluenceSubmit,
 } from "@boing-pets/contract";
 import {
@@ -125,6 +126,9 @@ test("gathering draws from the creature food pool, is capped, and regrows", () =
   pinAll(snapshot);
   const meadow = territoryId(snapshot, "meadow");
   const base = food(snapshot, meadow);
+  // Tick 0 is spring, when clover is plentiful.
+  const cap = SEASON_RULES.plentifulCap;
+  assert.equal(resourceStock(snapshot, meadow, 1)?.cap, cap);
   let granted = 0;
   // Far more gathers than the stock allows, several per tick.
   for (let round = 0; round < 10; round += 1) {
@@ -132,15 +136,12 @@ test("gathering draws from the creature food pool, is capped, and regrows", () =
     granted += gather(snapshot, meadow);
     step(snapshot);
   }
-  assert.equal(granted, GATHER_RULES.stockCap);
+  assert.equal(granted, cap);
   assert.equal(
     resourceStock(snapshot, meadow, snapshot.world.lastTick)?.free,
     0,
   );
-  assert.equal(
-    food(snapshot, meadow),
-    base - GATHER_RULES.stockCap * GATHER_RULES.foodPerUnit,
-  );
+  assert.equal(food(snapshot, meadow), base - cap * GATHER_RULES.foodPerUnit);
   assert.equal(
     snapshot.territories.find((t) => t.id === meadow)?.foodAbundance,
     base,
@@ -156,7 +157,7 @@ test("gathering draws from the creature food pool, is capped, and regrows", () =
   assert.equal(food(snapshot, meadow), base);
   assert.equal(
     resourceStock(snapshot, meadow, snapshot.world.lastTick + 1)?.free,
-    GATHER_RULES.stockCap,
+    cap,
   );
 });
 

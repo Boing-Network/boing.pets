@@ -6,6 +6,7 @@ import {
   InfluenceKind,
   itemDef,
   itemImageSrc,
+  seasonAt,
   type InventoryView,
   type ItemSlug,
   type UseItemPayload,
@@ -15,6 +16,8 @@ import { useUiStore } from "../state/uiStore";
 import { useWorkshopStore } from "../state/workshopStore";
 import { useWorldViewStore } from "../state/worldViewStore";
 import { speciesLabel } from "../view/species-skins";
+import { SeasonLine } from "./SeasonLine";
+import { abundanceLabel } from "./seasons";
 import {
   RECIPE_FILTERS,
   filterRecipes,
@@ -127,6 +130,7 @@ export function Workshop({ ipc, ticksPerDay = 144 }: Props) {
 
   if (!view) return null;
 
+  const season = seasonAt(view.world.lastTick, ticksPerDay).season;
   const items = inventory?.items ?? [];
   const ready = readyCount(items);
   const canCraft = inventory?.canHoldItems ?? false;
@@ -280,6 +284,7 @@ export function Workshop({ ipc, ticksPerDay = 144 }: Props) {
           ) : (
             <div className="ws-body">
               <section className="ws-bag" aria-label="Your bag">
+                <SeasonLine ticksPerDay={ticksPerDay} />
                 <h3 className="ws-heading">Materials</h3>
                 <ul className="ws-materials">
                   {materials.map((row) => (
@@ -294,6 +299,13 @@ export function Workshop({ ipc, ticksPerDay = 144 }: Props) {
                       <span className="ws-material-where">
                         {where(row.sources)}
                       </span>
+                      {abundanceLabel(row.slug, season) !== "" ? (
+                        <span
+                          className={`ws-material-season is-${abundanceLabel(row.slug, season)}`}
+                        >
+                          {abundanceLabel(row.slug, season)}
+                        </span>
+                      ) : null}
                     </li>
                   ))}
                 </ul>
