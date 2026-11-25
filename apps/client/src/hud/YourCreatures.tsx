@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { IpcClient } from "../api/ipc";
 import { useFollowStore } from "../state/followStore";
+import { useWorkshopStore } from "../state/workshopStore";
 import { useUiStore } from "../state/uiStore";
 import { useWorldViewStore } from "../state/worldViewStore";
 import { speciesLabel } from "../view/species-skins";
@@ -198,6 +199,7 @@ export function FollowPrompt() {
   const toggle = useFollowStore((s) => s.toggle);
   const dismiss = useFollowStore((s) => s.dismissPrompt);
   const selectCreature = useUiStore((s) => s.selectCreature);
+  const workshopOpen = useWorkshopStore((s) => s.open);
   const suggestions = useMemo(
     () => suggestFollows(creatures ?? []),
     // Suggestions are fixed while the card is open: names must not shuffle
@@ -207,6 +209,8 @@ export function FollowPrompt() {
 
   if (key == null || entry.ids.length > 0 || entry.promptDismissed) return null;
   if (suggestions.length === 0) return null;
+  // The Workshop fills the screen; the prompt waits until it is closed.
+  if (workshopOpen) return null;
 
   return (
     <section

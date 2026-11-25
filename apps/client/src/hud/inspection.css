@@ -727,3 +727,25 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+.season-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.5rem;
+  margin: 0 0 0.6rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+.season-line span {
+  color: var(--ink-muted);
+}
+
+.inspect-foraging {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--ink-muted);
+}
+.inspect-foraging strong {
+  color: var(--ink);
+}

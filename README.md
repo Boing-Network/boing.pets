@@ -205,6 +205,32 @@ food and potions from their keeper's bag; they only craft if the keeper turns
 that on, and never make tonics. The catalog, recipes and rules live in
 `packages/contract/src/items.ts`.
 
+**Seasons** turn on the world's own clock: spring, summer, autumn and winter,
+a week of world days each, starting from spring on day one. Each material has
+a season when it is plentiful (a territory holds 16 to gather instead of 12)
+and one when it is scarce (8):
+
+| Material      | Plentiful | Scarce |
+| :------------ | :-------- | :----- |
+| Clover        | Spring    | Winter |
+| Thornberry    | Summer    | Spring |
+| Glowmoss      | Autumn    | Summer |
+| Amber resin   | Autumn    | Winter |
+| Crystal shard | Winter    | Spring |
+| Moonpetal     | Winter    | Summer |
+
+Creatures leave the last six units of a territory's stock for players, so in a
+scarce season they bring back much less of that material. The Inspector and
+the Workshop show the season and what it changes.
+
+**Finding materials depends on the creature.** The chance that a forage also
+turns up a material runs from 1 in 10 to 5 in 10 with the creature's genes:
+intelligence counts double, then speed and curiosity. An average creature
+finds as often as before (3 in 10). The Inspector's Nature tab shows each
+creature's grade (Keen, Fair or Poor), so Insight and Swiftness tonics, and
+breeding, now pay back in materials. The rules are in
+`packages/contract/src/seasons.ts`.
+
 ## Danger, wounds and creatures in need
 
 Danger is real. In a dangerous territory a creature is now and then hurt (more

@@ -28,6 +28,7 @@ import {
   creatureCraftable,
   creatureUseRule,
   itemDef,
+  lootChancePerMille,
   resourceForTerritory,
   type ItemSlug,
 } from "@boing-pets/contract";
@@ -108,7 +109,13 @@ export function lootCheck(
     0,
     999,
   );
-  if (roll >= LOOT_RULES.chancePerMille) return { ok: false, reason: "roll" };
+  // A sharper, quicker, more curious creature finds more.
+  const chance = lootChancePerMille({
+    intelligence: creature.geneIntelligence,
+    speed: creature.geneSpeed,
+    curiosity: creature.geneCuriosity,
+  });
+  if (roll >= chance) return { ok: false, reason: "roll" };
   return { ok: true, resource, units };
 }
 

@@ -15,6 +15,8 @@ import {
   ModifierKind,
   itemDef,
   resourceForTerritory,
+  seasonAt,
+  stockCapFor,
   type GatherResourcePayload,
   type ItemSlug,
 } from "@boing-pets/contract";
@@ -72,7 +74,12 @@ export function resourceStock(
     const payload = row.payload as GatherResourcePayload;
     if (payload.territoryId === territoryId) taken += payload.units;
   }
-  const cap = GATHER_RULES.stockCap;
+  // The season sets how much a territory holds. When the cap drops with a
+  // new season, units already taken simply leave less (never below zero).
+  const cap = stockCapFor(
+    resource,
+    seasonAt(tick, snapshot.ruleset.ticksPerDay).season,
+  );
   return {
     territoryId,
     resource,

@@ -644,3 +644,18 @@
     padding: 0.5rem 0.9rem;
   }
 }
+
+.ws-material-season {
+  margin-top: 0.15rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ws-material-season.is-plentiful {
+  color: var(--glow);
+}
+
+.ws-material-season.is-scarce {
+  color: #e6a35c;
+}

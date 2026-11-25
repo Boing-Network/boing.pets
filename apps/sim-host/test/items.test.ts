@@ -327,7 +327,7 @@ test("gather fills the bag without spending renames, and guests are refused", as
 
   const bag = await inventory(WALLET);
   const clover = bag.items.find((row) => row.slug === ItemSlug.CLOVER);
-  assert.ok(clover && clover.count >= 5 && clover.count <= 12);
+  assert.ok(clover && clover.count >= 5 && clover.count <= 16);
   // The client cannot pick the resource or the yield.
   assert.ok(!bag.items.some((row) => row.slug === ItemSlug.GLOWMOSS));
   const pending = runtime.session.snapshot.pendingInfluences.filter(
@@ -339,7 +339,9 @@ test("gather fills the bag without spending renames, and guests are refused", as
   );
   assert.equal(granted, clover.count);
   const stock = bag.stocks.find((row) => row.territoryId === meadow);
-  assert.equal(stock?.free, 12 - granted);
+  // Spring: clover is plentiful, so the meadow holds 16.
+  assert.equal(stock?.cap, 16);
+  assert.equal(stock?.free, 16 - granted);
 });
 
 test("craft then use a seed bundle; using debits once and needs the item", async () => {
