@@ -21,6 +21,8 @@ export type GoalFacts = {
   named: number;
   /** Births to a followed creature. */
   young: number;
+  /** Territory requests answered with the item asked for. */
+  answered: number;
 };
 
 export type GoalFact = keyof GoalFacts;
@@ -34,6 +36,7 @@ export const EMPTY_GOAL_FACTS: GoalFacts = {
   helped: 0,
   named: 0,
   young: 0,
+  answered: 0,
 };
 
 export type Goal = {
@@ -81,6 +84,12 @@ export const GOALS: readonly Goal[] = [
     title: "Help a creature in need",
     hint: "Give a Mending Potion or Hearty Stew to a creature with a red dot.",
     done: (f) => f.helped >= 1,
+  },
+  {
+    id: "answer",
+    title: "Answer a territory request",
+    hint: "Requests in the Inspector show what a territory needs. Use that item there.",
+    done: (f) => f.answered >= 1,
   },
   {
     id: "name",

@@ -16,6 +16,8 @@ import { useUiStore } from "../state/uiStore";
 import { useWorkshopStore } from "../state/workshopStore";
 import { useWorldViewStore } from "../state/worldViewStore";
 import { speciesLabel } from "../view/species-skins";
+import { useTerritoryRequests } from "./RequestsCard";
+import { answersRequest } from "./requests";
 import { SeasonLine } from "./SeasonLine";
 import { abundanceLabel } from "./seasons";
 import {
@@ -87,7 +89,10 @@ export function Workshop({ ipc, ticksPerDay = 144 }: Props) {
     ipc
       .query({ message: "query.inventory", body: {} })
       .then((result) => {
-        if (result.message === "query.inventory") setInventory(result.body);
+        if (result.message === "query.inventory") {
+          setInventory(result.body);
+          useWorkshopStore.getState().setBag(result.body.items);
+        }
       })
       .catch(() => {
         // Offline or busy: keep showing the last bag; the next poll retries.
@@ -127,6 +132,20 @@ export function Workshop({ ipc, ticksPerDay = 144 }: Props) {
     }
     wasOpen.current = open;
   }, [open, refresh]);
+
+  // Another panel (a territory request) asked for a territory: show the
+  // bag with it chosen, and the creature to give to when there is one.
+  const focus = useWorkshopStore((s) => s.focus);
+  const clearFocus = useWorkshopStore((s) => s.clearFocus);
+  useEffect(() => {
+    if (focus == null) return;
+    setTerritoryId(focus.territoryId);
+    setTab("bag");
+    if (focus.creatureId != null) selectCreature(focus.creatureId);
+    clearFocus();
+  }, [focus, clearFocus, selectCreature]);
+
+  const requests = useTerritoryRequests();
 
   if (!view) return null;
 
@@ -187,10 +206,23 @@ export function Workshop({ ipc, ticksPerDay = 144 }: Props) {
   const after = () => setTimeout(refresh, 400);
 
   const use = (payload: UseItemPayload, done: string) => {
+    const target =
+      payload.creatureId != null
+        ? view.creatures.find((c) => c.id === payload.creatureId)
+        : undefined;
     if (payload.creatureId != null) {
       noteGoal("gave");
-      const target = view.creatures.find((c) => c.id === payload.creatureId);
       if (target && creatureCondition(target).level > 0) noteGoal("helped");
+    }
+    if (
+      answersRequest(requests, {
+        item: payload.item,
+        territoryId: payload.territoryId,
+        creatureTerritoryId:
+          target?.sick === true ? target.territoryId : undefined,
+      })
+    ) {
+      noteGoal("answered");
     }
     ipc.send({
       message: "influence.submit",
