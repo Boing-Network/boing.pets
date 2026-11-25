@@ -270,11 +270,23 @@ youngest, and the one with the longest line behind it.
   what happened to them while you were gone.
 
 **Goals** give a first session a next step and later ones something to aim
-for: nine of them, from "Follow a creature" through gathering, crafting and
+for: ten of them, from "Follow a creature" through gathering, crafting and
 helping a creature in need to "See one of yours have young". The Inspector's
 home view shows the count and the next goal with how to do it, and a short
 notice appears when one is reached. Goals are a guide: they are kept in the
 browser per world and grant nothing (`apps/client/src/hud/goals.ts`).
+
+**Requests** show where the Workshop is needed. A territory asks when its
+creatures are struggling: sickness (any sick creature; wants a Mending Potion
+for one of them), hunger (Seed bundle or Rations Pack), fear (Calm Potion), or
+thirst and restlessness (Salt lick). Apart from sickness, a territory asks
+only when at least two creatures, and a quarter of those living there, are
+past 650 on that need, and it stops asking once that kind of help is in
+effect. The Inspector's home view lists the three most pressing with whether
+the item is in the bag, can be crafted, or what it still needs; the button
+opens the Workshop's bag on that territory. A request is a pointer, not a
+contract: answering it is using the item there, and the reward is the item's
+own effect (`apps/client/src/hud/requests.ts`).
 
 Following is a bookmark kept in the browser, per world
 (`apps/client/src/hud/follow.ts`, `state/followStore.ts`). It is not ownership

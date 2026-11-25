@@ -749,3 +749,68 @@
 .inspect-foraging strong {
   color: var(--ink);
 }
+
+.requests {
+  margin: 0 0 0.6rem;
+  border: 1px solid var(--line);
+  font-size: 0.75rem;
+}
+.requests-title {
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+  margin: 0;
+  padding: 0.35rem 0.5rem 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.requests-count {
+  color: var(--ink-muted);
+  font-weight: 400;
+}
+.requests-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.requests-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.3rem 0.5rem;
+  border-top: 1px solid var(--line);
+}
+.requests-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.35;
+}
+.requests-text span {
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;
+}
+.requests-go {
+  flex: none;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.requests-go.is-ready {
+  border-color: var(--glow);
+  color: var(--glow);
+}
+.requests-go:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+.requests-more {
+  margin: 0;
+  padding: 0.25rem 0.5rem 0.35rem;
+  border-top: 1px solid var(--line);
+  color: var(--ink-muted);
+}

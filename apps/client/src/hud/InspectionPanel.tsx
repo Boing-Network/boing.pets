@@ -19,6 +19,7 @@ import { actionLabel, goalLabel, memoryLabel, memoryStrength } from "./labels";
 import { needLevel, type NeedName } from "./needs";
 import { PanelBar, usePanel } from "./PanelBar";
 import { GoalsCard } from "./GoalsCard";
+import { RequestsCard } from "./RequestsCard";
 import { SeasonLine } from "./SeasonLine";
 import { foragingText } from "./seasons";
 import { noteGoal, useGoalStore } from "../state/goalStore";
@@ -361,6 +362,7 @@ export function InspectionPanel({ ipc }: Props) {
           </p>
           <SeasonLine />
           <GoalsCard />
+          <RequestsCard />
           {living.length > 0 ? (
             <CreatureFinder
               creatures={living}
